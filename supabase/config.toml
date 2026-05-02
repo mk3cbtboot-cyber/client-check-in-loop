@@ -1,1 +1,7 @@
 project_id = "mzwsjiuwctmlioloqswj"
+
+[functions.verify-checkin-token]
+verify_jwt = false
+
+[functions.submit-checkin]
+verify_jwt = false
