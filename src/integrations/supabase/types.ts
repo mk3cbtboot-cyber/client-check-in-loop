@@ -94,6 +94,47 @@ export type Database = {
         }
         Relationships: []
       }
+      recipes: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          ingredients: Json
+          instructions: Json
+          name: string
+          prep_time: string
+          servings: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          ingredients?: Json
+          instructions?: Json
+          name: string
+          prep_time: string
+          servings: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          ingredients?: Json
+          instructions?: Json
+          name?: string
+          prep_time?: string
+          servings?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
