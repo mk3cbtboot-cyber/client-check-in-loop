@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import CheckIn from "./pages/CheckIn";
+import ClientPortal from "./pages/ClientPortal";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/checkin/:token" element={<CheckIn />} />
+          <Route path="/portal/:token" element={<ClientPortal />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
