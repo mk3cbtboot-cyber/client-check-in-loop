@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
           },
           {
             role: "user",
-            content: `Allowed ingredients: ${foodList}\n\nGenerate 3 recipes.`,
+            content: `Nutritional prescription (every ingredient must appear in every recipe at the exact specified quantity):\n${foodList}\n\nGenerate 3 creative recipes. Each recipe must include ALL of the above ingredients with their exact quantities.`,
           },
         ],
         tools: [
