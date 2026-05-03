@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
           {
             role: "system",
             content:
-              "You are a nutrition coach assistant. Generate exactly 3 recipes that ONLY use ingredients from the provided allowed food list. Do not introduce any ingredient outside the list (basic salt, pepper, and water are allowed). Return your answer ONLY by calling the provided tool.",
+              "You are a nutrition coach assistant. Generate exactly 3 recipes that ONLY use ingredients from the provided allowed food list. Do not introduce any ingredient outside the list (basic salt, pepper, and water are allowed).\n\nCRITICAL QUANTITY RULE: If the food list specifies a quantity for an ingredient (e.g. '2 teaspoons olive oil', '100g chicken'), every recipe that uses that ingredient MUST use EXACTLY that quantity — verbatim, with the same unit and number. Do NOT scale, adjust, approximate, split, or aggregate quantities across recipes. Do NOT convert units. If an ingredient has no specified quantity, you may choose a reasonable amount. When listing the ingredient in a recipe, write the quantity exactly as given in the food list.\n\nReturn your answer ONLY by calling the provided tool.",
           },
           {
             role: "user",
