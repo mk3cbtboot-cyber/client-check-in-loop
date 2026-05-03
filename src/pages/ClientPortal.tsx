@@ -73,12 +73,28 @@ export default function ClientPortal() {
     for (const c of option.components) {
       if (!c.optional && !picks[c.key]) return toast.error(`Choose: ${c.label}`);
     }
+    // Detect veg1/veg2 split: if both selected, split the combined gram qty evenly
+    const veg1 = option.components.find((c) => c.key === "veg1");
+    const veg2 = option.components.find((c) => c.key === "veg2");
+    const bothVeg = veg1 && veg2 && picks["veg1"] && picks["veg2"];
+    let veg1Qty = veg1?.qty ?? "";
+    let veg2Qty = veg2?.qty ?? "";
+    if (bothVeg) {
+      const m = (veg1!.qty || "").match(/(\d+(?:\.\d+)?)\s*g/i);
+      if (m) {
+        const half = Math.round(parseFloat(m[1]) / 2);
+        veg1Qty = `${half}g`;
+        veg2Qty = `${half}g`;
+      }
+    }
     const ingredients = [
       ...(option.fixed ?? []).map((f) => ({ label: f.label, qty: f.qty })),
-      ...option.components.filter((c) => picks[c.key]).map((c) => ({
-        label: `${c.label}: ${picks[c.key]}`,
-        qty: c.qty || "see option",
-      })),
+      ...option.components.filter((c) => picks[c.key]).map((c) => {
+        let qty = c.qty || "see option";
+        if (c.key === "veg1") qty = veg1Qty || qty;
+        if (c.key === "veg2") qty = veg2Qty || "see option";
+        return { label: `${c.label}: ${picks[c.key]}`, qty };
+      }),
     ];
     setGenerating(true);
     setRecipe(null);
