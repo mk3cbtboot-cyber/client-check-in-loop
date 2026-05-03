@@ -51,28 +51,49 @@ export type Database = {
       }
       clients: {
         Row: {
+          avocado_count_week: number
           created_at: string
+          egg_count_week: number
           email: string
           id: string
           magic_token: string
+          meal_streak: number
           name: string
+          phase: number
           practitioner_id: string
+          water_date: string
+          water_today_litres: number
+          week_reset_date: string
         }
         Insert: {
+          avocado_count_week?: number
           created_at?: string
+          egg_count_week?: number
           email: string
           id?: string
           magic_token?: string
+          meal_streak?: number
           name: string
+          phase?: number
           practitioner_id: string
+          water_date?: string
+          water_today_litres?: number
+          week_reset_date?: string
         }
         Update: {
+          avocado_count_week?: number
           created_at?: string
+          egg_count_week?: number
           email?: string
           id?: string
           magic_token?: string
+          meal_streak?: number
           name?: string
+          phase?: number
           practitioner_id?: string
+          water_date?: string
+          water_today_litres?: number
+          week_reset_date?: string
         }
         Relationships: []
       }
