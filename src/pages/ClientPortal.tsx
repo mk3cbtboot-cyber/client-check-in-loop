@@ -305,7 +305,7 @@ export default function ClientPortal() {
                   <ul className="list-disc list-inside text-sm space-y-1">{recipe.recipe.map((r, i) => <li key={i}>{r}</li>)}</ul>
                 </TabsContent>
                 <TabsContent value="method" className="pt-3">
-                  <ol className="list-decimal list-inside text-sm space-y-1">{recipe.method.map((s, i) => <li key={i}>{s}</li>)}</ol>
+                  <div className="text-sm space-y-2">{recipe.method.map((s, i) => <p key={i}>{s}</p>)}</div>
                 </TabsContent>
                 <TabsContent value="notes" className="pt-3">
                   <ul className="list-disc list-inside text-sm space-y-1">{recipe.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
