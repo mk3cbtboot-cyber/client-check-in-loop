@@ -40,6 +40,7 @@ export default function ClientPortal() {
   const [meal, setMeal] = useState<MealType | null>(null);
   const [option, setOption] = useState<OptionDef | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
+  const [oil, setOil] = useState<string>("none");
   
   const [generating, setGenerating] = useState(false);
   const [recipe, setRecipe] = useState<{ recipe_title: string; recipe: string[]; method: string[]; notes: string[] } | null>(null);
@@ -79,8 +80,18 @@ export default function ClientPortal() {
     setOption(o);
     setMeal(m);
     setPicks({});
+    setOil("none");
     setRecipe(null);
   };
+
+  const OIL_OPTIONS = [
+    { value: "none", label: "None" },
+    { value: "Cold-Pressed Olive Oil", label: "Cold-Pressed Olive Oil" },
+    { value: "Cold-Pressed Flaxseed Oil", label: "Cold-Pressed Flaxseed Oil" },
+    { value: "Cold-Pressed Coconut Oil", label: "Cold-Pressed Coconut Oil" },
+    { value: "Avocado Oil", label: "Avocado Oil" },
+    { value: "Ghee (clarified butter)", label: "Ghee (clarified butter)" },
+  ];
 
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
     const items = sources.flatMap((s) => MB_FOODS[s]);
@@ -124,7 +135,7 @@ export default function ClientPortal() {
     setRecipe(null);
     try {
       const { data, error } = await supabase.functions.invoke("generate-mb-recipe", {
-        body: { token, meal_type: meal, option_label: option.label, ingredients },
+        body: { token, meal_type: meal, option_label: option.label, ingredients, oil: oilAllowed(client!.phase) ? oil : "none" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -264,24 +275,46 @@ export default function ClientPortal() {
                   {option.components.map((comp) => {
                     const items = filteredSources(comp.sources);
                     const showAvocadoNote = comp.sources.includes("vegetables") && (client.avocado_count_week >= 3);
+                    const showOilBefore = oilAllowed(client.phase) && comp.key === "fruit";
                     return (
-                      <div key={comp.key} className="space-y-1">
-                        <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {comp.qty}</span>}</Label>
-                        <Select value={picks[comp.key] ?? ""} onValueChange={(v) => setPicks((p) => ({ ...p, [comp.key]: v }))}>
-                          <SelectTrigger><SelectValue placeholder={comp.optional ? "Optional" : "Select…"} /></SelectTrigger>
-                          <SelectContent>
-                            {items.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                        {showAvocadoNote && <p className="text-xs text-muted-foreground">Avocado limit reached this week.</p>}
+                      <div key={comp.key} className="space-y-3">
+                        {showOilBefore && (
+                          <div className="space-y-1">
+                            <Label>Oil (optional)</Label>
+                            <Select value={oil} onValueChange={setOil}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {OIL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">Up to 1 tbsp (15ml) per meal · max 3 tbsp total per day.</p>
+                          </div>
+                        )}
+                        <div className="space-y-1">
+                          <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {comp.qty}</span>}</Label>
+                          <Select value={picks[comp.key] ?? ""} onValueChange={(v) => setPicks((p) => ({ ...p, [comp.key]: v }))}>
+                            <SelectTrigger><SelectValue placeholder={comp.optional ? "Optional" : "Select…"} /></SelectTrigger>
+                            <SelectContent>
+                              {items.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          {showAvocadoNote && <p className="text-xs text-muted-foreground">Avocado limit reached this week.</p>}
+                        </div>
                       </div>
                     );
                   })}
 
-                  {oilAllowed(client.phase) && (
-                    <p className="text-xs text-muted-foreground">
-                      Up to 1 tablespoon of cold-pressed oil per meal is allowed in your current phase.
-                    </p>
+                  {oilAllowed(client.phase) && !option.components.some((c) => c.key === "fruit") && (
+                    <div className="space-y-1">
+                      <Label>Oil (optional)</Label>
+                      <Select value={oil} onValueChange={setOil}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {OIL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">Up to 1 tbsp (15ml) per meal · max 3 tbsp total per day.</p>
+                    </div>
                   )}
 
                   <Button onClick={generate} disabled={generating} className="w-full">
