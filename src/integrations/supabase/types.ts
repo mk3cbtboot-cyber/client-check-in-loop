@@ -59,7 +59,7 @@ export type Database = {
           magic_token: string
           meal_streak: number
           name: string
-          phase: number
+          phase: string
           practitioner_id: string
           water_date: string
           water_today_litres: number
@@ -74,7 +74,7 @@ export type Database = {
           magic_token?: string
           meal_streak?: number
           name: string
-          phase?: number
+          phase?: string
           practitioner_id: string
           water_date?: string
           water_today_litres?: number
@@ -89,7 +89,7 @@ export type Database = {
           magic_token?: string
           meal_streak?: number
           name?: string
-          phase?: number
+          phase?: string
           practitioner_id?: string
           water_date?: string
           water_today_litres?: number

@@ -12,11 +12,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { toast } from "sonner";
 import { Home, ClipboardCheck, BookOpen } from "lucide-react";
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
+import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
 
 interface ClientState {
   id: string;
   name: string;
-  phase: number;
+  phase: Phase;
   avocado_count_week: number;
   egg_count_week: number;
   water_today_litres: number;
@@ -39,7 +40,7 @@ export default function ClientPortal() {
   const [meal, setMeal] = useState<MealType | null>(null);
   const [option, setOption] = useState<OptionDef | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
-  const [phaseVariant, setPhaseVariant] = useState<"strict" | "extended">("strict");
+  
   const [generating, setGenerating] = useState(false);
   const [recipe, setRecipe] = useState<{ recipe_title: string; recipe: string[]; method: string[]; notes: string[] } | null>(null);
 
@@ -123,7 +124,7 @@ export default function ClientPortal() {
     setRecipe(null);
     try {
       const { data, error } = await supabase.functions.invoke("generate-mb-recipe", {
-        body: { token, meal_type: meal, option_label: option.label, ingredients, phase_variant: phaseVariant },
+        body: { token, meal_type: meal, option_label: option.label, ingredients },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -181,7 +182,7 @@ export default function ClientPortal() {
       <header className="border-b">
         <div className="max-w-5xl mx-auto p-4">
           <h1 className="text-xl font-semibold">Hi {client.name}</h1>
-          <p className="text-xs text-muted-foreground">Metabolic Balance · Phase {client.phase}</p>
+          <p className="text-xs text-muted-foreground">Metabolic Balance · {phaseShort(client.phase)}</p>
         </div>
       </header>
 
@@ -225,67 +226,70 @@ export default function ClientPortal() {
             </Card>
           </Collapsible>
 
-          <div className="grid grid-cols-3 gap-2">
-            {(["breakfast","lunch","dinner"] as MealType[]).map((m) => (
-              <Button key={m} variant={meal === m ? "default" : "outline"} onClick={() => { setMeal(m); setOption(null); setRecipe(null); }}>
-                {m[0].toUpperCase() + m.slice(1)}
-              </Button>
-            ))}
-          </div>
-
-          {meal && (
-            <Card className="p-4 space-y-3">
-              <p className="text-sm font-medium">Choose a {meal} option</p>
-              <div className="grid gap-2 md:grid-cols-3">
-                {MB_OPTIONS[meal].map((o) => (
-                  <Button key={o.id} variant={option?.id === o.id ? "default" : "outline"} className="h-auto py-3 text-left whitespace-normal" onClick={() => pickOption(meal, o)}>
-                    <span className="text-xs">Option {o.id} — {o.label}</span>
+          {!recipeBuilderEnabled(client.phase) ? (
+            <Card className="p-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                The recipe builder is not available during Phase 1. Focus on the meal structure in your My Plan tab.
+              </p>
+            </Card>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-2">
+                {(["breakfast","lunch","dinner"] as MealType[]).map((m) => (
+                  <Button key={m} variant={meal === m ? "default" : "outline"} onClick={() => { setMeal(m); setOption(null); setRecipe(null); }}>
+                    {m[0].toUpperCase() + m.slice(1)}
                   </Button>
                 ))}
               </div>
-            </Card>
-          )}
 
-          {option && meal && (
-            <Card className="p-4 space-y-4">
-              <p className="font-medium">{option.label}</p>
-              {option.fixed?.map((f, i) => (
-                <p key={i} className="text-sm text-muted-foreground">Fixed: <span className="font-medium text-foreground">{f.label} — {f.qty}</span></p>
-              ))}
-              {option.components.map((comp) => {
-                const items = filteredSources(comp.sources);
-                const showAvocadoNote = comp.sources.includes("vegetables") && (client.avocado_count_week >= 3);
-                return (
-                  <div key={comp.key} className="space-y-1">
-                    <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {comp.qty}</span>}</Label>
-                    <Select value={picks[comp.key] ?? ""} onValueChange={(v) => setPicks((p) => ({ ...p, [comp.key]: v }))}>
-                      <SelectTrigger><SelectValue placeholder={comp.optional ? "Optional" : "Select…"} /></SelectTrigger>
-                      <SelectContent>
-                        {items.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    {showAvocadoNote && <p className="text-xs text-muted-foreground">Avocado limit reached this week.</p>}
+              {meal && (
+                <Card className="p-4 space-y-3">
+                  <p className="text-sm font-medium">Choose a {meal} option</p>
+                  <div className="grid gap-2 md:grid-cols-3">
+                    {MB_OPTIONS[meal].map((o) => (
+                      <Button key={o.id} variant={option?.id === o.id ? "default" : "outline"} className="h-auto py-3 text-left whitespace-normal" onClick={() => pickOption(meal, o)}>
+                        <span className="text-xs">Option {o.id} — {o.label}</span>
+                      </Button>
+                    ))}
                   </div>
-                );
-              })}
-
-              {client.phase === 2 && (
-                <div className="space-y-1">
-                  <Label>Phase 2 sub-phase</Label>
-                  <Select value={phaseVariant} onValueChange={(v: any) => setPhaseVariant(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="strict">Strict (first 14 days, no oil)</SelectItem>
-                      <SelectItem value="extended">Extended (small amount of cold-pressed oil)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                </Card>
               )}
 
-              <Button onClick={generate} disabled={generating} className="w-full">
-                {generating ? "Generating recipe…" : "Generate Recipe"}
-              </Button>
-            </Card>
+              {option && meal && (
+                <Card className="p-4 space-y-4">
+                  <p className="font-medium">{option.label}</p>
+                  {option.fixed?.map((f, i) => (
+                    <p key={i} className="text-sm text-muted-foreground">Fixed: <span className="font-medium text-foreground">{f.label} — {f.qty}</span></p>
+                  ))}
+                  {option.components.map((comp) => {
+                    const items = filteredSources(comp.sources);
+                    const showAvocadoNote = comp.sources.includes("vegetables") && (client.avocado_count_week >= 3);
+                    return (
+                      <div key={comp.key} className="space-y-1">
+                        <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {comp.qty}</span>}</Label>
+                        <Select value={picks[comp.key] ?? ""} onValueChange={(v) => setPicks((p) => ({ ...p, [comp.key]: v }))}>
+                          <SelectTrigger><SelectValue placeholder={comp.optional ? "Optional" : "Select…"} /></SelectTrigger>
+                          <SelectContent>
+                            {items.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        {showAvocadoNote && <p className="text-xs text-muted-foreground">Avocado limit reached this week.</p>}
+                      </div>
+                    );
+                  })}
+
+                  {oilAllowed(client.phase) && (
+                    <p className="text-xs text-muted-foreground">
+                      Up to 1 tablespoon of cold-pressed oil per meal is allowed in your current phase.
+                    </p>
+                  )}
+
+                  <Button onClick={generate} disabled={generating} className="w-full">
+                    {generating ? "Generating recipe…" : "Generate Recipe"}
+                  </Button>
+                </Card>
+              )}
+            </>
           )}
 
           {recipe && (
@@ -362,9 +366,9 @@ export default function ClientPortal() {
           <Card className="p-4">
             <p className="text-xs uppercase text-muted-foreground">Client</p>
             <p className="text-lg font-semibold">{client.name}</p>
-            <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">Phase {client.phase}</span></p>
+            <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseShort(client.phase)}</span></p>
           </Card>
-          {client.phase === 1 ? (
+          {client.phase === "phase1" ? (
             <div className="space-y-4">
               <Card className="p-6 space-y-2">
                 <p className="font-medium">Phase 1 — Preparation Phase</p>
@@ -437,8 +441,36 @@ export default function ClientPortal() {
                 Your full personal food list will be available when you move to Phase 2.
               </p>
             </div>
+          ) : client.phase === "phase4" ? (
+            <Card className="p-6 space-y-2">
+              <p className="font-medium">Phase 4 — Maintenance</p>
+              <p className="text-sm text-muted-foreground">
+                You are in the Maintenance Phase. The 8 Rules are now your lifestyle. Continue making mindful food choices and stay in touch with your practitioner.
+              </p>
+              <div className="pt-3">
+                <p className="font-medium text-foreground text-sm mb-2">The 8 Metabolic Balance Rules</p>
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                  {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
+                </ol>
+              </div>
+            </Card>
           ) : (
             <>
+              <Card className="p-6 space-y-3">
+                <p className="font-medium">The 8 Metabolic Balance Rules</p>
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                  {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
+                </ol>
+              </Card>
+
+              <Card className="p-6">
+                <p className="text-sm text-muted-foreground">
+                  {client.phase === "phase2_strict" && "You are in the Strict Conversion Phase. Follow your personal food list exactly. No oil for the first 14 days. No substitutions."}
+                  {client.phase === "phase2_extended" && "You are in the Extended Phase. Add 3 tablespoons of cold-pressed oil daily — ideally 1 tablespoon per meal. You may enjoy one treat meal per week. Continue following your personal food list."}
+                  {client.phase === "phase3" && "You are in the Relaxed Conversion Phase. Your food list has been expanded by your practitioner. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week."}
+                </p>
+              </Card>
+
               <div className="grid gap-4 md:grid-cols-2">
                 {planCategories.map((cat) => (
                   <Card key={cat.title} className="p-4">

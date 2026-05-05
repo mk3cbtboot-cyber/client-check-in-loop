@@ -9,13 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { PHASE_OPTIONS, type Phase } from "@/lib/phases";
 
 interface Client {
   id: string;
   name: string;
   email: string;
   magic_token: string;
-  phase: number;
+  phase: Phase;
   created_at: string;
 }
 
@@ -80,10 +81,10 @@ export default function Dashboard() {
     } finally { setSubmitting(false); }
   };
 
-  const setPhase = async (clientId: string, phase: number) => {
+  const setPhase = async (clientId: string, phase: Phase) => {
     const { error } = await supabase.from("clients").update({ phase }).eq("id", clientId);
     if (error) return toast.error("Could not update phase");
-    toast.success(`Phase set to ${phase}`);
+    toast.success("Phase updated");
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase } : c)));
   };
 
@@ -145,12 +146,12 @@ export default function Dashboard() {
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="flex items-center gap-2">
                         <Label className="text-xs">Phase</Label>
-                        <Select value={String(client.phase)} onValueChange={(v) => setPhase(client.id, Number(v))}>
-                          <SelectTrigger className="h-8 w-24"><SelectValue /></SelectTrigger>
+                        <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
+                          <SelectTrigger className="h-8 w-64"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="1">Phase 1</SelectItem>
-                            <SelectItem value="2">Phase 2</SelectItem>
-                            <SelectItem value="3">Phase 3</SelectItem>
+                            {PHASE_OPTIONS.map((p) => (
+                              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>

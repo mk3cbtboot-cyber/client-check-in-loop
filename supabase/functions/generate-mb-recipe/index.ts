@@ -11,7 +11,7 @@ const Body = z.object({
   meal_type: z.enum(["breakfast", "lunch", "dinner"]),
   option_label: z.string().min(2).max(200),
   ingredients: z.array(z.object({ label: z.string(), qty: z.string() })).min(1).max(20),
-  phase_variant: z.enum(["strict", "extended"]).optional(), // for phase 2
+  phase_variant: z.enum(["strict", "extended"]).optional(), // legacy, ignored
 });
 
 Deno.serve(async (req) => {
@@ -27,6 +27,10 @@ Deno.serve(async (req) => {
     const { data: c } = await admin.from("clients").select("*").eq("magic_token", token).maybeSingle();
     if (!c) return new Response(JSON.stringify({ error: "Invalid link" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    if (c.phase === "phase1") {
+      return new Response(JSON.stringify({ error: "The recipe builder is not available during Phase 1." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Count avocado / egg usage from this meal
     const avocadoUses = ingredients.filter((i) => /avocado/i.test(i.label)).length;
     if ((c.avocado_count_week ?? 0) + avocadoUses > 3) {
@@ -37,11 +41,13 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
+    const oilAllowed = c.phase === "phase2_extended" || c.phase === "phase3" || c.phase === "phase4";
     const phaseDescriptor =
-      c.phase === 1 ? "Phase 1 (preparation)" :
-      c.phase === 3 ? "Phase 3 (maintenance) — small amount of cold-pressed oil allowed" :
-      phase_variant === "extended" ? "Phase 2 extended — small amount of cold-pressed oil allowed" :
-      "Phase 2 strict (first 14 days) — NO oil at all";
+      c.phase === "phase2_strict" ? "Phase 2 Strict — Strict Conversion (NO oil at all, no substitutions)" :
+      c.phase === "phase2_extended" ? "Phase 2 Extended — up to 1 tbsp cold-pressed oil per meal is allowed (optional)" :
+      c.phase === "phase3" ? "Phase 3 — Relaxed Conversion, up to 1 tbsp cold-pressed oil per meal is allowed (optional)" :
+      c.phase === "phase4" ? "Phase 4 — Maintenance, cold-pressed oil allowed in moderation" :
+      "Phase 2 Strict (no oil)";
 
     const ingredientList = ingredients.map((i) => `- ${i.label}: ${i.qty}`).join("\n");
 
@@ -52,7 +58,7 @@ INGREDIENT RULES (non-negotiable):
 - Use the EXACT quantity specified for each ingredient — verbatim, no rounding, no scaling.
 - If two vegetables are listed (Vegetable 1 AND Vegetable 2), BOTH must appear in the RECIPE list with their own gram amounts AND each must have at least one dedicated preparation step in the METHOD.
 - The Metabolic Balance protocol is a nutritional prescription — every gram is calculated for this client's macro/micronutrient needs.
-- Phase rules: Phase 2 strict (first 14 days) = absolutely NO oil. Phase 2 extended or Phase 3 = a small amount of cold-pressed oil allowed only if listed.
+- Phase rules for THIS client: ${oilAllowed ? "cold-pressed oil is OPTIONAL — you may suggest up to 1 tablespoon (15ml) of cold-pressed oil (olive, flax, or similar) per meal if it improves the dish; never exceed 1 tbsp per meal." : "absolutely NO oil of any kind. Do not add oil. Use water, broth, or dry-pan techniques only."}
 - Always prepare the protein first.
 
 METHOD RULES (write for someone who has never turned on a stove):
