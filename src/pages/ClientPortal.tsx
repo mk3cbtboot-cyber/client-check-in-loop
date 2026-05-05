@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
+import { Home, ClipboardCheck, BookOpen } from "lucide-react";
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 
 interface ClientState {
@@ -20,10 +23,18 @@ interface ClientState {
   meal_streak: number;
 }
 
+type TabKey = "home" | "checkin" | "plan";
+
 export default function ClientPortal() {
   const { token } = useParams<{ token: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = (searchParams.get("tab") as TabKey) || "home";
+  const [tab, setTab] = useState<TabKey>(["home", "checkin", "plan"].includes(initialTab) ? initialTab : "home");
+
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<ClientState | null>(null);
+
+  // Home/recipe builder state
   const [rulesOpen, setRulesOpen] = useState(false);
   const [meal, setMeal] = useState<MealType | null>(null);
   const [option, setOption] = useState<OptionDef | null>(null);
@@ -31,6 +42,13 @@ export default function ClientPortal() {
   const [phaseVariant, setPhaseVariant] = useState<"strict" | "extended">("strict");
   const [generating, setGenerating] = useState(false);
   const [recipe, setRecipe] = useState<{ recipe_title: string; recipe: string[]; method: string[]; notes: string[] } | null>(null);
+
+  // Check-in state
+  const [feeling, setFeeling] = useState<number>(3);
+  const [waterGlasses, setWaterGlasses] = useState<number>(0);
+  const [notes, setNotes] = useState("");
+  const [submittingCheckin, setSubmittingCheckin] = useState(false);
+  const [checkinDone, setCheckinDone] = useState(false);
 
   const refresh = async () => {
     if (!token) return;
@@ -41,6 +59,14 @@ export default function ClientPortal() {
   useEffect(() => {
     refresh().finally(() => setLoading(false));
   }, [token]);
+
+  const changeTab = (t: TabKey) => {
+    setTab(t);
+    const next = new URLSearchParams(searchParams);
+    if (t === "home") next.delete("tab");
+    else next.set("tab", t);
+    setSearchParams(next, { replace: true });
+  };
 
   const addWater = async () => {
     const { data, error } = await supabase.functions.invoke("client-portal-water", { body: { token } });
@@ -57,7 +83,6 @@ export default function ClientPortal() {
 
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
     const items = sources.flatMap((s) => MB_FOODS[s]);
-    // de-dupe + remove avocado if at limit
     const seen = new Set<string>();
     return items.filter((i) => {
       if (seen.has(i)) return false;
@@ -69,11 +94,9 @@ export default function ClientPortal() {
 
   const generate = async () => {
     if (!option || !meal) return;
-    // Validate required fields
     for (const c of option.components) {
       if (!c.optional && !picks[c.key]) return toast.error(`Choose: ${c.label}`);
     }
-    // Detect veg1/veg2 split: if both selected, split the combined gram qty evenly
     const veg1 = option.components.find((c) => c.key === "veg1");
     const veg2 = option.components.find((c) => c.key === "veg2");
     const bothVeg = veg1 && veg2 && picks["veg1"] && picks["veg2"];
@@ -113,6 +136,23 @@ export default function ClientPortal() {
     }
   };
 
+  const submitCheckin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingCheckin(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("submit-checkin", {
+        body: { token, feeling, water_glasses: waterGlasses, notes },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setCheckinDone(true);
+    } catch (err: any) {
+      toast.error(err.message ?? "Failed to submit");
+    } finally {
+      setSubmittingCheckin(false);
+    }
+  };
+
   if (loading) return <main className="min-h-screen flex items-center justify-center">Loading…</main>;
   if (!client) return (
     <main className="min-h-screen flex items-center justify-center p-4">
@@ -124,147 +164,244 @@ export default function ClientPortal() {
   const eggsLeft = Math.max(0, 5 - client.egg_count_week);
   const waterTarget = 2.5;
 
+  // My Plan categories
+  const planCategories: { title: string; items: string[] }[] = [
+    { title: "Proteins — Fish & Seafood", items: [...MB_FOODS.fish, ...MB_FOODS.seafood] },
+    { title: "Proteins — Poultry & Meat", items: [...MB_FOODS.poultry, ...MB_FOODS.meat] },
+    { title: "Proteins — Cheese, Yogurt & Milk", items: [...MB_FOODS.cheese, ...MB_FOODS.yogurt, ...MB_FOODS.milkProducts] },
+    { title: "Proteins — Legumes", items: MB_FOODS.legumes },
+    { title: "Vegetables", items: [...MB_FOODS.vegetables, ...MB_FOODS.vegLettuce] },
+    { title: "Fruit", items: MB_FOODS.fruit },
+    { title: "Bread", items: MB_FOODS.bread },
+    { title: "Starch", items: MB_FOODS.starch },
+  ];
+
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background pb-24">
       <header className="border-b">
-        <div className="max-w-5xl mx-auto p-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold">Hi {client.name}</h1>
-            <p className="text-xs text-muted-foreground">Metabolic Balance · Phase {client.phase}</p>
-          </div>
+        <div className="max-w-5xl mx-auto p-4">
+          <h1 className="text-xl font-semibold">Hi {client.name}</h1>
+          <p className="text-xs text-muted-foreground">Metabolic Balance · Phase {client.phase}</p>
         </div>
       </header>
 
-      <section className="max-w-5xl mx-auto p-4 space-y-6">
-        {/* Trackers */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card className="p-4">
-            <p className="text-xs uppercase text-muted-foreground">Avocado</p>
-            <p className="text-2xl font-semibold">{client.avocado_count_week}/3</p>
-            <p className="text-xs text-muted-foreground">{avocadoLeft} remaining this week</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs uppercase text-muted-foreground">Eggs</p>
-            <p className="text-2xl font-semibold">{client.egg_count_week}/5</p>
-            <p className="text-xs text-muted-foreground">{eggsLeft} remaining this week</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs uppercase text-muted-foreground">Water Today</p>
-            <p className="text-2xl font-semibold">{client.water_today_litres.toFixed(2)}L<span className="text-sm text-muted-foreground"> / {waterTarget}L</span></p>
-            <Button size="sm" variant="outline" className="mt-2 w-full" onClick={addWater}>+ Glass (250ml)</Button>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs uppercase text-muted-foreground">Meal Streak</p>
-            <p className="text-2xl font-semibold">{client.meal_streak}</p>
-            <p className="text-xs text-muted-foreground">consecutive meals logged</p>
-          </Card>
-        </div>
+      {tab === "home" && (
+        <section className="max-w-5xl mx-auto p-4 space-y-6">
+          {/* Trackers */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card className="p-4">
+              <p className="text-xs uppercase text-muted-foreground">Avocado</p>
+              <p className="text-2xl font-semibold">{client.avocado_count_week}/3</p>
+              <p className="text-xs text-muted-foreground">{avocadoLeft} remaining this week</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase text-muted-foreground">Eggs</p>
+              <p className="text-2xl font-semibold">{client.egg_count_week}/5</p>
+              <p className="text-xs text-muted-foreground">{eggsLeft} remaining this week</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase text-muted-foreground">Water Today</p>
+              <p className="text-2xl font-semibold">{client.water_today_litres.toFixed(2)}L<span className="text-sm text-muted-foreground"> / {waterTarget}L</span></p>
+              <Button size="sm" variant="outline" className="mt-2 w-full" onClick={addWater}>+ Glass (250ml)</Button>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase text-muted-foreground">Meal Streak</p>
+              <p className="text-2xl font-semibold">{client.meal_streak}</p>
+              <p className="text-xs text-muted-foreground">consecutive meals logged</p>
+            </Card>
+          </div>
 
-        {/* Rules */}
-        <Collapsible open={rulesOpen} onOpenChange={setRulesOpen}>
-          <Card className="p-4">
-            <CollapsibleTrigger className="w-full text-left flex items-center justify-between">
-              <span className="font-medium">The 8 Metabolic Balance Rules</span>
-              <span className="text-sm text-muted-foreground">{rulesOpen ? "Hide" : "Show"}</span>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-3">
-              <ol className="list-decimal list-inside space-y-1 text-sm">
-                {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
-              </ol>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
+          <Collapsible open={rulesOpen} onOpenChange={setRulesOpen}>
+            <Card className="p-4">
+              <CollapsibleTrigger className="w-full text-left flex items-center justify-between">
+                <span className="font-medium">The 8 Metabolic Balance Rules</span>
+                <span className="text-sm text-muted-foreground">{rulesOpen ? "Hide" : "Show"}</span>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-3">
+                <ol className="list-decimal list-inside space-y-1 text-sm">
+                  {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
+                </ol>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
-        {/* Meal buttons */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {(["breakfast","lunch","dinner"] as MealType[]).map((m) => (
-            <Button key={m} variant={meal === m ? "default" : "outline"} onClick={() => { setMeal(m); setOption(null); setRecipe(null); }}>
-              {m[0].toUpperCase() + m.slice(1)}
-            </Button>
-          ))}
-          <Button variant="outline" disabled>Progress Sheets</Button>
-        </div>
-
-        {/* Option picker */}
-        {meal && (
-          <Card className="p-4 space-y-3">
-            <p className="text-sm font-medium">Choose a {meal} option</p>
-            <div className="grid gap-2 md:grid-cols-3">
-              {MB_OPTIONS[meal].map((o) => (
-                <Button key={o.id} variant={option?.id === o.id ? "default" : "outline"} className="h-auto py-3 text-left whitespace-normal" onClick={() => pickOption(meal, o)}>
-                  <span className="text-xs">Option {o.id} — {o.label}</span>
-                </Button>
-              ))}
-            </div>
-          </Card>
-        )}
-
-        {/* Ingredient selection */}
-        {option && meal && (
-          <Card className="p-4 space-y-4">
-            <p className="font-medium">{option.label}</p>
-            {option.fixed?.map((f, i) => (
-              <p key={i} className="text-sm text-muted-foreground">Fixed: <span className="font-medium text-foreground">{f.label} — {f.qty}</span></p>
+          <div className="grid grid-cols-3 gap-2">
+            {(["breakfast","lunch","dinner"] as MealType[]).map((m) => (
+              <Button key={m} variant={meal === m ? "default" : "outline"} onClick={() => { setMeal(m); setOption(null); setRecipe(null); }}>
+                {m[0].toUpperCase() + m.slice(1)}
+              </Button>
             ))}
-            {option.components.map((comp) => {
-              const items = filteredSources(comp.sources);
-              const showAvocadoNote = comp.sources.includes("vegetables") && (client.avocado_count_week >= 3);
-              return (
-                <div key={comp.key} className="space-y-1">
-                  <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {comp.qty}</span>}</Label>
-                  <Select value={picks[comp.key] ?? ""} onValueChange={(v) => setPicks((p) => ({ ...p, [comp.key]: v }))}>
-                    <SelectTrigger><SelectValue placeholder={comp.optional ? "Optional" : "Select…"} /></SelectTrigger>
+          </div>
+
+          {meal && (
+            <Card className="p-4 space-y-3">
+              <p className="text-sm font-medium">Choose a {meal} option</p>
+              <div className="grid gap-2 md:grid-cols-3">
+                {MB_OPTIONS[meal].map((o) => (
+                  <Button key={o.id} variant={option?.id === o.id ? "default" : "outline"} className="h-auto py-3 text-left whitespace-normal" onClick={() => pickOption(meal, o)}>
+                    <span className="text-xs">Option {o.id} — {o.label}</span>
+                  </Button>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {option && meal && (
+            <Card className="p-4 space-y-4">
+              <p className="font-medium">{option.label}</p>
+              {option.fixed?.map((f, i) => (
+                <p key={i} className="text-sm text-muted-foreground">Fixed: <span className="font-medium text-foreground">{f.label} — {f.qty}</span></p>
+              ))}
+              {option.components.map((comp) => {
+                const items = filteredSources(comp.sources);
+                const showAvocadoNote = comp.sources.includes("vegetables") && (client.avocado_count_week >= 3);
+                return (
+                  <div key={comp.key} className="space-y-1">
+                    <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {comp.qty}</span>}</Label>
+                    <Select value={picks[comp.key] ?? ""} onValueChange={(v) => setPicks((p) => ({ ...p, [comp.key]: v }))}>
+                      <SelectTrigger><SelectValue placeholder={comp.optional ? "Optional" : "Select…"} /></SelectTrigger>
+                      <SelectContent>
+                        {items.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    {showAvocadoNote && <p className="text-xs text-muted-foreground">Avocado limit reached this week.</p>}
+                  </div>
+                );
+              })}
+
+              {client.phase === 2 && (
+                <div className="space-y-1">
+                  <Label>Phase 2 sub-phase</Label>
+                  <Select value={phaseVariant} onValueChange={(v: any) => setPhaseVariant(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {items.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                      <SelectItem value="strict">Strict (first 14 days, no oil)</SelectItem>
+                      <SelectItem value="extended">Extended (small amount of cold-pressed oil)</SelectItem>
                     </SelectContent>
                   </Select>
-                  {showAvocadoNote && <p className="text-xs text-muted-foreground">Avocado limit reached this week.</p>}
                 </div>
-              );
-            })}
+              )}
 
-            {client.phase === 2 && (
-              <div className="space-y-1">
-                <Label>Phase 2 sub-phase</Label>
-                <Select value={phaseVariant} onValueChange={(v: any) => setPhaseVariant(v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="strict">Strict (first 14 days, no oil)</SelectItem>
-                    <SelectItem value="extended">Extended (small amount of cold-pressed oil)</SelectItem>
-                  </SelectContent>
-                </Select>
+              <Button onClick={generate} disabled={generating} className="w-full">
+                {generating ? "Generating recipe…" : "Generate Recipe"}
+              </Button>
+            </Card>
+          )}
+
+          {recipe && (
+            <Card className="p-4">
+              <p className="font-medium mb-3">{recipe.recipe_title}</p>
+              <Tabs defaultValue="recipe">
+                <TabsList>
+                  <TabsTrigger value="recipe">Recipe</TabsTrigger>
+                  <TabsTrigger value="method">Method</TabsTrigger>
+                  <TabsTrigger value="notes">Notes</TabsTrigger>
+                </TabsList>
+                <TabsContent value="recipe" className="pt-3">
+                  <ul className="list-disc list-inside text-sm space-y-1">{recipe.recipe.map((r, i) => <li key={i}>{r}</li>)}</ul>
+                </TabsContent>
+                <TabsContent value="method" className="pt-3">
+                  <ol className="list-decimal list-inside text-sm space-y-1">{recipe.method.map((s, i) => <li key={i}>{s}</li>)}</ol>
+                </TabsContent>
+                <TabsContent value="notes" className="pt-3">
+                  <ul className="list-disc list-inside text-sm space-y-1">{recipe.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+                </TabsContent>
+              </Tabs>
+            </Card>
+          )}
+        </section>
+      )}
+
+      {tab === "checkin" && (
+        <section className="max-w-md mx-auto p-4">
+          {checkinDone ? (
+            <Card className="p-6 text-center space-y-3">
+              <h2 className="text-lg font-semibold">Thanks!</h2>
+              <p className="text-sm text-muted-foreground">Your nutritionist has been notified.</p>
+              <Button variant="outline" onClick={() => { setCheckinDone(false); setFeeling(3); setWaterGlasses(0); setNotes(""); }}>
+                Submit another
+              </Button>
+            </Card>
+          ) : (
+            <Card className="p-6 space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold">Daily check-in</h2>
+                <p className="text-sm text-muted-foreground">Let your nutritionist know how you're doing today.</p>
               </div>
-            )}
+              <form onSubmit={submitCheckin} className="space-y-5">
+                <div className="space-y-2">
+                  <Label>How are you feeling today? ({feeling}/5)</Label>
+                  <input
+                    type="range" min={1} max={5} value={feeling}
+                    onChange={(e) => setFeeling(Number(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>1 Bad</span><span>5 Great</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="water">How much water did you drink? (glasses)</Label>
+                  <Input id="water" type="number" min={0} max={50} value={waterGlasses} onChange={(e) => setWaterGlasses(Number(e.target.value))} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Any notes for your nutritionist?</Label>
+                  <Textarea id="notes" rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} />
+                </div>
+                <Button type="submit" className="w-full" disabled={submittingCheckin}>
+                  {submittingCheckin ? "Submitting…" : "Submit check-in"}
+                </Button>
+              </form>
+            </Card>
+          )}
+        </section>
+      )}
 
-            <Button onClick={generate} disabled={generating} className="w-full">
-              {generating ? "Generating recipe…" : "Generate Recipe"}
-            </Button>
-          </Card>
-        )}
-
-        {/* Output */}
-        {recipe && (
+      {tab === "plan" && (
+        <section className="max-w-3xl mx-auto p-4 space-y-4">
           <Card className="p-4">
-            <p className="font-medium mb-3">{recipe.recipe_title}</p>
-            <Tabs defaultValue="recipe">
-              <TabsList>
-                <TabsTrigger value="recipe">Recipe</TabsTrigger>
-                <TabsTrigger value="method">Method</TabsTrigger>
-                <TabsTrigger value="notes">Notes</TabsTrigger>
-              </TabsList>
-              <TabsContent value="recipe" className="pt-3">
-                <ul className="list-disc list-inside text-sm space-y-1">{recipe.recipe.map((r, i) => <li key={i}>{r}</li>)}</ul>
-              </TabsContent>
-              <TabsContent value="method" className="pt-3">
-                <ol className="list-decimal list-inside text-sm space-y-1">{recipe.method.map((s, i) => <li key={i}>{s}</li>)}</ol>
-              </TabsContent>
-              <TabsContent value="notes" className="pt-3">
-                <ul className="list-disc list-inside text-sm space-y-1">{recipe.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
-              </TabsContent>
-            </Tabs>
+            <p className="text-xs uppercase text-muted-foreground">Client</p>
+            <p className="text-lg font-semibold">{client.name}</p>
+            <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">Phase {client.phase}</span></p>
           </Card>
-        )}
-      </section>
+          <div className="grid gap-4 md:grid-cols-2">
+            {planCategories.map((cat) => (
+              <Card key={cat.title} className="p-4">
+                <p className="font-medium mb-2">{cat.title}</p>
+                <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                  {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                </ul>
+              </Card>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground text-center pt-2">
+            Quantities and exact selections are managed by your nutritionist. Use the Home tab to build today's meal.
+          </p>
+        </section>
+      )}
+
+      {/* Bottom navigation */}
+      <nav className="fixed bottom-0 inset-x-0 border-t bg-background">
+        <div className="max-w-5xl mx-auto grid grid-cols-3">
+          {([
+            { key: "home", label: "Home", Icon: Home },
+            { key: "checkin", label: "Check-in", Icon: ClipboardCheck },
+            { key: "plan", label: "My Plan", Icon: BookOpen },
+          ] as { key: TabKey; label: string; Icon: typeof Home }[]).map(({ key, label, Icon }) => {
+            const active = tab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => changeTab(key)}
+                className={`flex flex-col items-center justify-center py-3 text-xs gap-1 transition-colors ${active ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <Icon className="h-5 w-5" />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </main>
   );
 }
