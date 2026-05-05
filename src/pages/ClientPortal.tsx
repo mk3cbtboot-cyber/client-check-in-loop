@@ -415,7 +415,7 @@ export default function ClientPortal() {
                     </CollapsibleContent>
                   </Collapsible>
 
-                  <p><span className="font-medium text-foreground">In the evening:</span> Up to 500g (1.1 lb) raw weight of cooked, steamed, or raw vegetables or salad, seasoned with herbs only. Avoid blends of herbs and spices and other ingredients such as oil, vinegar, or other dressings.</p>
+                  <p><span className="font-medium text-foreground">In the evening:</span> Up to 500g (1.1 lb) raw weight of cooked, steamed, or raw vegetables or salad, seasoned with herbs only. No processed or store bought herb and spice blends — use only individual dry or fresh herbs and spices mixed together by you. Also remember no oil, vinegar, or other dressings.</p>
                 </div>
               </Card>
 
