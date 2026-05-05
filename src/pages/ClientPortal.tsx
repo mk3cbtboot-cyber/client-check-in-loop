@@ -80,8 +80,18 @@ export default function ClientPortal() {
     setOption(o);
     setMeal(m);
     setPicks({});
+    setOil("none");
     setRecipe(null);
   };
+
+  const OIL_OPTIONS = [
+    { value: "none", label: "None" },
+    { value: "Cold-Pressed Olive Oil", label: "Cold-Pressed Olive Oil" },
+    { value: "Cold-Pressed Flaxseed Oil", label: "Cold-Pressed Flaxseed Oil" },
+    { value: "Cold-Pressed Coconut Oil", label: "Cold-Pressed Coconut Oil" },
+    { value: "Avocado Oil", label: "Avocado Oil" },
+    { value: "Ghee (clarified butter)", label: "Ghee (clarified butter)" },
+  ];
 
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
     const items = sources.flatMap((s) => MB_FOODS[s]);
