@@ -11,7 +11,7 @@ const Body = z.object({
   meal_type: z.enum(["breakfast", "lunch", "dinner"]),
   option_label: z.string().min(2).max(200),
   ingredients: z.array(z.object({ label: z.string(), qty: z.string() })).min(1).max(20),
-  phase_variant: z.enum(["strict", "extended"]).optional(), // for phase 2
+  phase_variant: z.enum(["strict", "extended"]).optional(), // legacy, ignored
 });
 
 Deno.serve(async (req) => {
