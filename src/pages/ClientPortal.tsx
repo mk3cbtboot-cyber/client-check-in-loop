@@ -365,12 +365,48 @@ export default function ClientPortal() {
             <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">Phase {client.phase}</span></p>
           </Card>
           {client.phase === 1 ? (
-            <Card className="p-6">
-              <p className="font-medium mb-2">Phase 1 — Preparation Phase</p>
-              <p className="text-sm text-muted-foreground">
-                You are in Phase 1 — the Preparation Phase. This lasts 2 days. Focus on light meals: vegetable soup (up to 500g vegetables), simple breakfasts, and plain vegetables or salad in the evening. No protein list applies yet. Your full personal food list will be available when you move to Phase 2.
+            <div className="space-y-4">
+              <Card className="p-6 space-y-2">
+                <p className="font-medium">Phase 1 — Preparation Phase</p>
+                <p className="text-sm text-muted-foreground">
+                  During the two-day Preparation Phase, your body is gently prepared for the journey ahead. This phase focuses on cleansing the intestinal tract, which helps reduce hunger and cravings later in the program.
+                </p>
+              </Card>
+
+              <Card className="p-6 space-y-2 border-destructive/40">
+                <p className="font-medium">⚠️ Important Notice</p>
+                <p className="text-sm text-muted-foreground">
+                  On the first day of Phase 1, complete a thorough intestinal cleanse to support your body's reset process. Speak with your coach or physician about the most suitable method for you. Options may include magnesium citrate oral solution, Epsom salt, or gentler alternatives such as an enema or colonic hydrotherapy. Do not attempt this without guidance.
+                </p>
+              </Card>
+
+              <Card className="p-6 space-y-3">
+                <p className="font-medium">Daily structure</p>
+                <div className="text-sm space-y-3 text-muted-foreground">
+                  <p><span className="font-medium text-foreground">In the morning:</span> Enjoy half the portion of your usual breakfast. For example, a one-egg vegetable omelette (without cheese) instead of your typical two-egg omelette.</p>
+                  <p><span className="font-medium text-foreground">At lunchtime:</span> Homemade vegetable soup with up to 500g (1.1 lb) of fresh or frozen vegetables, served puréed or chunky. Use sugar-free vegetable broth with no additives. No chicken or beef broth. One apple on the side.</p>
+                  <p><span className="font-medium text-foreground">In the evening:</span> Up to 500g (1.1 lb) raw weight of cooked, steamed, or raw vegetables or salad, seasoned with herbs only. Avoid blends of herbs and spices and other ingredients such as oil, vinegar, or other dressings.</p>
+                </div>
+              </Card>
+
+              <Card className="p-6 space-y-3">
+                <p className="font-medium">Alternative option — eat just one type of food for the entire day</p>
+                <p className="text-sm text-muted-foreground">You may choose one of the following instead:</p>
+                <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                  <li><span className="text-foreground font-medium">Fruit Day</span> — up to 1kg (2.2 lbs) of fruit, divided into 3 meals</li>
+                  <li><span className="text-foreground font-medium">Vegetable Day</span> — up to 1.5kg (3.3 lbs) of vegetables, divided into 3 meals</li>
+                  <li><span className="text-foreground font-medium">Potato Day</span> — up to 1.5kg (3.3 lbs) of potatoes, divided into 3 meals</li>
+                  <li><span className="text-foreground font-medium">Rice Day</span> — up to 200g (½ lb) whole-grain brown rice, divided into 3 meals</li>
+                </ul>
+                <p className="text-sm text-muted-foreground">
+                  You can enjoy vegetables raw, steamed, cooked, or puréed. Cook rice and potatoes in plain water only. You may use spices but no butter or oil.
+                </p>
+              </Card>
+
+              <p className="text-xs text-muted-foreground text-center">
+                Your full personal food list will be available when you move to Phase 2.
               </p>
-            </Card>
+            </div>
           ) : (
             <>
               <div className="grid gap-4 md:grid-cols-2">
