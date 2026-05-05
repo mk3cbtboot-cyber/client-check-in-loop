@@ -12,6 +12,7 @@ const Body = z.object({
   option_label: z.string().min(2).max(200),
   ingredients: z.array(z.object({ label: z.string(), qty: z.string() })).min(1).max(20),
   phase_variant: z.enum(["strict", "extended"]).optional(), // legacy, ignored
+  oil: z.string().max(60).optional(),
 });
 
 Deno.serve(async (req) => {
