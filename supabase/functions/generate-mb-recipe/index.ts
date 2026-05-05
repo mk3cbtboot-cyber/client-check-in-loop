@@ -59,7 +59,7 @@ INGREDIENT RULES (non-negotiable):
 - Use the EXACT quantity specified for each ingredient — verbatim, no rounding, no scaling.
 - If two vegetables are listed (Vegetable 1 AND Vegetable 2), BOTH must appear in the RECIPE list with their own gram amounts AND each must have at least one dedicated preparation step in the METHOD.
 - The Metabolic Balance protocol is a nutritional prescription — every gram is calculated for this client's macro/micronutrient needs.
-- Phase rules for THIS client: ${oilAllowed ? "cold-pressed oil is OPTIONAL — you may suggest up to 1 tablespoon (15ml) of cold-pressed oil (olive, flax, or similar) per meal if it improves the dish; never exceed 1 tbsp per meal." : "absolutely NO oil of any kind. Do not add oil. Use water, broth, or dry-pan techniques only."}
+- Phase rules for THIS client: ${oilAllowed ? (oil && oil !== "none" ? `the client has CHOSEN to include oil for this meal: ${oil}. Include it in the RECIPE list as "Oil: ${oil} — up to 1 tablespoon (15ml)" and add a clear METHOD step explaining how to use it (either drizzled over the finished dish or used lightly during cooking, whichever suits the dish best). Oil is optional and limited to 1 tablespoon per meal, max 3 tablespoons total across all meals today.` : "the client has chosen NOT to include oil for this meal. Do NOT mention oil anywhere — not in the recipe, not in the method, not in the notes. Use water, broth, or dry-pan techniques only.") : "absolutely NO oil of any kind. Do not add oil. Use water, broth, or dry-pan techniques only."}
 - Always prepare the protein first.
 
 METHOD RULES (write for someone who has never turned on a stove):
