@@ -27,6 +27,10 @@ Deno.serve(async (req) => {
     const { data: c } = await admin.from("clients").select("*").eq("magic_token", token).maybeSingle();
     if (!c) return new Response(JSON.stringify({ error: "Invalid link" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    if (c.phase === "phase1") {
+      return new Response(JSON.stringify({ error: "The recipe builder is not available during Phase 1." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Count avocado / egg usage from this meal
     const avocadoUses = ingredients.filter((i) => /avocado/i.test(i.label)).length;
     if ((c.avocado_count_week ?? 0) + avocadoUses > 3) {
@@ -37,11 +41,13 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
+    const oilAllowed = c.phase === "phase2_extended" || c.phase === "phase3" || c.phase === "phase4";
     const phaseDescriptor =
-      c.phase === 1 ? "Phase 1 (preparation)" :
-      c.phase === 3 ? "Phase 3 (maintenance) — small amount of cold-pressed oil allowed" :
-      phase_variant === "extended" ? "Phase 2 extended — small amount of cold-pressed oil allowed" :
-      "Phase 2 strict (first 14 days) — NO oil at all";
+      c.phase === "phase2_strict" ? "Phase 2 Strict — Strict Conversion (NO oil at all, no substitutions)" :
+      c.phase === "phase2_extended" ? "Phase 2 Extended — up to 1 tbsp cold-pressed oil per meal is allowed (optional)" :
+      c.phase === "phase3" ? "Phase 3 — Relaxed Conversion, up to 1 tbsp cold-pressed oil per meal is allowed (optional)" :
+      c.phase === "phase4" ? "Phase 4 — Maintenance, cold-pressed oil allowed in moderation" :
+      "Phase 2 Strict (no oil)";
 
     const ingredientList = ingredients.map((i) => `- ${i.label}: ${i.qty}`).join("\n");
 
