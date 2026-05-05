@@ -135,7 +135,6 @@ export default function Dashboard() {
             {clients.map((client) => {
               const list = checkIns[client.id] ?? [];
               const portalLink = `${window.location.origin}/portal/${client.magic_token}`;
-              const checkinLink = `${window.location.origin}/checkin/${client.magic_token}`;
               return (
                 <Card key={client.id} className="p-4 space-y-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -158,11 +157,7 @@ export default function Dashboard() {
                       <Button variant="outline" size="sm"
                         onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
                         Copy portal link
-                      </Button>
-                      <Button variant="outline" size="sm"
-                        onClick={() => { navigator.clipboard.writeText(checkinLink); toast.success("Check-in link copied"); }}>
-                        Copy check-in link
-                      </Button>
+                    </Button>
                     </div>
                   </div>
 
