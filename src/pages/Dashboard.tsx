@@ -135,7 +135,6 @@ export default function Dashboard() {
             {clients.map((client) => {
               const list = checkIns[client.id] ?? [];
               const portalLink = `${window.location.origin}/portal/${client.magic_token}`;
-              const checkinLink = `${window.location.origin}/checkin/${client.magic_token}`;
               return (
                 <Card key={client.id} className="p-4 space-y-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
