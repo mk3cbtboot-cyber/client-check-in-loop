@@ -364,19 +364,30 @@ export default function ClientPortal() {
             <p className="text-lg font-semibold">{client.name}</p>
             <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">Phase {client.phase}</span></p>
           </Card>
-          <div className="grid gap-4 md:grid-cols-2">
-            {planCategories.map((cat) => (
-              <Card key={cat.title} className="p-4">
-                <p className="font-medium mb-2">{cat.title}</p>
-                <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                  {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
-                </ul>
-              </Card>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground text-center pt-2">
-            Quantities and exact selections are managed by your nutritionist. Use the Home tab to build today's meal.
-          </p>
+          {client.phase === 1 ? (
+            <Card className="p-6">
+              <p className="font-medium mb-2">Phase 1 — Preparation Phase</p>
+              <p className="text-sm text-muted-foreground">
+                You are in Phase 1 — the Preparation Phase. This lasts 2 days. Focus on light meals: vegetable soup (up to 500g vegetables), simple breakfasts, and plain vegetables or salad in the evening. No protein list applies yet. Your full personal food list will be available when you move to Phase 2.
+              </p>
+            </Card>
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                {planCategories.map((cat) => (
+                  <Card key={cat.title} className="p-4">
+                    <p className="font-medium mb-2">{cat.title}</p>
+                    <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                      {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                    </ul>
+                  </Card>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground text-center pt-2">
+                Quantities and exact selections are managed by your nutritionist. Use the Home tab to build today's meal.
+              </p>
+            </>
+          )}
         </section>
       )}
 
