@@ -40,6 +40,7 @@ export default function ClientPortal() {
   const [meal, setMeal] = useState<MealType | null>(null);
   const [option, setOption] = useState<OptionDef | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
+  const [oil, setOil] = useState<string>("none");
   
   const [generating, setGenerating] = useState(false);
   const [recipe, setRecipe] = useState<{ recipe_title: string; recipe: string[]; method: string[]; notes: string[] } | null>(null);
