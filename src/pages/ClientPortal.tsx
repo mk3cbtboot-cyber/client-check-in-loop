@@ -135,7 +135,7 @@ export default function ClientPortal() {
     setRecipe(null);
     try {
       const { data, error } = await supabase.functions.invoke("generate-mb-recipe", {
-        body: { token, meal_type: meal, option_label: option.label, ingredients },
+        body: { token, meal_type: meal, option_label: option.label, ingredients, oil: oilAllowed(client!.phase) ? oil : "none" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
