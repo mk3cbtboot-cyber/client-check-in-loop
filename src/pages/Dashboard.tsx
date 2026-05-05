@@ -81,10 +81,10 @@ export default function Dashboard() {
     } finally { setSubmitting(false); }
   };
 
-  const setPhase = async (clientId: string, phase: number) => {
+  const setPhase = async (clientId: string, phase: Phase) => {
     const { error } = await supabase.from("clients").update({ phase }).eq("id", clientId);
     if (error) return toast.error("Could not update phase");
-    toast.success(`Phase set to ${phase}`);
+    toast.success("Phase updated");
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase } : c)));
   };
 
