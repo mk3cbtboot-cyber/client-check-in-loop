@@ -182,7 +182,7 @@ export default function ClientPortal() {
       <header className="border-b">
         <div className="max-w-5xl mx-auto p-4">
           <h1 className="text-xl font-semibold">Hi {client.name}</h1>
-          <p className="text-xs text-muted-foreground">Metabolic Balance · Phase {client.phase}</p>
+          <p className="text-xs text-muted-foreground">Metabolic Balance · {phaseShort(client.phase)}</p>
         </div>
       </header>
 
