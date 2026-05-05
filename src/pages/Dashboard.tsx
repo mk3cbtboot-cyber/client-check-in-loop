@@ -146,12 +146,12 @@ export default function Dashboard() {
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="flex items-center gap-2">
                         <Label className="text-xs">Phase</Label>
-                        <Select value={String(client.phase)} onValueChange={(v) => setPhase(client.id, Number(v))}>
-                          <SelectTrigger className="h-8 w-24"><SelectValue /></SelectTrigger>
+                        <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
+                          <SelectTrigger className="h-8 w-64"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="1">Phase 1</SelectItem>
-                            <SelectItem value="2">Phase 2</SelectItem>
-                            <SelectItem value="3">Phase 3</SelectItem>
+                            {PHASE_OPTIONS.map((p) => (
+                              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
