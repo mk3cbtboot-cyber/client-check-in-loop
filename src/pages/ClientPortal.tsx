@@ -12,11 +12,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { toast } from "sonner";
 import { Home, ClipboardCheck, BookOpen } from "lucide-react";
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
+import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
 
 interface ClientState {
   id: string;
   name: string;
-  phase: number;
+  phase: Phase;
   avocado_count_week: number;
   egg_count_week: number;
   water_today_litres: number;
