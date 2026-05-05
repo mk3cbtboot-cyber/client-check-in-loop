@@ -441,8 +441,36 @@ export default function ClientPortal() {
                 Your full personal food list will be available when you move to Phase 2.
               </p>
             </div>
+          ) : client.phase === "phase4" ? (
+            <Card className="p-6 space-y-2">
+              <p className="font-medium">Phase 4 — Maintenance</p>
+              <p className="text-sm text-muted-foreground">
+                You are in the Maintenance Phase. The 8 Rules are now your lifestyle. Continue making mindful food choices and stay in touch with your practitioner.
+              </p>
+              <div className="pt-3">
+                <p className="font-medium text-foreground text-sm mb-2">The 8 Metabolic Balance Rules</p>
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                  {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
+                </ol>
+              </div>
+            </Card>
           ) : (
             <>
+              <Card className="p-6 space-y-3">
+                <p className="font-medium">The 8 Metabolic Balance Rules</p>
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                  {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
+                </ol>
+              </Card>
+
+              <Card className="p-6">
+                <p className="text-sm text-muted-foreground">
+                  {client.phase === "phase2_strict" && "You are in the Strict Conversion Phase. Follow your personal food list exactly. No oil for the first 14 days. No substitutions."}
+                  {client.phase === "phase2_extended" && "You are in the Extended Phase. Add 3 tablespoons of cold-pressed oil daily — ideally 1 tablespoon per meal. You may enjoy one treat meal per week. Continue following your personal food list."}
+                  {client.phase === "phase3" && "You are in the Relaxed Conversion Phase. Your food list has been expanded by your practitioner. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week."}
+                </p>
+              </Card>
+
               <div className="grid gap-4 md:grid-cols-2">
                 {planCategories.map((cat) => (
                   <Card key={cat.title} className="p-4">
