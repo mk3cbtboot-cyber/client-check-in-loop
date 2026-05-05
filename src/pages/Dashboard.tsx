@@ -157,11 +157,7 @@ export default function Dashboard() {
                       <Button variant="outline" size="sm"
                         onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
                         Copy portal link
-                      </Button>
-                      <Button variant="outline" size="sm"
-                        onClick={() => { navigator.clipboard.writeText(checkinLink); toast.success("Check-in link copied"); }}>
-                        Copy check-in link
-                      </Button>
+                    </Button>
                     </div>
                   </div>
 
