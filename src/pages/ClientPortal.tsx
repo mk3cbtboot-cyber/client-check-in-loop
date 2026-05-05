@@ -366,9 +366,9 @@ export default function ClientPortal() {
           <Card className="p-4">
             <p className="text-xs uppercase text-muted-foreground">Client</p>
             <p className="text-lg font-semibold">{client.name}</p>
-            <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">Phase {client.phase}</span></p>
+            <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseShort(client.phase)}</span></p>
           </Card>
-          {client.phase === 1 ? (
+          {client.phase === "phase1" ? (
             <div className="space-y-4">
               <Card className="p-6 space-y-2">
                 <p className="font-medium">Phase 1 — Preparation Phase</p>
