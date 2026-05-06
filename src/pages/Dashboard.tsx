@@ -183,7 +183,15 @@ export default function Dashboard() {
                       <Button variant="outline" size="sm"
                         onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
                         Copy portal link
-                    </Button>
+                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`sr-${client.id}`} className="text-xs">Show 8 Rules</Label>
+                        <Switch
+                          id={`sr-${client.id}`}
+                          checked={!!client.show_rules}
+                          onCheckedChange={(v) => setShowRules(client.id, v)}
+                        />
+                      </div>
                     </div>
                   </div>
 
