@@ -90,6 +90,16 @@ export default function Dashboard() {
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase } : c)));
   };
 
+  const setPhase3Foods = (clientId: string, value: string) => {
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase3_additional_foods: value } : c)));
+  };
+
+  const savePhase3Foods = async (clientId: string, value: string) => {
+    const { error } = await supabase.from("clients").update({ phase3_additional_foods: value }).eq("id", clientId);
+    if (error) return toast.error("Could not save additional foods");
+    toast.success("Additional foods saved");
+  };
+
   const logout = async () => {
     await supabase.auth.signOut();
     navigate("/auth", { replace: true });
