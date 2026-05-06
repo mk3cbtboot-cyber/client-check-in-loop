@@ -23,6 +23,7 @@ interface ClientState {
   water_today_litres: number;
   meal_streak: number;
   phase3_additional_foods: string;
+  show_rules: boolean;
 }
 
 type TabKey = "home" | "checkin" | "plan";
