@@ -49,6 +49,7 @@ Deno.serve(async (req) => {
         id: c.id, name: c.name, phase: c.phase,
         avocado_count_week: c.avocado_count_week, egg_count_week: c.egg_count_week,
         water_today_litres: Number(c.water_today_litres), meal_streak: c.meal_streak,
+        phase3_additional_foods: c.phase3_additional_foods ?? "",
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

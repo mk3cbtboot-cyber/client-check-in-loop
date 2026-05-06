@@ -1,0 +1,1 @@
+ALTER TABLE public.clients ADD COLUMN phase3_additional_foods text NOT NULL DEFAULT '';

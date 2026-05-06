@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PHASE_OPTIONS, type Phase } from "@/lib/phases";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Client {
   id: string;
@@ -17,6 +18,7 @@ interface Client {
   email: string;
   magic_token: string;
   phase: Phase;
+  phase3_additional_foods: string;
   created_at: string;
 }
 
@@ -86,6 +88,16 @@ export default function Dashboard() {
     if (error) return toast.error("Could not update phase");
     toast.success("Phase updated");
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase } : c)));
+  };
+
+  const setPhase3Foods = (clientId: string, value: string) => {
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase3_additional_foods: value } : c)));
+  };
+
+  const savePhase3Foods = async (clientId: string, value: string) => {
+    const { error } = await supabase.from("clients").update({ phase3_additional_foods: value }).eq("id", clientId);
+    if (error) return toast.error("Could not save additional foods");
+    toast.success("Additional foods saved");
   };
 
   const logout = async () => {
@@ -161,6 +173,21 @@ export default function Dashboard() {
                     </Button>
                     </div>
                   </div>
+
+                  {client.phase === "phase3" && (
+                    <div className="border-t pt-3 space-y-2">
+                      <Label htmlFor={`p3-${client.id}`} className="text-xs">Phase 3 Additional Foods</Label>
+                      <Textarea
+                        id={`p3-${client.id}`}
+                        placeholder="e.g. Oats, Sweet potato, Brown rice, Lentils..."
+                        value={client.phase3_additional_foods ?? ""}
+                        onChange={(e) => setPhase3Foods(client.id, e.target.value)}
+                        onBlur={(e) => savePhase3Foods(client.id, e.target.value)}
+                        rows={3}
+                      />
+                      <p className="text-xs text-muted-foreground">Up to 10 foods the client has requested. Saved when you click outside the field.</p>
+                    </div>
+                  )}
 
                   <div className="border-t pt-3">
                     <p className="text-sm font-medium mb-2">Check-ins ({list.length})</p>
