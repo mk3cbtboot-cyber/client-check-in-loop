@@ -20,6 +20,7 @@ interface Client {
   magic_token: string;
   phase: Phase;
   phase3_additional_foods: string;
+  show_rules: boolean;
   created_at: string;
 }
 
