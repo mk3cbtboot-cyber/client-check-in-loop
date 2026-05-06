@@ -519,7 +519,10 @@ export default function ClientPortal() {
                 <Card className="p-6 space-y-2">
                   <p className="font-medium">Your Additional Foods</p>
                   {client.phase3_additional_foods?.trim() ? (
-                    <p className="text-sm text-foreground whitespace-pre-wrap">{client.phase3_additional_foods}</p>
+                    <>
+                      <p className="text-sm text-muted-foreground">The 10 additional foods you selected have been added by Cheryl.</p>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{client.phase3_additional_foods}</p>
+                    </>
                   ) : (
                     <p className="text-sm text-muted-foreground">Your practitioner will add your personalised foods here once your Phase 3 consultation is complete.</p>
                   )}
