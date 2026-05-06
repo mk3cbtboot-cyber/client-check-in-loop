@@ -23,6 +23,7 @@ interface ClientState {
   water_today_litres: number;
   meal_streak: number;
   phase3_additional_foods: string;
+  show_rules: boolean;
 }
 
 type TabKey = "home" | "checkin" | "plan";
@@ -224,19 +225,25 @@ export default function ClientPortal() {
             </Card>
           </div>
 
-          <Collapsible open={rulesOpen} onOpenChange={setRulesOpen}>
+          {client.phase === "phase1" ? (
             <Card className="p-4">
-              <CollapsibleTrigger className="w-full text-left flex items-center justify-between">
-                <span className="font-medium">The 8 Metabolic Balance Rules</span>
-                <span className="text-sm text-muted-foreground">{rulesOpen ? "Hide" : "Show"}</span>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-3">
-                <ol className="list-decimal list-inside space-y-1 text-sm">
-                  {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
-                </ol>
-              </CollapsibleContent>
+              <p className="text-sm text-muted-foreground">Tap 'My Plan' to view your Phase 1 instructions.</p>
             </Card>
-          </Collapsible>
+          ) : client.show_rules ? (
+            <Collapsible open={rulesOpen} onOpenChange={setRulesOpen}>
+              <Card className="p-4">
+                <CollapsibleTrigger className="w-full text-left flex items-center justify-between">
+                  <span className="font-medium">The 8 Metabolic Balance Rules</span>
+                  <span className="text-sm text-muted-foreground">{rulesOpen ? "Hide" : "Show"}</span>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3">
+                  <ol className="list-decimal list-inside space-y-1 text-sm">
+                    {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
+                  </ol>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          ) : null}
 
           {!recipeBuilderEnabled(client.phase) ? (
             <Card className="p-6 text-center">

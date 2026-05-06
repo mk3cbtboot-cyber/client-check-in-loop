@@ -1,0 +1,1 @@
+ALTER TABLE public.clients ADD COLUMN show_rules boolean NOT NULL DEFAULT false;

@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { PHASE_OPTIONS, type Phase } from "@/lib/phases";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 
 interface Client {
   id: string;
@@ -19,6 +20,7 @@ interface Client {
   magic_token: string;
   phase: Phase;
   phase3_additional_foods: string;
+  show_rules: boolean;
   created_at: string;
 }
 
@@ -100,6 +102,17 @@ export default function Dashboard() {
     toast.success("Additional foods saved");
   };
 
+  const setShowRules = async (clientId: string, value: boolean) => {
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, show_rules: value } : c)));
+    const { error } = await supabase.from("clients").update({ show_rules: value }).eq("id", clientId);
+    if (error) {
+      toast.error("Could not update setting");
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, show_rules: !value } : c)));
+      return;
+    }
+    toast.success(value ? "8 Rules visible to client" : "8 Rules hidden from client");
+  };
+
   const logout = async () => {
     await supabase.auth.signOut();
     navigate("/auth", { replace: true });
@@ -170,7 +183,15 @@ export default function Dashboard() {
                       <Button variant="outline" size="sm"
                         onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
                         Copy portal link
-                    </Button>
+                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`sr-${client.id}`} className="text-xs">Show 8 Rules</Label>
+                        <Switch
+                          id={`sr-${client.id}`}
+                          checked={!!client.show_rules}
+                          onCheckedChange={(v) => setShowRules(client.id, v)}
+                        />
+                      </div>
                     </div>
                   </div>
 
