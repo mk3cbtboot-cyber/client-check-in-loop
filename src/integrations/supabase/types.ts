@@ -60,6 +60,7 @@ export type Database = {
           meal_streak: number
           name: string
           phase: string
+          phase3_additional_foods: string
           practitioner_id: string
           water_date: string
           water_today_litres: number
@@ -75,6 +76,7 @@ export type Database = {
           meal_streak?: number
           name: string
           phase?: string
+          phase3_additional_foods?: string
           practitioner_id: string
           water_date?: string
           water_today_litres?: number
@@ -90,6 +92,7 @@ export type Database = {
           meal_streak?: number
           name?: string
           phase?: string
+          phase3_additional_foods?: string
           practitioner_id?: string
           water_date?: string
           water_today_litres?: number
