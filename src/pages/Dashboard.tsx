@@ -102,6 +102,17 @@ export default function Dashboard() {
     toast.success("Additional foods saved");
   };
 
+  const setShowRules = async (clientId: string, value: boolean) => {
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, show_rules: value } : c)));
+    const { error } = await supabase.from("clients").update({ show_rules: value }).eq("id", clientId);
+    if (error) {
+      toast.error("Could not update setting");
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, show_rules: !value } : c)));
+      return;
+    }
+    toast.success(value ? "8 Rules visible to client" : "8 Rules hidden from client");
+  };
+
   const logout = async () => {
     await supabase.auth.signOut();
     navigate("/auth", { replace: true });
