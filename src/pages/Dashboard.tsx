@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PHASE_OPTIONS, type Phase } from "@/lib/phases";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Client {
   id: string;
@@ -17,6 +18,7 @@ interface Client {
   email: string;
   magic_token: string;
   phase: Phase;
+  phase3_additional_foods: string;
   created_at: string;
 }
 
