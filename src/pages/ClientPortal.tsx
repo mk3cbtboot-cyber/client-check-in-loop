@@ -22,6 +22,7 @@ interface ClientState {
   egg_count_week: number;
   water_today_litres: number;
   meal_streak: number;
+  phase3_additional_foods: string;
 }
 
 type TabKey = "home" | "checkin" | "plan";
