@@ -174,6 +174,21 @@ export default function Dashboard() {
                     </div>
                   </div>
 
+                  {client.phase === "phase3" && (
+                    <div className="border-t pt-3 space-y-2">
+                      <Label htmlFor={`p3-${client.id}`} className="text-xs">Phase 3 Additional Foods</Label>
+                      <Textarea
+                        id={`p3-${client.id}`}
+                        placeholder="e.g. Oats, Sweet potato, Brown rice, Lentils..."
+                        value={client.phase3_additional_foods ?? ""}
+                        onChange={(e) => setPhase3Foods(client.id, e.target.value)}
+                        onBlur={(e) => savePhase3Foods(client.id, e.target.value)}
+                        rows={3}
+                      />
+                      <p className="text-xs text-muted-foreground">Up to 10 foods the client has requested. Saved when you click outside the field.</p>
+                    </div>
+                  )}
+
                   <div className="border-t pt-3">
                     <p className="text-sm font-medium mb-2">Check-ins ({list.length})</p>
                     {list.length === 0 ? (
