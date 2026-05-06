@@ -515,6 +515,16 @@ export default function ClientPortal() {
                   </Card>
                 ))}
               </div>
+              {client.phase === "phase3" && (
+                <Card className="p-6 space-y-2">
+                  <p className="font-medium">Your Additional Foods</p>
+                  {client.phase3_additional_foods?.trim() ? (
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{client.phase3_additional_foods}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Your practitioner will add your personalised foods here once your Phase 3 consultation is complete.</p>
+                  )}
+                </Card>
+              )}
               <p className="text-xs text-muted-foreground text-center pt-2">
                 Quantities and exact selections are managed by your nutritionist. Use the Home tab to build today's meal.
               </p>
