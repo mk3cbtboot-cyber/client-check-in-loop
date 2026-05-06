@@ -62,6 +62,7 @@ export type Database = {
           phase: string
           phase3_additional_foods: string
           practitioner_id: string
+          show_rules: boolean
           water_date: string
           water_today_litres: number
           week_reset_date: string
@@ -78,6 +79,7 @@ export type Database = {
           phase?: string
           phase3_additional_foods?: string
           practitioner_id: string
+          show_rules?: boolean
           water_date?: string
           water_today_litres?: number
           week_reset_date?: string
@@ -94,6 +96,7 @@ export type Database = {
           phase?: string
           phase3_additional_foods?: string
           practitioner_id?: string
+          show_rules?: boolean
           water_date?: string
           water_today_litres?: number
           week_reset_date?: string
