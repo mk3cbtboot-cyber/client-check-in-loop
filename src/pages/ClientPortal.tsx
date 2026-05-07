@@ -198,11 +198,18 @@ export default function ClientPortal() {
     }
   };
 
+  const isP2Strict = client?.phase === "phase2_strict";
+  const daysSinceP2Start = (() => {
+    if (!isP2Strict || !client?.phase2_strict_started_at) return 0;
+    const start = new Date(client.phase2_strict_started_at).getTime();
+    return Math.floor((Date.now() - start) / (1000 * 60 * 60 * 24));
+  })();
+  const isWeeklyMode = isP2Strict && daysSinceP2Start >= 14;
+
   const submitCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingCheckin(true);
     try {
-      const isP2Strict = client?.phase === "phase2_strict";
       const body: Record<string, unknown> = { token, notes, water_litres: waterLitres };
       if (isP2Strict) {
         if (weightInput) {
@@ -211,6 +218,13 @@ export default function ClientPortal() {
           body.weight_kg = kg;
         }
         Object.assign(body, ratings);
+        if (isWeeklyMode) {
+          body.is_weekly = true;
+          if (bodyFatPct) body.body_fat_pct = Number(bodyFatPct);
+          const waist = toCm(waistInput); if (waist !== undefined) body.waist_cm = waist;
+          const hip = toCm(hipInput); if (hip !== undefined) body.hip_cm = hip;
+          const thigh = toCm(thighInput); if (thigh !== undefined) body.upper_thigh_cm = thigh;
+        }
       } else {
         body.feeling = feeling;
       }
