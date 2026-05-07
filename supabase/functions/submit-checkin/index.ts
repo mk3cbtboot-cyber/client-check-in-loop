@@ -7,7 +7,7 @@ const rating = z.number().int().min(1).max(5).optional();
 const BodySchema = z.object({
   token: z.string().min(10).max(200),
   feeling: z.number().int().min(1).max(5).optional(),
-  water_glasses: z.number().int().min(0).max(50).optional(),
+  water_litres: z.number().min(0).max(20).optional(),
   notes: z.string().max(2000).optional().default(""),
   weight_kg: z.number().min(0).max(500).optional(),
   general_wellbeing: rating,
