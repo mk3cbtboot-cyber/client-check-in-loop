@@ -281,13 +281,35 @@ export default function Dashboard() {
                             ["Allergy / Skin", ci.allergy_skin],
                           ];
                           const hasRatings = ratingFields.some(([, v]) => v != null);
+                          const measurementFields: [string, string | null][] = [
+                            ["Body Fat", ci.body_fat_pct != null ? `${ci.body_fat_pct}%` : null],
+                            ["Waist", ci.waist_cm != null ? `${ci.waist_cm} cm` : null],
+                            ["Hip", ci.hip_cm != null ? `${ci.hip_cm} cm` : null],
+                            ["Upper Thigh", ci.upper_thigh_cm != null ? `${ci.upper_thigh_cm} cm` : null],
+                          ];
+                          const hasMeasurements = measurementFields.some(([, v]) => v != null);
+                          const heightCm = client.height_cm ? Number(client.height_cm) : null;
+                          const bmi = heightCm && ci.weight_kg ? (Number(ci.weight_kg) / Math.pow(heightCm / 100, 2)) : null;
+                          const whtr = heightCm && ci.waist_cm ? (Number(ci.waist_cm) / heightCm) : null;
                           return (
                             <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
-                              <div className="text-xs text-muted-foreground">{format(new Date(ci.created_at), "PPp")}</div>
+                              <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                {format(new Date(ci.created_at), "PPp")}
+                                {ci.is_weekly && <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide">Weekly</span>}
+                              </div>
                               {ci.weight_kg != null && <div>Weight: <span className="font-medium">{ci.weight_kg} kg</span></div>}
                               {ci.feeling != null && <div>Feeling: <span className="font-medium">{ci.feeling}/5</span></div>}
                               {ci.water_litres != null && <div>Water: <span className="font-medium">{ci.water_litres} L</span></div>}
                               {ci.water_litres == null && ci.water_glasses != null && <div>Water: <span className="font-medium">{ci.water_glasses} glasses</span></div>}
+                              {hasMeasurements && (
+                                <div className="grid grid-cols-2 gap-x-3 pt-1">
+                                  {measurementFields.filter(([, v]) => v != null).map(([label, v]) => (
+                                    <div key={label} className="text-xs"><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{v}</span></div>
+                                  ))}
+                                  {bmi != null && <div className="text-xs"><span className="text-muted-foreground">BMI:</span> <span className="font-medium">{bmi.toFixed(1)}</span></div>}
+                                  {whtr != null && <div className="text-xs"><span className="text-muted-foreground">WHtR:</span> <span className="font-medium">{whtr.toFixed(2)}</span></div>}
+                                </div>
+                              )}
                               {hasRatings && (
                                 <div className="grid grid-cols-2 gap-x-3 pt-1">
                                   {ratingFields.filter(([, v]) => v != null).map(([label, v]) => (
