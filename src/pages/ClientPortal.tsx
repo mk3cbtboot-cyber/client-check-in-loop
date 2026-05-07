@@ -54,6 +54,15 @@ export default function ClientPortal() {
   const [submittingCheckin, setSubmittingCheckin] = useState(false);
   const [checkinDone, setCheckinDone] = useState(false);
 
+  // Phase 2 Strict daily progress
+  const [weightKg, setWeightKg] = useState<string>("");
+  const initialRatings = {
+    general_wellbeing: 3, fatigue: 3, sleep: 3, headache: 3, pain: 3,
+    joint_pain: 3, acid_reflux: 3, digestion: 3, allergy_skin: 3,
+  };
+  const [ratings, setRatings] = useState<Record<string, number>>(initialRatings);
+  const setRating = (k: string, v: number) => setRatings((r) => ({ ...r, [k]: v }));
+
   const refresh = async () => {
     if (!token) return;
     const { data } = await supabase.functions.invoke("client-portal-data", { body: { token } });
@@ -154,9 +163,17 @@ export default function ClientPortal() {
     e.preventDefault();
     setSubmittingCheckin(true);
     try {
-      const { data, error } = await supabase.functions.invoke("submit-checkin", {
-        body: { token, feeling, water_glasses: waterGlasses, notes },
-      });
+      const isP2Strict = client?.phase === "phase2_strict";
+      const body: Record<string, unknown> = { token, notes };
+      if (isP2Strict) {
+        if (weightKg) body.weight_kg = Number(weightKg);
+        body.water_glasses = waterGlasses;
+        Object.assign(body, ratings);
+      } else {
+        body.feeling = feeling;
+        body.water_glasses = waterGlasses;
+      }
+      const { data, error } = await supabase.functions.invoke("submit-checkin", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setCheckinDone(true);
@@ -363,9 +380,64 @@ export default function ClientPortal() {
             <Card className="p-6 text-center space-y-3">
               <h2 className="text-lg font-semibold">Thanks!</h2>
               <p className="text-sm text-muted-foreground">Your nutritionist has been notified.</p>
-              <Button variant="outline" onClick={() => { setCheckinDone(false); setFeeling(3); setWaterGlasses(0); setNotes(""); }}>
+              <Button variant="outline" onClick={() => { setCheckinDone(false); setFeeling(3); setWaterGlasses(0); setNotes(""); setWeightKg(""); setRatings(initialRatings); }}>
                 Submit another
               </Button>
+            </Card>
+          ) : client.phase === "phase2_strict" ? (
+            <Card className="p-6 space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold">Daily Progress — Phase 2 Strict</h2>
+                <p className="text-sm text-muted-foreground">Rate each area from 1 (best) to 5 (worst).</p>
+              </div>
+              <form onSubmit={submitCheckin} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="weight">Weight (kg)</Label>
+                  <Input id="weight" type="number" step="0.1" min={0} value={weightKg} onChange={(e) => setWeightKg(e.target.value)} placeholder="e.g. 72.4" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="water">Water intake (glasses)</Label>
+                  <Input id="water" type="number" min={0} max={50} value={waterGlasses} onChange={(e) => setWaterGlasses(Number(e.target.value))} />
+                </div>
+                {([
+                  ["general_wellbeing", "General Well-Being"],
+                  ["fatigue", "Fatigue"],
+                  ["sleep", "Sleep"],
+                  ["headache", "Headache"],
+                  ["pain", "Pain"],
+                  ["joint_pain", "Joint Pain"],
+                  ["acid_reflux", "Acid Reflux"],
+                  ["digestion", "Digestion"],
+                  ["allergy_skin", "Allergy / Skin"],
+                ] as [string, string][]).map(([key, label]) => (
+                  <div key={key} className="space-y-2">
+                    <Label>{label} ({ratings[key]}/5)</Label>
+                    <div className="grid grid-cols-5 gap-2">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Button
+                          key={n}
+                          type="button"
+                          variant={ratings[key] === n ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setRating(key, n)}
+                        >
+                          {n}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>1 Best</span><span>5 Worst</span>
+                    </div>
+                  </div>
+                ))}
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Any notes for your nutritionist?</Label>
+                  <Textarea id="notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+                </div>
+                <Button type="submit" className="w-full" disabled={submittingCheckin}>
+                  {submittingCheckin ? "Submitting…" : "Submit check-in"}
+                </Button>
+              </form>
             </Card>
           ) : (
             <Card className="p-6 space-y-6">

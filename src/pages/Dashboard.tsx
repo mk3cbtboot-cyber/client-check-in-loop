@@ -27,10 +27,20 @@ interface Client {
 interface CheckIn {
   id: string;
   client_id: string;
-  feeling: number;
-  water_glasses: number;
+  feeling: number | null;
+  water_glasses: number | null;
   notes: string | null;
   created_at: string;
+  weight_kg: number | null;
+  general_wellbeing: number | null;
+  fatigue: number | null;
+  sleep: number | null;
+  headache: number | null;
+  pain: number | null;
+  joint_pain: number | null;
+  acid_reflux: number | null;
+  digestion: number | null;
+  allergy_skin: number | null;
 }
 
 export default function Dashboard() {
@@ -216,14 +226,36 @@ export default function Dashboard() {
                       <p className="text-sm text-muted-foreground">No submissions yet.</p>
                     ) : (
                       <ul className="space-y-2">
-                        {list.map((ci) => (
-                          <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
-                            <div className="text-xs text-muted-foreground">{format(new Date(ci.created_at), "PPp")}</div>
-                            <div>Feeling: <span className="font-medium">{ci.feeling}/5</span></div>
-                            <div>Water: <span className="font-medium">{ci.water_glasses} glasses</span></div>
-                            {ci.notes && <div className="pt-1 text-muted-foreground">"{ci.notes}"</div>}
-                          </li>
-                        ))}
+                        {list.map((ci) => {
+                          const ratingFields: [string, number | null][] = [
+                            ["General Well-Being", ci.general_wellbeing],
+                            ["Fatigue", ci.fatigue],
+                            ["Sleep", ci.sleep],
+                            ["Headache", ci.headache],
+                            ["Pain", ci.pain],
+                            ["Joint Pain", ci.joint_pain],
+                            ["Acid Reflux", ci.acid_reflux],
+                            ["Digestion", ci.digestion],
+                            ["Allergy / Skin", ci.allergy_skin],
+                          ];
+                          const hasRatings = ratingFields.some(([, v]) => v != null);
+                          return (
+                            <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
+                              <div className="text-xs text-muted-foreground">{format(new Date(ci.created_at), "PPp")}</div>
+                              {ci.weight_kg != null && <div>Weight: <span className="font-medium">{ci.weight_kg} kg</span></div>}
+                              {ci.feeling != null && <div>Feeling: <span className="font-medium">{ci.feeling}/5</span></div>}
+                              {ci.water_glasses != null && <div>Water: <span className="font-medium">{ci.water_glasses} glasses</span></div>}
+                              {hasRatings && (
+                                <div className="grid grid-cols-2 gap-x-3 pt-1">
+                                  {ratingFields.filter(([, v]) => v != null).map(([label, v]) => (
+                                    <div key={label} className="text-xs"><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{v}/5</span></div>
+                                  ))}
+                                </div>
+                              )}
+                              {ci.notes && <div className="pt-1 text-muted-foreground">"{ci.notes}"</div>}
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </div>

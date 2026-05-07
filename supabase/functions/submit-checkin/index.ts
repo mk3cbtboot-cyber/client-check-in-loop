@@ -2,11 +2,23 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 import { z } from "https://esm.sh/zod@3.23.8";
 
+const rating = z.number().int().min(1).max(5).optional();
+
 const BodySchema = z.object({
   token: z.string().min(10).max(200),
-  feeling: z.number().int().min(1).max(5),
-  water_glasses: z.number().int().min(0).max(50),
+  feeling: z.number().int().min(1).max(5).optional(),
+  water_glasses: z.number().int().min(0).max(50).optional(),
   notes: z.string().max(2000).optional().default(""),
+  weight_kg: z.number().min(0).max(500).optional(),
+  general_wellbeing: rating,
+  fatigue: rating,
+  sleep: rating,
+  headache: rating,
+  pain: rating,
+  joint_pain: rating,
+  acid_reflux: rating,
+  digestion: rating,
+  allergy_skin: rating,
 });
 
 Deno.serve(async (req) => {
@@ -20,14 +32,13 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { token, feeling, water_glasses, notes } = parsed.data;
+    const { token, notes, ...rest } = parsed.data;
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Validate token -> client
     const { data: client, error: clientErr } = await admin
       .from("clients")
       .select("id, name, email, practitioner_id")
@@ -40,19 +51,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    const insertRow: Record<string, unknown> = {
+      client_id: client.id,
+      notes: notes || null,
+    };
+    for (const [k, v] of Object.entries(rest)) {
+      if (v !== undefined) insertRow[k] = v;
+    }
+
     const { data: checkIn, error: insertErr } = await admin
       .from("check_ins")
-      .insert({
-        client_id: client.id,
-        feeling,
-        water_glasses,
-        notes: notes || null,
-      })
+      .insert(insertRow)
       .select()
       .single();
     if (insertErr) throw insertErr;
 
-    // Look up practitioner email and notify (best-effort)
     try {
       const { data: prof } = await admin
         .from("profiles")
@@ -67,8 +80,8 @@ Deno.serve(async (req) => {
             idempotencyKey: `checkin-notify-${checkIn.id}`,
             templateData: {
               clientName: client.name,
-              feeling,
-              waterGlasses: water_glasses,
+              feeling: rest.feeling ?? null,
+              waterGlasses: rest.water_glasses ?? null,
               notes: notes || "",
             },
           },
