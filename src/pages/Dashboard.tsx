@@ -230,6 +230,23 @@ export default function Dashboard() {
                     </div>
                   </div>
 
+                  <div className="border-t pt-3 flex items-end gap-3 flex-wrap">
+                    <div className="space-y-1">
+                      <Label htmlFor={`h-${client.id}`} className="text-xs">Height (cm)</Label>
+                      <Input
+                        id={`h-${client.id}`}
+                        type="number"
+                        step="0.1"
+                        className="h-8 w-32"
+                        value={client.height_cm ?? ""}
+                        onChange={(e) => setHeight(client.id, e.target.value)}
+                        onBlur={(e) => saveHeight(client.id, e.target.value)}
+                        placeholder="e.g. 168"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Used for BMI &amp; waist-to-height ratio.</p>
+                  </div>
+
                   {client.phase === "phase3" && (
                     <div className="border-t pt-3 space-y-2">
                       <Label htmlFor={`p3-${client.id}`} className="text-xs">Phase 3 Additional Foods</Label>
