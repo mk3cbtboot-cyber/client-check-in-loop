@@ -417,12 +417,19 @@ export default function ClientPortal() {
               </div>
               <form onSubmit={submitCheckin} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="weight">Weight (kg)</Label>
-                  <Input id="weight" type="number" step="0.1" min={0} value={weightKg} onChange={(e) => setWeightKg(e.target.value)} placeholder="e.g. 72.4" />
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="weight">Weight ({weightUnit})</Label>
+                    <div className="flex gap-1">
+                      <Button type="button" size="sm" variant={weightUnit === "kg" ? "default" : "outline"} onClick={() => updateWeightUnit("kg")}>kg</Button>
+                      <Button type="button" size="sm" variant={weightUnit === "lbs" ? "default" : "outline"} onClick={() => updateWeightUnit("lbs")}>lbs</Button>
+                    </div>
+                  </div>
+                  <Input id="weight" type="number" step="0.1" min={0} value={weightInput} onChange={(e) => setWeightInput(e.target.value)} placeholder={weightUnit === "kg" ? "e.g. 72.4" : "e.g. 159.6"} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="water">Water intake (glasses)</Label>
-                  <Input id="water" type="number" min={0} max={50} value={waterGlasses} onChange={(e) => setWaterGlasses(Number(e.target.value))} />
+                  <Label htmlFor="water">Water intake (litres)</Label>
+                  <Input id="water" type="number" step="0.25" min={0} max={20} value={waterLitres} onChange={(e) => setWaterAmount(Number(e.target.value))} />
+                  <p className="text-xs text-muted-foreground">Synced with your home screen water tracker.</p>
                 </div>
                 {([
                   ["general_wellbeing", "General Well-Being"],
