@@ -66,6 +66,15 @@ Deno.serve(async (req) => {
       .single();
     if (insertErr) throw insertErr;
 
+    // Sync home-screen water tracker if water_litres provided
+    if (rest.water_litres !== undefined) {
+      const td = new Date().toISOString().slice(0, 10);
+      await admin.from("clients").update({
+        water_today_litres: rest.water_litres,
+        water_date: td,
+      }).eq("id", client.id);
+    }
+
     try {
       const { data: prof } = await admin
         .from("profiles")
