@@ -91,6 +91,22 @@ export default function ClientPortal() {
     const { data, error } = await supabase.functions.invoke("client-portal-water", { body: { token } });
     if (error || data?.error) return toast.error("Could not log water");
     setClient((c) => (c ? { ...c, water_today_litres: data.water_today_litres } : c));
+    setWaterLitres(Number(data.water_today_litres) || 0);
+  };
+
+  const setWaterAmount = async (litres: number) => {
+    const safe = Math.max(0, Math.min(20, Number(litres) || 0));
+    setWaterLitres(safe);
+    const { data } = await supabase.functions.invoke("client-portal-water", { body: { token, set_litres: safe } });
+    if (data?.water_today_litres !== undefined) {
+      setClient((c) => (c ? { ...c, water_today_litres: data.water_today_litres } : c));
+    }
+  };
+
+  const updateWeightUnit = async (unit: "kg" | "lbs") => {
+    setWeightUnit(unit);
+    setClient((c) => (c ? { ...c, weight_unit: unit } : c));
+    await supabase.functions.invoke("update-client-prefs", { body: { token, weight_unit: unit } });
   };
 
   const pickOption = (m: MealType, o: OptionDef) => {
