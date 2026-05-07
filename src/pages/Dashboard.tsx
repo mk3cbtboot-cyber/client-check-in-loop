@@ -21,6 +21,8 @@ interface Client {
   phase: Phase;
   phase3_additional_foods: string;
   show_rules: boolean;
+  height_cm: number | null;
+  phase2_strict_started_at: string | null;
   created_at: string;
 }
 
@@ -42,6 +44,11 @@ interface CheckIn {
   acid_reflux: number | null;
   digestion: number | null;
   allergy_skin: number | null;
+  body_fat_pct: number | null;
+  waist_cm: number | null;
+  hip_cm: number | null;
+  upper_thigh_cm: number | null;
+  is_weekly: boolean | null;
 }
 
 export default function Dashboard() {
