@@ -490,8 +490,9 @@ export default function ClientPortal() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="water">How much water did you drink? (glasses)</Label>
-                  <Input id="water" type="number" min={0} max={50} value={waterGlasses} onChange={(e) => setWaterGlasses(Number(e.target.value))} />
+                  <Label htmlFor="water">How much water did you drink? (litres)</Label>
+                  <Input id="water" type="number" step="0.25" min={0} max={20} value={waterLitres} onChange={(e) => setWaterAmount(Number(e.target.value))} />
+                  <p className="text-xs text-muted-foreground">Synced with your home screen water tracker.</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="notes">Any notes for your nutritionist?</Label>
