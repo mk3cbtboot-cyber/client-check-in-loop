@@ -21,6 +21,8 @@ interface Client {
   phase: Phase;
   phase3_additional_foods: string;
   show_rules: boolean;
+  height_cm: number | null;
+  phase2_strict_started_at: string | null;
   created_at: string;
 }
 
@@ -42,6 +44,11 @@ interface CheckIn {
   acid_reflux: number | null;
   digestion: number | null;
   allergy_skin: number | null;
+  body_fat_pct: number | null;
+  waist_cm: number | null;
+  hip_cm: number | null;
+  upper_thigh_cm: number | null;
+  is_weekly: boolean | null;
 }
 
 export default function Dashboard() {
@@ -97,10 +104,27 @@ export default function Dashboard() {
   };
 
   const setPhase = async (clientId: string, phase: Phase) => {
-    const { error } = await supabase.from("clients").update({ phase }).eq("id", clientId);
+    const current = clients.find((c) => c.id === clientId);
+    const updates: { phase: Phase; phase2_strict_started_at?: string } = { phase };
+    if (phase === "phase2_strict" && !current?.phase2_strict_started_at) {
+      updates.phase2_strict_started_at = new Date().toISOString();
+    }
+    const { error } = await supabase.from("clients").update(updates).eq("id", clientId);
     if (error) return toast.error("Could not update phase");
     toast.success("Phase updated");
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase } : c)));
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase, phase2_strict_started_at: (updates.phase2_strict_started_at as string) ?? c.phase2_strict_started_at } : c)));
+  };
+
+  const setHeight = (clientId: string, value: string) => {
+    const num = value === "" ? null : Number(value);
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, height_cm: num } : c)));
+  };
+
+  const saveHeight = async (clientId: string, value: string) => {
+    const num = value === "" ? null : Number(value);
+    const { error } = await supabase.from("clients").update({ height_cm: num }).eq("id", clientId);
+    if (error) return toast.error("Could not save height");
+    toast.success("Height saved");
   };
 
   const setPhase3Foods = (clientId: string, value: string) => {
@@ -206,6 +230,23 @@ export default function Dashboard() {
                     </div>
                   </div>
 
+                  <div className="border-t pt-3 flex items-end gap-3 flex-wrap">
+                    <div className="space-y-1">
+                      <Label htmlFor={`h-${client.id}`} className="text-xs">Height (cm)</Label>
+                      <Input
+                        id={`h-${client.id}`}
+                        type="number"
+                        step="0.1"
+                        className="h-8 w-32"
+                        value={client.height_cm ?? ""}
+                        onChange={(e) => setHeight(client.id, e.target.value)}
+                        onBlur={(e) => saveHeight(client.id, e.target.value)}
+                        placeholder="e.g. 168"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Used for BMI &amp; waist-to-height ratio.</p>
+                  </div>
+
                   {client.phase === "phase3" && (
                     <div className="border-t pt-3 space-y-2">
                       <Label htmlFor={`p3-${client.id}`} className="text-xs">Phase 3 Additional Foods</Label>
@@ -240,13 +281,35 @@ export default function Dashboard() {
                             ["Allergy / Skin", ci.allergy_skin],
                           ];
                           const hasRatings = ratingFields.some(([, v]) => v != null);
+                          const measurementFields: [string, string | null][] = [
+                            ["Body Fat", ci.body_fat_pct != null ? `${ci.body_fat_pct}%` : null],
+                            ["Waist", ci.waist_cm != null ? `${ci.waist_cm} cm` : null],
+                            ["Hip", ci.hip_cm != null ? `${ci.hip_cm} cm` : null],
+                            ["Upper Thigh", ci.upper_thigh_cm != null ? `${ci.upper_thigh_cm} cm` : null],
+                          ];
+                          const hasMeasurements = measurementFields.some(([, v]) => v != null);
+                          const heightCm = client.height_cm ? Number(client.height_cm) : null;
+                          const bmi = heightCm && ci.weight_kg ? (Number(ci.weight_kg) / Math.pow(heightCm / 100, 2)) : null;
+                          const whtr = heightCm && ci.waist_cm ? (Number(ci.waist_cm) / heightCm) : null;
                           return (
                             <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
-                              <div className="text-xs text-muted-foreground">{format(new Date(ci.created_at), "PPp")}</div>
+                              <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                {format(new Date(ci.created_at), "PPp")}
+                                {ci.is_weekly && <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide">Weekly</span>}
+                              </div>
                               {ci.weight_kg != null && <div>Weight: <span className="font-medium">{ci.weight_kg} kg</span></div>}
                               {ci.feeling != null && <div>Feeling: <span className="font-medium">{ci.feeling}/5</span></div>}
                               {ci.water_litres != null && <div>Water: <span className="font-medium">{ci.water_litres} L</span></div>}
                               {ci.water_litres == null && ci.water_glasses != null && <div>Water: <span className="font-medium">{ci.water_glasses} glasses</span></div>}
+                              {hasMeasurements && (
+                                <div className="grid grid-cols-2 gap-x-3 pt-1">
+                                  {measurementFields.filter(([, v]) => v != null).map(([label, v]) => (
+                                    <div key={label} className="text-xs"><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{v}</span></div>
+                                  ))}
+                                  {bmi != null && <div className="text-xs"><span className="text-muted-foreground">BMI:</span> <span className="font-medium">{bmi.toFixed(1)}</span></div>}
+                                  {whtr != null && <div className="text-xs"><span className="text-muted-foreground">WHtR:</span> <span className="font-medium">{whtr.toFixed(2)}</span></div>}
+                                </div>
+                              )}
                               {hasRatings && (
                                 <div className="grid grid-cols-2 gap-x-3 pt-1">
                                   {ratingFields.filter(([, v]) => v != null).map(([label, v]) => (

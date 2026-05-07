@@ -52,6 +52,8 @@ Deno.serve(async (req) => {
         phase3_additional_foods: c.phase3_additional_foods ?? "",
         show_rules: c.show_rules === true,
         weight_unit: c.weight_unit === "lbs" ? "lbs" : "kg",
+        height_cm: c.height_cm != null ? Number(c.height_cm) : null,
+        phase2_strict_started_at: c.phase2_strict_started_at ?? null,
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

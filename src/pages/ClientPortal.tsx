@@ -25,6 +25,8 @@ interface ClientState {
   phase3_additional_foods: string;
   show_rules: boolean;
   weight_unit: "kg" | "lbs";
+  height_cm: number | null;
+  phase2_strict_started_at: string | null;
 }
 
 type TabKey = "home" | "checkin" | "plan";
@@ -64,6 +66,21 @@ export default function ClientPortal() {
   };
   const [ratings, setRatings] = useState<Record<string, number>>(initialRatings);
   const setRating = (k: string, v: number) => setRatings((r) => ({ ...r, [k]: v }));
+
+  // Weekly Phase 2 Strict measurements (stored in cm internally)
+  const [bodyFatPct, setBodyFatPct] = useState<string>("");
+  const [waistInput, setWaistInput] = useState<string>("");
+  const [hipInput, setHipInput] = useState<string>("");
+  const [thighInput, setThighInput] = useState<string>("");
+
+  // Length-unit derived from weight unit toggle: kg→cm, lbs→inches
+  const lengthUnit: "cm" | "in" = weightUnit === "lbs" ? "in" : "cm";
+  const toCm = (v: string) => {
+    if (!v) return undefined;
+    const n = Number(v);
+    if (!isFinite(n)) return undefined;
+    return lengthUnit === "in" ? Math.round(n * 2.54 * 100) / 100 : n;
+  };
 
   const refresh = async () => {
     if (!token) return;
@@ -181,11 +198,18 @@ export default function ClientPortal() {
     }
   };
 
+  const isP2Strict = client?.phase === "phase2_strict";
+  const daysSinceP2Start = (() => {
+    if (!isP2Strict || !client?.phase2_strict_started_at) return 0;
+    const start = new Date(client.phase2_strict_started_at).getTime();
+    return Math.floor((Date.now() - start) / (1000 * 60 * 60 * 24));
+  })();
+  const isWeeklyMode = isP2Strict && daysSinceP2Start >= 14;
+
   const submitCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingCheckin(true);
     try {
-      const isP2Strict = client?.phase === "phase2_strict";
       const body: Record<string, unknown> = { token, notes, water_litres: waterLitres };
       if (isP2Strict) {
         if (weightInput) {
@@ -194,6 +218,13 @@ export default function ClientPortal() {
           body.weight_kg = kg;
         }
         Object.assign(body, ratings);
+        if (isWeeklyMode) {
+          body.is_weekly = true;
+          if (bodyFatPct) body.body_fat_pct = Number(bodyFatPct);
+          const waist = toCm(waistInput); if (waist !== undefined) body.waist_cm = waist;
+          const hip = toCm(hipInput); if (hip !== undefined) body.hip_cm = hip;
+          const thigh = toCm(thighInput); if (thigh !== undefined) body.upper_thigh_cm = thigh;
+        }
       } else {
         body.feeling = feeling;
       }
@@ -405,15 +436,19 @@ export default function ClientPortal() {
             <Card className="p-6 text-center space-y-3">
               <h2 className="text-lg font-semibold">Thanks!</h2>
               <p className="text-sm text-muted-foreground">Your nutritionist has been notified.</p>
-              <Button variant="outline" onClick={() => { setCheckinDone(false); setFeeling(3); setNotes(""); setWeightInput(""); setRatings(initialRatings); }}>
+              <Button variant="outline" onClick={() => { setCheckinDone(false); setFeeling(3); setNotes(""); setWeightInput(""); setRatings(initialRatings); setBodyFatPct(""); setWaistInput(""); setHipInput(""); setThighInput(""); }}>
                 Submit another
               </Button>
             </Card>
           ) : client.phase === "phase2_strict" ? (
             <Card className="p-6 space-y-6">
               <div>
-                <h2 className="text-lg font-semibold">Daily Progress — Phase 2 Strict</h2>
-                <p className="text-sm text-muted-foreground">Rate each area from 1 (best) to 5 (worst).</p>
+                <h2 className="text-lg font-semibold">{isWeeklyMode ? "Weekly Progress — Phase 2 Strict" : "Daily Progress — Phase 2 Strict"}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {isWeeklyMode
+                    ? "You're past Day 14 — please complete this once per week. Rate each area from 1 (best) to 5 (worst)."
+                    : "Rate each area from 1 (best) to 5 (worst)."}
+                </p>
               </div>
               <form onSubmit={submitCheckin} className="space-y-5">
                 <div className="space-y-2">
@@ -462,6 +497,52 @@ export default function ClientPortal() {
                     </div>
                   </div>
                 ))}
+                {isWeeklyMode && (() => {
+                  const heightCm = client.height_cm ?? null;
+                  const weightKgNum = weightInput
+                    ? (weightUnit === "lbs" ? Number(weightInput) * 0.45359237 : Number(weightInput))
+                    : null;
+                  const waistCmNum = toCm(waistInput) ?? null;
+                  const bmi = heightCm && weightKgNum ? weightKgNum / Math.pow(heightCm / 100, 2) : null;
+                  const whtr = heightCm && waistCmNum ? waistCmNum / heightCm : null;
+                  return (
+                    <div className="space-y-4 border-t pt-4">
+                      <p className="text-sm font-medium">Body measurements</p>
+                      <div className="space-y-2">
+                        <Label htmlFor="bf">Body Fat %</Label>
+                        <Input id="bf" type="number" step="0.1" min={0} max={100} value={bodyFatPct} onChange={(e) => setBodyFatPct(e.target.value)} placeholder="e.g. 28.4" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="waist">Waist Circumference ({lengthUnit})</Label>
+                        <Input id="waist" type="number" step="0.1" min={0} value={waistInput} onChange={(e) => setWaistInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 82" : "e.g. 32.3"} />
+                        <p className="text-xs text-muted-foreground">Measure at navel height</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="hip">Hip Circumference ({lengthUnit})</Label>
+                        <Input id="hip" type="number" step="0.1" min={0} value={hipInput} onChange={(e) => setHipInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 96" : "e.g. 37.8"} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="thigh">Upper Thigh Circumference ({lengthUnit})</Label>
+                        <Input id="thigh" type="number" step="0.1" min={0} value={thighInput} onChange={(e) => setThighInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 56" : "e.g. 22"} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-md border p-3">
+                          <p className="text-xs text-muted-foreground">WHtR</p>
+                          <p className="text-lg font-semibold">{whtr != null ? whtr.toFixed(2) : "—"}</p>
+                          <p className="text-[10px] text-muted-foreground">Waist ÷ Height</p>
+                        </div>
+                        <div className="rounded-md border p-3">
+                          <p className="text-xs text-muted-foreground">BMI</p>
+                          <p className="text-lg font-semibold">{bmi != null ? bmi.toFixed(1) : "—"}</p>
+                          <p className="text-[10px] text-muted-foreground">Weight ÷ Height²</p>
+                        </div>
+                      </div>
+                      {!heightCm && (
+                        <p className="text-xs text-muted-foreground">Ask your practitioner to add your height so BMI &amp; WHtR can be calculated.</p>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="space-y-2">
                   <Label htmlFor="notes">Any notes for your nutritionist?</Label>
                   <Textarea id="notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
