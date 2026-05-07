@@ -24,6 +24,7 @@ interface ClientState {
   meal_streak: number;
   phase3_additional_foods: string;
   show_rules: boolean;
+  weight_unit: "kg" | "lbs";
 }
 
 type TabKey = "home" | "checkin" | "plan";
