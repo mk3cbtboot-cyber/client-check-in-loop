@@ -16,28 +16,58 @@ export type Database = {
     Tables: {
       check_ins: {
         Row: {
+          acid_reflux: number | null
+          allergy_skin: number | null
           client_id: string
           created_at: string
-          feeling: number
+          digestion: number | null
+          fatigue: number | null
+          feeling: number | null
+          general_wellbeing: number | null
+          headache: number | null
           id: string
+          joint_pain: number | null
           notes: string | null
-          water_glasses: number
+          pain: number | null
+          sleep: number | null
+          water_glasses: number | null
+          weight_kg: number | null
         }
         Insert: {
+          acid_reflux?: number | null
+          allergy_skin?: number | null
           client_id: string
           created_at?: string
-          feeling: number
+          digestion?: number | null
+          fatigue?: number | null
+          feeling?: number | null
+          general_wellbeing?: number | null
+          headache?: number | null
           id?: string
+          joint_pain?: number | null
           notes?: string | null
-          water_glasses: number
+          pain?: number | null
+          sleep?: number | null
+          water_glasses?: number | null
+          weight_kg?: number | null
         }
         Update: {
+          acid_reflux?: number | null
+          allergy_skin?: number | null
           client_id?: string
           created_at?: string
-          feeling?: number
+          digestion?: number | null
+          fatigue?: number | null
+          feeling?: number | null
+          general_wellbeing?: number | null
+          headache?: number | null
           id?: string
+          joint_pain?: number | null
           notes?: string | null
-          water_glasses?: number
+          pain?: number | null
+          sleep?: number | null
+          water_glasses?: number | null
+          weight_kg?: number | null
         }
         Relationships: [
           {
