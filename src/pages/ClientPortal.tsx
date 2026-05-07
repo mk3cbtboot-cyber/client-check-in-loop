@@ -67,6 +67,21 @@ export default function ClientPortal() {
   const [ratings, setRatings] = useState<Record<string, number>>(initialRatings);
   const setRating = (k: string, v: number) => setRatings((r) => ({ ...r, [k]: v }));
 
+  // Weekly Phase 2 Strict measurements (stored in cm internally)
+  const [bodyFatPct, setBodyFatPct] = useState<string>("");
+  const [waistInput, setWaistInput] = useState<string>("");
+  const [hipInput, setHipInput] = useState<string>("");
+  const [thighInput, setThighInput] = useState<string>("");
+
+  // Length-unit derived from weight unit toggle: kg→cm, lbs→inches
+  const lengthUnit: "cm" | "in" = weightUnit === "lbs" ? "in" : "cm";
+  const toCm = (v: string) => {
+    if (!v) return undefined;
+    const n = Number(v);
+    if (!isFinite(n)) return undefined;
+    return lengthUnit === "in" ? Math.round(n * 2.54 * 100) / 100 : n;
+  };
+
   const refresh = async () => {
     if (!token) return;
     const { data } = await supabase.functions.invoke("client-portal-data", { body: { token } });
