@@ -68,7 +68,11 @@ export default function ClientPortal() {
   const refresh = async () => {
     if (!token) return;
     const { data } = await supabase.functions.invoke("client-portal-data", { body: { token } });
-    if (data?.valid) setClient(data.client);
+    if (data?.valid) {
+      setClient(data.client);
+      setWaterLitres(Number(data.client.water_today_litres) || 0);
+      setWeightUnit(data.client.weight_unit || "kg");
+    }
   };
 
   useEffect(() => {
