@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
             templateData: {
               clientName: client.name,
               feeling: rest.feeling ?? null,
-              waterGlasses: rest.water_glasses ?? null,
+              waterLitres: rest.water_litres ?? null,
               notes: notes || "",
             },
           },
