@@ -163,9 +163,17 @@ export default function ClientPortal() {
     e.preventDefault();
     setSubmittingCheckin(true);
     try {
-      const { data, error } = await supabase.functions.invoke("submit-checkin", {
-        body: { token, feeling, water_glasses: waterGlasses, notes },
-      });
+      const isP2Strict = client?.phase === "phase2_strict";
+      const body: Record<string, unknown> = { token, notes };
+      if (isP2Strict) {
+        if (weightKg) body.weight_kg = Number(weightKg);
+        body.water_glasses = waterGlasses;
+        Object.assign(body, ratings);
+      } else {
+        body.feeling = feeling;
+        body.water_glasses = waterGlasses;
+      }
+      const { data, error } = await supabase.functions.invoke("submit-checkin", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setCheckinDone(true);
