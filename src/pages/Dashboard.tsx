@@ -29,6 +29,7 @@ interface CheckIn {
   client_id: string;
   feeling: number | null;
   water_glasses: number | null;
+  water_litres: number | null;
   notes: string | null;
   created_at: string;
   weight_kg: number | null;
