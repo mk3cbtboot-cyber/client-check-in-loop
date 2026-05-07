@@ -105,7 +105,7 @@ export default function Dashboard() {
 
   const setPhase = async (clientId: string, phase: Phase) => {
     const current = clients.find((c) => c.id === clientId);
-    const updates: Record<string, unknown> = { phase };
+    const updates: { phase: Phase; phase2_strict_started_at?: string } = { phase };
     if (phase === "phase2_strict" && !current?.phase2_strict_started_at) {
       updates.phase2_strict_started_at = new Date().toISOString();
     }
