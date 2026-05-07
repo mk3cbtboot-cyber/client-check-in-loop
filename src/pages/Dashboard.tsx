@@ -27,10 +27,20 @@ interface Client {
 interface CheckIn {
   id: string;
   client_id: string;
-  feeling: number;
-  water_glasses: number;
+  feeling: number | null;
+  water_glasses: number | null;
   notes: string | null;
   created_at: string;
+  weight_kg: number | null;
+  general_wellbeing: number | null;
+  fatigue: number | null;
+  sleep: number | null;
+  headache: number | null;
+  pain: number | null;
+  joint_pain: number | null;
+  acid_reflux: number | null;
+  digestion: number | null;
+  allergy_skin: number | null;
 }
 
 export default function Dashboard() {
