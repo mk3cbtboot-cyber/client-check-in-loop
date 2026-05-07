@@ -50,13 +50,14 @@ export default function ClientPortal() {
 
   // Check-in state
   const [feeling, setFeeling] = useState<number>(3);
-  const [waterGlasses, setWaterGlasses] = useState<number>(0);
+  const [waterLitres, setWaterLitres] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [submittingCheckin, setSubmittingCheckin] = useState(false);
   const [checkinDone, setCheckinDone] = useState(false);
 
   // Phase 2 Strict daily progress
-  const [weightKg, setWeightKg] = useState<string>("");
+  const [weightInput, setWeightInput] = useState<string>("");
+  const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">("kg");
   const initialRatings = {
     general_wellbeing: 3, fatigue: 3, sleep: 3, headache: 3, pain: 3,
     joint_pain: 3, acid_reflux: 3, digestion: 3, allergy_skin: 3,
