@@ -405,7 +405,7 @@ export default function ClientPortal() {
             <Card className="p-6 text-center space-y-3">
               <h2 className="text-lg font-semibold">Thanks!</h2>
               <p className="text-sm text-muted-foreground">Your nutritionist has been notified.</p>
-              <Button variant="outline" onClick={() => { setCheckinDone(false); setFeeling(3); setWaterGlasses(0); setNotes(""); setWeightKg(""); setRatings(initialRatings); }}>
+              <Button variant="outline" onClick={() => { setCheckinDone(false); setFeeling(3); setNotes(""); setWeightInput(""); setRatings(initialRatings); }}>
                 Submit another
               </Button>
             </Card>
