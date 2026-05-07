@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           acid_reflux: number | null
           allergy_skin: number | null
+          body_fat_pct: number | null
           client_id: string
           created_at: string
           digestion: number | null
@@ -25,11 +26,15 @@ export type Database = {
           feeling: number | null
           general_wellbeing: number | null
           headache: number | null
+          hip_cm: number | null
           id: string
+          is_weekly: boolean
           joint_pain: number | null
           notes: string | null
           pain: number | null
           sleep: number | null
+          upper_thigh_cm: number | null
+          waist_cm: number | null
           water_glasses: number | null
           water_litres: number | null
           weight_kg: number | null
@@ -37,6 +42,7 @@ export type Database = {
         Insert: {
           acid_reflux?: number | null
           allergy_skin?: number | null
+          body_fat_pct?: number | null
           client_id: string
           created_at?: string
           digestion?: number | null
@@ -44,11 +50,15 @@ export type Database = {
           feeling?: number | null
           general_wellbeing?: number | null
           headache?: number | null
+          hip_cm?: number | null
           id?: string
+          is_weekly?: boolean
           joint_pain?: number | null
           notes?: string | null
           pain?: number | null
           sleep?: number | null
+          upper_thigh_cm?: number | null
+          waist_cm?: number | null
           water_glasses?: number | null
           water_litres?: number | null
           weight_kg?: number | null
@@ -56,6 +66,7 @@ export type Database = {
         Update: {
           acid_reflux?: number | null
           allergy_skin?: number | null
+          body_fat_pct?: number | null
           client_id?: string
           created_at?: string
           digestion?: number | null
@@ -63,11 +74,15 @@ export type Database = {
           feeling?: number | null
           general_wellbeing?: number | null
           headache?: number | null
+          hip_cm?: number | null
           id?: string
+          is_weekly?: boolean
           joint_pain?: number | null
           notes?: string | null
           pain?: number | null
           sleep?: number | null
+          upper_thigh_cm?: number | null
+          waist_cm?: number | null
           water_glasses?: number | null
           water_litres?: number | null
           weight_kg?: number | null
@@ -88,11 +103,13 @@ export type Database = {
           created_at: string
           egg_count_week: number
           email: string
+          height_cm: number | null
           id: string
           magic_token: string
           meal_streak: number
           name: string
           phase: string
+          phase2_strict_started_at: string | null
           phase3_additional_foods: string
           practitioner_id: string
           show_rules: boolean
@@ -106,11 +123,13 @@ export type Database = {
           created_at?: string
           egg_count_week?: number
           email: string
+          height_cm?: number | null
           id?: string
           magic_token?: string
           meal_streak?: number
           name: string
           phase?: string
+          phase2_strict_started_at?: string | null
           phase3_additional_foods?: string
           practitioner_id: string
           show_rules?: boolean
@@ -124,11 +143,13 @@ export type Database = {
           created_at?: string
           egg_count_week?: number
           email?: string
+          height_cm?: number | null
           id?: string
           magic_token?: string
           meal_streak?: number
           name?: string
           phase?: string
+          phase2_strict_started_at?: string | null
           phase3_additional_foods?: string
           practitioner_id?: string
           show_rules?: boolean
