@@ -245,7 +245,8 @@ export default function Dashboard() {
                               <div className="text-xs text-muted-foreground">{format(new Date(ci.created_at), "PPp")}</div>
                               {ci.weight_kg != null && <div>Weight: <span className="font-medium">{ci.weight_kg} kg</span></div>}
                               {ci.feeling != null && <div>Feeling: <span className="font-medium">{ci.feeling}/5</span></div>}
-                              {ci.water_glasses != null && <div>Water: <span className="font-medium">{ci.water_glasses} glasses</span></div>}
+                              {ci.water_litres != null && <div>Water: <span className="font-medium">{ci.water_litres} L</span></div>}
+                              {ci.water_litres == null && ci.water_glasses != null && <div>Water: <span className="font-medium">{ci.water_glasses} glasses</span></div>}
                               {hasRatings && (
                                 <div className="grid grid-cols-2 gap-x-3 pt-1">
                                   {ratingFields.filter(([, v]) => v != null).map(([label, v]) => (
