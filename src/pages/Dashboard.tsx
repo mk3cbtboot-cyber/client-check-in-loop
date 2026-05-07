@@ -104,10 +104,27 @@ export default function Dashboard() {
   };
 
   const setPhase = async (clientId: string, phase: Phase) => {
-    const { error } = await supabase.from("clients").update({ phase }).eq("id", clientId);
+    const current = clients.find((c) => c.id === clientId);
+    const updates: Record<string, unknown> = { phase };
+    if (phase === "phase2_strict" && !current?.phase2_strict_started_at) {
+      updates.phase2_strict_started_at = new Date().toISOString();
+    }
+    const { error } = await supabase.from("clients").update(updates).eq("id", clientId);
     if (error) return toast.error("Could not update phase");
     toast.success("Phase updated");
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase } : c)));
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase, phase2_strict_started_at: (updates.phase2_strict_started_at as string) ?? c.phase2_strict_started_at } : c)));
+  };
+
+  const setHeight = (clientId: string, value: string) => {
+    const num = value === "" ? null : Number(value);
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, height_cm: num } : c)));
+  };
+
+  const saveHeight = async (clientId: string, value: string) => {
+    const num = value === "" ? null : Number(value);
+    const { error } = await supabase.from("clients").update({ height_cm: num }).eq("id", clientId);
+    if (error) return toast.error("Could not save height");
+    toast.success("Height saved");
   };
 
   const setPhase3Foods = (clientId: string, value: string) => {
