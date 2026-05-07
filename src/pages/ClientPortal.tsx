@@ -54,6 +54,15 @@ export default function ClientPortal() {
   const [submittingCheckin, setSubmittingCheckin] = useState(false);
   const [checkinDone, setCheckinDone] = useState(false);
 
+  // Phase 2 Strict daily progress
+  const [weightKg, setWeightKg] = useState<string>("");
+  const initialRatings = {
+    general_wellbeing: 3, fatigue: 3, sleep: 3, headache: 3, pain: 3,
+    joint_pain: 3, acid_reflux: 3, digestion: 3, allergy_skin: 3,
+  };
+  const [ratings, setRatings] = useState<Record<string, number>>(initialRatings);
+  const setRating = (k: string, v: number) => setRatings((r) => ({ ...r, [k]: v }));
+
   const refresh = async () => {
     if (!token) return;
     const { data } = await supabase.functions.invoke("client-portal-data", { body: { token } });
