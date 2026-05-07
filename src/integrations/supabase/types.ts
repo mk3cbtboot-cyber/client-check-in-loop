@@ -31,6 +31,7 @@ export type Database = {
           pain: number | null
           sleep: number | null
           water_glasses: number | null
+          water_litres: number | null
           weight_kg: number | null
         }
         Insert: {
@@ -49,6 +50,7 @@ export type Database = {
           pain?: number | null
           sleep?: number | null
           water_glasses?: number | null
+          water_litres?: number | null
           weight_kg?: number | null
         }
         Update: {
@@ -67,6 +69,7 @@ export type Database = {
           pain?: number | null
           sleep?: number | null
           water_glasses?: number | null
+          water_litres?: number | null
           weight_kg?: number | null
         }
         Relationships: [
@@ -96,6 +99,7 @@ export type Database = {
           water_date: string
           water_today_litres: number
           week_reset_date: string
+          weight_unit: string
         }
         Insert: {
           avocado_count_week?: number
@@ -113,6 +117,7 @@ export type Database = {
           water_date?: string
           water_today_litres?: number
           week_reset_date?: string
+          weight_unit?: string
         }
         Update: {
           avocado_count_week?: number
@@ -130,6 +135,7 @@ export type Database = {
           water_date?: string
           water_today_litres?: number
           week_reset_date?: string
+          weight_unit?: string
         }
         Relationships: []
       }

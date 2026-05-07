@@ -7,7 +7,7 @@ const rating = z.number().int().min(1).max(5).optional();
 const BodySchema = z.object({
   token: z.string().min(10).max(200),
   feeling: z.number().int().min(1).max(5).optional(),
-  water_glasses: z.number().int().min(0).max(50).optional(),
+  water_litres: z.number().min(0).max(20).optional(),
   notes: z.string().max(2000).optional().default(""),
   weight_kg: z.number().min(0).max(500).optional(),
   general_wellbeing: rating,
@@ -66,6 +66,15 @@ Deno.serve(async (req) => {
       .single();
     if (insertErr) throw insertErr;
 
+    // Sync home-screen water tracker if water_litres provided
+    if (rest.water_litres !== undefined) {
+      const td = new Date().toISOString().slice(0, 10);
+      await admin.from("clients").update({
+        water_today_litres: rest.water_litres,
+        water_date: td,
+      }).eq("id", client.id);
+    }
+
     try {
       const { data: prof } = await admin
         .from("profiles")
@@ -81,7 +90,7 @@ Deno.serve(async (req) => {
             templateData: {
               clientName: client.name,
               feeling: rest.feeling ?? null,
-              waterGlasses: rest.water_glasses ?? null,
+              waterLitres: rest.water_litres ?? null,
               notes: notes || "",
             },
           },

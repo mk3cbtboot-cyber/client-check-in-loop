@@ -5,7 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-const Body = z.object({ token: z.string().min(10).max(200) });
+const Body = z.object({
+  token: z.string().min(10).max(200),
+  set_litres: z.number().min(0).max(20).optional(),
+});
 const today = () => new Date().toISOString().slice(0, 10);
 
 Deno.serve(async (req) => {
@@ -17,8 +20,13 @@ Deno.serve(async (req) => {
     const { data: c } = await admin.from("clients").select("id, water_today_litres, water_date").eq("magic_token", parsed.data.token).maybeSingle();
     if (!c) return new Response(JSON.stringify({ error: "invalid" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const td = today();
-    const current = c.water_date === td ? Number(c.water_today_litres) : 0;
-    const next = Math.round((current + 0.25) * 100) / 100;
+    let next: number;
+    if (parsed.data.set_litres !== undefined) {
+      next = Math.round(parsed.data.set_litres * 100) / 100;
+    } else {
+      const current = c.water_date === td ? Number(c.water_today_litres) : 0;
+      next = Math.round((current + 0.25) * 100) / 100;
+    }
     await admin.from("clients").update({ water_today_litres: next, water_date: td }).eq("id", c.id);
     return new Response(JSON.stringify({ water_today_litres: next }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

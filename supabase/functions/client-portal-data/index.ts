@@ -51,6 +51,7 @@ Deno.serve(async (req) => {
         water_today_litres: Number(c.water_today_litres), meal_streak: c.meal_streak,
         phase3_additional_foods: c.phase3_additional_foods ?? "",
         show_rules: c.show_rules === true,
+        weight_unit: c.weight_unit === "lbs" ? "lbs" : "kg",
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

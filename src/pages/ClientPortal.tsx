@@ -24,6 +24,7 @@ interface ClientState {
   meal_streak: number;
   phase3_additional_foods: string;
   show_rules: boolean;
+  weight_unit: "kg" | "lbs";
 }
 
 type TabKey = "home" | "checkin" | "plan";
@@ -49,13 +50,14 @@ export default function ClientPortal() {
 
   // Check-in state
   const [feeling, setFeeling] = useState<number>(3);
-  const [waterGlasses, setWaterGlasses] = useState<number>(0);
+  const [waterLitres, setWaterLitres] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [submittingCheckin, setSubmittingCheckin] = useState(false);
   const [checkinDone, setCheckinDone] = useState(false);
 
   // Phase 2 Strict daily progress
-  const [weightKg, setWeightKg] = useState<string>("");
+  const [weightInput, setWeightInput] = useState<string>("");
+  const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">("kg");
   const initialRatings = {
     general_wellbeing: 3, fatigue: 3, sleep: 3, headache: 3, pain: 3,
     joint_pain: 3, acid_reflux: 3, digestion: 3, allergy_skin: 3,
@@ -66,7 +68,11 @@ export default function ClientPortal() {
   const refresh = async () => {
     if (!token) return;
     const { data } = await supabase.functions.invoke("client-portal-data", { body: { token } });
-    if (data?.valid) setClient(data.client);
+    if (data?.valid) {
+      setClient(data.client);
+      setWaterLitres(Number(data.client.water_today_litres) || 0);
+      setWeightUnit(data.client.weight_unit || "kg");
+    }
   };
 
   useEffect(() => {
@@ -85,6 +91,22 @@ export default function ClientPortal() {
     const { data, error } = await supabase.functions.invoke("client-portal-water", { body: { token } });
     if (error || data?.error) return toast.error("Could not log water");
     setClient((c) => (c ? { ...c, water_today_litres: data.water_today_litres } : c));
+    setWaterLitres(Number(data.water_today_litres) || 0);
+  };
+
+  const setWaterAmount = async (litres: number) => {
+    const safe = Math.max(0, Math.min(20, Number(litres) || 0));
+    setWaterLitres(safe);
+    const { data } = await supabase.functions.invoke("client-portal-water", { body: { token, set_litres: safe } });
+    if (data?.water_today_litres !== undefined) {
+      setClient((c) => (c ? { ...c, water_today_litres: data.water_today_litres } : c));
+    }
+  };
+
+  const updateWeightUnit = async (unit: "kg" | "lbs") => {
+    setWeightUnit(unit);
+    setClient((c) => (c ? { ...c, weight_unit: unit } : c));
+    await supabase.functions.invoke("update-client-prefs", { body: { token, weight_unit: unit } });
   };
 
   const pickOption = (m: MealType, o: OptionDef) => {
@@ -164,18 +186,21 @@ export default function ClientPortal() {
     setSubmittingCheckin(true);
     try {
       const isP2Strict = client?.phase === "phase2_strict";
-      const body: Record<string, unknown> = { token, notes };
+      const body: Record<string, unknown> = { token, notes, water_litres: waterLitres };
       if (isP2Strict) {
-        if (weightKg) body.weight_kg = Number(weightKg);
-        body.water_glasses = waterGlasses;
+        if (weightInput) {
+          const w = Number(weightInput);
+          const kg = weightUnit === "lbs" ? Math.round(w * 0.45359237 * 100) / 100 : w;
+          body.weight_kg = kg;
+        }
         Object.assign(body, ratings);
       } else {
         body.feeling = feeling;
-        body.water_glasses = waterGlasses;
       }
       const { data, error } = await supabase.functions.invoke("submit-checkin", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      setClient((c) => (c ? { ...c, water_today_litres: waterLitres } : c));
       setCheckinDone(true);
     } catch (err: any) {
       toast.error(err.message ?? "Failed to submit");
@@ -380,7 +405,7 @@ export default function ClientPortal() {
             <Card className="p-6 text-center space-y-3">
               <h2 className="text-lg font-semibold">Thanks!</h2>
               <p className="text-sm text-muted-foreground">Your nutritionist has been notified.</p>
-              <Button variant="outline" onClick={() => { setCheckinDone(false); setFeeling(3); setWaterGlasses(0); setNotes(""); setWeightKg(""); setRatings(initialRatings); }}>
+              <Button variant="outline" onClick={() => { setCheckinDone(false); setFeeling(3); setNotes(""); setWeightInput(""); setRatings(initialRatings); }}>
                 Submit another
               </Button>
             </Card>
@@ -392,12 +417,19 @@ export default function ClientPortal() {
               </div>
               <form onSubmit={submitCheckin} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="weight">Weight (kg)</Label>
-                  <Input id="weight" type="number" step="0.1" min={0} value={weightKg} onChange={(e) => setWeightKg(e.target.value)} placeholder="e.g. 72.4" />
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="weight">Weight ({weightUnit})</Label>
+                    <div className="flex gap-1">
+                      <Button type="button" size="sm" variant={weightUnit === "kg" ? "default" : "outline"} onClick={() => updateWeightUnit("kg")}>kg</Button>
+                      <Button type="button" size="sm" variant={weightUnit === "lbs" ? "default" : "outline"} onClick={() => updateWeightUnit("lbs")}>lbs</Button>
+                    </div>
+                  </div>
+                  <Input id="weight" type="number" step="0.1" min={0} value={weightInput} onChange={(e) => setWeightInput(e.target.value)} placeholder={weightUnit === "kg" ? "e.g. 72.4" : "e.g. 159.6"} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="water">Water intake (glasses)</Label>
-                  <Input id="water" type="number" min={0} max={50} value={waterGlasses} onChange={(e) => setWaterGlasses(Number(e.target.value))} />
+                  <Label htmlFor="water">Water intake (litres)</Label>
+                  <Input id="water" type="number" step="0.25" min={0} max={20} value={waterLitres} onChange={(e) => setWaterAmount(Number(e.target.value))} />
+                  <p className="text-xs text-muted-foreground">Synced with your home screen water tracker.</p>
                 </div>
                 {([
                   ["general_wellbeing", "General Well-Being"],
@@ -458,8 +490,9 @@ export default function ClientPortal() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="water">How much water did you drink? (glasses)</Label>
-                  <Input id="water" type="number" min={0} max={50} value={waterGlasses} onChange={(e) => setWaterGlasses(Number(e.target.value))} />
+                  <Label htmlFor="water">How much water did you drink? (litres)</Label>
+                  <Input id="water" type="number" step="0.25" min={0} max={20} value={waterLitres} onChange={(e) => setWaterAmount(Number(e.target.value))} />
+                  <p className="text-xs text-muted-foreground">Synced with your home screen water tracker.</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="notes">Any notes for your nutritionist?</Label>
