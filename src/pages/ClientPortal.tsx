@@ -186,18 +186,21 @@ export default function ClientPortal() {
     setSubmittingCheckin(true);
     try {
       const isP2Strict = client?.phase === "phase2_strict";
-      const body: Record<string, unknown> = { token, notes };
+      const body: Record<string, unknown> = { token, notes, water_litres: waterLitres };
       if (isP2Strict) {
-        if (weightKg) body.weight_kg = Number(weightKg);
-        body.water_glasses = waterGlasses;
+        if (weightInput) {
+          const w = Number(weightInput);
+          const kg = weightUnit === "lbs" ? Math.round(w * 0.45359237 * 100) / 100 : w;
+          body.weight_kg = kg;
+        }
         Object.assign(body, ratings);
       } else {
         body.feeling = feeling;
-        body.water_glasses = waterGlasses;
       }
       const { data, error } = await supabase.functions.invoke("submit-checkin", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      setClient((c) => (c ? { ...c, water_today_litres: waterLitres } : c));
       setCheckinDone(true);
     } catch (err: any) {
       toast.error(err.message ?? "Failed to submit");
