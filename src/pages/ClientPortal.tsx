@@ -144,8 +144,17 @@ export default function ClientPortal() {
     { value: "Ghee (clarified butter)", label: "Ghee (clarified butter)" },
   ];
 
+  const phase3Extras = (() => {
+    if (!client) return [] as string[];
+    if (client.phase !== "phase3" && client.phase !== "phase4") return [];
+    return (client.phase3_additional_foods ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  })();
+
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
-    const items = sources.flatMap((s) => MB_FOODS[s]);
+    const items = [...sources.flatMap((s) => MB_FOODS[s]), ...phase3Extras];
     const seen = new Set<string>();
     return items.filter((i) => {
       if (seen.has(i)) return false;
