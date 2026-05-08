@@ -450,15 +450,11 @@ export default function ClientPortal() {
                 Submit another
               </Button>
             </Card>
-          ) : client.phase === "phase2_strict" ? (
+          ) : isRatingsMode ? (
             <Card className="p-6 space-y-6">
               <div>
-                <h2 className="text-lg font-semibold">{isWeeklyMode ? "Weekly Progress — Phase 2 Strict" : "Daily Progress — Phase 2 Strict"}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {isWeeklyMode
-                    ? "You're past Day 14 — please complete this once per week. Rate each area from 1 (best) to 5 (worst)."
-                    : "Rate each area from 1 (best) to 5 (worst)."}
-                </p>
+                <h2 className="text-lg font-semibold">{ratingsTitle}</h2>
+                <p className="text-sm text-muted-foreground">{ratingsSubtitle}</p>
               </div>
               <form onSubmit={submitCheckin} className="space-y-5">
                 <div className="space-y-2">
