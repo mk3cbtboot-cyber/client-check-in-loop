@@ -216,6 +216,7 @@ export default function ClientPortal() {
         ? "You're past Day 14 — please complete this once per week. Rate each area from 1 (best) to 5 (worst)."
         : "Please complete this once per week. Rate each area from 1 (best) to 5 (worst).")
     : "Rate each area from 1 (best) to 5 (worst).";
+  const phaseProgress = getPhaseProgress(client?.phase, client?.phase2_strict_started_at);
 
   const submitCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
