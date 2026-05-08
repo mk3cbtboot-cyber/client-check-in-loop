@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { PHASE_OPTIONS, type Phase } from "@/lib/phases";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
 
 interface Client {
   id: string;
