@@ -455,6 +455,11 @@ export default function ClientPortal() {
           ) : isRatingsMode ? (
             <Card className="p-6 space-y-6">
               <div>
+                {phaseProgress.label && (
+                  <div className="inline-block mb-2 px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium uppercase tracking-wide">
+                    {phaseProgress.label}
+                  </div>
+                )}
                 <h2 className="text-lg font-semibold">{ratingsTitle}</h2>
                 <p className="text-sm text-muted-foreground">{ratingsSubtitle}</p>
               </div>
