@@ -199,12 +199,22 @@ export default function ClientPortal() {
   };
 
   const isP2Strict = client?.phase === "phase2_strict";
+  const isRatingsMode = !!client && client.phase !== "phase1";
   const daysSinceP2Start = (() => {
     if (!isP2Strict || !client?.phase2_strict_started_at) return 0;
     const start = new Date(client.phase2_strict_started_at).getTime();
     return Math.floor((Date.now() - start) / (1000 * 60 * 60 * 24));
   })();
-  const isWeeklyMode = isP2Strict && daysSinceP2Start >= 14;
+  const isAlwaysWeeklyPhase = client?.phase === "phase2_extended" || client?.phase === "phase3" || client?.phase === "phase4";
+  const isWeeklyMode = (isP2Strict && daysSinceP2Start >= 14) || isAlwaysWeeklyPhase;
+  const ratingsTitle = isP2Strict
+    ? (isWeeklyMode ? "Weekly Progress — Phase 2 Strict" : "Daily Progress — Phase 2 Strict")
+    : `Weekly Progress — ${phaseShort(client?.phase ?? "")}`;
+  const ratingsSubtitle = isWeeklyMode
+    ? (isP2Strict
+        ? "You're past Day 14 — please complete this once per week. Rate each area from 1 (best) to 5 (worst)."
+        : "Please complete this once per week. Rate each area from 1 (best) to 5 (worst).")
+    : "Rate each area from 1 (best) to 5 (worst).";
 
   const submitCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
