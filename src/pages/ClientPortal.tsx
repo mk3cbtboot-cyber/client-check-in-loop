@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Home, ClipboardCheck, BookOpen } from "lucide-react";
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
+import { getPhaseProgress } from "@/lib/progress";
 
 interface ClientState {
   id: string;
@@ -215,6 +216,7 @@ export default function ClientPortal() {
         ? "You're past Day 14 — please complete this once per week. Rate each area from 1 (best) to 5 (worst)."
         : "Please complete this once per week. Rate each area from 1 (best) to 5 (worst).")
     : "Rate each area from 1 (best) to 5 (worst).";
+  const phaseProgress = getPhaseProgress(client?.phase, client?.phase2_strict_started_at);
 
   const submitCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -453,6 +455,11 @@ export default function ClientPortal() {
           ) : isRatingsMode ? (
             <Card className="p-6 space-y-6">
               <div>
+                {phaseProgress.label && (
+                  <div className="inline-block mb-2 px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium uppercase tracking-wide">
+                    {phaseProgress.label}
+                  </div>
+                )}
                 <h2 className="text-lg font-semibold">{ratingsTitle}</h2>
                 <p className="text-sm text-muted-foreground">{ratingsSubtitle}</p>
               </div>

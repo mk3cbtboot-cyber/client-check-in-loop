@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { PHASE_OPTIONS, type Phase } from "@/lib/phases";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
 
 interface Client {
   id: string;
@@ -196,11 +197,19 @@ export default function Dashboard() {
             {clients.map((client) => {
               const list = checkIns[client.id] ?? [];
               const portalLink = `${window.location.origin}/portal/${client.magic_token}`;
+              const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at);
               return (
                 <Card key={client.id} className="p-4 space-y-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="font-medium">{client.name}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium">{client.name}</p>
+                        {progress.label && (
+                          <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
+                            {progress.label}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">{client.email}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -293,7 +302,11 @@ export default function Dashboard() {
                           const whtr = heightCm && ci.waist_cm ? (Number(ci.waist_cm) / heightCm) : null;
                           return (
                             <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
-                              <div className="text-xs text-muted-foreground flex items-center gap-2">
+                              <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                                {(() => {
+                                  const lbl = progressLabelForCheckin(client.phase, client.phase2_strict_started_at, ci.created_at, !!ci.is_weekly);
+                                  return lbl ? <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide font-medium">{lbl}</span> : null;
+                                })()}
                                 {format(new Date(ci.created_at), "PPp")}
                                 {ci.is_weekly && <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide">Weekly</span>}
                               </div>
