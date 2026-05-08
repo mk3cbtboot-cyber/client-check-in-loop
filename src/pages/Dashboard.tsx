@@ -197,11 +197,19 @@ export default function Dashboard() {
             {clients.map((client) => {
               const list = checkIns[client.id] ?? [];
               const portalLink = `${window.location.origin}/portal/${client.magic_token}`;
+              const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at);
               return (
                 <Card key={client.id} className="p-4 space-y-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="font-medium">{client.name}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium">{client.name}</p>
+                        {progress.label && (
+                          <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
+                            {progress.label}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">{client.email}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
