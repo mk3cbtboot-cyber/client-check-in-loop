@@ -221,7 +221,7 @@ export default function ClientPortal() {
     setSubmittingCheckin(true);
     try {
       const body: Record<string, unknown> = { token, notes, water_litres: waterLitres };
-      if (isP2Strict) {
+      if (isRatingsMode) {
         if (weightInput) {
           const w = Number(weightInput);
           const kg = weightUnit === "lbs" ? Math.round(w * 0.45359237 * 100) / 100 : w;
