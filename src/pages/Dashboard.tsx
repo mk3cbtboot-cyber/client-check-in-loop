@@ -302,7 +302,11 @@ export default function Dashboard() {
                           const whtr = heightCm && ci.waist_cm ? (Number(ci.waist_cm) / heightCm) : null;
                           return (
                             <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
-                              <div className="text-xs text-muted-foreground flex items-center gap-2">
+                              <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                                {(() => {
+                                  const lbl = progressLabelForCheckin(client.phase, client.phase2_strict_started_at, ci.created_at, !!ci.is_weekly);
+                                  return lbl ? <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide font-medium">{lbl}</span> : null;
+                                })()}
                                 {format(new Date(ci.created_at), "PPp")}
                                 {ci.is_weekly && <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide">Weekly</span>}
                               </div>
