@@ -21,6 +21,13 @@ interface Client {
   magic_token: string;
   phase: Phase;
   phase3_additional_foods: string;
+  phase3_meat: string;
+  phase3_fish: string;
+  phase3_vegetables: string;
+  phase3_fruit: string;
+  phase3_grains_carbs: string;
+  phase3_dairy: string;
+  phase3_other: string;
   show_rules: boolean;
   height_cm: number | null;
   phase2_strict_started_at: string | null;
@@ -128,12 +135,22 @@ export default function Dashboard() {
     toast.success("Height saved");
   };
 
-  const setPhase3Foods = (clientId: string, value: string) => {
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase3_additional_foods: value } : c)));
+  const PHASE3_FIELDS = [
+    { key: "phase3_meat", label: "Meat" },
+    { key: "phase3_fish", label: "Fish" },
+    { key: "phase3_vegetables", label: "Vegetables" },
+    { key: "phase3_fruit", label: "Fruit" },
+    { key: "phase3_grains_carbs", label: "Grains / Carbs" },
+    { key: "phase3_dairy", label: "Dairy" },
+    { key: "phase3_other", label: "Other" },
+  ] as const;
+
+  const setPhase3Field = (clientId: string, field: typeof PHASE3_FIELDS[number]["key"], value: string) => {
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, [field]: value } : c)));
   };
 
-  const savePhase3Foods = async (clientId: string, value: string) => {
-    const { error } = await supabase.from("clients").update({ phase3_additional_foods: value }).eq("id", clientId);
+  const savePhase3Field = async (clientId: string, field: typeof PHASE3_FIELDS[number]["key"], value: string) => {
+    const { error } = await supabase.from("clients").update({ [field]: value } as never).eq("id", clientId);
     if (error) return toast.error("Could not save additional foods");
     toast.success("Additional foods saved");
   };
@@ -257,17 +274,25 @@ export default function Dashboard() {
                   </div>
 
                   {client.phase === "phase3" && (
-                    <div className="border-t pt-3 space-y-2">
-                      <Label htmlFor={`p3-${client.id}`} className="text-xs">Phase 3 Additional Foods</Label>
-                      <Textarea
-                        id={`p3-${client.id}`}
-                        placeholder="e.g. Oats, Sweet potato, Brown rice, Lentils..."
-                        value={client.phase3_additional_foods ?? ""}
-                        onChange={(e) => setPhase3Foods(client.id, e.target.value)}
-                        onBlur={(e) => savePhase3Foods(client.id, e.target.value)}
-                        rows={3}
-                      />
-                      <p className="text-xs text-muted-foreground">Up to 10 foods the client has requested. Saved when you click outside the field.</p>
+                    <div className="border-t pt-3 space-y-3">
+                      <div>
+                        <p className="text-sm font-medium">Phase 3 Additional Foods</p>
+                        <p className="text-xs text-muted-foreground">Enter a comma-separated list per category. Saved when you click outside the field.</p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {PHASE3_FIELDS.map((f) => (
+                          <div key={f.key} className="space-y-1">
+                            <Label htmlFor={`${f.key}-${client.id}`} className="text-xs">{f.label}</Label>
+                            <Input
+                              id={`${f.key}-${client.id}`}
+                              placeholder="e.g. Ribeye Steak, Lamb Chop"
+                              value={(client[f.key] as string) ?? ""}
+                              onChange={(e) => setPhase3Field(client.id, f.key, e.target.value)}
+                              onBlur={(e) => savePhase3Field(client.id, f.key, e.target.value)}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 

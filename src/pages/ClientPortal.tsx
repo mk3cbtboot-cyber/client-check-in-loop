@@ -24,6 +24,13 @@ interface ClientState {
   water_today_litres: number;
   meal_streak: number;
   phase3_additional_foods: string;
+  phase3_meat: string;
+  phase3_fish: string;
+  phase3_vegetables: string;
+  phase3_fruit: string;
+  phase3_grains_carbs: string;
+  phase3_dairy: string;
+  phase3_other: string;
   show_rules: boolean;
   weight_unit: "kg" | "lbs";
   height_cm: number | null;
@@ -144,43 +151,36 @@ export default function ClientPortal() {
     { value: "Ghee (clarified butter)", label: "Ghee (clarified butter)" },
   ];
 
-  const phase3Extras = (() => {
-    if (!client) return [] as string[];
+  // Phase 3 additional foods, grouped per MB_FOODS category.
+  // Each user-facing category maps to one or more recipe-builder source keys.
+  const phase3CategoryMap: Record<string, (keyof typeof MB_FOODS)[]> = {
+    phase3_meat: ["meat", "poultry"],
+    phase3_fish: ["fish", "seafood"],
+    phase3_vegetables: ["vegetables", "vegLettuce"],
+    phase3_fruit: ["fruit"],
+    phase3_grains_carbs: ["starch", "bread", "legumes"],
+    phase3_dairy: ["cheese", "yogurt", "milkProducts"],
+    phase3_other: ["fish","seafood","poultry","meat","cheese","legumes","yogurt","milkProducts","vegetables","vegLettuce","fruit","bread","starch"],
+  };
+
+  const parseList = (s: string | undefined | null) =>
+    (s ?? "").split(",").map((x) => x.trim()).filter((x) => x.length > 0);
+
+  const phase3ExtrasForSources = (sources: (keyof typeof MB_FOODS)[]): string[] => {
+    if (!client) return [];
     if (client.phase !== "phase3" && client.phase !== "phase4") return [];
-    return (client.phase3_additional_foods ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-  })();
-
-  const [extrasCategoryMap, setExtrasCategoryMap] = useState<Record<string, keyof typeof MB_FOODS>>({});
-
-  useEffect(() => {
-    const uncategorised = phase3Extras.filter((f) => !extrasCategoryMap[f]);
-    if (uncategorised.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("categorize-foods", {
-          body: { foods: uncategorised },
-        });
-        if (cancelled || error || !data?.map) return;
-        setExtrasCategoryMap((prev) => ({ ...prev, ...(data.map as Record<string, keyof typeof MB_FOODS>) }));
-      } catch (e) {
-        console.error("categorize-foods failed", e);
-      }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase3Extras.join("|")]);
+    const sourceSet = new Set(sources);
+    const out: string[] = [];
+    for (const [field, cats] of Object.entries(phase3CategoryMap)) {
+      if (!cats.some((c) => sourceSet.has(c))) continue;
+      const value = (client as unknown as Record<string, string>)[field];
+      out.push(...parseList(value));
+    }
+    return out;
+  };
 
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
-    const sourceSet = new Set(sources);
-    const matchingExtras = phase3Extras.filter((f) => {
-      const cat = extrasCategoryMap[f];
-      return cat && sourceSet.has(cat);
-    });
-    const items = [...sources.flatMap((s) => MB_FOODS[s]), ...matchingExtras];
+    const items = [...sources.flatMap((s) => MB_FOODS[s]), ...phase3ExtrasForSources(sources)];
     const seen = new Set<string>();
     return items.filter((i) => {
       if (seen.has(i)) return false;
@@ -756,19 +756,40 @@ export default function ClientPortal() {
                   </Card>
                 ))}
               </div>
-              {client.phase === "phase3" && (
-                <Card className="p-6 space-y-2">
-                  <p className="font-medium">Your Additional Foods</p>
-                  {client.phase3_additional_foods?.trim() ? (
-                    <>
-                      <p className="text-sm text-muted-foreground">The 10 additional foods you selected have been added by Cheryl.</p>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{client.phase3_additional_foods}</p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Your practitioner will add your personalised foods here once your Phase 3 consultation is complete.</p>
-                  )}
-                </Card>
-              )}
+              {client.phase === "phase3" && (() => {
+                const groups: { label: string; field: keyof ClientState }[] = [
+                  { label: "Meat", field: "phase3_meat" },
+                  { label: "Fish", field: "phase3_fish" },
+                  { label: "Vegetables", field: "phase3_vegetables" },
+                  { label: "Fruit", field: "phase3_fruit" },
+                  { label: "Grains / Carbs", field: "phase3_grains_carbs" },
+                  { label: "Dairy", field: "phase3_dairy" },
+                  { label: "Other", field: "phase3_other" },
+                ];
+                const populated = groups
+                  .map((g) => ({ ...g, items: parseList(client[g.field] as string) }))
+                  .filter((g) => g.items.length > 0);
+                return (
+                  <Card className="p-6 space-y-3">
+                    <p className="font-medium">Your Additional Foods</p>
+                    {populated.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Your practitioner will add your personalised foods here once your Phase 3 consultation is complete.</p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted-foreground">The additional foods Cheryl has added for you, by category.</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {populated.map((g) => (
+                            <div key={g.field} className="space-y-1">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">{g.label}</p>
+                              <p className="text-sm text-foreground">{g.items.join(", ")}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </Card>
+                );
+              })()}
               <p className="text-xs text-muted-foreground text-center pt-2">
                 Quantities and exact selections are managed by your nutritionist. Use the Home tab to build today's meal.
               </p>

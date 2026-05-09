@@ -111,6 +111,13 @@ export type Database = {
           phase: string
           phase2_strict_started_at: string | null
           phase3_additional_foods: string
+          phase3_dairy: string
+          phase3_fish: string
+          phase3_fruit: string
+          phase3_grains_carbs: string
+          phase3_meat: string
+          phase3_other: string
+          phase3_vegetables: string
           practitioner_id: string
           show_rules: boolean
           water_date: string
@@ -131,6 +138,13 @@ export type Database = {
           phase?: string
           phase2_strict_started_at?: string | null
           phase3_additional_foods?: string
+          phase3_dairy?: string
+          phase3_fish?: string
+          phase3_fruit?: string
+          phase3_grains_carbs?: string
+          phase3_meat?: string
+          phase3_other?: string
+          phase3_vegetables?: string
           practitioner_id: string
           show_rules?: boolean
           water_date?: string
@@ -151,6 +165,13 @@ export type Database = {
           phase?: string
           phase2_strict_started_at?: string | null
           phase3_additional_foods?: string
+          phase3_dairy?: string
+          phase3_fish?: string
+          phase3_fruit?: string
+          phase3_grains_carbs?: string
+          phase3_meat?: string
+          phase3_other?: string
+          phase3_vegetables?: string
           practitioner_id?: string
           show_rules?: boolean
           water_date?: string
