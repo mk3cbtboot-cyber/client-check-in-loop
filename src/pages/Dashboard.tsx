@@ -150,7 +150,7 @@ export default function Dashboard() {
   };
 
   const savePhase3Field = async (clientId: string, field: typeof PHASE3_FIELDS[number]["key"], value: string) => {
-    const { error } = await supabase.from("clients").update({ [field]: value }).eq("id", clientId);
+    const { error } = await supabase.from("clients").update({ [field]: value } as never).eq("id", clientId);
     if (error) return toast.error("Could not save additional foods");
     toast.success("Additional foods saved");
   };
