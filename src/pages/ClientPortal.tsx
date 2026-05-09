@@ -151,43 +151,36 @@ export default function ClientPortal() {
     { value: "Ghee (clarified butter)", label: "Ghee (clarified butter)" },
   ];
 
-  const phase3Extras = (() => {
-    if (!client) return [] as string[];
+  // Phase 3 additional foods, grouped per MB_FOODS category.
+  // Each user-facing category maps to one or more recipe-builder source keys.
+  const phase3CategoryMap: Record<string, (keyof typeof MB_FOODS)[]> = {
+    phase3_meat: ["meat", "poultry"],
+    phase3_fish: ["fish", "seafood"],
+    phase3_vegetables: ["vegetables", "vegLettuce"],
+    phase3_fruit: ["fruit"],
+    phase3_grains_carbs: ["starch", "bread", "legumes"],
+    phase3_dairy: ["cheese", "yogurt", "milkProducts"],
+    phase3_other: ["fish","seafood","poultry","meat","cheese","legumes","yogurt","milkProducts","vegetables","vegLettuce","fruit","bread","starch"],
+  };
+
+  const parseList = (s: string | undefined | null) =>
+    (s ?? "").split(",").map((x) => x.trim()).filter((x) => x.length > 0);
+
+  const phase3ExtrasForSources = (sources: (keyof typeof MB_FOODS)[]): string[] => {
+    if (!client) return [];
     if (client.phase !== "phase3" && client.phase !== "phase4") return [];
-    return (client.phase3_additional_foods ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-  })();
-
-  const [extrasCategoryMap, setExtrasCategoryMap] = useState<Record<string, keyof typeof MB_FOODS>>({});
-
-  useEffect(() => {
-    const uncategorised = phase3Extras.filter((f) => !extrasCategoryMap[f]);
-    if (uncategorised.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("categorize-foods", {
-          body: { foods: uncategorised },
-        });
-        if (cancelled || error || !data?.map) return;
-        setExtrasCategoryMap((prev) => ({ ...prev, ...(data.map as Record<string, keyof typeof MB_FOODS>) }));
-      } catch (e) {
-        console.error("categorize-foods failed", e);
-      }
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase3Extras.join("|")]);
+    const sourceSet = new Set(sources);
+    const out: string[] = [];
+    for (const [field, cats] of Object.entries(phase3CategoryMap)) {
+      if (!cats.some((c) => sourceSet.has(c))) continue;
+      const value = (client as unknown as Record<string, string>)[field];
+      out.push(...parseList(value));
+    }
+    return out;
+  };
 
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
-    const sourceSet = new Set(sources);
-    const matchingExtras = phase3Extras.filter((f) => {
-      const cat = extrasCategoryMap[f];
-      return cat && sourceSet.has(cat);
-    });
-    const items = [...sources.flatMap((s) => MB_FOODS[s]), ...matchingExtras];
+    const items = [...sources.flatMap((s) => MB_FOODS[s]), ...phase3ExtrasForSources(sources)];
     const seen = new Set<string>();
     return items.filter((i) => {
       if (seen.has(i)) return false;
