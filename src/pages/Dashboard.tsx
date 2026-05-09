@@ -274,17 +274,25 @@ export default function Dashboard() {
                   </div>
 
                   {client.phase === "phase3" && (
-                    <div className="border-t pt-3 space-y-2">
-                      <Label htmlFor={`p3-${client.id}`} className="text-xs">Phase 3 Additional Foods</Label>
-                      <Textarea
-                        id={`p3-${client.id}`}
-                        placeholder="e.g. Oats, Sweet potato, Brown rice, Lentils..."
-                        value={client.phase3_additional_foods ?? ""}
-                        onChange={(e) => setPhase3Foods(client.id, e.target.value)}
-                        onBlur={(e) => savePhase3Foods(client.id, e.target.value)}
-                        rows={3}
-                      />
-                      <p className="text-xs text-muted-foreground">Up to 10 foods the client has requested. Saved when you click outside the field.</p>
+                    <div className="border-t pt-3 space-y-3">
+                      <div>
+                        <p className="text-sm font-medium">Phase 3 Additional Foods</p>
+                        <p className="text-xs text-muted-foreground">Enter a comma-separated list per category. Saved when you click outside the field.</p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {PHASE3_FIELDS.map((f) => (
+                          <div key={f.key} className="space-y-1">
+                            <Label htmlFor={`${f.key}-${client.id}`} className="text-xs">{f.label}</Label>
+                            <Input
+                              id={`${f.key}-${client.id}`}
+                              placeholder="e.g. Ribeye Steak, Lamb Chop"
+                              value={(client[f.key] as string) ?? ""}
+                              onChange={(e) => setPhase3Field(client.id, f.key, e.target.value)}
+                              onBlur={(e) => savePhase3Field(client.id, f.key, e.target.value)}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
