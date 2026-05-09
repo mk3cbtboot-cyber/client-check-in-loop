@@ -135,12 +135,22 @@ export default function Dashboard() {
     toast.success("Height saved");
   };
 
-  const setPhase3Foods = (clientId: string, value: string) => {
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase3_additional_foods: value } : c)));
+  const PHASE3_FIELDS = [
+    { key: "phase3_meat", label: "Meat" },
+    { key: "phase3_fish", label: "Fish" },
+    { key: "phase3_vegetables", label: "Vegetables" },
+    { key: "phase3_fruit", label: "Fruit" },
+    { key: "phase3_grains_carbs", label: "Grains / Carbs" },
+    { key: "phase3_dairy", label: "Dairy" },
+    { key: "phase3_other", label: "Other" },
+  ] as const;
+
+  const setPhase3Field = (clientId: string, field: typeof PHASE3_FIELDS[number]["key"], value: string) => {
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, [field]: value } : c)));
   };
 
-  const savePhase3Foods = async (clientId: string, value: string) => {
-    const { error } = await supabase.from("clients").update({ phase3_additional_foods: value }).eq("id", clientId);
+  const savePhase3Field = async (clientId: string, field: typeof PHASE3_FIELDS[number]["key"], value: string) => {
+    const { error } = await supabase.from("clients").update({ [field]: value }).eq("id", clientId);
     if (error) return toast.error("Could not save additional foods");
     toast.success("Additional foods saved");
   };
