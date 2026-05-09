@@ -1,0 +1,8 @@
+ALTER TABLE public.clients
+  ADD COLUMN IF NOT EXISTS phase3_meat text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS phase3_fish text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS phase3_vegetables text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS phase3_fruit text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS phase3_grains_carbs text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS phase3_dairy text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS phase3_other text NOT NULL DEFAULT '';
