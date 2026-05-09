@@ -396,13 +396,21 @@ export default function ClientPortal() {
                 </Card>
               )}
 
-              {option && meal && (
+              {option && meal && (() => {
+                const isP3Plus = client.phase === "phase3" || client.phase === "phase4";
+                const starchExtras = isP3Plus ? parseList(client.phase3_starches) : [];
+                const hasStarchAlready = option.components.some((c) => c.sources.includes("starch"));
+                const extraComponents = (starchExtras.length > 0 && !hasStarchAlready)
+                  ? [{ key: "starch_extra", label: "Starches (optional)", qty: "as advised", sources: ["starch"] as (keyof typeof MB_FOODS)[], optional: true }]
+                  : [];
+                const allComponents = [...option.components, ...extraComponents];
+                return (
                 <Card className="p-4 space-y-4">
                   <p className="font-medium">{option.label}</p>
                   {option.fixed?.map((f, i) => (
                     <p key={i} className="text-sm text-muted-foreground">Fixed: <span className="font-medium text-foreground">{f.label} — {f.qty}</span></p>
                   ))}
-                  {option.components.map((comp) => {
+                  {allComponents.map((comp) => {
                     const items = filteredSources(comp.sources);
                     const showAvocadoNote = comp.sources.includes("vegetables") && (client.avocado_count_week >= 3);
                     const showOilBefore = oilAllowed(client.phase) && comp.key === "fruit";
@@ -451,7 +459,8 @@ export default function ClientPortal() {
                     {generating ? "Generating recipe…" : "Generate Recipe"}
                   </Button>
                 </Card>
-              )}
+                );
+              })()}
             </>
           )}
 
