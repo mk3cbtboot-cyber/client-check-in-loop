@@ -756,19 +756,40 @@ export default function ClientPortal() {
                   </Card>
                 ))}
               </div>
-              {client.phase === "phase3" && (
-                <Card className="p-6 space-y-2">
-                  <p className="font-medium">Your Additional Foods</p>
-                  {client.phase3_additional_foods?.trim() ? (
-                    <>
-                      <p className="text-sm text-muted-foreground">The 10 additional foods you selected have been added by Cheryl.</p>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{client.phase3_additional_foods}</p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Your practitioner will add your personalised foods here once your Phase 3 consultation is complete.</p>
-                  )}
-                </Card>
-              )}
+              {client.phase === "phase3" && (() => {
+                const groups: { label: string; field: keyof ClientState }[] = [
+                  { label: "Meat", field: "phase3_meat" },
+                  { label: "Fish", field: "phase3_fish" },
+                  { label: "Vegetables", field: "phase3_vegetables" },
+                  { label: "Fruit", field: "phase3_fruit" },
+                  { label: "Grains / Carbs", field: "phase3_grains_carbs" },
+                  { label: "Dairy", field: "phase3_dairy" },
+                  { label: "Other", field: "phase3_other" },
+                ];
+                const populated = groups
+                  .map((g) => ({ ...g, items: parseList(client[g.field] as string) }))
+                  .filter((g) => g.items.length > 0);
+                return (
+                  <Card className="p-6 space-y-3">
+                    <p className="font-medium">Your Additional Foods</p>
+                    {populated.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Your practitioner will add your personalised foods here once your Phase 3 consultation is complete.</p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted-foreground">The additional foods Cheryl has added for you, by category.</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {populated.map((g) => (
+                            <div key={g.field} className="space-y-1">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">{g.label}</p>
+                              <p className="text-sm text-foreground">{g.items.join(", ")}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </Card>
+                );
+              })()}
               <p className="text-xs text-muted-foreground text-center pt-2">
                 Quantities and exact selections are managed by your nutritionist. Use the Home tab to build today's meal.
               </p>
