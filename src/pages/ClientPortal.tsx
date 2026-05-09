@@ -218,6 +218,7 @@ export default function ClientPortal() {
         if (c.key === "veg2") qty = veg2Qty || "see option";
         return { label: `${c.label}: ${picks[c.key]}`, qty };
       }),
+      ...(picks["starch_extra"] ? [{ label: `Starches: ${picks["starch_extra"]}`, qty: "as advised" }] : []),
     ];
     setGenerating(true);
     setRecipe(null);
