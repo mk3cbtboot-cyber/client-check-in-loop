@@ -153,8 +153,34 @@ export default function ClientPortal() {
       .filter((s) => s.length > 0);
   })();
 
+  const [extrasCategoryMap, setExtrasCategoryMap] = useState<Record<string, keyof typeof MB_FOODS>>({});
+
+  useEffect(() => {
+    const uncategorised = phase3Extras.filter((f) => !extrasCategoryMap[f]);
+    if (uncategorised.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("categorize-foods", {
+          body: { foods: uncategorised },
+        });
+        if (cancelled || error || !data?.map) return;
+        setExtrasCategoryMap((prev) => ({ ...prev, ...(data.map as Record<string, keyof typeof MB_FOODS>) }));
+      } catch (e) {
+        console.error("categorize-foods failed", e);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase3Extras.join("|")]);
+
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
-    const items = [...sources.flatMap((s) => MB_FOODS[s]), ...phase3Extras];
+    const sourceSet = new Set(sources);
+    const matchingExtras = phase3Extras.filter((f) => {
+      const cat = extrasCategoryMap[f];
+      return cat && sourceSet.has(cat);
+    });
+    const items = [...sources.flatMap((s) => MB_FOODS[s]), ...matchingExtras];
     const seen = new Set<string>();
     return items.filter((i) => {
       if (seen.has(i)) return false;
