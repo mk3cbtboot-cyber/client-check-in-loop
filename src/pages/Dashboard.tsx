@@ -21,6 +21,13 @@ interface Client {
   magic_token: string;
   phase: Phase;
   phase3_additional_foods: string;
+  phase3_meat: string;
+  phase3_fish: string;
+  phase3_vegetables: string;
+  phase3_fruit: string;
+  phase3_grains_carbs: string;
+  phase3_dairy: string;
+  phase3_other: string;
   show_rules: boolean;
   height_cm: number | null;
   phase2_strict_started_at: string | null;
