@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.submit-checkin]
 verify_jwt = false
+
+[functions.categorize-foods]
+verify_jwt = false
