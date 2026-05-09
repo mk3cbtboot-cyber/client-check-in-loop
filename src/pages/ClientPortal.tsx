@@ -28,7 +28,8 @@ interface ClientState {
   phase3_fish: string;
   phase3_vegetables: string;
   phase3_fruit: string;
-  phase3_grains_carbs: string;
+  phase3_starches: string;
+  phase3_bread: string;
   phase3_dairy: string;
   phase3_other: string;
   show_rules: boolean;
@@ -158,9 +159,10 @@ export default function ClientPortal() {
     phase3_fish: ["fish", "seafood"],
     phase3_vegetables: ["vegetables", "vegLettuce"],
     phase3_fruit: ["fruit"],
-    phase3_grains_carbs: ["starch", "bread", "legumes"],
+    phase3_starches: ["starch"],
+    phase3_bread: ["bread"],
     phase3_dairy: ["cheese", "yogurt", "milkProducts"],
-    phase3_other: ["fish","seafood","poultry","meat","cheese","legumes","yogurt","milkProducts","vegetables","vegLettuce","fruit","bread","starch"],
+    phase3_other: ["fish","seafood","poultry","meat","cheese","yogurt","milkProducts","vegetables","vegLettuce","fruit","bread","starch","legumes"],
   };
 
   const parseList = (s: string | undefined | null) =>
@@ -762,7 +764,8 @@ export default function ClientPortal() {
                   { label: "Fish", field: "phase3_fish" },
                   { label: "Vegetables", field: "phase3_vegetables" },
                   { label: "Fruit", field: "phase3_fruit" },
-                  { label: "Grains / Carbs", field: "phase3_grains_carbs" },
+                  { label: "Starches", field: "phase3_starches" },
+                  { label: "Bread", field: "phase3_bread" },
                   { label: "Dairy", field: "phase3_dairy" },
                   { label: "Other", field: "phase3_other" },
                 ];

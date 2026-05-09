@@ -25,7 +25,8 @@ interface Client {
   phase3_fish: string;
   phase3_vegetables: string;
   phase3_fruit: string;
-  phase3_grains_carbs: string;
+  phase3_starches: string;
+  phase3_bread: string;
   phase3_dairy: string;
   phase3_other: string;
   show_rules: boolean;
@@ -140,7 +141,8 @@ export default function Dashboard() {
     { key: "phase3_fish", label: "Fish" },
     { key: "phase3_vegetables", label: "Vegetables" },
     { key: "phase3_fruit", label: "Fruit" },
-    { key: "phase3_grains_carbs", label: "Grains / Carbs" },
+    { key: "phase3_starches", label: "Starches" },
+    { key: "phase3_bread", label: "Bread" },
     { key: "phase3_dairy", label: "Dairy" },
     { key: "phase3_other", label: "Other" },
   ] as const;
