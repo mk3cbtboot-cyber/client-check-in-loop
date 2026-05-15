@@ -788,7 +788,15 @@ export default function ClientPortal() {
                 ))}
               </div>
               {client.phase === "phase3" && (() => {
-                const groups: { label: string; field: keyof ClientState }[] = [
+                const isMb = client.phase3_mode === "mb_standard";
+                const groups: { label: string; field: keyof ClientState }[] = isMb ? [
+                  { label: "Fish", field: "phase3_mb_fish" },
+                  { label: "Seafood", field: "phase3_mb_seafood" },
+                  { label: "Cheese", field: "phase3_mb_cheese" },
+                  { label: "Legumes", field: "phase3_mb_legumes" },
+                  { label: "Vegetables", field: "phase3_mb_vegetables" },
+                  { label: "Fat / Oil", field: "phase3_mb_fat_oil" },
+                ] : [
                   { label: "Meat", field: "phase3_meat" },
                   { label: "Fish", field: "phase3_fish" },
                   { label: "Vegetables", field: "phase3_vegetables" },
@@ -798,12 +806,13 @@ export default function ClientPortal() {
                   { label: "Dairy", field: "phase3_dairy" },
                   { label: "Other", field: "phase3_other" },
                 ];
+                const title = isMb ? "Your Extended Personal Food List" : "Your Additional Foods";
                 const populated = groups
                   .map((g) => ({ ...g, items: parseList(client[g.field] as string) }))
                   .filter((g) => g.items.length > 0);
                 return (
                   <Card className="p-6 space-y-3">
-                    <p className="font-medium">Your Additional Foods</p>
+                    <p className="font-medium">{title}</p>
                     {populated.length === 0 ? (
                       <p className="text-sm text-muted-foreground">Your practitioner will add your personalised foods here once your Phase 3 consultation is complete.</p>
                     ) : (
