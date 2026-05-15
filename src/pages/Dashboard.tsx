@@ -154,14 +154,32 @@ export default function Dashboard() {
     { key: "phase3_other", label: "Other" },
   ] as const;
 
-  const setPhase3Field = (clientId: string, field: typeof PHASE3_FIELDS[number]["key"], value: string) => {
+  const PHASE3_MB_FIELDS = [
+    { key: "phase3_mb_fish", label: "Fish" },
+    { key: "phase3_mb_seafood", label: "Seafood" },
+    { key: "phase3_mb_cheese", label: "Cheese" },
+    { key: "phase3_mb_legumes", label: "Legumes" },
+    { key: "phase3_mb_vegetables", label: "Vegetables" },
+    { key: "phase3_mb_fat_oil", label: "Fat / Oil" },
+  ] as const;
+
+  type Phase3FieldKey = typeof PHASE3_FIELDS[number]["key"] | typeof PHASE3_MB_FIELDS[number]["key"];
+
+  const setPhase3Field = (clientId: string, field: Phase3FieldKey, value: string) => {
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, [field]: value } : c)));
   };
 
-  const savePhase3Field = async (clientId: string, field: typeof PHASE3_FIELDS[number]["key"], value: string) => {
+  const savePhase3Field = async (clientId: string, field: Phase3FieldKey, value: string) => {
     const { error } = await supabase.from("clients").update({ [field]: value } as never).eq("id", clientId);
     if (error) return toast.error("Could not save additional foods");
     toast.success("Additional foods saved");
+  };
+
+  const setPhase3Mode = async (clientId: string, mode: "mb_standard" | "practitioner_custom") => {
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase3_mode: mode } : c)));
+    const { error } = await supabase.from("clients").update({ phase3_mode: mode } as never).eq("id", clientId);
+    if (error) return toast.error("Could not update mode");
+    toast.success("Mode updated");
   };
 
   const setShowRules = async (clientId: string, value: boolean) => {
