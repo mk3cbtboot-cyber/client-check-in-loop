@@ -115,7 +115,14 @@ export type Database = {
           phase3_dairy: string
           phase3_fish: string
           phase3_fruit: string
+          phase3_mb_cheese: string
+          phase3_mb_fat_oil: string
+          phase3_mb_fish: string
+          phase3_mb_legumes: string
+          phase3_mb_seafood: string
+          phase3_mb_vegetables: string
           phase3_meat: string
+          phase3_mode: string
           phase3_other: string
           phase3_starches: string
           phase3_vegetables: string
@@ -143,7 +150,14 @@ export type Database = {
           phase3_dairy?: string
           phase3_fish?: string
           phase3_fruit?: string
+          phase3_mb_cheese?: string
+          phase3_mb_fat_oil?: string
+          phase3_mb_fish?: string
+          phase3_mb_legumes?: string
+          phase3_mb_seafood?: string
+          phase3_mb_vegetables?: string
           phase3_meat?: string
+          phase3_mode?: string
           phase3_other?: string
           phase3_starches?: string
           phase3_vegetables?: string
@@ -171,7 +185,14 @@ export type Database = {
           phase3_dairy?: string
           phase3_fish?: string
           phase3_fruit?: string
+          phase3_mb_cheese?: string
+          phase3_mb_fat_oil?: string
+          phase3_mb_fish?: string
+          phase3_mb_legumes?: string
+          phase3_mb_seafood?: string
+          phase3_mb_vegetables?: string
           phase3_meat?: string
+          phase3_mode?: string
           phase3_other?: string
           phase3_starches?: string
           phase3_vegetables?: string
