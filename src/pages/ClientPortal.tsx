@@ -418,7 +418,8 @@ export default function ClientPortal() {
 
               {option && meal && (() => {
                 const isP3Plus = client.phase === "phase3" || client.phase === "phase4";
-                const starchExtras = isP3Plus ? parseList(client.phase3_starches) : [];
+                const isCustomMode = client.phase3_mode !== "mb_standard";
+                const starchExtras = (isP3Plus && isCustomMode) ? parseList(client.phase3_starches) : [];
                 const hasStarchAlready = option.components.some((c) => c.sources.includes("starch"));
                 const extraComponents = (starchExtras.length > 0 && !hasStarchAlready)
                   ? [{ key: "starch_extra", label: "Starches (optional)", qty: "as advised", sources: ["starch"] as (keyof typeof MB_FOODS)[], optional: true }]
@@ -814,10 +815,10 @@ export default function ClientPortal() {
                   <Card className="p-6 space-y-3">
                     <p className="font-medium">{title}</p>
                     {populated.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Your practitioner will add your personalised foods here once your Phase 3 consultation is complete.</p>
+                      <p className="text-sm text-muted-foreground">Your practitioner will add your {isMb ? "Extended Personal Food List" : "additional foods"} here once your Phase 3 consultation is complete.</p>
                     ) : (
                       <>
-                        <p className="text-sm text-muted-foreground">The additional foods Cheryl has added for you, by category.</p>
+                        <p className="text-sm text-muted-foreground">{isMb ? "Your MB Standard Phase 3 foods, by category." : "The additional foods Cheryl has added for you, by category."}</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {populated.map((g) => (
                             <div key={g.field} className="space-y-1">
