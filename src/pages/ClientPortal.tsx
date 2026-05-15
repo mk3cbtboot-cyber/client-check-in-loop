@@ -418,7 +418,8 @@ export default function ClientPortal() {
 
               {option && meal && (() => {
                 const isP3Plus = client.phase === "phase3" || client.phase === "phase4";
-                const starchExtras = isP3Plus ? parseList(client.phase3_starches) : [];
+                const isCustomMode = client.phase3_mode !== "mb_standard";
+                const starchExtras = (isP3Plus && isCustomMode) ? parseList(client.phase3_starches) : [];
                 const hasStarchAlready = option.components.some((c) => c.sources.includes("starch"));
                 const extraComponents = (starchExtras.length > 0 && !hasStarchAlready)
                   ? [{ key: "starch_extra", label: "Starches (optional)", qty: "as advised", sources: ["starch"] as (keyof typeof MB_FOODS)[], optional: true }]
