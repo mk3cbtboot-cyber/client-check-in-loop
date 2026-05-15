@@ -161,7 +161,8 @@ export default function ClientPortal() {
 
   // Phase 3 additional foods, grouped per MB_FOODS category.
   // Each user-facing category maps to one or more recipe-builder source keys.
-  const phase3CategoryMap: Record<string, (keyof typeof MB_FOODS)[]> = {
+  // Practitioner Custom mapping: each user-facing category maps to one or more recipe-builder source keys.
+  const phase3CustomMap: Record<string, (keyof typeof MB_FOODS)[]> = {
     phase3_meat: ["meat", "poultry"],
     phase3_fish: ["fish", "seafood"],
     phase3_vegetables: ["vegetables", "vegLettuce"],
@@ -172,15 +173,26 @@ export default function ClientPortal() {
     phase3_other: ["fish","seafood","poultry","meat","cheese","yogurt","milkProducts","vegetables","vegLettuce","fruit","bread","starch","legumes"],
   };
 
+  // MB Standard mapping (Fat/Oil has no recipe-builder source — surfaces only in My Plan)
+  const phase3MbMap: Record<string, (keyof typeof MB_FOODS)[]> = {
+    phase3_mb_fish: ["fish"],
+    phase3_mb_seafood: ["seafood"],
+    phase3_mb_cheese: ["cheese"],
+    phase3_mb_legumes: ["legumes"],
+    phase3_mb_vegetables: ["vegetables", "vegLettuce"],
+    phase3_mb_fat_oil: [],
+  };
+
   const parseList = (s: string | undefined | null) =>
     (s ?? "").split(",").map((x) => x.trim()).filter((x) => x.length > 0);
 
   const phase3ExtrasForSources = (sources: (keyof typeof MB_FOODS)[]): string[] => {
     if (!client) return [];
     if (client.phase !== "phase3" && client.phase !== "phase4") return [];
+    const map = client.phase3_mode === "mb_standard" ? phase3MbMap : phase3CustomMap;
     const sourceSet = new Set(sources);
     const out: string[] = [];
-    for (const [field, cats] of Object.entries(phase3CategoryMap)) {
+    for (const [field, cats] of Object.entries(map)) {
       if (!cats.some((c) => sourceSet.has(c))) continue;
       const value = (client as unknown as Record<string, string>)[field];
       out.push(...parseList(value));
