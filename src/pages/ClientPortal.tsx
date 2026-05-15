@@ -32,6 +32,13 @@ interface ClientState {
   phase3_bread: string;
   phase3_dairy: string;
   phase3_other: string;
+  phase3_mode: "mb_standard" | "practitioner_custom";
+  phase3_mb_fish: string;
+  phase3_mb_seafood: string;
+  phase3_mb_cheese: string;
+  phase3_mb_legumes: string;
+  phase3_mb_vegetables: string;
+  phase3_mb_fat_oil: string;
   show_rules: boolean;
   weight_unit: "kg" | "lbs";
   height_cm: number | null;
@@ -154,7 +161,8 @@ export default function ClientPortal() {
 
   // Phase 3 additional foods, grouped per MB_FOODS category.
   // Each user-facing category maps to one or more recipe-builder source keys.
-  const phase3CategoryMap: Record<string, (keyof typeof MB_FOODS)[]> = {
+  // Practitioner Custom mapping: each user-facing category maps to one or more recipe-builder source keys.
+  const phase3CustomMap: Record<string, (keyof typeof MB_FOODS)[]> = {
     phase3_meat: ["meat", "poultry"],
     phase3_fish: ["fish", "seafood"],
     phase3_vegetables: ["vegetables", "vegLettuce"],
@@ -165,15 +173,26 @@ export default function ClientPortal() {
     phase3_other: ["fish","seafood","poultry","meat","cheese","yogurt","milkProducts","vegetables","vegLettuce","fruit","bread","starch","legumes"],
   };
 
+  // MB Standard mapping (Fat/Oil has no recipe-builder source — surfaces only in My Plan)
+  const phase3MbMap: Record<string, (keyof typeof MB_FOODS)[]> = {
+    phase3_mb_fish: ["fish"],
+    phase3_mb_seafood: ["seafood"],
+    phase3_mb_cheese: ["cheese"],
+    phase3_mb_legumes: ["legumes"],
+    phase3_mb_vegetables: ["vegetables", "vegLettuce"],
+    phase3_mb_fat_oil: [],
+  };
+
   const parseList = (s: string | undefined | null) =>
     (s ?? "").split(",").map((x) => x.trim()).filter((x) => x.length > 0);
 
   const phase3ExtrasForSources = (sources: (keyof typeof MB_FOODS)[]): string[] => {
     if (!client) return [];
     if (client.phase !== "phase3" && client.phase !== "phase4") return [];
+    const map = client.phase3_mode === "mb_standard" ? phase3MbMap : phase3CustomMap;
     const sourceSet = new Set(sources);
     const out: string[] = [];
-    for (const [field, cats] of Object.entries(phase3CategoryMap)) {
+    for (const [field, cats] of Object.entries(map)) {
       if (!cats.some((c) => sourceSet.has(c))) continue;
       const value = (client as unknown as Record<string, string>)[field];
       out.push(...parseList(value));
@@ -769,7 +788,15 @@ export default function ClientPortal() {
                 ))}
               </div>
               {client.phase === "phase3" && (() => {
-                const groups: { label: string; field: keyof ClientState }[] = [
+                const isMb = client.phase3_mode === "mb_standard";
+                const groups: { label: string; field: keyof ClientState }[] = isMb ? [
+                  { label: "Fish", field: "phase3_mb_fish" },
+                  { label: "Seafood", field: "phase3_mb_seafood" },
+                  { label: "Cheese", field: "phase3_mb_cheese" },
+                  { label: "Legumes", field: "phase3_mb_legumes" },
+                  { label: "Vegetables", field: "phase3_mb_vegetables" },
+                  { label: "Fat / Oil", field: "phase3_mb_fat_oil" },
+                ] : [
                   { label: "Meat", field: "phase3_meat" },
                   { label: "Fish", field: "phase3_fish" },
                   { label: "Vegetables", field: "phase3_vegetables" },
@@ -779,12 +806,13 @@ export default function ClientPortal() {
                   { label: "Dairy", field: "phase3_dairy" },
                   { label: "Other", field: "phase3_other" },
                 ];
+                const title = isMb ? "Your Extended Personal Food List" : "Your Additional Foods";
                 const populated = groups
                   .map((g) => ({ ...g, items: parseList(client[g.field] as string) }))
                   .filter((g) => g.items.length > 0);
                 return (
                   <Card className="p-6 space-y-3">
-                    <p className="font-medium">Your Additional Foods</p>
+                    <p className="font-medium">{title}</p>
                     {populated.length === 0 ? (
                       <p className="text-sm text-muted-foreground">Your practitioner will add your personalised foods here once your Phase 3 consultation is complete.</p>
                     ) : (

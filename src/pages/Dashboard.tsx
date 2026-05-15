@@ -29,6 +29,13 @@ interface Client {
   phase3_bread: string;
   phase3_dairy: string;
   phase3_other: string;
+  phase3_mode: "mb_standard" | "practitioner_custom";
+  phase3_mb_fish: string;
+  phase3_mb_seafood: string;
+  phase3_mb_cheese: string;
+  phase3_mb_legumes: string;
+  phase3_mb_vegetables: string;
+  phase3_mb_fat_oil: string;
   show_rules: boolean;
   height_cm: number | null;
   phase2_strict_started_at: string | null;
@@ -147,14 +154,32 @@ export default function Dashboard() {
     { key: "phase3_other", label: "Other" },
   ] as const;
 
-  const setPhase3Field = (clientId: string, field: typeof PHASE3_FIELDS[number]["key"], value: string) => {
+  const PHASE3_MB_FIELDS = [
+    { key: "phase3_mb_fish", label: "Fish" },
+    { key: "phase3_mb_seafood", label: "Seafood" },
+    { key: "phase3_mb_cheese", label: "Cheese" },
+    { key: "phase3_mb_legumes", label: "Legumes" },
+    { key: "phase3_mb_vegetables", label: "Vegetables" },
+    { key: "phase3_mb_fat_oil", label: "Fat / Oil" },
+  ] as const;
+
+  type Phase3FieldKey = typeof PHASE3_FIELDS[number]["key"] | typeof PHASE3_MB_FIELDS[number]["key"];
+
+  const setPhase3Field = (clientId: string, field: Phase3FieldKey, value: string) => {
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, [field]: value } : c)));
   };
 
-  const savePhase3Field = async (clientId: string, field: typeof PHASE3_FIELDS[number]["key"], value: string) => {
+  const savePhase3Field = async (clientId: string, field: Phase3FieldKey, value: string) => {
     const { error } = await supabase.from("clients").update({ [field]: value } as never).eq("id", clientId);
     if (error) return toast.error("Could not save additional foods");
     toast.success("Additional foods saved");
+  };
+
+  const setPhase3Mode = async (clientId: string, mode: "mb_standard" | "practitioner_custom") => {
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase3_mode: mode } : c)));
+    const { error } = await supabase.from("clients").update({ phase3_mode: mode } as never).eq("id", clientId);
+    if (error) return toast.error("Could not update mode");
+    toast.success("Mode updated");
   };
 
   const setShowRules = async (clientId: string, value: boolean) => {
@@ -275,28 +300,49 @@ export default function Dashboard() {
                     <p className="text-xs text-muted-foreground">Used for BMI &amp; waist-to-height ratio.</p>
                   </div>
 
-                  {client.phase === "phase3" && (
-                    <div className="border-t pt-3 space-y-3">
-                      <div>
-                        <p className="text-sm font-medium">Phase 3 Additional Foods</p>
-                        <p className="text-xs text-muted-foreground">Enter a comma-separated list per category. Saved when you click outside the field.</p>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {PHASE3_FIELDS.map((f) => (
-                          <div key={f.key} className="space-y-1">
-                            <Label htmlFor={`${f.key}-${client.id}`} className="text-xs">{f.label}</Label>
-                            <Input
-                              id={`${f.key}-${client.id}`}
-                              placeholder="e.g. Ribeye Steak, Lamb Chop"
-                              value={(client[f.key] as string) ?? ""}
-                              onChange={(e) => setPhase3Field(client.id, f.key, e.target.value)}
-                              onBlur={(e) => savePhase3Field(client.id, f.key, e.target.value)}
-                            />
+                  {client.phase === "phase3" && (() => {
+                    const mode = client.phase3_mode === "mb_standard" ? "mb_standard" : "practitioner_custom";
+                    const fields = mode === "mb_standard" ? PHASE3_MB_FIELDS : PHASE3_FIELDS;
+                    const heading = mode === "mb_standard"
+                      ? "Extended Personal Food List (MB Standard)"
+                      : "Extended Food List (Practitioner Custom)";
+                    return (
+                      <div className="border-t pt-3 space-y-3">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <p className="text-sm font-medium">{heading}</p>
+                          <div className="flex gap-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={mode === "mb_standard" ? "default" : "outline"}
+                              onClick={() => setPhase3Mode(client.id, "mb_standard")}
+                            >MB Standard</Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={mode === "practitioner_custom" ? "default" : "outline"}
+                              onClick={() => setPhase3Mode(client.id, "practitioner_custom")}
+                            >Practitioner Custom</Button>
                           </div>
-                        ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">Enter a comma-separated list per category. Saved when you click outside the field.</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {fields.map((f) => (
+                            <div key={f.key} className="space-y-1">
+                              <Label htmlFor={`${f.key}-${client.id}`} className="text-xs">{f.label}</Label>
+                              <Input
+                                id={`${f.key}-${client.id}`}
+                                placeholder="e.g. Ribeye Steak, Lamb Chop"
+                                value={(client[f.key as keyof Client] as string) ?? ""}
+                                onChange={(e) => setPhase3Field(client.id, f.key, e.target.value)}
+                                onBlur={(e) => savePhase3Field(client.id, f.key, e.target.value)}
+                              />
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   <div className="border-t pt-3">
                     <p className="text-sm font-medium mb-2">Check-ins ({list.length})</p>
