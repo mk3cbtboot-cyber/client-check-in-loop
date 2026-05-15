@@ -815,10 +815,10 @@ export default function ClientPortal() {
                   <Card className="p-6 space-y-3">
                     <p className="font-medium">{title}</p>
                     {populated.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Your practitioner will add your personalised foods here once your Phase 3 consultation is complete.</p>
+                      <p className="text-sm text-muted-foreground">Your practitioner will add your {isMb ? "Extended Personal Food List" : "additional foods"} here once your Phase 3 consultation is complete.</p>
                     ) : (
                       <>
-                        <p className="text-sm text-muted-foreground">The additional foods Cheryl has added for you, by category.</p>
+                        <p className="text-sm text-muted-foreground">{isMb ? "Your MB Standard Phase 3 foods, by category." : "The additional foods Cheryl has added for you, by category."}</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {populated.map((g) => (
                             <div key={g.field} className="space-y-1">
