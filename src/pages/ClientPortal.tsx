@@ -240,6 +240,7 @@ export default function ClientPortal() {
         return { label: `${c.label}: ${picks[c.key]}`, qty };
       }),
       ...(picks["starch_extra"] ? [{ label: `Starches: ${picks["starch_extra"]}`, qty: "as advised" }] : []),
+      ...(picks["legumes_extra"] ? [{ label: `Legumes: ${picks["legumes_extra"]}`, qty: "as advised" }] : []),
     ];
     setGenerating(true);
     setRecipe(null);
