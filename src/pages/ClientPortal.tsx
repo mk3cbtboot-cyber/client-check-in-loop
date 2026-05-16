@@ -118,6 +118,8 @@ export default function ClientPortal() {
     if (t === "home") next.delete("tab");
     else next.set("tab", t);
     setSearchParams(next, { replace: true });
+    // Re-fetch latest client state (incl. phase3_mode + MB fields) when opening My Plan
+    if (t === "plan") void refresh();
   };
 
   const addWater = async () => {
