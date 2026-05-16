@@ -424,9 +424,16 @@ export default function ClientPortal() {
                 const isCustomMode = client.phase3_mode !== "mb_standard";
                 const starchExtras = (isP3Plus && isCustomMode) ? parseList(client.phase3_starches) : [];
                 const hasStarchAlready = option.components.some((c) => c.sources.includes("starch"));
-                const extraComponents = (starchExtras.length > 0 && !hasStarchAlready)
-                  ? [{ key: "starch_extra", label: "Starches (optional)", qty: "as advised", sources: ["starch"] as (keyof typeof MB_FOODS)[], optional: true }]
-                  : [];
+                const legumesExtras = isP3Plus ? parseList(isCustomMode ? "" : client.phase3_mb_legumes) : [];
+                const hasLegumesAlready = option.components.some((c) => c.sources.includes("legumes"));
+                const extraComponents = [
+                  ...((starchExtras.length > 0 && !hasStarchAlready)
+                    ? [{ key: "starch_extra", label: "Starches (optional)", qty: "as advised", sources: ["starch"] as (keyof typeof MB_FOODS)[], optional: true }]
+                    : []),
+                  ...((legumesExtras.length > 0 && !hasLegumesAlready)
+                    ? [{ key: "legumes_extra", label: "Legumes (optional)", qty: "as advised", sources: ["legumes"] as (keyof typeof MB_FOODS)[], optional: true }]
+                    : []),
+                ];
                 const allComponents = [...option.components, ...extraComponents];
                 return (
                 <Card className="p-4 space-y-4">
