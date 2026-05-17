@@ -93,6 +93,7 @@ export default function Dashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [rawOpen, setRawOpen] = useState<Record<string, boolean>>({});
 
   const toggleExpanded = (id: string) =>
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
