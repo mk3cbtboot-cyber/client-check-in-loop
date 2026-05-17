@@ -228,6 +228,18 @@ export default function Dashboard() {
     toast.success("Mode updated");
   };
 
+  const setSystemMode = async (clientId: string, mode: "mb" | "own_practice") => {
+    const prev = clients.find((c) => c.id === clientId)?.system_mode ?? "mb";
+    if (prev === mode) return;
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: mode } : c)));
+    const { error } = await supabase.from("clients").update({ system_mode: mode } as never).eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: prev } : c)));
+      return toast.error("Could not update system");
+    }
+    toast.success(mode === "mb" ? "Switched to Metabolic Balance" : "Switched to Own Practice");
+  };
+
   const setShowRules = async (clientId: string, value: boolean) => {
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, show_rules: value } : c)));
     const { error } = await supabase.from("clients").update({ show_rules: value }).eq("id", clientId);
