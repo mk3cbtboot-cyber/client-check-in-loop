@@ -345,9 +345,8 @@ export default function Dashboard() {
                             {progress.label}
                           </span>
                         )}
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium inline-flex items-center gap-1 ${alert ? "bg-destructive/10 text-destructive" : "bg-accent text-accent-foreground"}`}>
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-accent text-accent-foreground">
                           {client.system_mode === "own_practice" ? "Own Practice" : "MB"}
-                          {alert && <span aria-label="Needs attention">⚠</span>}
                         </span>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
