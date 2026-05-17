@@ -41,6 +41,7 @@ interface Client {
   water_today_litres: number | null;
   water_date: string | null;
   phase2_strict_started_at: string | null;
+  system_mode: "mb" | "own_practice";
   created_at: string;
 }
 
@@ -227,6 +228,18 @@ export default function Dashboard() {
     toast.success("Mode updated");
   };
 
+  const setSystemMode = async (clientId: string, mode: "mb" | "own_practice") => {
+    const prev = clients.find((c) => c.id === clientId)?.system_mode ?? "mb";
+    if (prev === mode) return;
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: mode } : c)));
+    const { error } = await supabase.from("clients").update({ system_mode: mode } as never).eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: prev } : c)));
+      return toast.error("Could not update system");
+    }
+    toast.success(mode === "mb" ? "Switched to Metabolic Balance" : "Switched to Own Practice");
+  };
+
   const setShowRules = async (clientId: string, value: boolean) => {
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, show_rules: value } : c)));
     const { error } = await supabase.from("clients").update({ show_rules: value }).eq("id", clientId);
@@ -329,12 +342,6 @@ export default function Dashboard() {
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        {alert && (
-                          <span
-                            aria-label="Needs attention"
-                            className="inline-block h-2.5 w-2.5 rounded-full bg-destructive shrink-0"
-                          />
-                        )}
                         <p className="font-medium truncate">{client.name}</p>
                         <span className="px-2 py-0.5 rounded bg-muted text-xs">{phaseLabel}</span>
                         {progress.label && (
@@ -342,8 +349,35 @@ export default function Dashboard() {
                             {progress.label}
                           </span>
                         )}
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium inline-flex items-center gap-1 ${alert ? "bg-destructive/10 text-destructive" : "bg-accent text-accent-foreground"}`}>
+                          {client.system_mode === "own_practice" ? "Own Practice" : "MB"}
+                          {alert && <span aria-label="Needs attention">⚠</span>}
+                        </span>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div
+                          role="group"
+                          aria-label="System mode"
+                          className="inline-flex rounded-md border overflow-hidden"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setSystemMode(client.id, "mb"); }}
+                            className={`px-2 py-1 text-xs ${client.system_mode !== "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                            aria-pressed={client.system_mode !== "own_practice"}
+                          >
+                            MB
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setSystemMode(client.id, "own_practice"); }}
+                            className={`px-2 py-1 text-xs border-l ${client.system_mode === "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                            aria-pressed={client.system_mode === "own_practice"}
+                          >
+                            Own Practice
+                          </button>
+                        </div>
                         <span>Water: <span className="font-medium text-foreground">{lastWaterDisplay(list)}</span></span>
                         <span>Streak: <span className="font-medium text-foreground">{streak}d</span></span>
                         <span className="text-primary">{isOpen ? "Hide" : "Details"}</span>
