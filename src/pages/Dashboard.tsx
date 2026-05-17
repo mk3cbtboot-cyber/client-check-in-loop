@@ -271,6 +271,8 @@ export default function Dashboard() {
     if (error) return toast.error("Could not save");
     toast.success("Medical & Intake saved");
   };
+
+  const logout = async () => {
     await supabase.auth.signOut();
     navigate("/auth", { replace: true });
   };
