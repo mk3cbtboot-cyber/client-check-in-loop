@@ -76,6 +76,49 @@ export default function Dashboard() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  // Streak: count of trailing consecutive days (ending today or yesterday) with a check-in
+  const computeStreak = (list: CheckIn[]): number => {
+    if (!list.length) return 0;
+    const dayKeys = new Set(list.map((ci) => new Date(ci.created_at).toISOString().slice(0, 10)));
+    let streak = 0;
+    const d = new Date();
+    // allow starting from today or yesterday
+    const todayKey = d.toISOString().slice(0, 10);
+    if (!dayKeys.has(todayKey)) d.setUTCDate(d.getUTCDate() - 1);
+    while (dayKeys.has(d.toISOString().slice(0, 10))) {
+      streak += 1;
+      d.setUTCDate(d.getUTCDate() - 1);
+    }
+    return streak;
+  };
+
+  // Need attention: 2+ consecutive expected daily check-ins missed (only for daily-tracked phases)
+  const needsAttention = (client: Client, list: CheckIn[]): boolean => {
+    const dailyPhase = client.phase === "phase2_strict";
+    if (!dailyPhase) return false;
+    if (!list.length) {
+      // if started 2+ days ago with no check-ins
+      if (!client.phase2_strict_started_at) return false;
+      const started = new Date(client.phase2_strict_started_at).getTime();
+      return (Date.now() - started) / 86_400_000 >= 2;
+    }
+    const last = new Date(list[0].created_at).getTime();
+    const daysSince = Math.floor((Date.now() - last) / 86_400_000);
+    return daysSince >= 2;
+  };
+
+  const lastWaterDisplay = (list: CheckIn[]): string => {
+    const last = list[0];
+    if (!last) return "—";
+    if (last.water_litres != null) return `${last.water_litres} L`;
+    if (last.water_glasses != null) return `${last.water_glasses} glasses`;
+    return "—";
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
