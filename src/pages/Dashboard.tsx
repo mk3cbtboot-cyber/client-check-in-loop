@@ -44,6 +44,11 @@ interface Client {
   system_mode: "mb" | "own_practice";
   meal_streak: number | null;
   created_at: string;
+  practitioner_notes: string;
+  medical_conditions: string;
+  current_medications: string;
+  client_goal: string;
+  vitamins_supplements: string;
 }
 
 interface CheckIn {
@@ -242,6 +247,29 @@ export default function Dashboard() {
       return;
     }
     toast.success(value ? "8 Rules visible to client" : "8 Rules hidden from client");
+  };
+
+  const setClientField = (clientId: string, field: keyof Client, value: string) => {
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, [field]: value } : c)));
+  };
+
+  const saveClientField = async (clientId: string, field: keyof Client, value: string) => {
+    const { error } = await supabase.from("clients").update({ [field]: value } as never).eq("id", clientId);
+    if (error) return toast.error("Could not save");
+    toast.success("Saved");
+  };
+
+  const saveIntake = async (clientId: string) => {
+    const c = clients.find((x) => x.id === clientId);
+    if (!c) return;
+    const { error } = await supabase.from("clients").update({
+      medical_conditions: c.medical_conditions ?? "",
+      current_medications: c.current_medications ?? "",
+      client_goal: c.client_goal ?? "",
+      vitamins_supplements: c.vitamins_supplements ?? "",
+    } as never).eq("id", clientId);
+    if (error) return toast.error("Could not save");
+    toast.success("Medical & Intake saved");
   };
 
   const logout = async () => {
@@ -476,6 +504,44 @@ export default function Dashboard() {
                       </div>
                     );
                   })()}
+
+                  <div className="border-t pt-3 space-y-2">
+                    <Label htmlFor={`pn-${client.id}`} className="text-sm font-medium">Practitioner Notes</Label>
+                    <Textarea
+                      id={`pn-${client.id}`}
+                      placeholder="Ongoing notes about this client…"
+                      value={client.practitioner_notes ?? ""}
+                      onChange={(e) => setClientField(client.id, "practitioner_notes", e.target.value)}
+                      onBlur={(e) => saveClientField(client.id, "practitioner_notes", e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="border-t pt-3 space-y-3">
+                    <p className="text-sm font-medium">Medical &amp; Intake</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {([
+                        { key: "medical_conditions", label: "Medical Conditions", placeholder: "e.g. IBS, Type 2 Diabetes, Hypertension" },
+                        { key: "current_medications", label: "Current Medications", placeholder: "e.g. Metformin 500mg, Lisinopril 10mg" },
+                        { key: "client_goal", label: "Client Goal", placeholder: "e.g. Reverse pre-diabetes, lose 20kg" },
+                        { key: "vitamins_supplements", label: "Vitamins & Supplements", placeholder: "e.g. Vitamin D3 2000IU, Magnesium Glycinate 400mg" },
+                      ] as const).map((f) => (
+                        <div key={f.key} className="space-y-1">
+                          <Label htmlFor={`${f.key}-${client.id}`} className="text-xs">{f.label}</Label>
+                          <Textarea
+                            id={`${f.key}-${client.id}`}
+                            placeholder={f.placeholder}
+                            value={(client[f.key] as string) ?? ""}
+                            onChange={(e) => setClientField(client.id, f.key, e.target.value)}
+                            rows={2}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-end">
+                      <Button size="sm" onClick={() => saveIntake(client.id)}>Save Medical &amp; Intake</Button>
+                    </div>
+                  </div>
 
                   <div className="border-t pt-3">
                     <p className="text-sm font-medium mb-2">Check-ins ({list.length})</p>
