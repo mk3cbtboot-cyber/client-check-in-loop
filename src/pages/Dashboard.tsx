@@ -198,6 +198,19 @@ export default function Dashboard() {
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase, phase2_strict_started_at: (updates.phase2_strict_started_at as string) ?? c.phase2_strict_started_at } : c)));
   };
 
+  const extendPhase2Strict = async (clientId: string) => {
+    const current = clients.find((c) => c.id === clientId);
+    if (!current) return;
+    const newExtra = (current.phase2_strict_extra_days ?? 0) + 14;
+    const { error } = await supabase
+      .from("clients")
+      .update({ phase2_strict_extra_days: newExtra } as never)
+      .eq("id", clientId);
+    if (error) return toast.error("Could not extend Phase 2 Strict");
+    toast.success(`Phase 2 Strict extended — now ${14 + newExtra} days total`);
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_extra_days: newExtra } : c)));
+  };
+
   const setHeight = (clientId: string, value: string) => {
     const num = value === "" ? null : Number(value);
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, height_cm: num } : c)));
