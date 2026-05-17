@@ -507,6 +507,8 @@ export default function Dashboard() {
                       </ul>
                     )}
                   </div>
+                  </>
+                  )}
                 </Card>
               );
             })}
