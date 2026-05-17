@@ -413,25 +413,27 @@ export default function Dashboard() {
 
                   {isOpen && (
                   <>
-                  <div className="border-t pt-3 flex flex-wrap items-center gap-2">
-                    <p className="text-sm text-muted-foreground mr-auto">{client.email}</p>
-                    {client.system_mode !== "own_practice" && (
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs">Phase</Label>
-                        <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
-                          <SelectTrigger className="h-8 w-64"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {PHASE_OPTIONS.map((p) => (
-                              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    <Button variant="outline" size="sm"
-                      onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
-                      Copy portal link
-                    </Button>
+                  <div className="border-t pt-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <p className="text-sm text-muted-foreground flex-1 min-w-0 truncate">{client.email}</p>
+                      {client.system_mode !== "own_practice" && (
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs">Phase</Label>
+                          <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
+                            <SelectTrigger className="h-8 w-[280px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {PHASE_OPTIONS.map((p) => (
+                                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      <Button variant="outline" size="sm"
+                        onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
+                        Copy portal link
+                      </Button>
+                    </div>
                     {client.system_mode !== "own_practice" && (
                       <div className="flex items-center gap-2">
                         <Label htmlFor={`sr-${client.id}`} className="text-xs">Show 8 Rules</Label>
