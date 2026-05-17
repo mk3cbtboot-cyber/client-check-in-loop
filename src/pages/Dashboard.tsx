@@ -188,14 +188,20 @@ export default function Dashboard() {
 
   const setPhase = async (clientId: string, phase: Phase) => {
     const current = clients.find((c) => c.id === clientId);
-    const updates: { phase: Phase; phase2_strict_started_at?: string } = { phase };
+    const updates: { phase: Phase; phase2_strict_started_at?: string; phase2_strict_extra_days?: number } = { phase };
     if (phase === "phase2_strict" && !current?.phase2_strict_started_at) {
       updates.phase2_strict_started_at = new Date().toISOString();
+      updates.phase2_strict_extra_days = 0;
     }
     const { error } = await supabase.from("clients").update(updates).eq("id", clientId);
     if (error) return toast.error("Could not update phase");
     toast.success("Phase updated");
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase, phase2_strict_started_at: (updates.phase2_strict_started_at as string) ?? c.phase2_strict_started_at } : c)));
+    setClients((cs) => cs.map((c) => (c.id === clientId ? {
+      ...c,
+      phase,
+      phase2_strict_started_at: (updates.phase2_strict_started_at as string) ?? c.phase2_strict_started_at,
+      phase2_strict_extra_days: updates.phase2_strict_extra_days ?? c.phase2_strict_extra_days,
+    } : c)));
   };
 
   const extendPhase2Strict = async (clientId: string) => {
