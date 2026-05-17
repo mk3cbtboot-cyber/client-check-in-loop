@@ -13,8 +13,10 @@ import { PHASE_OPTIONS, type Phase } from "@/lib/phases";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
 import { formatDistanceToNow } from "date-fns";
+import ClientTrendGraphs from "@/components/ClientTrendGraphs";
 
 interface Client {
   id: string;
@@ -53,6 +55,7 @@ interface Client {
   current_medications: string;
   client_goal: string;
   vitamins_supplements: string;
+  weight_unit: string;
 }
 
 interface CheckIn {
@@ -90,6 +93,7 @@ export default function Dashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [rawOpen, setRawOpen] = useState<Record<string, boolean>>({});
 
   const toggleExpanded = (id: string) =>
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -554,71 +558,80 @@ export default function Dashboard() {
                         </div>
                       </TabsContent>
 
-                      <TabsContent value="progress" className="pt-3">
-                        <p className="text-sm font-medium mb-2">Check-ins ({list.length})</p>
-                        {list.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No submissions yet.</p>
-                        ) : (
-                          <ul className="space-y-2">
-                            {list.map((ci) => {
-                              const ratingFields: [string, number | null][] = [
-                                ["General Well-Being", ci.general_wellbeing],
-                                ["Fatigue", ci.fatigue],
-                                ["Sleep", ci.sleep],
-                                ["Headache", ci.headache],
-                                ["Pain", ci.pain],
-                                ["Joint Pain", ci.joint_pain],
-                                ["Acid Reflux", ci.acid_reflux],
-                                ["Digestion", ci.digestion],
-                                ["Allergy / Skin", ci.allergy_skin],
-                              ];
-                              const hasRatings = ratingFields.some(([, v]) => v != null);
-                              const measurementFields: [string, string | null][] = [
-                                ["Body Fat", ci.body_fat_pct != null ? `${ci.body_fat_pct}%` : null],
-                                ["Waist", ci.waist_cm != null ? `${ci.waist_cm} cm` : null],
-                                ["Hip", ci.hip_cm != null ? `${ci.hip_cm} cm` : null],
-                                ["Upper Thigh", ci.upper_thigh_cm != null ? `${ci.upper_thigh_cm} cm` : null],
-                              ];
-                              const hasMeasurements = measurementFields.some(([, v]) => v != null);
-                              const heightCm = client.height_cm ? Number(client.height_cm) : null;
-                              const bmi = heightCm && ci.weight_kg ? (Number(ci.weight_kg) / Math.pow(heightCm / 100, 2)) : null;
-                              const whtr = heightCm && ci.waist_cm ? (Number(ci.waist_cm) / heightCm) : null;
-                              return (
-                                <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
-                                  <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                                    {(() => {
-                                      const lbl = progressLabelForCheckin(client.phase, client.phase2_strict_started_at, ci.created_at, !!ci.is_weekly);
-                                      return lbl ? <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide font-medium">{lbl}</span> : null;
-                                    })()}
-                                    {format(new Date(ci.created_at), "PPp")}
-                                    {ci.is_weekly && <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide">Weekly</span>}
-                                  </div>
-                                  {ci.weight_kg != null && <div>Weight: <span className="font-medium">{ci.weight_kg} kg</span></div>}
-                                  {ci.feeling != null && <div>Feeling: <span className="font-medium">{ci.feeling}/5</span></div>}
-                                  {ci.water_litres != null && <div>Water: <span className="font-medium">{ci.water_litres} L</span></div>}
-                                  {ci.water_litres == null && ci.water_glasses != null && <div>Water: <span className="font-medium">{ci.water_glasses} glasses</span></div>}
-                                  {hasMeasurements && (
-                                    <div className="grid grid-cols-2 gap-x-3 pt-1">
-                                      {measurementFields.filter(([, v]) => v != null).map(([label, v]) => (
-                                        <div key={label} className="text-xs"><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{v}</span></div>
-                                      ))}
-                                      {bmi != null && <div className="text-xs"><span className="text-muted-foreground">BMI:</span> <span className="font-medium">{bmi.toFixed(1)}</span></div>}
-                                      {whtr != null && <div className="text-xs"><span className="text-muted-foreground">WHtR:</span> <span className="font-medium">{whtr.toFixed(2)}</span></div>}
-                                    </div>
-                                  )}
-                                  {hasRatings && (
-                                    <div className="grid grid-cols-2 gap-x-3 pt-1">
-                                      {ratingFields.filter(([, v]) => v != null).map(([label, v]) => (
-                                        <div key={label} className="text-xs"><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{v}/5</span></div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {ci.notes && <div className="pt-1 text-muted-foreground">"{ci.notes}"</div>}
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
+                      <TabsContent value="progress" className="pt-3 space-y-4">
+                        <ClientTrendGraphs checkIns={list as any} weightUnit={client.weight_unit} />
+                        <Collapsible open={!!rawOpen[client.id]} onOpenChange={(o) => setRawOpen((s) => ({ ...s, [client.id]: o }))}>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              {rawOpen[client.id] ? "Hide" : "View all"} check-ins ({list.length})
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="pt-3">
+                            {list.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No submissions yet.</p>
+                            ) : (
+                              <ul className="space-y-2">
+                                {list.map((ci) => {
+                                  const ratingFields: [string, number | null][] = [
+                                    ["General Well-Being", ci.general_wellbeing],
+                                    ["Fatigue", ci.fatigue],
+                                    ["Sleep", ci.sleep],
+                                    ["Headache", ci.headache],
+                                    ["Pain", ci.pain],
+                                    ["Joint Pain", ci.joint_pain],
+                                    ["Acid Reflux", ci.acid_reflux],
+                                    ["Digestion", ci.digestion],
+                                    ["Allergy / Skin", ci.allergy_skin],
+                                  ];
+                                  const hasRatings = ratingFields.some(([, v]) => v != null);
+                                  const measurementFields: [string, string | null][] = [
+                                    ["Body Fat", ci.body_fat_pct != null ? `${ci.body_fat_pct}%` : null],
+                                    ["Waist", ci.waist_cm != null ? `${ci.waist_cm} cm` : null],
+                                    ["Hip", ci.hip_cm != null ? `${ci.hip_cm} cm` : null],
+                                    ["Upper Thigh", ci.upper_thigh_cm != null ? `${ci.upper_thigh_cm} cm` : null],
+                                  ];
+                                  const hasMeasurements = measurementFields.some(([, v]) => v != null);
+                                  const heightCm = client.height_cm ? Number(client.height_cm) : null;
+                                  const bmi = heightCm && ci.weight_kg ? (Number(ci.weight_kg) / Math.pow(heightCm / 100, 2)) : null;
+                                  const whtr = heightCm && ci.waist_cm ? (Number(ci.waist_cm) / heightCm) : null;
+                                  return (
+                                    <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
+                                      <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                                        {(() => {
+                                          const lbl = progressLabelForCheckin(client.phase, client.phase2_strict_started_at, ci.created_at, !!ci.is_weekly);
+                                          return lbl ? <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide font-medium">{lbl}</span> : null;
+                                        })()}
+                                        {format(new Date(ci.created_at), "PPp")}
+                                        {ci.is_weekly && <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide">Weekly</span>}
+                                      </div>
+                                      {ci.weight_kg != null && <div>Weight: <span className="font-medium">{ci.weight_kg} kg</span></div>}
+                                      {ci.feeling != null && <div>Feeling: <span className="font-medium">{ci.feeling}/5</span></div>}
+                                      {ci.water_litres != null && <div>Water: <span className="font-medium">{ci.water_litres} L</span></div>}
+                                      {ci.water_litres == null && ci.water_glasses != null && <div>Water: <span className="font-medium">{ci.water_glasses} glasses</span></div>}
+                                      {hasMeasurements && (
+                                        <div className="grid grid-cols-2 gap-x-3 pt-1">
+                                          {measurementFields.filter(([, v]) => v != null).map(([label, v]) => (
+                                            <div key={label} className="text-xs"><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{v}</span></div>
+                                          ))}
+                                          {bmi != null && <div className="text-xs"><span className="text-muted-foreground">BMI:</span> <span className="font-medium">{bmi.toFixed(1)}</span></div>}
+                                          {whtr != null && <div className="text-xs"><span className="text-muted-foreground">WHtR:</span> <span className="font-medium">{whtr.toFixed(2)}</span></div>}
+                                        </div>
+                                      )}
+                                      {hasRatings && (
+                                        <div className="grid grid-cols-2 gap-x-3 pt-1">
+                                          {ratingFields.filter(([, v]) => v != null).map(([label, v]) => (
+                                            <div key={label} className="text-xs"><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{v}/5</span></div>
+                                          ))}
+                                        </div>
+                                      )}
+                                      {ci.notes && <div className="pt-1 text-muted-foreground">"{ci.notes}"</div>}
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            )}
+                          </CollapsibleContent>
+                        </Collapsible>
                       </TabsContent>
 
                       <TabsContent value="mealplan" className="pt-3">
