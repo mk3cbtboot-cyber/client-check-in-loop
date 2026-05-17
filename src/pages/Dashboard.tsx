@@ -100,19 +100,11 @@ export default function Dashboard() {
     return streak;
   };
 
-  // Need attention: 2+ consecutive expected daily check-ins missed (only for daily-tracked phases)
-  const needsAttention = (client: Client, list: CheckIn[]): boolean => {
-    const dailyPhase = client.phase === "phase2_strict";
-    if (!dailyPhase) return false;
-    if (!list.length) {
-      // if started 2+ days ago with no check-ins
-      if (!client.phase2_strict_started_at) return false;
-      const started = new Date(client.phase2_strict_started_at).getTime();
-      return (Date.now() - started) / 86_400_000 >= 2;
-    }
-    const last = new Date(list[0].created_at).getTime();
-    const daysSince = Math.floor((Date.now() - last) / 86_400_000);
-    return daysSince >= 2;
+  // Need attention: meal_streak is 0, or today's water intake is below 1.0L
+  const needsAttention = (client: Client, _list: CheckIn[]): boolean => {
+    const today = new Date().toISOString().slice(0, 10);
+    const waterToday = client.water_date === today ? Number(client.water_today_litres ?? 0) : 0;
+    return (client.meal_streak ?? 0) === 0 || waterToday < 1.0;
   };
 
   const lastWaterDisplay = (list: CheckIn[]): string => {
