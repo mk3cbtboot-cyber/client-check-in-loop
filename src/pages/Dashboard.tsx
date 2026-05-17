@@ -461,7 +461,7 @@ export default function Dashboard() {
                     <p className="text-xs text-muted-foreground">Used for BMI &amp; waist-to-height ratio.</p>
                   </div>
 
-                  {client.phase === "phase3" && (() => {
+                  {client.system_mode !== "own_practice" && client.phase === "phase3" && (() => {
                     const mode = client.phase3_mode === "mb_standard" ? "mb_standard" : "practitioner_custom";
                     const fields = mode === "mb_standard" ? PHASE3_MB_FIELDS : PHASE3_FIELDS;
                     const heading = mode === "mb_standard"
