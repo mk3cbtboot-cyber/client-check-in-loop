@@ -12,7 +12,9 @@ import { format } from "date-fns";
 import { PHASE_OPTIONS, type Phase } from "@/lib/phases";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
+import { formatDistanceToNow } from "date-fns";
 
 interface Client {
   id: string;
