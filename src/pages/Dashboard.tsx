@@ -55,6 +55,7 @@ interface Client {
   current_medications: string;
   client_goal: string;
   vitamins_supplements: string;
+  weight_unit: string;
 }
 
 interface CheckIn {
