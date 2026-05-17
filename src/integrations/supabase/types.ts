@@ -128,6 +128,7 @@ export type Database = {
           phase3_vegetables: string
           practitioner_id: string
           show_rules: boolean
+          system_mode: string
           water_date: string
           water_today_litres: number
           week_reset_date: string
@@ -163,6 +164,7 @@ export type Database = {
           phase3_vegetables?: string
           practitioner_id: string
           show_rules?: boolean
+          system_mode?: string
           water_date?: string
           water_today_litres?: number
           week_reset_date?: string
@@ -198,6 +200,7 @@ export type Database = {
           phase3_vegetables?: string
           practitioner_id?: string
           show_rules?: boolean
+          system_mode?: string
           water_date?: string
           water_today_litres?: number
           week_reset_date?: string
