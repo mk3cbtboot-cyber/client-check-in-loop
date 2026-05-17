@@ -171,6 +171,9 @@ export default function Dashboard() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      if (email.trim().toLowerCase() === userEmail.toLowerCase()) {
+        throw new Error("You cannot invite yourself as a client");
+      }
       const { data, error } = await supabase.functions.invoke("invite-client", { body: { name, email } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
