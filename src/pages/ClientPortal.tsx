@@ -43,6 +43,7 @@ interface ClientState {
   weight_unit: "kg" | "lbs";
   height_cm: number | null;
   phase2_strict_started_at: string | null;
+  phase2_strict_extra_days: number;
 }
 
 type TabKey = "home" | "checkin" | "plan";
