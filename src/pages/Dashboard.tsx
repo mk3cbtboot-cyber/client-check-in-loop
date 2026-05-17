@@ -543,7 +543,8 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-
+                  <div className="border-t pt-3">
+                    <p className="text-sm font-medium mb-2">Check-ins ({list.length})</p>
                     {list.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No submissions yet.</p>
                     ) : (
