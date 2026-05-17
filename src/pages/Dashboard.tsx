@@ -149,11 +149,16 @@ export default function Dashboard() {
     setClients((clientRows ?? []) as Client[]);
     if (clientRows && clientRows.length) {
       const ids = clientRows.map((c) => c.id);
-      const { data: checkRows } = await supabase
-        .from("check_ins").select("*").in("client_id", ids).order("created_at", { ascending: false });
+      const [{ data: checkRows }, { data: recipeRows }] = await Promise.all([
+        supabase.from("check_ins").select("*").in("client_id", ids).order("created_at", { ascending: false }),
+        supabase.from("recipes").select("id, client_id, name, meal_type, created_at").in("client_id", ids).order("created_at", { ascending: false }),
+      ]);
       const grouped: Record<string, CheckIn[]> = {};
       (checkRows ?? []).forEach((ci) => { (grouped[ci.client_id] ||= []).push(ci); });
       setCheckIns(grouped);
+      const rg: Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]> = {};
+      (recipeRows ?? []).forEach((r: any) => { (rg[r.client_id] ||= []).push(r); });
+      setRecipes(rg);
     }
   };
 
