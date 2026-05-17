@@ -333,7 +333,8 @@ export default function Dashboard() {
                     className="w-full text-left"
                     aria-expanded={isOpen}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-2">
+                      {/* Row 1: name + alert + (MB only) phase & progress */}
                       <div className="flex items-center gap-2 flex-wrap min-w-0">
                         <p className="font-medium truncate inline-flex items-center gap-1">
                           {client.name}
@@ -350,7 +351,8 @@ export default function Dashboard() {
                           </>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      {/* Row 2: toggles | water | streak | details */}
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                         <div
                           role="group"
                           aria-label="System mode"
@@ -376,7 +378,7 @@ export default function Dashboard() {
                         </div>
                         <span>Water: <span className="font-medium text-foreground">{lastWaterDisplay(list)}</span></span>
                         <span>Streak: <span className="font-medium text-foreground">{streak}d</span></span>
-                        <span className="text-primary">{isOpen ? "Hide" : "Details"}</span>
+                        <span className="text-primary ml-auto">{isOpen ? "Hide" : "Details"}</span>
                       </div>
                     </div>
                   </button>
