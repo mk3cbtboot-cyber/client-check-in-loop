@@ -582,6 +582,16 @@ export default function Dashboard() {
                               >
                                 Extend +14 days
                               </Button>
+                              {(client.phase2_strict_extra_days ?? 0) > 0 && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => resetPhase2Extension(client.id)}
+                                >
+                                  Reset Extension
+                                </Button>
+                              )}
                             </div>
                           )}
                         </div>
