@@ -448,8 +448,16 @@ export default function Dashboard() {
                       ? formatDistanceToNow(new Date(lastRecipe.created_at), { addSuffix: true })
                       : "No meals yet";
                     const isOwnPractice = client.system_mode === "own_practice";
+                    const mealDays = new Set(clientRecipes.map((r) => new Date(r.created_at).toISOString().slice(0, 10)));
+                    let mealStreak = 0;
+                    const md = new Date();
+                    if (!mealDays.has(md.toISOString().slice(0, 10))) md.setUTCDate(md.getUTCDate() - 1);
+                    while (mealDays.has(md.toISOString().slice(0, 10))) {
+                      mealStreak += 1;
+                      md.setUTCDate(md.getUTCDate() - 1);
+                    }
                     const stats = [
-                      { label: "Meal Streak", value: `${client.meal_streak ?? 0}d` },
+                      { label: "Meal Streak", value: `${mealStreak}d` },
                       { label: "Water Streak", value: `${waterStreak}d` },
                       { label: "Water Today", value: `${waterToday.toFixed(1)} L` },
                       ...(isOwnPractice ? [] : [
