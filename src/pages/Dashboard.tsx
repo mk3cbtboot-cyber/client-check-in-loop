@@ -38,6 +38,8 @@ interface Client {
   phase3_mb_fat_oil: string;
   show_rules: boolean;
   height_cm: number | null;
+  water_today_litres: number | null;
+  water_date: string | null;
   phase2_strict_started_at: string | null;
   created_at: string;
 }
@@ -76,6 +78,49 @@ export default function Dashboard() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  // Streak: count of trailing consecutive days (ending today or yesterday) with a check-in
+  const computeStreak = (list: CheckIn[]): number => {
+    if (!list.length) return 0;
+    const dayKeys = new Set(list.map((ci) => new Date(ci.created_at).toISOString().slice(0, 10)));
+    let streak = 0;
+    const d = new Date();
+    // allow starting from today or yesterday
+    const todayKey = d.toISOString().slice(0, 10);
+    if (!dayKeys.has(todayKey)) d.setUTCDate(d.getUTCDate() - 1);
+    while (dayKeys.has(d.toISOString().slice(0, 10))) {
+      streak += 1;
+      d.setUTCDate(d.getUTCDate() - 1);
+    }
+    return streak;
+  };
+
+  // Need attention: 2+ consecutive expected daily check-ins missed (only for daily-tracked phases)
+  const needsAttention = (client: Client, list: CheckIn[]): boolean => {
+    const dailyPhase = client.phase === "phase2_strict";
+    if (!dailyPhase) return false;
+    if (!list.length) {
+      // if started 2+ days ago with no check-ins
+      if (!client.phase2_strict_started_at) return false;
+      const started = new Date(client.phase2_strict_started_at).getTime();
+      return (Date.now() - started) / 86_400_000 >= 2;
+    }
+    const last = new Date(list[0].created_at).getTime();
+    const daysSince = Math.floor((Date.now() - last) / 86_400_000);
+    return daysSince >= 2;
+  };
+
+  const lastWaterDisplay = (list: CheckIn[]): string => {
+    const last = list[0];
+    if (!last) return "—";
+    if (last.water_litres != null) return `${last.water_litres} L`;
+    if (last.water_glasses != null) return `${last.water_glasses} glasses`;
+    return "—";
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -211,6 +256,34 @@ export default function Dashboard() {
       </header>
 
       <section className="max-w-5xl mx-auto p-4 space-y-6">
+        {(() => {
+          const total = clients.length;
+          let streaks = 0, waterHit = 0, attention = 0;
+          clients.forEach((c) => {
+            const list = checkIns[c.id] ?? [];
+            if (computeStreak(list) >= 7) streaks += 1;
+            const today = new Date().toISOString().slice(0, 10);
+            if (c.water_date === today && Number(c.water_today_litres ?? 0) >= 2.5) waterHit += 1;
+            if (needsAttention(c, list)) attention += 1;
+          });
+          const stats = [
+            { label: "Total Clients", value: total, tone: "" },
+            { label: "Active Streaks", value: streaks, tone: "" },
+            { label: "Water Target Hit", value: waterHit, tone: "" },
+            { label: "Need Attention", value: attention, tone: attention > 0 ? "text-destructive" : "" },
+          ];
+          return (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {stats.map((s) => (
+                <Card key={s.label} className="p-4">
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className={`text-2xl font-semibold ${s.tone}`}>{s.value}</p>
+                </Card>
+              ))}
+            </div>
+          );
+        })()}
+
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium">Clients</h2>
           <Dialog open={open} onOpenChange={setOpen}>
@@ -242,44 +315,68 @@ export default function Dashboard() {
               const list = checkIns[client.id] ?? [];
               const portalLink = `${window.location.origin}/portal/${client.magic_token}`;
               const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at);
+              const phaseLabel = PHASE_OPTIONS.find((p) => p.value === client.phase)?.label ?? client.phase;
+              const streak = computeStreak(list);
+              const alert = needsAttention(client, list);
+              const isOpen = !!expanded[client.id];
               return (
-                <Card key={client.id} className="p-4 space-y-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium">{client.name}</p>
+                <Card key={client.id} className={`p-4 space-y-3 ${alert ? "border-destructive/60" : ""}`}>
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(client.id)}
+                    className="w-full text-left"
+                    aria-expanded={isOpen}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        {alert && (
+                          <span
+                            aria-label="Needs attention"
+                            className="inline-block h-2.5 w-2.5 rounded-full bg-destructive shrink-0"
+                          />
+                        )}
+                        <p className="font-medium truncate">{client.name}</p>
+                        <span className="px-2 py-0.5 rounded bg-muted text-xs">{phaseLabel}</span>
                         {progress.label && (
                           <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
                             {progress.label}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">{client.email}</p>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>Water: <span className="font-medium text-foreground">{lastWaterDisplay(list)}</span></span>
+                        <span>Streak: <span className="font-medium text-foreground">{streak}d</span></span>
+                        <span className="text-primary">{isOpen ? "Hide" : "Details"}</span>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs">Phase</Label>
-                        <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
-                          <SelectTrigger className="h-8 w-64"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {PHASE_OPTIONS.map((p) => (
-                              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button variant="outline" size="sm"
-                        onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
-                        Copy portal link
-                      </Button>
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor={`sr-${client.id}`} className="text-xs">Show 8 Rules</Label>
-                        <Switch
-                          id={`sr-${client.id}`}
-                          checked={!!client.show_rules}
-                          onCheckedChange={(v) => setShowRules(client.id, v)}
-                        />
-                      </div>
+                  </button>
+
+                  {isOpen && (
+                  <>
+                  <div className="border-t pt-3 flex flex-wrap items-center gap-2">
+                    <p className="text-sm text-muted-foreground mr-auto">{client.email}</p>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs">Phase</Label>
+                      <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
+                        <SelectTrigger className="h-8 w-64"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {PHASE_OPTIONS.map((p) => (
+                            <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button variant="outline" size="sm"
+                      onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
+                      Copy portal link
+                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`sr-${client.id}`} className="text-xs">Show 8 Rules</Label>
+                      <Switch
+                        id={`sr-${client.id}`}
+                        checked={!!client.show_rules}
+                        onCheckedChange={(v) => setShowRules(client.id, v)}
+                      />
                     </div>
                   </div>
 
@@ -410,6 +507,8 @@ export default function Dashboard() {
                       </ul>
                     )}
                   </div>
+                  </>
+                  )}
                 </Card>
               );
             })}
