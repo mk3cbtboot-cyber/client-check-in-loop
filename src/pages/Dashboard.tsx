@@ -45,6 +45,7 @@ interface Client {
   water_today_litres: number | null;
   water_date: string | null;
   phase2_strict_started_at: string | null;
+  phase2_strict_extra_days: number;
   system_mode: "mb" | "own_practice";
   meal_streak: number | null;
   avocado_count_week: number | null;
@@ -187,14 +188,33 @@ export default function Dashboard() {
 
   const setPhase = async (clientId: string, phase: Phase) => {
     const current = clients.find((c) => c.id === clientId);
-    const updates: { phase: Phase; phase2_strict_started_at?: string } = { phase };
+    const updates: { phase: Phase; phase2_strict_started_at?: string; phase2_strict_extra_days?: number } = { phase };
     if (phase === "phase2_strict" && !current?.phase2_strict_started_at) {
       updates.phase2_strict_started_at = new Date().toISOString();
+      updates.phase2_strict_extra_days = 0;
     }
     const { error } = await supabase.from("clients").update(updates).eq("id", clientId);
     if (error) return toast.error("Could not update phase");
     toast.success("Phase updated");
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase, phase2_strict_started_at: (updates.phase2_strict_started_at as string) ?? c.phase2_strict_started_at } : c)));
+    setClients((cs) => cs.map((c) => (c.id === clientId ? {
+      ...c,
+      phase,
+      phase2_strict_started_at: (updates.phase2_strict_started_at as string) ?? c.phase2_strict_started_at,
+      phase2_strict_extra_days: updates.phase2_strict_extra_days ?? c.phase2_strict_extra_days,
+    } : c)));
+  };
+
+  const extendPhase2Strict = async (clientId: string) => {
+    const current = clients.find((c) => c.id === clientId);
+    if (!current) return;
+    const newExtra = (current.phase2_strict_extra_days ?? 0) + 14;
+    const { error } = await supabase
+      .from("clients")
+      .update({ phase2_strict_extra_days: newExtra } as never)
+      .eq("id", clientId);
+    if (error) return toast.error("Could not extend Phase 2 Strict");
+    toast.success(`Phase 2 Strict extended — now ${14 + newExtra} days total`);
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_extra_days: newExtra } : c)));
   };
 
   const setHeight = (clientId: string, value: string) => {
@@ -370,7 +390,7 @@ export default function Dashboard() {
             {clients.map((client) => {
               const list = checkIns[client.id] ?? [];
               const portalLink = `${window.location.origin}/portal/${client.magic_token}`;
-              const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at);
+              const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at, client.phase2_strict_extra_days ?? 0);
               const phaseLabel = PHASE_OPTIONS.find((p) => p.value === client.phase)?.label ?? client.phase;
               const streak = computeStreak(list);
               const alert = needsAttention(client, list);
@@ -538,6 +558,22 @@ export default function Dashboard() {
                               />
                             </div>
                           )}
+                          {client.system_mode !== "own_practice" && client.phase === "phase2_strict" && client.phase2_strict_started_at && (
+                            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                              <span>
+                                Strict period: <span className="font-medium text-foreground">{14 + (client.phase2_strict_extra_days ?? 0)} days</span>
+                                {(client.phase2_strict_extra_days ?? 0) > 0 && <> (extended +{client.phase2_strict_extra_days})</>}
+                              </span>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => extendPhase2Strict(client.id)}
+                              >
+                                Extend +14 days
+                              </Button>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-end gap-3 flex-wrap">
@@ -636,7 +672,7 @@ export default function Dashboard() {
                                     <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
                                       <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                                         {(() => {
-                                          const lbl = progressLabelForCheckin(client.phase, client.phase2_strict_started_at, ci.created_at, !!ci.is_weekly);
+                                          const lbl = progressLabelForCheckin(client.phase, client.phase2_strict_started_at, ci.created_at, !!ci.is_weekly, client.phase2_strict_extra_days ?? 0);
                                           return lbl ? <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide font-medium">{lbl}</span> : null;
                                         })()}
                                         {format(new Date(ci.created_at), "PPp")}

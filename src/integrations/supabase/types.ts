@@ -112,6 +112,7 @@ export type Database = {
           medical_conditions: string
           name: string
           phase: string
+          phase2_strict_extra_days: number
           phase2_strict_started_at: string | null
           phase3_additional_foods: string
           phase3_bread: string
@@ -153,6 +154,7 @@ export type Database = {
           medical_conditions?: string
           name: string
           phase?: string
+          phase2_strict_extra_days?: number
           phase2_strict_started_at?: string | null
           phase3_additional_foods?: string
           phase3_bread?: string
@@ -194,6 +196,7 @@ export type Database = {
           medical_conditions?: string
           name?: string
           phase?: string
+          phase2_strict_extra_days?: number
           phase2_strict_started_at?: string | null
           phase3_additional_foods?: string
           phase3_bread?: string

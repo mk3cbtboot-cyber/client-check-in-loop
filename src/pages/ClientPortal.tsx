@@ -43,6 +43,7 @@ interface ClientState {
   weight_unit: "kg" | "lbs";
   height_cm: number | null;
   phase2_strict_started_at: string | null;
+  phase2_strict_extra_days: number;
 }
 
 type TabKey = "home" | "checkin" | "plan";
@@ -266,17 +267,18 @@ export default function ClientPortal() {
     const start = new Date(client.phase2_strict_started_at).getTime();
     return Math.floor((Date.now() - start) / (1000 * 60 * 60 * 24));
   })();
+  const strictTotalDays = 14 + Math.max(0, client?.phase2_strict_extra_days ?? 0);
   const isAlwaysWeeklyPhase = client?.phase === "phase2_extended" || client?.phase === "phase3" || client?.phase === "phase4";
-  const isWeeklyMode = (isP2Strict && daysSinceP2Start >= 14) || isAlwaysWeeklyPhase;
+  const isWeeklyMode = (isP2Strict && daysSinceP2Start >= strictTotalDays) || isAlwaysWeeklyPhase;
   const ratingsTitle = isP2Strict
     ? (isWeeklyMode ? "Weekly Progress — Phase 2 Strict" : "Daily Progress — Phase 2 Strict")
     : `Weekly Progress — ${phaseShort(client?.phase ?? "")}`;
   const ratingsSubtitle = isWeeklyMode
     ? (isP2Strict
-        ? "You're past Day 14 — please complete this once per week. Rate each area from 1 (best) to 5 (worst)."
+        ? `You're past Day ${strictTotalDays} — please complete this once per week. Rate each area from 1 (best) to 5 (worst).`
         : "Please complete this once per week. Rate each area from 1 (best) to 5 (worst).")
     : "Rate each area from 1 (best) to 5 (worst).";
-  const phaseProgress = getPhaseProgress(client?.phase, client?.phase2_strict_started_at);
+  const phaseProgress = getPhaseProgress(client?.phase, client?.phase2_strict_started_at, client?.phase2_strict_extra_days ?? 0);
 
   const submitCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
