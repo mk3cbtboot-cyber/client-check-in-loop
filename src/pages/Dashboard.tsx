@@ -650,7 +650,7 @@ export default function Dashboard() {
                                     <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
                                       <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                                         {(() => {
-                                          const lbl = progressLabelForCheckin(client.phase, client.phase2_strict_started_at, ci.created_at, !!ci.is_weekly);
+                                          const lbl = progressLabelForCheckin(client.phase, client.phase2_strict_started_at, ci.created_at, !!ci.is_weekly, client.phase2_strict_extra_days ?? 0);
                                           return lbl ? <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide font-medium">{lbl}</span> : null;
                                         })()}
                                         {format(new Date(ci.created_at), "PPp")}
