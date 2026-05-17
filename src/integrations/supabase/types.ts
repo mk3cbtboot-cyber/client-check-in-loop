@@ -100,13 +100,16 @@ export type Database = {
       clients: {
         Row: {
           avocado_count_week: number
+          client_goal: string
           created_at: string
+          current_medications: string
           egg_count_week: number
           email: string
           height_cm: number | null
           id: string
           magic_token: string
           meal_streak: number
+          medical_conditions: string
           name: string
           phase: string
           phase2_strict_started_at: string | null
@@ -127,8 +130,10 @@ export type Database = {
           phase3_starches: string
           phase3_vegetables: string
           practitioner_id: string
+          practitioner_notes: string
           show_rules: boolean
           system_mode: string
+          vitamins_supplements: string
           water_date: string
           water_today_litres: number
           week_reset_date: string
@@ -136,13 +141,16 @@ export type Database = {
         }
         Insert: {
           avocado_count_week?: number
+          client_goal?: string
           created_at?: string
+          current_medications?: string
           egg_count_week?: number
           email: string
           height_cm?: number | null
           id?: string
           magic_token?: string
           meal_streak?: number
+          medical_conditions?: string
           name: string
           phase?: string
           phase2_strict_started_at?: string | null
@@ -163,8 +171,10 @@ export type Database = {
           phase3_starches?: string
           phase3_vegetables?: string
           practitioner_id: string
+          practitioner_notes?: string
           show_rules?: boolean
           system_mode?: string
+          vitamins_supplements?: string
           water_date?: string
           water_today_litres?: number
           week_reset_date?: string
@@ -172,13 +182,16 @@ export type Database = {
         }
         Update: {
           avocado_count_week?: number
+          client_goal?: string
           created_at?: string
+          current_medications?: string
           egg_count_week?: number
           email?: string
           height_cm?: number | null
           id?: string
           magic_token?: string
           meal_streak?: number
+          medical_conditions?: string
           name?: string
           phase?: string
           phase2_strict_started_at?: string | null
@@ -199,8 +212,10 @@ export type Database = {
           phase3_starches?: string
           phase3_vegetables?: string
           practitioner_id?: string
+          practitioner_notes?: string
           show_rules?: boolean
           system_mode?: string
+          vitamins_supplements?: string
           water_date?: string
           water_today_litres?: number
           week_reset_date?: string
