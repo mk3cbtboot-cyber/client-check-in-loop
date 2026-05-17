@@ -339,15 +339,16 @@ export default function Dashboard() {
                           {client.name}
                           {alert && <span className="text-destructive" aria-label="Needs attention" title="Needs attention">⚠</span>}
                         </p>
-                        <span className="px-2 py-0.5 rounded bg-muted text-xs">{phaseLabel}</span>
-                        {progress.label && (
-                          <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
-                            {progress.label}
-                          </span>
+                        {client.system_mode !== "own_practice" && (
+                          <>
+                            <span className="px-2 py-0.5 rounded bg-muted text-xs">{phaseLabel}</span>
+                            {progress.label && (
+                              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
+                                {progress.label}
+                              </span>
+                            )}
+                          </>
                         )}
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-accent text-accent-foreground">
-                          {client.system_mode === "own_practice" ? "Own Practice" : "MB"}
-                        </span>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         <div
