@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
         weight_unit: c.weight_unit === "lbs" ? "lbs" : "kg",
         height_cm: c.height_cm != null ? Number(c.height_cm) : null,
         phase2_strict_started_at: c.phase2_strict_started_at ?? null,
+        phase2_strict_extra_days: c.phase2_strict_extra_days ?? 0,
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
