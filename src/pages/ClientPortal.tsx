@@ -271,7 +271,7 @@ export default function ClientPortal() {
   const isAlwaysWeeklyPhase = client?.phase === "phase2_extended" || client?.phase === "phase3" || client?.phase === "phase4";
   const isWeeklyMode = (isP2Strict && daysSinceP2Start >= strictTotalDays) || isAlwaysWeeklyPhase;
   const ratingsTitle = isP2Strict
-    ? (isWeeklyMode ? "Weekly Progress — Phase 2 Strict" : "Daily Progress — Phase 2 Strict")
+    ? (isWeeklyMode ? "Weekly Progress — Phase 2" : "Daily Progress — Phase 2")
     : `Weekly Progress — ${phaseShort(client?.phase ?? "")}`;
   const ratingsSubtitle = isWeeklyMode
     ? (isP2Strict
