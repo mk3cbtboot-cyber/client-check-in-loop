@@ -384,7 +384,7 @@ export default function Dashboard() {
             {clients.map((client) => {
               const list = checkIns[client.id] ?? [];
               const portalLink = `${window.location.origin}/portal/${client.magic_token}`;
-              const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at);
+              const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at, client.phase2_strict_extra_days ?? 0);
               const phaseLabel = PHASE_OPTIONS.find((p) => p.value === client.phase)?.label ?? client.phase;
               const streak = computeStreak(list);
               const alert = needsAttention(client, list);
