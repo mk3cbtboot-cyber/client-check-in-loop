@@ -335,7 +335,10 @@ export default function Dashboard() {
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        <p className="font-medium truncate">{client.name}</p>
+                        <p className="font-medium truncate inline-flex items-center gap-1">
+                          {client.name}
+                          {alert && <span className="text-destructive" aria-label="Needs attention" title="Needs attention">⚠</span>}
+                        </p>
                         <span className="px-2 py-0.5 rounded bg-muted text-xs">{phaseLabel}</span>
                         {progress.label && (
                           <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
