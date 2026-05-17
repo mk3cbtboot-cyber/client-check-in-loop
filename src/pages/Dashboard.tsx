@@ -552,6 +552,22 @@ export default function Dashboard() {
                               />
                             </div>
                           )}
+                          {client.system_mode !== "own_practice" && client.phase === "phase2_strict" && client.phase2_strict_started_at && (
+                            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                              <span>
+                                Strict period: <span className="font-medium text-foreground">{14 + (client.phase2_strict_extra_days ?? 0)} days</span>
+                                {(client.phase2_strict_extra_days ?? 0) > 0 && <> (extended +{client.phase2_strict_extra_days})</>}
+                              </span>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => extendPhase2Strict(client.id)}
+                              >
+                                Extend +14 days
+                              </Button>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-end gap-3 flex-wrap">
