@@ -315,44 +315,68 @@ export default function Dashboard() {
               const list = checkIns[client.id] ?? [];
               const portalLink = `${window.location.origin}/portal/${client.magic_token}`;
               const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at);
+              const phaseLabel = PHASE_OPTIONS.find((p) => p.value === client.phase)?.label ?? client.phase;
+              const streak = computeStreak(list);
+              const alert = needsAttention(client, list);
+              const isOpen = !!expanded[client.id];
               return (
-                <Card key={client.id} className="p-4 space-y-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium">{client.name}</p>
+                <Card key={client.id} className={`p-4 space-y-3 ${alert ? "border-destructive/60" : ""}`}>
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(client.id)}
+                    className="w-full text-left"
+                    aria-expanded={isOpen}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        {alert && (
+                          <span
+                            aria-label="Needs attention"
+                            className="inline-block h-2.5 w-2.5 rounded-full bg-destructive shrink-0"
+                          />
+                        )}
+                        <p className="font-medium truncate">{client.name}</p>
+                        <span className="px-2 py-0.5 rounded bg-muted text-xs">{phaseLabel}</span>
                         {progress.label && (
                           <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
                             {progress.label}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">{client.email}</p>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>Water: <span className="font-medium text-foreground">{lastWaterDisplay(list)}</span></span>
+                        <span>Streak: <span className="font-medium text-foreground">{streak}d</span></span>
+                        <span className="text-primary">{isOpen ? "Hide" : "Details"}</span>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs">Phase</Label>
-                        <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
-                          <SelectTrigger className="h-8 w-64"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {PHASE_OPTIONS.map((p) => (
-                              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button variant="outline" size="sm"
-                        onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
-                        Copy portal link
-                      </Button>
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor={`sr-${client.id}`} className="text-xs">Show 8 Rules</Label>
-                        <Switch
-                          id={`sr-${client.id}`}
-                          checked={!!client.show_rules}
-                          onCheckedChange={(v) => setShowRules(client.id, v)}
-                        />
-                      </div>
+                  </button>
+
+                  {isOpen && (
+                  <>
+                  <div className="border-t pt-3 flex flex-wrap items-center gap-2">
+                    <p className="text-sm text-muted-foreground mr-auto">{client.email}</p>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs">Phase</Label>
+                      <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
+                        <SelectTrigger className="h-8 w-64"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {PHASE_OPTIONS.map((p) => (
+                            <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button variant="outline" size="sm"
+                      onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
+                      Copy portal link
+                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`sr-${client.id}`} className="text-xs">Show 8 Rules</Label>
+                      <Switch
+                        id={`sr-${client.id}`}
+                        checked={!!client.show_rules}
+                        onCheckedChange={(v) => setShowRules(client.id, v)}
+                      />
                     </div>
                   </div>
 
