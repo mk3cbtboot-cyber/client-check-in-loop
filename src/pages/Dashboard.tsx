@@ -415,208 +415,255 @@ export default function Dashboard() {
                     </div>
                   </button>
 
-                  {isOpen && (
-                  <>
-                  <div className="border-t pt-3 space-y-2">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <p className="text-sm text-muted-foreground flex-1 min-w-0 truncate">{client.email}</p>
-                      {client.system_mode !== "own_practice" && (
-                        <div className="flex items-center gap-2">
-                          <Label className="text-xs">Phase</Label>
-                          <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
-                            <SelectTrigger className="h-8 w-[280px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {PHASE_OPTIONS.map((p) => (
-                                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                      <Button variant="outline" size="sm"
-                        onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
-                        Copy portal link
-                      </Button>
-                    </div>
-                    {client.system_mode !== "own_practice" && (
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor={`sr-${client.id}`} className="text-xs">Show 8 Rules</Label>
-                        <Switch
-                          id={`sr-${client.id}`}
-                          checked={!!client.show_rules}
-                          onCheckedChange={(v) => setShowRules(client.id, v)}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-t pt-3 flex items-end gap-3 flex-wrap">
-                    <div className="space-y-1">
-                      <Label htmlFor={`h-${client.id}`} className="text-xs">Height (cm)</Label>
-                      <Input
-                        id={`h-${client.id}`}
-                        type="number"
-                        step="0.1"
-                        className="h-8 w-32"
-                        value={client.height_cm ?? ""}
-                        onChange={(e) => setHeight(client.id, e.target.value)}
-                        onBlur={(e) => saveHeight(client.id, e.target.value)}
-                        placeholder="e.g. 168"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">Used for BMI &amp; waist-to-height ratio.</p>
-                  </div>
-
-                  {client.system_mode !== "own_practice" && client.phase === "phase3" && (() => {
-                    const mode = client.phase3_mode === "mb_standard" ? "mb_standard" : "practitioner_custom";
-                    const fields = mode === "mb_standard" ? PHASE3_MB_FIELDS : PHASE3_FIELDS;
-                    const heading = mode === "mb_standard"
-                      ? "Extended Personal Food List (MB Standard)"
-                      : "Extended Food List (Practitioner Custom)";
+                  {isOpen && (() => {
+                    const todayKey = new Date().toISOString().slice(0, 10);
+                    const waterToday = client.water_date === todayKey ? Number(client.water_today_litres ?? 0) : 0;
+                    // Water streak: consecutive trailing days with water_litres >= 2.0
+                    const waterDays = new Set(
+                      list.filter((ci) => (ci.water_litres ?? 0) >= 2.0)
+                        .map((ci) => new Date(ci.created_at).toISOString().slice(0, 10))
+                    );
+                    if (waterToday >= 2.0) waterDays.add(todayKey);
+                    let waterStreak = 0;
+                    const wd = new Date();
+                    if (!waterDays.has(wd.toISOString().slice(0, 10))) wd.setUTCDate(wd.getUTCDate() - 1);
+                    while (waterDays.has(wd.toISOString().slice(0, 10))) {
+                      waterStreak += 1;
+                      wd.setUTCDate(wd.getUTCDate() - 1);
+                    }
+                    const last = list[0];
+                    const lastLogged = last ? formatDistanceToNow(new Date(last.created_at), { addSuffix: true }) : "—";
+                    const stats = [
+                      { label: "Meal Streak", value: `${client.meal_streak ?? 0}d` },
+                      { label: "Water Streak", value: `${waterStreak}d` },
+                      { label: "Water Today", value: `${waterToday.toFixed(1)} L` },
+                      { label: "Avocado / Week", value: `${client.avocado_count_week ?? 0}` },
+                      { label: "Eggs / Week", value: `${client.egg_count_week ?? 0} / 5` },
+                      { label: "Last Logged", value: lastLogged },
+                    ];
                     return (
-                      <div className="border-t pt-3 space-y-3">
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <p className="text-sm font-medium">{heading}</p>
-                          <div className="flex gap-1">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={mode === "mb_standard" ? "default" : "outline"}
-                              onClick={() => setPhase3Mode(client.id, "mb_standard")}
-                            >MB Standard</Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={mode === "practitioner_custom" ? "default" : "outline"}
-                              onClick={() => setPhase3Mode(client.id, "practitioner_custom")}
-                            >Practitioner Custom</Button>
-                          </div>
+                  <div className="border-t pt-3 space-y-4" onClick={(e) => e.stopPropagation()}>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                      {stats.map((s) => (
+                        <div key={s.label} className="rounded-md border p-2">
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
+                          <p className="text-sm font-semibold truncate">{s.value}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">Enter a comma-separated list per category. Saved when you click outside the field.</p>
+                      ))}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">Last meal:</span>{" "}
+                      {last?.notes ? `${last.notes} — ${format(new Date(last.created_at), "p 'today'")}` : "No meals logged yet"}
+                    </p>
+
+                    <Tabs defaultValue="overview" className="w-full">
+                      <TabsList className="grid w-full grid-cols-4">
+                        <TabsTrigger value="overview">Overview</TabsTrigger>
+                        <TabsTrigger value="medical">Medical</TabsTrigger>
+                        <TabsTrigger value="progress">Progress</TabsTrigger>
+                        <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="overview" className="space-y-4 pt-3">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <p className="text-sm text-muted-foreground flex-1 min-w-0 truncate">{client.email}</p>
+                            {client.system_mode !== "own_practice" && (
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs">Phase</Label>
+                                <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
+                                  <SelectTrigger className="h-8 w-[280px]"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {PHASE_OPTIONS.map((p) => (
+                                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                            <Button variant="outline" size="sm"
+                              onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
+                              Copy portal link
+                            </Button>
+                          </div>
+                          {client.system_mode !== "own_practice" && (
+                            <div className="flex items-center gap-2">
+                              <Label htmlFor={`sr-${client.id}`} className="text-xs">Show 8 Rules</Label>
+                              <Switch
+                                id={`sr-${client.id}`}
+                                checked={!!client.show_rules}
+                                onCheckedChange={(v) => setShowRules(client.id, v)}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-end gap-3 flex-wrap">
+                          <div className="space-y-1">
+                            <Label htmlFor={`h-${client.id}`} className="text-xs">Height (cm)</Label>
+                            <Input
+                              id={`h-${client.id}`}
+                              type="number"
+                              step="0.1"
+                              className="h-8 w-32"
+                              value={client.height_cm ?? ""}
+                              onChange={(e) => setHeight(client.id, e.target.value)}
+                              onBlur={(e) => saveHeight(client.id, e.target.value)}
+                              placeholder="e.g. 168"
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">Used for BMI &amp; waist-to-height ratio.</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`pn-${client.id}`} className="text-sm font-medium">Practitioner Notes</Label>
+                          <Textarea
+                            id={`pn-${client.id}`}
+                            placeholder="Ongoing notes about this client…"
+                            value={client.practitioner_notes ?? ""}
+                            onChange={(e) => setClientField(client.id, "practitioner_notes", e.target.value)}
+                            onBlur={(e) => saveClientField(client.id, "practitioner_notes", e.target.value)}
+                            rows={3}
+                          />
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="medical" className="space-y-3 pt-3">
+                        <p className="text-sm font-medium">Medical &amp; Intake</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {fields.map((f) => (
+                          {([
+                            { key: "medical_conditions", label: "Medical Conditions", placeholder: "e.g. IBS, Type 2 Diabetes, Hypertension" },
+                            { key: "current_medications", label: "Current Medications", placeholder: "e.g. Metformin 500mg, Lisinopril 10mg" },
+                            { key: "client_goal", label: "Client Goal", placeholder: "e.g. Reverse pre-diabetes, lose 20kg" },
+                            { key: "vitamins_supplements", label: "Vitamins & Supplements", placeholder: "e.g. Vitamin D3 2000IU, Magnesium Glycinate 400mg" },
+                          ] as const).map((f) => (
                             <div key={f.key} className="space-y-1">
                               <Label htmlFor={`${f.key}-${client.id}`} className="text-xs">{f.label}</Label>
-                              <Input
+                              <Textarea
                                 id={`${f.key}-${client.id}`}
-                                placeholder="e.g. Ribeye Steak, Lamb Chop"
-                                value={(client[f.key as keyof Client] as string) ?? ""}
-                                onChange={(e) => setPhase3Field(client.id, f.key, e.target.value)}
-                                onBlur={(e) => savePhase3Field(client.id, f.key, e.target.value)}
+                                placeholder={f.placeholder}
+                                value={(client[f.key] as string) ?? ""}
+                                onChange={(e) => setClientField(client.id, f.key, e.target.value)}
+                                rows={2}
                               />
                             </div>
                           ))}
                         </div>
-                      </div>
+                        <div className="flex justify-end">
+                          <Button size="sm" onClick={() => saveIntake(client.id)}>Save Medical &amp; Intake</Button>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="progress" className="pt-3">
+                        <p className="text-sm font-medium mb-2">Check-ins ({list.length})</p>
+                        {list.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No submissions yet.</p>
+                        ) : (
+                          <ul className="space-y-2">
+                            {list.map((ci) => {
+                              const ratingFields: [string, number | null][] = [
+                                ["General Well-Being", ci.general_wellbeing],
+                                ["Fatigue", ci.fatigue],
+                                ["Sleep", ci.sleep],
+                                ["Headache", ci.headache],
+                                ["Pain", ci.pain],
+                                ["Joint Pain", ci.joint_pain],
+                                ["Acid Reflux", ci.acid_reflux],
+                                ["Digestion", ci.digestion],
+                                ["Allergy / Skin", ci.allergy_skin],
+                              ];
+                              const hasRatings = ratingFields.some(([, v]) => v != null);
+                              const measurementFields: [string, string | null][] = [
+                                ["Body Fat", ci.body_fat_pct != null ? `${ci.body_fat_pct}%` : null],
+                                ["Waist", ci.waist_cm != null ? `${ci.waist_cm} cm` : null],
+                                ["Hip", ci.hip_cm != null ? `${ci.hip_cm} cm` : null],
+                                ["Upper Thigh", ci.upper_thigh_cm != null ? `${ci.upper_thigh_cm} cm` : null],
+                              ];
+                              const hasMeasurements = measurementFields.some(([, v]) => v != null);
+                              const heightCm = client.height_cm ? Number(client.height_cm) : null;
+                              const bmi = heightCm && ci.weight_kg ? (Number(ci.weight_kg) / Math.pow(heightCm / 100, 2)) : null;
+                              const whtr = heightCm && ci.waist_cm ? (Number(ci.waist_cm) / heightCm) : null;
+                              return (
+                                <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
+                                  <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                                    {(() => {
+                                      const lbl = progressLabelForCheckin(client.phase, client.phase2_strict_started_at, ci.created_at, !!ci.is_weekly);
+                                      return lbl ? <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide font-medium">{lbl}</span> : null;
+                                    })()}
+                                    {format(new Date(ci.created_at), "PPp")}
+                                    {ci.is_weekly && <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide">Weekly</span>}
+                                  </div>
+                                  {ci.weight_kg != null && <div>Weight: <span className="font-medium">{ci.weight_kg} kg</span></div>}
+                                  {ci.feeling != null && <div>Feeling: <span className="font-medium">{ci.feeling}/5</span></div>}
+                                  {ci.water_litres != null && <div>Water: <span className="font-medium">{ci.water_litres} L</span></div>}
+                                  {ci.water_litres == null && ci.water_glasses != null && <div>Water: <span className="font-medium">{ci.water_glasses} glasses</span></div>}
+                                  {hasMeasurements && (
+                                    <div className="grid grid-cols-2 gap-x-3 pt-1">
+                                      {measurementFields.filter(([, v]) => v != null).map(([label, v]) => (
+                                        <div key={label} className="text-xs"><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{v}</span></div>
+                                      ))}
+                                      {bmi != null && <div className="text-xs"><span className="text-muted-foreground">BMI:</span> <span className="font-medium">{bmi.toFixed(1)}</span></div>}
+                                      {whtr != null && <div className="text-xs"><span className="text-muted-foreground">WHtR:</span> <span className="font-medium">{whtr.toFixed(2)}</span></div>}
+                                    </div>
+                                  )}
+                                  {hasRatings && (
+                                    <div className="grid grid-cols-2 gap-x-3 pt-1">
+                                      {ratingFields.filter(([, v]) => v != null).map(([label, v]) => (
+                                        <div key={label} className="text-xs"><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{v}/5</span></div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {ci.notes && <div className="pt-1 text-muted-foreground">"{ci.notes}"</div>}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="mealplan" className="pt-3">
+                        {client.system_mode === "own_practice" ? (
+                          <p className="text-sm text-muted-foreground">Meal plan tools are MB-specific. Switch this client to MB to manage extended food lists.</p>
+                        ) : client.phase !== "phase3" ? (
+                          <p className="text-sm text-muted-foreground">Extended food lists are available once the client reaches Phase 3.</p>
+                        ) : (() => {
+                          const mode = client.phase3_mode === "mb_standard" ? "mb_standard" : "practitioner_custom";
+                          const fields = mode === "mb_standard" ? PHASE3_MB_FIELDS : PHASE3_FIELDS;
+                          const heading = mode === "mb_standard"
+                            ? "Extended Personal Food List (MB Standard)"
+                            : "Extended Food List (Practitioner Custom)";
+                          return (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <p className="text-sm font-medium">{heading}</p>
+                                <div className="flex gap-1">
+                                  <Button type="button" size="sm" variant={mode === "mb_standard" ? "default" : "outline"} onClick={() => setPhase3Mode(client.id, "mb_standard")}>MB Standard</Button>
+                                  <Button type="button" size="sm" variant={mode === "practitioner_custom" ? "default" : "outline"} onClick={() => setPhase3Mode(client.id, "practitioner_custom")}>Practitioner Custom</Button>
+                                </div>
+                              </div>
+                              <p className="text-xs text-muted-foreground">Enter a comma-separated list per category. Saved when you click outside the field.</p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {fields.map((f) => (
+                                  <div key={f.key} className="space-y-1">
+                                    <Label htmlFor={`${f.key}-${client.id}`} className="text-xs">{f.label}</Label>
+                                    <Input
+                                      id={`${f.key}-${client.id}`}
+                                      placeholder="e.g. Ribeye Steak, Lamb Chop"
+                                      value={(client[f.key as keyof Client] as string) ?? ""}
+                                      onChange={(e) => setPhase3Field(client.id, f.key, e.target.value)}
+                                      onBlur={(e) => savePhase3Field(client.id, f.key, e.target.value)}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </TabsContent>
+                    </Tabs>
+                  </div>
                     );
                   })()}
-
-                  <div className="border-t pt-3 space-y-2">
-                    <Label htmlFor={`pn-${client.id}`} className="text-sm font-medium">Practitioner Notes</Label>
-                    <Textarea
-                      id={`pn-${client.id}`}
-                      placeholder="Ongoing notes about this client…"
-                      value={client.practitioner_notes ?? ""}
-                      onChange={(e) => setClientField(client.id, "practitioner_notes", e.target.value)}
-                      onBlur={(e) => saveClientField(client.id, "practitioner_notes", e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="border-t pt-3 space-y-3">
-                    <p className="text-sm font-medium">Medical &amp; Intake</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {([
-                        { key: "medical_conditions", label: "Medical Conditions", placeholder: "e.g. IBS, Type 2 Diabetes, Hypertension" },
-                        { key: "current_medications", label: "Current Medications", placeholder: "e.g. Metformin 500mg, Lisinopril 10mg" },
-                        { key: "client_goal", label: "Client Goal", placeholder: "e.g. Reverse pre-diabetes, lose 20kg" },
-                        { key: "vitamins_supplements", label: "Vitamins & Supplements", placeholder: "e.g. Vitamin D3 2000IU, Magnesium Glycinate 400mg" },
-                      ] as const).map((f) => (
-                        <div key={f.key} className="space-y-1">
-                          <Label htmlFor={`${f.key}-${client.id}`} className="text-xs">{f.label}</Label>
-                          <Textarea
-                            id={`${f.key}-${client.id}`}
-                            placeholder={f.placeholder}
-                            value={(client[f.key] as string) ?? ""}
-                            onChange={(e) => setClientField(client.id, f.key, e.target.value)}
-                            rows={2}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex justify-end">
-                      <Button size="sm" onClick={() => saveIntake(client.id)}>Save Medical &amp; Intake</Button>
-                    </div>
-                  </div>
-
-                  <div className="border-t pt-3">
-                    <p className="text-sm font-medium mb-2">Check-ins ({list.length})</p>
-                    {list.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No submissions yet.</p>
-                    ) : (
-                      <ul className="space-y-2">
-                        {list.map((ci) => {
-                          const ratingFields: [string, number | null][] = [
-                            ["General Well-Being", ci.general_wellbeing],
-                            ["Fatigue", ci.fatigue],
-                            ["Sleep", ci.sleep],
-                            ["Headache", ci.headache],
-                            ["Pain", ci.pain],
-                            ["Joint Pain", ci.joint_pain],
-                            ["Acid Reflux", ci.acid_reflux],
-                            ["Digestion", ci.digestion],
-                            ["Allergy / Skin", ci.allergy_skin],
-                          ];
-                          const hasRatings = ratingFields.some(([, v]) => v != null);
-                          const measurementFields: [string, string | null][] = [
-                            ["Body Fat", ci.body_fat_pct != null ? `${ci.body_fat_pct}%` : null],
-                            ["Waist", ci.waist_cm != null ? `${ci.waist_cm} cm` : null],
-                            ["Hip", ci.hip_cm != null ? `${ci.hip_cm} cm` : null],
-                            ["Upper Thigh", ci.upper_thigh_cm != null ? `${ci.upper_thigh_cm} cm` : null],
-                          ];
-                          const hasMeasurements = measurementFields.some(([, v]) => v != null);
-                          const heightCm = client.height_cm ? Number(client.height_cm) : null;
-                          const bmi = heightCm && ci.weight_kg ? (Number(ci.weight_kg) / Math.pow(heightCm / 100, 2)) : null;
-                          const whtr = heightCm && ci.waist_cm ? (Number(ci.waist_cm) / heightCm) : null;
-                          return (
-                            <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
-                              <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                                {(() => {
-                                  const lbl = progressLabelForCheckin(client.phase, client.phase2_strict_started_at, ci.created_at, !!ci.is_weekly);
-                                  return lbl ? <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide font-medium">{lbl}</span> : null;
-                                })()}
-                                {format(new Date(ci.created_at), "PPp")}
-                                {ci.is_weekly && <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide">Weekly</span>}
-                              </div>
-                              {ci.weight_kg != null && <div>Weight: <span className="font-medium">{ci.weight_kg} kg</span></div>}
-                              {ci.feeling != null && <div>Feeling: <span className="font-medium">{ci.feeling}/5</span></div>}
-                              {ci.water_litres != null && <div>Water: <span className="font-medium">{ci.water_litres} L</span></div>}
-                              {ci.water_litres == null && ci.water_glasses != null && <div>Water: <span className="font-medium">{ci.water_glasses} glasses</span></div>}
-                              {hasMeasurements && (
-                                <div className="grid grid-cols-2 gap-x-3 pt-1">
-                                  {measurementFields.filter(([, v]) => v != null).map(([label, v]) => (
-                                    <div key={label} className="text-xs"><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{v}</span></div>
-                                  ))}
-                                  {bmi != null && <div className="text-xs"><span className="text-muted-foreground">BMI:</span> <span className="font-medium">{bmi.toFixed(1)}</span></div>}
-                                  {whtr != null && <div className="text-xs"><span className="text-muted-foreground">WHtR:</span> <span className="font-medium">{whtr.toFixed(2)}</span></div>}
-                                </div>
-                              )}
-                              {hasRatings && (
-                                <div className="grid grid-cols-2 gap-x-3 pt-1">
-                                  {ratingFields.filter(([, v]) => v != null).map(([label, v]) => (
-                                    <div key={label} className="text-xs"><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{v}/5</span></div>
-                                  ))}
-                                </div>
-                              )}
-                              {ci.notes && <div className="pt-1 text-muted-foreground">"{ci.notes}"</div>}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-                  </>
-                  )}
                 </Card>
               );
             })}
