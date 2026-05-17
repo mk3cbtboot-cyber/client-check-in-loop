@@ -142,11 +142,16 @@ export default function Dashboard() {
   }, [navigate]);
 
   const load = async () => {
-    const { data: clientRows } = await supabase
+    const { data: sessionData } = await supabase.auth.getSession();
+    const practitionerEmail = sessionData.session?.user.email?.toLowerCase() ?? "";
+    const { data: allRows } = await supabase
       .from("clients")
       .select("*")
       .order("created_at", { ascending: false });
-    setClients((clientRows ?? []) as Client[]);
+    const clientRows = (allRows ?? []).filter(
+      (c) => (c.email ?? "").toLowerCase() !== practitionerEmail,
+    );
+    setClients(clientRows as Client[]);
     if (clientRows && clientRows.length) {
       const ids = clientRows.map((c) => c.id);
       const [{ data: checkRows }, { data: recipeRows }] = await Promise.all([
@@ -166,6 +171,9 @@ export default function Dashboard() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      if (email.trim().toLowerCase() === userEmail.toLowerCase()) {
+        throw new Error("You cannot invite yourself as a client");
+      }
       const { data, error } = await supabase.functions.invoke("invite-client", { body: { name, email } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
