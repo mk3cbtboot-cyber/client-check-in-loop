@@ -387,29 +387,33 @@ export default function Dashboard() {
                   <>
                   <div className="border-t pt-3 flex flex-wrap items-center gap-2">
                     <p className="text-sm text-muted-foreground mr-auto">{client.email}</p>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs">Phase</Label>
-                      <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
-                        <SelectTrigger className="h-8 w-64"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {PHASE_OPTIONS.map((p) => (
-                            <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {client.system_mode !== "own_practice" && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs">Phase</Label>
+                        <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
+                          <SelectTrigger className="h-8 w-64"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {PHASE_OPTIONS.map((p) => (
+                              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     <Button variant="outline" size="sm"
                       onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
                       Copy portal link
                     </Button>
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor={`sr-${client.id}`} className="text-xs">Show 8 Rules</Label>
-                      <Switch
-                        id={`sr-${client.id}`}
-                        checked={!!client.show_rules}
-                        onCheckedChange={(v) => setShowRules(client.id, v)}
-                      />
-                    </div>
+                    {client.system_mode !== "own_practice" && (
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`sr-${client.id}`} className="text-xs">Show 8 Rules</Label>
+                        <Switch
+                          id={`sr-${client.id}`}
+                          checked={!!client.show_rules}
+                          onCheckedChange={(v) => setShowRules(client.id, v)}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="border-t pt-3 flex items-end gap-3 flex-wrap">
