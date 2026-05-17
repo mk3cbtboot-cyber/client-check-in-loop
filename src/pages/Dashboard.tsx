@@ -254,6 +254,34 @@ export default function Dashboard() {
       </header>
 
       <section className="max-w-5xl mx-auto p-4 space-y-6">
+        {(() => {
+          const total = clients.length;
+          let streaks = 0, waterHit = 0, attention = 0;
+          clients.forEach((c) => {
+            const list = checkIns[c.id] ?? [];
+            if (computeStreak(list) >= 7) streaks += 1;
+            const today = new Date().toISOString().slice(0, 10);
+            if (c.water_date === today && Number(c.water_today_litres ?? 0) >= 2.5) waterHit += 1;
+            if (needsAttention(c, list)) attention += 1;
+          });
+          const stats = [
+            { label: "Total Clients", value: total, tone: "" },
+            { label: "Active Streaks", value: streaks, tone: "" },
+            { label: "Water Target Hit", value: waterHit, tone: "" },
+            { label: "Need Attention", value: attention, tone: attention > 0 ? "text-destructive" : "" },
+          ];
+          return (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {stats.map((s) => (
+                <Card key={s.label} className="p-4">
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className={`text-2xl font-semibold ${s.tone}`}>{s.value}</p>
+                </Card>
+              ))}
+            </div>
+          );
+        })()}
+
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium">Clients</h2>
           <Dialog open={open} onOpenChange={setOpen}>
