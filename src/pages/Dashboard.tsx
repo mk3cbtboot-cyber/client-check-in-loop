@@ -41,6 +41,7 @@ interface Client {
   water_today_litres: number | null;
   water_date: string | null;
   phase2_strict_started_at: string | null;
+  system_mode: "mb" | "own_practice";
   created_at: string;
 }
 
