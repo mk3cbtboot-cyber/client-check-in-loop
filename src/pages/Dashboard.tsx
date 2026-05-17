@@ -87,6 +87,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn[]>>({});
+  const [recipes, setRecipes] = useState<Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]>>({});
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -148,11 +149,16 @@ export default function Dashboard() {
     setClients((clientRows ?? []) as Client[]);
     if (clientRows && clientRows.length) {
       const ids = clientRows.map((c) => c.id);
-      const { data: checkRows } = await supabase
-        .from("check_ins").select("*").in("client_id", ids).order("created_at", { ascending: false });
+      const [{ data: checkRows }, { data: recipeRows }] = await Promise.all([
+        supabase.from("check_ins").select("*").in("client_id", ids).order("created_at", { ascending: false }),
+        supabase.from("recipes").select("id, client_id, name, meal_type, created_at").in("client_id", ids).order("created_at", { ascending: false }),
+      ]);
       const grouped: Record<string, CheckIn[]> = {};
       (checkRows ?? []).forEach((ci) => { (grouped[ci.client_id] ||= []).push(ci); });
       setCheckIns(grouped);
+      const rg: Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]> = {};
+      (recipeRows ?? []).forEach((r: any) => { (rg[r.client_id] ||= []).push(r); });
+      setRecipes(rg);
     }
   };
 
@@ -436,10 +442,22 @@ export default function Dashboard() {
                       wd.setUTCDate(wd.getUTCDate() - 1);
                     }
                     const last = list[0];
-                    const lastLogged = last ? formatDistanceToNow(new Date(last.created_at), { addSuffix: true }) : "—";
+                    const clientRecipes = recipes[client.id] ?? [];
+                    const lastRecipe = clientRecipes[0];
+                    const lastLogged = lastRecipe
+                      ? formatDistanceToNow(new Date(lastRecipe.created_at), { addSuffix: true })
+                      : "No meals yet";
                     const isOwnPractice = client.system_mode === "own_practice";
+                    const mealDays = new Set(clientRecipes.map((r) => new Date(r.created_at).toISOString().slice(0, 10)));
+                    let mealStreak = 0;
+                    const md = new Date();
+                    if (!mealDays.has(md.toISOString().slice(0, 10))) md.setUTCDate(md.getUTCDate() - 1);
+                    while (mealDays.has(md.toISOString().slice(0, 10))) {
+                      mealStreak += 1;
+                      md.setUTCDate(md.getUTCDate() - 1);
+                    }
                     const stats = [
-                      { label: "Meal Streak", value: `${client.meal_streak ?? 0}d` },
+                      { label: "Meal Streak", value: `${mealStreak}d` },
                       { label: "Water Streak", value: `${waterStreak}d` },
                       { label: "Water Today", value: `${waterToday.toFixed(1)} L` },
                       ...(isOwnPractice ? [] : [
@@ -448,6 +466,16 @@ export default function Dashboard() {
                       ]),
                       { label: "Last Logged", value: lastLogged },
                     ];
+                    const lastMealText = (() => {
+                      if (!lastRecipe) return "No meals logged yet";
+                      const d = new Date(lastRecipe.created_at);
+                      const isToday = d.toDateString() === new Date().toDateString();
+                      const when = isToday ? `${format(d, "p")} today` : format(d, "p 'on' MMM d");
+                      const mt = lastRecipe.meal_type
+                        ? lastRecipe.meal_type.charAt(0).toUpperCase() + lastRecipe.meal_type.slice(1)
+                        : null;
+                      return `${mt ? `${mt} — ` : ""}${lastRecipe.name} — ${when}`;
+                    })();
                     return (
                   <div className="border-t pt-3 space-y-4" onClick={(e) => e.stopPropagation()}>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -459,8 +487,7 @@ export default function Dashboard() {
                       ))}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">Last meal:</span>{" "}
-                      {last?.notes ? `${last.notes} — ${format(new Date(last.created_at), "p 'today'")}` : "No meals logged yet"}
+                      <span className="font-medium text-foreground">Last meal:</span> {lastMealText}
                     </p>
 
                     <Tabs defaultValue="overview" className="w-full">
