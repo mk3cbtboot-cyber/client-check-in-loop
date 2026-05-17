@@ -249,7 +249,28 @@ export default function Dashboard() {
     toast.success(value ? "8 Rules visible to client" : "8 Rules hidden from client");
   };
 
-  const logout = async () => {
+  const setClientField = (clientId: string, field: keyof Client, value: string) => {
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, [field]: value } : c)));
+  };
+
+  const saveClientField = async (clientId: string, field: keyof Client, value: string) => {
+    const { error } = await supabase.from("clients").update({ [field]: value } as never).eq("id", clientId);
+    if (error) return toast.error("Could not save");
+    toast.success("Saved");
+  };
+
+  const saveIntake = async (clientId: string) => {
+    const c = clients.find((x) => x.id === clientId);
+    if (!c) return;
+    const { error } = await supabase.from("clients").update({
+      medical_conditions: c.medical_conditions ?? "",
+      current_medications: c.current_medications ?? "",
+      client_goal: c.client_goal ?? "",
+      vitamins_supplements: c.vitamins_supplements ?? "",
+    } as never).eq("id", clientId);
+    if (error) return toast.error("Could not save");
+    toast.success("Medical & Intake saved");
+  };
     await supabase.auth.signOut();
     navigate("/auth", { replace: true });
   };
