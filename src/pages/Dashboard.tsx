@@ -42,6 +42,7 @@ interface Client {
   water_date: string | null;
   phase2_strict_started_at: string | null;
   system_mode: "mb" | "own_practice";
+  meal_streak: number | null;
   created_at: string;
 }
 
@@ -100,19 +101,11 @@ export default function Dashboard() {
     return streak;
   };
 
-  // Need attention: 2+ consecutive expected daily check-ins missed (only for daily-tracked phases)
-  const needsAttention = (client: Client, list: CheckIn[]): boolean => {
-    const dailyPhase = client.phase === "phase2_strict";
-    if (!dailyPhase) return false;
-    if (!list.length) {
-      // if started 2+ days ago with no check-ins
-      if (!client.phase2_strict_started_at) return false;
-      const started = new Date(client.phase2_strict_started_at).getTime();
-      return (Date.now() - started) / 86_400_000 >= 2;
-    }
-    const last = new Date(list[0].created_at).getTime();
-    const daysSince = Math.floor((Date.now() - last) / 86_400_000);
-    return daysSince >= 2;
+  // Need attention: meal_streak is 0, or today's water intake is below 1.0L
+  const needsAttention = (client: Client, _list: CheckIn[]): boolean => {
+    const today = new Date().toISOString().slice(0, 10);
+    const waterToday = client.water_date === today ? Number(client.water_today_litres ?? 0) : 0;
+    return (client.meal_streak ?? 0) === 0 || waterToday < 1.0;
   };
 
   const lastWaterDisplay = (list: CheckIn[]): string => {
@@ -342,16 +335,18 @@ export default function Dashboard() {
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        <p className="font-medium truncate">{client.name}</p>
+                        <p className="font-medium truncate inline-flex items-center gap-1">
+                          {client.name}
+                          {alert && <span className="text-destructive" aria-label="Needs attention" title="Needs attention">⚠</span>}
+                        </p>
                         <span className="px-2 py-0.5 rounded bg-muted text-xs">{phaseLabel}</span>
                         {progress.label && (
                           <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
                             {progress.label}
                           </span>
                         )}
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium inline-flex items-center gap-1 ${alert ? "bg-destructive/10 text-destructive" : "bg-accent text-accent-foreground"}`}>
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-accent text-accent-foreground">
                           {client.system_mode === "own_practice" ? "Own Practice" : "MB"}
-                          {alert && <span aria-label="Needs attention">⚠</span>}
                         </span>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
