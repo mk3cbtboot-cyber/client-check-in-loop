@@ -121,6 +121,17 @@ OUTPUT: Return ONLY by calling the provided tool with RECIPE (every ingredient w
     const args = tc ? JSON.parse(tc.function.arguments) : null;
     if (!args) throw new Error("No recipe returned");
 
+    // Persist generated meal so dashboards can show last-logged
+    await admin.from("recipes").insert({
+      client_id: c.id,
+      name: args.recipe_title || option_label,
+      meal_type,
+      ingredients: args.recipe ?? [],
+      instructions: args.method ?? [],
+      prep_time: "",
+      servings: "1",
+    });
+
     // Update counters + meal streak
     await admin.from("clients").update({
       avocado_count_week: (c.avocado_count_week ?? 0) + avocadoUses,
