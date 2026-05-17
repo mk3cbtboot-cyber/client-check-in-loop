@@ -212,8 +212,8 @@ export default function Dashboard() {
       .from("clients")
       .update({ phase2_strict_extra_days: newExtra } as never)
       .eq("id", clientId);
-    if (error) return toast.error("Could not extend Phase 2 Strict");
-    toast.success(`Phase 2 Strict extended — now ${14 + newExtra} days total`);
+    if (error) return toast.error("Could not extend Phase 2");
+    toast.success(`Phase 2 extended — now ${14 + newExtra} days total`);
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_extra_days: newExtra } : c)));
   };
 
