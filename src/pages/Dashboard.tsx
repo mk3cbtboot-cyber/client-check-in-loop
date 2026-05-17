@@ -44,6 +44,11 @@ interface Client {
   system_mode: "mb" | "own_practice";
   meal_streak: number | null;
   created_at: string;
+  practitioner_notes: string;
+  medical_conditions: string;
+  current_medications: string;
+  client_goal: string;
+  vitamins_supplements: string;
 }
 
 interface CheckIn {
