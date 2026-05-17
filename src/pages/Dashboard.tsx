@@ -217,6 +217,16 @@ export default function Dashboard() {
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_extra_days: newExtra } : c)));
   };
 
+  const resetPhase2Extension = async (clientId: string) => {
+    const { error } = await supabase
+      .from("clients")
+      .update({ phase2_strict_extra_days: 0 } as never)
+      .eq("id", clientId);
+    if (error) return toast.error("Could not reset extension");
+    toast.success("Phase 2 extension reset — back to 14 days");
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_extra_days: 0 } : c)));
+  };
+
   const setHeight = (clientId: string, value: string) => {
     const num = value === "" ? null : Number(value);
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, height_cm: num } : c)));
@@ -572,6 +582,16 @@ export default function Dashboard() {
                               >
                                 Extend +14 days
                               </Button>
+                              {(client.phase2_strict_extra_days ?? 0) > 0 && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => resetPhase2Extension(client.id)}
+                                >
+                                  Reset Extension
+                                </Button>
+                              )}
                             </div>
                           )}
                         </div>
