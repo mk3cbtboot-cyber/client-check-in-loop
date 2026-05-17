@@ -437,12 +437,15 @@ export default function Dashboard() {
                     }
                     const last = list[0];
                     const lastLogged = last ? formatDistanceToNow(new Date(last.created_at), { addSuffix: true }) : "—";
+                    const isOwnPractice = client.system_mode === "own_practice";
                     const stats = [
                       { label: "Meal Streak", value: `${client.meal_streak ?? 0}d` },
                       { label: "Water Streak", value: `${waterStreak}d` },
                       { label: "Water Today", value: `${waterToday.toFixed(1)} L` },
-                      { label: "Avocado / Week", value: `${client.avocado_count_week ?? 0}` },
-                      { label: "Eggs / Week", value: `${client.egg_count_week ?? 0} / 5` },
+                      ...(isOwnPractice ? [] : [
+                        { label: "Avocado / Week", value: `${client.avocado_count_week ?? 0}` },
+                        { label: "Eggs / Week", value: `${client.egg_count_week ?? 0} / 5` },
+                      ]),
                       { label: "Last Logged", value: lastLogged },
                     ];
                     return (
