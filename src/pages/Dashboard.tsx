@@ -45,6 +45,9 @@ interface Client {
   phase2_strict_started_at: string | null;
   system_mode: "mb" | "own_practice";
   meal_streak: number | null;
+  avocado_count_week: number | null;
+  egg_count_week: number | null;
+  water_today_litres: number | null;
   created_at: string;
   practitioner_notes: string;
   medical_conditions: string;
