@@ -442,7 +442,11 @@ export default function Dashboard() {
                       wd.setUTCDate(wd.getUTCDate() - 1);
                     }
                     const last = list[0];
-                    const lastLogged = last ? formatDistanceToNow(new Date(last.created_at), { addSuffix: true }) : "—";
+                    const clientRecipes = recipes[client.id] ?? [];
+                    const lastRecipe = clientRecipes[0];
+                    const lastLogged = lastRecipe
+                      ? formatDistanceToNow(new Date(lastRecipe.created_at), { addSuffix: true })
+                      : "No meals yet";
                     const isOwnPractice = client.system_mode === "own_practice";
                     const stats = [
                       { label: "Meal Streak", value: `${client.meal_streak ?? 0}d` },
@@ -454,6 +458,16 @@ export default function Dashboard() {
                       ]),
                       { label: "Last Logged", value: lastLogged },
                     ];
+                    const lastMealText = (() => {
+                      if (!lastRecipe) return "No meals logged yet";
+                      const d = new Date(lastRecipe.created_at);
+                      const isToday = d.toDateString() === new Date().toDateString();
+                      const when = isToday ? `${format(d, "p")} today` : format(d, "p 'on' MMM d");
+                      const mt = lastRecipe.meal_type
+                        ? lastRecipe.meal_type.charAt(0).toUpperCase() + lastRecipe.meal_type.slice(1)
+                        : null;
+                      return `${mt ? `${mt} — ` : ""}${lastRecipe.name} — ${when}`;
+                    })();
                     return (
                   <div className="border-t pt-3 space-y-4" onClick={(e) => e.stopPropagation()}>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -465,8 +479,7 @@ export default function Dashboard() {
                       ))}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">Last meal:</span>{" "}
-                      {last?.notes ? `${last.notes} — ${format(new Date(last.created_at), "p 'today'")}` : "No meals logged yet"}
+                      <span className="font-medium text-foreground">Last meal:</span> {lastMealText}
                     </p>
 
                     <Tabs defaultValue="overview" className="w-full">
