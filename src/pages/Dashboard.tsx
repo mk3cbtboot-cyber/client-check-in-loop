@@ -45,6 +45,7 @@ interface Client {
   water_today_litres: number | null;
   water_date: string | null;
   phase2_strict_started_at: string | null;
+  phase2_strict_extra_days: number;
   system_mode: "mb" | "own_practice";
   meal_streak: number | null;
   avocado_count_week: number | null;
