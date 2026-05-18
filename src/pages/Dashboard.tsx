@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { X } from "lucide-react";
-import { DEFAULT_PHASE2_CATEGORIES, resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
+import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PHASE_OPTIONS, type Phase } from "@/lib/phases";
