@@ -45,6 +45,7 @@ interface ClientState {
   height_cm: number | null;
   phase2_strict_started_at: string | null;
   phase2_strict_extra_days: number;
+  phase2_food_list: unknown;
 }
 
 type TabKey = "home" | "checkin" | "plan";
