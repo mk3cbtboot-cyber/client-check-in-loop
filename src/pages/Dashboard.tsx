@@ -132,14 +132,27 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    (async () => {
+      const { data } = await supabase.auth.getSession();
       if (!data.session) {
+        navigate("/auth", { replace: true });
+        return;
+      }
+      const userId = data.session.user.id;
+      const { data: roleRow } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (roleRow?.role && roleRow.role !== "practitioner") {
+        toast.error("This account is a client account, not a practitioner.");
+        await supabase.auth.signOut();
         navigate("/auth", { replace: true });
         return;
       }
       setUserEmail(data.session.user.email ?? "");
       load();
-    });
+    })();
   }, [navigate]);
 
   const load = async () => {
