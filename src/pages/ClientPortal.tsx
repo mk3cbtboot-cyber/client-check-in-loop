@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { toast } from "sonner";
 import { Home, ClipboardCheck, BookOpen } from "lucide-react";
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
+import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
 import { getPhaseProgress } from "@/lib/progress";
 
