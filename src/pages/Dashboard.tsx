@@ -49,6 +49,7 @@ interface Client {
   water_date: string | null;
   phase2_strict_started_at: string | null;
   phase2_strict_extra_days: number;
+  phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
   system_mode: "mb" | "own_practice";
   meal_streak: number | null;
@@ -330,6 +331,20 @@ export default function Dashboard() {
     const { error } = await supabase.from("clients").update({ phase3_mode: mode } as never).eq("id", clientId);
     if (error) return toast.error("Could not update mode");
     toast.success("Mode updated");
+  };
+
+  const setPhase2StrictMode = async (clientId: string, mode: "mb_standard" | "practitioner_custom") => {
+    const prev = clients.find((c) => c.id === clientId)?.phase2_strict_mode ?? "mb_standard";
+    if (prev === mode) return;
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_mode: mode, ...(mode === "mb_standard" ? { phase2_strict_extra_days: 0 } : {}) } : c)));
+    const updates: Record<string, unknown> = { phase2_strict_mode: mode };
+    if (mode === "mb_standard") updates.phase2_strict_extra_days = 0;
+    const { error } = await supabase.from("clients").update(updates as never).eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_mode: prev } : c)));
+      return toast.error("Could not update Phase 2 mode");
+    }
+    toast.success(mode === "mb_standard" ? "Phase 2: MB Standard" : "Phase 2: Practitioner Custom");
   };
 
   const setSystemMode = async (clientId: string, mode: "mb" | "own_practice") => {
@@ -622,32 +637,35 @@ export default function Dashboard() {
                               />
                             </div>
                           )}
-                          {client.system_mode === "own_practice" && client.phase === "phase2_strict" && client.phase2_strict_started_at && (
-                            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-                              <span>
-                                Strict period: <span className="font-medium text-foreground">{14 + (client.phase2_strict_extra_days ?? 0)} days</span>
-                                {(client.phase2_strict_extra_days ?? 0) > 0 && <> (extended +{client.phase2_strict_extra_days})</>}
-                              </span>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => extendPhase2Strict(client.id)}
-                              >
-                                Extend +14 days
-                              </Button>
-                              {(client.phase2_strict_extra_days ?? 0) > 0 && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => resetPhase2Extension(client.id)}
-                                >
-                                  Reset Extension
-                                </Button>
-                              )}
-                            </div>
-                          )}
+                          {client.phase === "phase2_strict" && (() => {
+                            const p2Mode = client.phase2_strict_mode === "practitioner_custom" ? "practitioner_custom" : "mb_standard";
+                            const isCustom = p2Mode === "practitioner_custom";
+                            return (
+                              <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                                <Label className="text-xs">Phase 2 Mode</Label>
+                                <div className="flex gap-1">
+                                  <Button type="button" size="sm" variant={p2Mode === "mb_standard" ? "default" : "outline"} onClick={() => setPhase2StrictMode(client.id, "mb_standard")}>MB Standard</Button>
+                                  <Button type="button" size="sm" variant={p2Mode === "practitioner_custom" ? "default" : "outline"} onClick={() => setPhase2StrictMode(client.id, "practitioner_custom")}>Practitioner Custom</Button>
+                                </div>
+                                {isCustom && client.phase2_strict_started_at && (
+                                  <>
+                                    <span className="ml-2">
+                                      Strict period: <span className="font-medium text-foreground">{14 + (client.phase2_strict_extra_days ?? 0)} days</span>
+                                      {(client.phase2_strict_extra_days ?? 0) > 0 && <> (extended +{client.phase2_strict_extra_days})</>}
+                                    </span>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => extendPhase2Strict(client.id)}>
+                                      Extend +14 days
+                                    </Button>
+                                    {(client.phase2_strict_extra_days ?? 0) > 0 && (
+                                      <Button type="button" size="sm" variant="ghost" onClick={() => resetPhase2Extension(client.id)}>
+                                        Reset Extension
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         <div className="flex items-end gap-3 flex-wrap">

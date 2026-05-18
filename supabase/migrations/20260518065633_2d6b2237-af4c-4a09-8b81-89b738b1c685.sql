@@ -1,0 +1,1 @@
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS phase2_strict_mode text NOT NULL DEFAULT 'mb_standard';
