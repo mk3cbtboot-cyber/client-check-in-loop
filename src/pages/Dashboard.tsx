@@ -333,6 +333,20 @@ export default function Dashboard() {
     toast.success("Mode updated");
   };
 
+  const setPhase2StrictMode = async (clientId: string, mode: "mb_standard" | "practitioner_custom") => {
+    const prev = clients.find((c) => c.id === clientId)?.phase2_strict_mode ?? "mb_standard";
+    if (prev === mode) return;
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_mode: mode, ...(mode === "mb_standard" ? { phase2_strict_extra_days: 0 } : {}) } : c)));
+    const updates: Record<string, unknown> = { phase2_strict_mode: mode };
+    if (mode === "mb_standard") updates.phase2_strict_extra_days = 0;
+    const { error } = await supabase.from("clients").update(updates as never).eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_mode: prev } : c)));
+      return toast.error("Could not update Phase 2 mode");
+    }
+    toast.success(mode === "mb_standard" ? "Phase 2: MB Standard" : "Phase 2: Practitioner Custom");
+  };
+
   const setSystemMode = async (clientId: string, mode: "mb" | "own_practice") => {
     const prev = clients.find((c) => c.id === clientId)?.system_mode ?? "mb";
     if (prev === mode) return;
