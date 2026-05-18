@@ -114,6 +114,7 @@ export type Database = {
           phase: string
           phase2_food_list: Json | null
           phase2_strict_extra_days: number
+          phase2_strict_mode: string
           phase2_strict_started_at: string | null
           phase3_additional_foods: string
           phase3_bread: string
@@ -157,6 +158,7 @@ export type Database = {
           phase?: string
           phase2_food_list?: Json | null
           phase2_strict_extra_days?: number
+          phase2_strict_mode?: string
           phase2_strict_started_at?: string | null
           phase3_additional_foods?: string
           phase3_bread?: string
@@ -200,6 +202,7 @@ export type Database = {
           phase?: string
           phase2_food_list?: Json | null
           phase2_strict_extra_days?: number
+          phase2_strict_mode?: string
           phase2_strict_started_at?: string | null
           phase3_additional_foods?: string
           phase3_bread?: string
