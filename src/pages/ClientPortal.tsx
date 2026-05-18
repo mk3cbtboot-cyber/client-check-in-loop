@@ -327,17 +327,8 @@ export default function ClientPortal() {
   const eggsLeft = Math.max(0, 5 - client.egg_count_week);
   const waterTarget = 2.5;
 
-  // My Plan categories
-  const planCategories: { title: string; items: string[] }[] = [
-    { title: "Proteins — Fish & Seafood", items: [...MB_FOODS.fish, ...MB_FOODS.seafood] },
-    { title: "Proteins — Poultry & Meat", items: [...MB_FOODS.poultry, ...MB_FOODS.meat] },
-    { title: "Proteins — Cheese, Yogurt & Milk", items: [...MB_FOODS.cheese, ...MB_FOODS.yogurt, ...MB_FOODS.milkProducts] },
-    { title: "Proteins — Legumes", items: MB_FOODS.legumes },
-    { title: "Vegetables", items: [...MB_FOODS.vegetables, ...MB_FOODS.vegLettuce] },
-    { title: "Fruit", items: MB_FOODS.fruit },
-    { title: "Bread", items: MB_FOODS.bread },
-    { title: "Starch", items: MB_FOODS.starch },
-  ];
+  // My Plan categories — uses practitioner-customised list when set, otherwise defaults.
+  const planCategories = resolvePhase2Categories(client.phase2_food_list);
 
   return (
     <main className="min-h-screen bg-background pb-24">
