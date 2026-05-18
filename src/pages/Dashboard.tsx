@@ -637,32 +637,35 @@ export default function Dashboard() {
                               />
                             </div>
                           )}
-                          {client.system_mode === "own_practice" && client.phase === "phase2_strict" && client.phase2_strict_started_at && (
-                            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-                              <span>
-                                Strict period: <span className="font-medium text-foreground">{14 + (client.phase2_strict_extra_days ?? 0)} days</span>
-                                {(client.phase2_strict_extra_days ?? 0) > 0 && <> (extended +{client.phase2_strict_extra_days})</>}
-                              </span>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => extendPhase2Strict(client.id)}
-                              >
-                                Extend +14 days
-                              </Button>
-                              {(client.phase2_strict_extra_days ?? 0) > 0 && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => resetPhase2Extension(client.id)}
-                                >
-                                  Reset Extension
-                                </Button>
-                              )}
-                            </div>
-                          )}
+                          {client.phase === "phase2_strict" && (() => {
+                            const p2Mode = client.phase2_strict_mode === "practitioner_custom" ? "practitioner_custom" : "mb_standard";
+                            const isCustom = p2Mode === "practitioner_custom";
+                            return (
+                              <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                                <Label className="text-xs">Phase 2 Mode</Label>
+                                <div className="flex gap-1">
+                                  <Button type="button" size="sm" variant={p2Mode === "mb_standard" ? "default" : "outline"} onClick={() => setPhase2StrictMode(client.id, "mb_standard")}>MB Standard</Button>
+                                  <Button type="button" size="sm" variant={p2Mode === "practitioner_custom" ? "default" : "outline"} onClick={() => setPhase2StrictMode(client.id, "practitioner_custom")}>Practitioner Custom</Button>
+                                </div>
+                                {isCustom && client.phase2_strict_started_at && (
+                                  <>
+                                    <span className="ml-2">
+                                      Strict period: <span className="font-medium text-foreground">{14 + (client.phase2_strict_extra_days ?? 0)} days</span>
+                                      {(client.phase2_strict_extra_days ?? 0) > 0 && <> (extended +{client.phase2_strict_extra_days})</>}
+                                    </span>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => extendPhase2Strict(client.id)}>
+                                      Extend +14 days
+                                    </Button>
+                                    {(client.phase2_strict_extra_days ?? 0) > 0 && (
+                                      <Button type="button" size="sm" variant="ghost" onClick={() => resetPhase2Extension(client.id)}>
+                                        Reset Extension
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         <div className="flex items-end gap-3 flex-wrap">
