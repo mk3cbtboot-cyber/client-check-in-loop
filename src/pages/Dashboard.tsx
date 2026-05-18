@@ -581,7 +581,7 @@ export default function Dashboard() {
                               />
                             </div>
                           )}
-                          {client.system_mode !== "own_practice" && client.phase === "phase2_strict" && client.phase2_strict_started_at && (
+                          {client.system_mode === "own_practice" && client.phase === "phase2_strict" && client.phase2_strict_started_at && (
                             <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
                               <span>
                                 Strict period: <span className="font-medium text-foreground">{14 + (client.phase2_strict_extra_days ?? 0)} days</span>
