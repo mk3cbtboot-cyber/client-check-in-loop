@@ -785,7 +785,88 @@ export default function Dashboard() {
                       <TabsContent value="mealplan" className="pt-3">
                         {client.system_mode === "own_practice" ? (
                           <p className="text-sm text-muted-foreground">Meal plan tools are MB-specific. Switch this client to MB to manage extended food lists.</p>
-                        ) : client.phase !== "phase3" ? (
+                        ) : client.phase === "phase2_strict" ? (() => {
+                          const cats = resolvePhase2Categories(client.phase2_food_list);
+                          const isCustomised = Array.isArray(client.phase2_food_list);
+                          return (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div>
+                                  <p className="text-sm font-medium">Phase 2 Strict — Personal Food List</p>
+                                  <p className="text-xs text-muted-foreground">Remove entire sections or individual items. Changes save instantly and appear in the client's My Plan.</p>
+                                </div>
+                                {isCustomised && (
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button type="button" size="sm" variant="outline">Restore Defaults</Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Restore default food list?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This will reset {client.name}'s Phase 2 Strict food list back to the full default list. Any sections or items you've removed will be restored.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => restorePhase2Defaults(client.id)}>Restore Defaults</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                )}
+                              </div>
+                              {cats.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">All sections have been removed. Use "Restore Defaults" to bring the list back.</p>
+                              ) : (
+                                <div className="space-y-3">
+                                  {cats.map((cat) => (
+                                    <div key={cat.title} className="border rounded-md p-3 space-y-2">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <p className="text-sm font-medium">{cat.title}</p>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button type="button" size="sm" variant="ghost" className="text-destructive hover:text-destructive">Delete Section</Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>Remove section?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Are you sure you want to remove the entire {cat.title} section from this client's plan?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => deletePhase2Section(client.id, cat.title)}>Remove Section</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </div>
+                                      {cat.items.length === 0 ? (
+                                        <p className="text-xs text-muted-foreground">No items left in this section.</p>
+                                      ) : (
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {cat.items.map((item) => (
+                                            <span key={item} className="inline-flex items-center gap-1 rounded-full bg-secondary text-secondary-foreground text-xs pl-2.5 pr-1 py-1">
+                                              {item}
+                                              <button
+                                                type="button"
+                                                aria-label={`Remove ${item}`}
+                                                onClick={() => deletePhase2Item(client.id, cat.title, item)}
+                                                className="rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
+                                              >
+                                                <X className="h-3 w-3" />
+                                              </button>
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })() : client.phase !== "phase3" ? (
                           <p className="text-sm text-muted-foreground">Extended food lists are available once the client reaches Phase 3.</p>
                         ) : (() => {
                           const mode = client.phase3_mode === "mb_standard" ? "mb_standard" : "practitioner_custom";
