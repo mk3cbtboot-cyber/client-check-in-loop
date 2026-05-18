@@ -49,6 +49,7 @@ interface Client {
   water_date: string | null;
   phase2_strict_started_at: string | null;
   phase2_strict_extra_days: number;
+  phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
   system_mode: "mb" | "own_practice";
   meal_streak: number | null;
