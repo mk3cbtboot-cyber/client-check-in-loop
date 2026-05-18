@@ -7,6 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { X } from "lucide-react";
+import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PHASE_OPTIONS, type Phase } from "@/lib/phases";
@@ -46,6 +49,7 @@ interface Client {
   water_date: string | null;
   phase2_strict_started_at: string | null;
   phase2_strict_extra_days: number;
+  phase2_food_list: unknown;
   system_mode: "mb" | "own_practice";
   meal_streak: number | null;
   avocado_count_week: number | null;
@@ -239,6 +243,43 @@ export default function Dashboard() {
     toast.success("Phase 2 extension reset — back to 14 days");
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_extra_days: 0 } : c)));
   };
+
+  // ----- Phase 2 Strict food list editing -----
+  const savePhase2FoodList = async (clientId: string, cats: FoodCategory[] | null) => {
+    const prev = clients.find((c) => c.id === clientId)?.phase2_food_list;
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_food_list: cats } : c)));
+    const { error } = await supabase
+      .from("clients")
+      .update({ phase2_food_list: cats as never } as never)
+      .eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_food_list: prev } : c)));
+      toast.error("Could not save food list");
+    }
+  };
+
+  const deletePhase2Section = (clientId: string, title: string) => {
+    const c = clients.find((cl) => cl.id === clientId);
+    if (!c) return;
+    const cats = resolvePhase2Categories(c.phase2_food_list).filter((cat) => cat.title !== title);
+    void savePhase2FoodList(clientId, cats);
+    toast.success(`Removed “${title}”`);
+  };
+
+  const deletePhase2Item = (clientId: string, title: string, item: string) => {
+    const c = clients.find((cl) => cl.id === clientId);
+    if (!c) return;
+    const cats = resolvePhase2Categories(c.phase2_food_list).map((cat) =>
+      cat.title === title ? { ...cat, items: cat.items.filter((i) => i !== item) } : cat,
+    );
+    void savePhase2FoodList(clientId, cats);
+  };
+
+  const restorePhase2Defaults = (clientId: string) => {
+    void savePhase2FoodList(clientId, null);
+    toast.success("Food list restored to defaults");
+  };
+
 
   const setHeight = (clientId: string, value: string) => {
     const num = value === "" ? null : Number(value);
@@ -744,7 +785,88 @@ export default function Dashboard() {
                       <TabsContent value="mealplan" className="pt-3">
                         {client.system_mode === "own_practice" ? (
                           <p className="text-sm text-muted-foreground">Meal plan tools are MB-specific. Switch this client to MB to manage extended food lists.</p>
-                        ) : client.phase !== "phase3" ? (
+                        ) : client.phase === "phase2_strict" ? (() => {
+                          const cats = resolvePhase2Categories(client.phase2_food_list);
+                          const isCustomised = Array.isArray(client.phase2_food_list);
+                          return (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div>
+                                  <p className="text-sm font-medium">Phase 2 Strict — Personal Food List</p>
+                                  <p className="text-xs text-muted-foreground">Remove entire sections or individual items. Changes save instantly and appear in the client's My Plan.</p>
+                                </div>
+                                {isCustomised && (
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button type="button" size="sm" variant="outline">Restore Defaults</Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Restore default food list?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This will reset {client.name}'s Phase 2 Strict food list back to the full default list. Any sections or items you've removed will be restored.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => restorePhase2Defaults(client.id)}>Restore Defaults</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                )}
+                              </div>
+                              {cats.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">All sections have been removed. Use "Restore Defaults" to bring the list back.</p>
+                              ) : (
+                                <div className="space-y-3">
+                                  {cats.map((cat) => (
+                                    <div key={cat.title} className="border rounded-md p-3 space-y-2">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <p className="text-sm font-medium">{cat.title}</p>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button type="button" size="sm" variant="ghost" className="text-destructive hover:text-destructive">Delete Section</Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>Remove section?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Are you sure you want to remove the entire {cat.title} section from this client's plan?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => deletePhase2Section(client.id, cat.title)}>Remove Section</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </div>
+                                      {cat.items.length === 0 ? (
+                                        <p className="text-xs text-muted-foreground">No items left in this section.</p>
+                                      ) : (
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {cat.items.map((item) => (
+                                            <span key={item} className="inline-flex items-center gap-1 rounded-full bg-secondary text-secondary-foreground text-xs pl-2.5 pr-1 py-1">
+                                              {item}
+                                              <button
+                                                type="button"
+                                                aria-label={`Remove ${item}`}
+                                                onClick={() => deletePhase2Item(client.id, cat.title, item)}
+                                                className="rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
+                                              >
+                                                <X className="h-3 w-3" />
+                                              </button>
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })() : client.phase !== "phase3" ? (
                           <p className="text-sm text-muted-foreground">Extended food lists are available once the client reaches Phase 3.</p>
                         ) : (() => {
                           const mode = client.phase3_mode === "mb_standard" ? "mb_standard" : "practitioner_custom";

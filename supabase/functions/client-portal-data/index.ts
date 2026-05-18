@@ -70,6 +70,7 @@ Deno.serve(async (req) => {
         height_cm: c.height_cm != null ? Number(c.height_cm) : null,
         phase2_strict_started_at: c.phase2_strict_started_at ?? null,
         phase2_strict_extra_days: c.phase2_strict_extra_days ?? 0,
+        phase2_food_list: c.phase2_food_list ?? null,
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
