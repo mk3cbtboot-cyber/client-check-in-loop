@@ -642,7 +642,7 @@ export default function Dashboard() {
                             const isCustom = p2Mode === "practitioner_custom";
                             return (
                               <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-                                <Label className="text-xs">Phase 2 Mode</Label>
+                                
                                 <div className="flex gap-1">
                                   <Button type="button" size="sm" variant={p2Mode === "mb_standard" ? "default" : "outline"} onClick={() => setPhase2StrictMode(client.id, "mb_standard")}>MB Standard</Button>
                                   <Button type="button" size="sm" variant={p2Mode === "practitioner_custom" ? "default" : "outline"} onClick={() => setPhase2StrictMode(client.id, "practitioner_custom")}>Practitioner Custom</Button>
