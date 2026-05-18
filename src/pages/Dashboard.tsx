@@ -244,6 +244,43 @@ export default function Dashboard() {
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_extra_days: 0 } : c)));
   };
 
+  // ----- Phase 2 Strict food list editing -----
+  const savePhase2FoodList = async (clientId: string, cats: FoodCategory[] | null) => {
+    const prev = clients.find((c) => c.id === clientId)?.phase2_food_list;
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_food_list: cats } : c)));
+    const { error } = await supabase
+      .from("clients")
+      .update({ phase2_food_list: cats as never } as never)
+      .eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_food_list: prev } : c)));
+      toast.error("Could not save food list");
+    }
+  };
+
+  const deletePhase2Section = (clientId: string, title: string) => {
+    const c = clients.find((cl) => cl.id === clientId);
+    if (!c) return;
+    const cats = resolvePhase2Categories(c.phase2_food_list).filter((cat) => cat.title !== title);
+    void savePhase2FoodList(clientId, cats);
+    toast.success(`Removed “${title}”`);
+  };
+
+  const deletePhase2Item = (clientId: string, title: string, item: string) => {
+    const c = clients.find((cl) => cl.id === clientId);
+    if (!c) return;
+    const cats = resolvePhase2Categories(c.phase2_food_list).map((cat) =>
+      cat.title === title ? { ...cat, items: cat.items.filter((i) => i !== item) } : cat,
+    );
+    void savePhase2FoodList(clientId, cats);
+  };
+
+  const restorePhase2Defaults = (clientId: string) => {
+    void savePhase2FoodList(clientId, null);
+    toast.success("Food list restored to defaults");
+  };
+
+
   const setHeight = (clientId: string, value: string) => {
     const num = value === "" ? null : Number(value);
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, height_cm: num } : c)));
