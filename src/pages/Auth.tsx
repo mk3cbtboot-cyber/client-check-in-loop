@@ -14,11 +14,25 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const routeForUser = async (userId: string) => {
+    const { data: roleRow } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (roleRow?.role === "practitioner") {
+      navigate("/dashboard", { replace: true });
+    } else {
+      toast.error("Client accounts use the personalized portal link sent by your practitioner.");
+      await supabase.auth.signOut();
+    }
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate("/dashboard", { replace: true });
+      if (data.session) routeForUser(data.session.user.id);
     });
-  }, [navigate]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +50,8 @@ export default function Auth() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
-      navigate("/dashboard", { replace: true });
+      const { data } = await supabase.auth.getSession();
+      if (data.session) await routeForUser(data.session.user.id);
     } catch (err: any) {
       toast.error(err.message ?? "Something went wrong");
     } finally {
