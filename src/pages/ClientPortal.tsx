@@ -905,11 +905,28 @@ export default function ClientPortal() {
         </section>
       )}
 
+      {tab === "planner" && (
+        <section className="max-w-5xl mx-auto p-4">
+          {client.phase === "phase1" ? (
+            <Card className="p-6 text-sm text-muted-foreground">
+              The Meal Planner unlocks once you begin Phase 2.
+            </Card>
+          ) : (
+            <MealPlanner
+              token={token!}
+              filteredSources={filteredSources}
+              onPlanChanged={(p) => setWeeklyPlan(p)}
+            />
+          )}
+        </section>
+      )}
+
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 inset-x-0 border-t bg-background">
-        <div className="max-w-5xl mx-auto grid grid-cols-3">
+        <div className="max-w-5xl mx-auto grid grid-cols-4">
           {([
             { key: "home", label: "Home", Icon: Home },
+            { key: "planner", label: "Meal Planner", Icon: CalendarDays },
             { key: "checkin", label: "Check-in", Icon: ClipboardCheck },
             { key: "plan", label: "My Plan", Icon: BookOpen },
           ] as { key: TabKey; label: string; Icon: typeof Home }[]).map(({ key, label, Icon }) => {
@@ -927,6 +944,7 @@ export default function ClientPortal() {
           })}
         </div>
       </nav>
+
     </main>
   );
 }
