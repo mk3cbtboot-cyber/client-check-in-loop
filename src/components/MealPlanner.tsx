@@ -166,7 +166,6 @@ export default function MealPlanner({ token, filteredSources, onPlanChanged }: P
   };
 
   const resetWeek = async () => {
-    if (!confirm) return;
     setBusy(true);
     try {
       const { error } = await supabase.functions.invoke("weekly-meal-plan", { body: { token, action: "reset" } });
