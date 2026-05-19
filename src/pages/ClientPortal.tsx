@@ -10,11 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { Home, ClipboardCheck, BookOpen } from "lucide-react";
+import { Home, ClipboardCheck, BookOpen, CalendarDays } from "lucide-react";
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
 import { getPhaseProgress } from "@/lib/progress";
+import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
 
 interface ClientState {
   id: string;
@@ -48,13 +49,14 @@ interface ClientState {
   phase2_food_list: unknown;
 }
 
-type TabKey = "home" | "checkin" | "plan";
+type TabKey = "home" | "checkin" | "plan" | "planner";
 
 export default function ClientPortal() {
   const { token } = useParams<{ token: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = (searchParams.get("tab") as TabKey) || "home";
-  const [tab, setTab] = useState<TabKey>(["home", "checkin", "plan"].includes(initialTab) ? initialTab : "home");
+  const [tab, setTab] = useState<TabKey>(["home", "checkin", "plan", "planner"].includes(initialTab) ? initialTab : "home");
+  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<ClientState | null>(null);
@@ -113,6 +115,15 @@ export default function ClientPortal() {
 
   useEffect(() => {
     refresh().finally(() => setLoading(false));
+  }, [token]);
+
+  // Load this week's confirmed meal plan (used to restrict the recipe builder)
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      const { data } = await supabase.functions.invoke("weekly-meal-plan", { body: { token, action: "get" } });
+      setWeeklyPlan(data?.plan ?? null);
+    })();
   }, [token]);
 
   const changeTab = (t: TabKey) => {
@@ -215,6 +226,46 @@ export default function ClientPortal() {
       return true;
     });
   };
+
+  // Weekly-plan lock: if the client has confirmed a weekly plan, restrict recipe
+  // builder picks to the foods they actually selected for that meal+component.
+  const weekConfirmed = !!weeklyPlan?.confirmed_at;
+  const lockedSelectionsForMeal = (m: MealType | null): Record<string, string> => {
+    if (!m || !weeklyPlan) return {};
+    return ((weeklyPlan as any)[`${m}_selections`] as Record<string, string>) ?? {};
+  };
+  const lockedMealIdFor = (m: MealType | null): number | null => {
+    if (!m || !weeklyPlan) return null;
+    return ((weeklyPlan as any)[`${m}_meal_id`] as number | null) ?? null;
+  };
+  const restrictedItems = (sources: (keyof typeof MB_FOODS)[], componentKey: string): string[] => {
+    const base = filteredSources(sources);
+    if (!weekConfirmed) return base;
+    const locked = lockedSelectionsForMeal(meal)[componentKey];
+    if (!locked) return base;
+    return base.filter((i) => i === locked);
+  };
+  const optionsForMeal = (m: MealType): OptionDef[] => {
+    if (!weekConfirmed) return MB_OPTIONS[m];
+    const lockedId = lockedMealIdFor(m);
+    if (!lockedId) return MB_OPTIONS[m];
+    return MB_OPTIONS[m].filter((o) => o.id === lockedId);
+  };
+
+  // Auto-apply locked picks when the user enters the recipe builder after confirming the week
+  useEffect(() => {
+    if (!weekConfirmed || !meal || !option) return;
+    const locked = lockedSelectionsForMeal(meal);
+    if (!Object.keys(locked).length) return;
+    setPicks((prev) => {
+      const next = { ...prev };
+      for (const c of option.components) {
+        if (locked[c.key] && !next[c.key]) next[c.key] = locked[c.key];
+      }
+      return next;
+    });
+  }, [weekConfirmed, meal, option, weeklyPlan]);
+
 
   const generate = async () => {
     if (!option || !meal) return;
@@ -393,6 +444,13 @@ export default function ClientPortal() {
             </Card>
           ) : (
             <>
+              {weekConfirmed && (
+                <Card className="p-3 border-primary/40 bg-primary/5">
+                  <p className="text-xs text-primary">
+                    Your weekly meal plan is set — recipe options are limited to the foods you selected for this week.
+                  </p>
+                </Card>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 {(["breakfast","lunch","dinner"] as MealType[]).map((m) => (
                   <Button key={m} variant={meal === m ? "default" : "outline"} onClick={() => { setMeal(m); setOption(null); setRecipe(null); }}>
@@ -405,7 +463,7 @@ export default function ClientPortal() {
                 <Card className="p-4 space-y-3">
                   <p className="text-sm font-medium">Choose a {meal} option</p>
                   <div className="grid gap-2 md:grid-cols-3">
-                    {MB_OPTIONS[meal].map((o) => (
+                    {optionsForMeal(meal).map((o) => (
                       <Button key={o.id} variant={option?.id === o.id ? "default" : "outline"} className="h-auto py-3 text-left whitespace-normal" onClick={() => pickOption(meal, o)}>
                         <span className="text-xs">Option {o.id} — {o.label}</span>
                       </Button>
@@ -437,7 +495,7 @@ export default function ClientPortal() {
                     <p key={i} className="text-sm text-muted-foreground">Fixed: <span className="font-medium text-foreground">{f.label} — {f.qty}</span></p>
                   ))}
                   {allComponents.map((comp) => {
-                    const items = filteredSources(comp.sources);
+                    const items = restrictedItems(comp.sources, comp.key);
                     const showAvocadoNote = comp.sources.includes("vegetables") && (client.avocado_count_week >= 3);
                     const showOilBefore = oilAllowed(client.phase) && comp.key === "fruit";
                     return (
@@ -847,11 +905,28 @@ export default function ClientPortal() {
         </section>
       )}
 
+      {tab === "planner" && (
+        <section className="max-w-5xl mx-auto p-4">
+          {client.phase === "phase1" ? (
+            <Card className="p-6 text-sm text-muted-foreground">
+              The Meal Planner unlocks once you begin Phase 2.
+            </Card>
+          ) : (
+            <MealPlanner
+              token={token!}
+              filteredSources={filteredSources}
+              onPlanChanged={(p) => setWeeklyPlan(p)}
+            />
+          )}
+        </section>
+      )}
+
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 inset-x-0 border-t bg-background">
-        <div className="max-w-5xl mx-auto grid grid-cols-3">
+        <div className="max-w-5xl mx-auto grid grid-cols-4">
           {([
             { key: "home", label: "Home", Icon: Home },
+            { key: "planner", label: "Meal Planner", Icon: CalendarDays },
             { key: "checkin", label: "Check-in", Icon: ClipboardCheck },
             { key: "plan", label: "My Plan", Icon: BookOpen },
           ] as { key: TabKey; label: string; Icon: typeof Home }[]).map(({ key, label, Icon }) => {
@@ -869,6 +944,7 @@ export default function ClientPortal() {
           })}
         </div>
       </nav>
+
     </main>
   );
 }

@@ -315,6 +315,59 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_meal_plans: {
+        Row: {
+          breakfast_meal_id: number | null
+          breakfast_selections: Json
+          client_id: string
+          confirmed_at: string | null
+          created_at: string
+          dinner_meal_id: number | null
+          dinner_selections: Json
+          id: string
+          lunch_meal_id: number | null
+          lunch_selections: Json
+          updated_at: string
+          week_start_date: string
+        }
+        Insert: {
+          breakfast_meal_id?: number | null
+          breakfast_selections?: Json
+          client_id: string
+          confirmed_at?: string | null
+          created_at?: string
+          dinner_meal_id?: number | null
+          dinner_selections?: Json
+          id?: string
+          lunch_meal_id?: number | null
+          lunch_selections?: Json
+          updated_at?: string
+          week_start_date: string
+        }
+        Update: {
+          breakfast_meal_id?: number | null
+          breakfast_selections?: Json
+          client_id?: string
+          confirmed_at?: string | null
+          created_at?: string
+          dinner_meal_id?: number | null
+          dinner_selections?: Json
+          id?: string
+          lunch_meal_id?: number | null
+          lunch_selections?: Json
+          updated_at?: string
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_meal_plans_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
