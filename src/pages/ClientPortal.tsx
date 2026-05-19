@@ -488,7 +488,7 @@ export default function ClientPortal() {
                     <p key={i} className="text-sm text-muted-foreground">Fixed: <span className="font-medium text-foreground">{f.label} — {f.qty}</span></p>
                   ))}
                   {allComponents.map((comp) => {
-                    const items = filteredSources(comp.sources);
+                    const items = restrictedItems(comp.sources, comp.key);
                     const showAvocadoNote = comp.sources.includes("vegetables") && (client.avocado_count_week >= 3);
                     const showOilBefore = oilAllowed(client.phase) && comp.key === "fruit";
                     return (
