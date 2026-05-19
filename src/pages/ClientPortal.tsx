@@ -444,6 +444,13 @@ export default function ClientPortal() {
             </Card>
           ) : (
             <>
+              {weekConfirmed && (
+                <Card className="p-3 border-primary/40 bg-primary/5">
+                  <p className="text-xs text-primary">
+                    Your weekly meal plan is set — recipe options are limited to the foods you selected for this week.
+                  </p>
+                </Card>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 {(["breakfast","lunch","dinner"] as MealType[]).map((m) => (
                   <Button key={m} variant={meal === m ? "default" : "outline"} onClick={() => { setMeal(m); setOption(null); setRecipe(null); }}>
