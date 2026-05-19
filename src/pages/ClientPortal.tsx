@@ -456,7 +456,7 @@ export default function ClientPortal() {
                 <Card className="p-4 space-y-3">
                   <p className="text-sm font-medium">Choose a {meal} option</p>
                   <div className="grid gap-2 md:grid-cols-3">
-                    {MB_OPTIONS[meal].map((o) => (
+                    {optionsForMeal(meal).map((o) => (
                       <Button key={o.id} variant={option?.id === o.id ? "default" : "outline"} className="h-auto py-3 text-left whitespace-normal" onClick={() => pickOption(meal, o)}>
                         <span className="text-xs">Option {o.id} — {o.label}</span>
                       </Button>
