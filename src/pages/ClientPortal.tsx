@@ -227,6 +227,46 @@ export default function ClientPortal() {
     });
   };
 
+  // Weekly-plan lock: if the client has confirmed a weekly plan, restrict recipe
+  // builder picks to the foods they actually selected for that meal+component.
+  const weekConfirmed = !!weeklyPlan?.confirmed_at;
+  const lockedSelectionsForMeal = (m: MealType | null): Record<string, string> => {
+    if (!m || !weeklyPlan) return {};
+    return ((weeklyPlan as any)[`${m}_selections`] as Record<string, string>) ?? {};
+  };
+  const lockedMealIdFor = (m: MealType | null): number | null => {
+    if (!m || !weeklyPlan) return null;
+    return ((weeklyPlan as any)[`${m}_meal_id`] as number | null) ?? null;
+  };
+  const restrictedItems = (sources: (keyof typeof MB_FOODS)[], componentKey: string): string[] => {
+    const base = filteredSources(sources);
+    if (!weekConfirmed) return base;
+    const locked = lockedSelectionsForMeal(meal)[componentKey];
+    if (!locked) return base;
+    return base.filter((i) => i === locked);
+  };
+  const optionsForMeal = (m: MealType): OptionDef[] => {
+    if (!weekConfirmed) return MB_OPTIONS[m];
+    const lockedId = lockedMealIdFor(m);
+    if (!lockedId) return MB_OPTIONS[m];
+    return MB_OPTIONS[m].filter((o) => o.id === lockedId);
+  };
+
+  // Auto-apply locked picks when the user enters the recipe builder after confirming the week
+  useEffect(() => {
+    if (!weekConfirmed || !meal || !option) return;
+    const locked = lockedSelectionsForMeal(meal);
+    if (!Object.keys(locked).length) return;
+    setPicks((prev) => {
+      const next = { ...prev };
+      for (const c of option.components) {
+        if (locked[c.key] && !next[c.key]) next[c.key] = locked[c.key];
+      }
+      return next;
+    });
+  }, [weekConfirmed, meal, option, weeklyPlan]);
+
+
   const generate = async () => {
     if (!option || !meal) return;
     for (const c of option.components) {
