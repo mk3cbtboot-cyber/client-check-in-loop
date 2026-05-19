@@ -10,11 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { Home, ClipboardCheck, BookOpen } from "lucide-react";
+import { Home, ClipboardCheck, BookOpen, CalendarDays } from "lucide-react";
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
 import { getPhaseProgress } from "@/lib/progress";
+import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
 
 interface ClientState {
   id: string;
