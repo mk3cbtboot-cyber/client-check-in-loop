@@ -49,13 +49,14 @@ interface ClientState {
   phase2_food_list: unknown;
 }
 
-type TabKey = "home" | "checkin" | "plan";
+type TabKey = "home" | "checkin" | "plan" | "planner";
 
 export default function ClientPortal() {
   const { token } = useParams<{ token: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = (searchParams.get("tab") as TabKey) || "home";
-  const [tab, setTab] = useState<TabKey>(["home", "checkin", "plan"].includes(initialTab) ? initialTab : "home");
+  const [tab, setTab] = useState<TabKey>(["home", "checkin", "plan", "planner"].includes(initialTab) ? initialTab : "home");
+  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<ClientState | null>(null);
