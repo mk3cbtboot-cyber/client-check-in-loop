@@ -117,6 +117,15 @@ export default function ClientPortal() {
     refresh().finally(() => setLoading(false));
   }, [token]);
 
+  // Load this week's confirmed meal plan (used to restrict the recipe builder)
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      const { data } = await supabase.functions.invoke("weekly-meal-plan", { body: { token, action: "get" } });
+      setWeeklyPlan(data?.plan ?? null);
+    })();
+  }, [token]);
+
   const changeTab = (t: TabKey) => {
     setTab(t);
     const next = new URLSearchParams(searchParams);
