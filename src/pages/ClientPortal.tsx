@@ -922,6 +922,7 @@ export default function ClientPortal() {
             <MealPlanner
               token={token!}
               filteredSources={filteredSources}
+              weeklyFoodLimits={client.weekly_food_limits ?? {}}
               onPlanChanged={(p) => setWeeklyPlan(p)}
             />
           )}
