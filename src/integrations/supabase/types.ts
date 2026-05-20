@@ -140,6 +140,7 @@ export type Database = {
           water_date: string
           water_today_litres: number
           week_reset_date: string
+          weekly_food_limits: Json
           weight_unit: string
         }
         Insert: {
@@ -184,6 +185,7 @@ export type Database = {
           water_date?: string
           water_today_litres?: number
           week_reset_date?: string
+          weekly_food_limits?: Json
           weight_unit?: string
         }
         Update: {
@@ -228,6 +230,7 @@ export type Database = {
           water_date?: string
           water_today_litres?: number
           week_reset_date?: string
+          weekly_food_limits?: Json
           weight_unit?: string
         }
         Relationships: []
@@ -318,43 +321,70 @@ export type Database = {
       weekly_meal_plans: {
         Row: {
           breakfast_meal_id: number | null
+          breakfast_meal_id_alt: number | null
+          breakfast_primary_days: number
           breakfast_selections: Json
+          breakfast_selections_alt: Json
           client_id: string
           confirmed_at: string | null
           created_at: string
           dinner_meal_id: number | null
+          dinner_meal_id_alt: number | null
+          dinner_primary_days: number
           dinner_selections: Json
+          dinner_selections_alt: Json
           id: string
           lunch_meal_id: number | null
+          lunch_meal_id_alt: number | null
+          lunch_primary_days: number
           lunch_selections: Json
+          lunch_selections_alt: Json
           updated_at: string
           week_start_date: string
         }
         Insert: {
           breakfast_meal_id?: number | null
+          breakfast_meal_id_alt?: number | null
+          breakfast_primary_days?: number
           breakfast_selections?: Json
+          breakfast_selections_alt?: Json
           client_id: string
           confirmed_at?: string | null
           created_at?: string
           dinner_meal_id?: number | null
+          dinner_meal_id_alt?: number | null
+          dinner_primary_days?: number
           dinner_selections?: Json
+          dinner_selections_alt?: Json
           id?: string
           lunch_meal_id?: number | null
+          lunch_meal_id_alt?: number | null
+          lunch_primary_days?: number
           lunch_selections?: Json
+          lunch_selections_alt?: Json
           updated_at?: string
           week_start_date: string
         }
         Update: {
           breakfast_meal_id?: number | null
+          breakfast_meal_id_alt?: number | null
+          breakfast_primary_days?: number
           breakfast_selections?: Json
+          breakfast_selections_alt?: Json
           client_id?: string
           confirmed_at?: string | null
           created_at?: string
           dinner_meal_id?: number | null
+          dinner_meal_id_alt?: number | null
+          dinner_primary_days?: number
           dinner_selections?: Json
+          dinner_selections_alt?: Json
           id?: string
           lunch_meal_id?: number | null
+          lunch_meal_id_alt?: number | null
+          lunch_primary_days?: number
           lunch_selections?: Json
+          lunch_selections_alt?: Json
           updated_at?: string
           week_start_date?: string
         }
