@@ -20,6 +20,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
 import { formatDistanceToNow } from "date-fns";
 import ClientTrendGraphs from "@/components/ClientTrendGraphs";
+import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
 
 interface Client {
   id: string;
@@ -51,6 +52,7 @@ interface Client {
   phase2_strict_extra_days: number;
   phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
+  weekly_food_limits: Record<string, number>;
   system_mode: "mb" | "own_practice";
   meal_streak: number | null;
   avocado_count_week: number | null;
@@ -280,6 +282,22 @@ export default function Dashboard() {
     void savePhase2FoodList(clientId, null);
     toast.success("Food list restored to defaults");
   };
+
+  // ----- Weekly food limits -----
+  const saveWeeklyFoodLimits = async (clientId: string, limits: Record<string, number>) => {
+    const prev = clients.find((c) => c.id === clientId)?.weekly_food_limits ?? {};
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, weekly_food_limits: limits } : c)));
+    const { error } = await supabase
+      .from("clients")
+      .update({ weekly_food_limits: limits as never } as never)
+      .eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, weekly_food_limits: prev } : c)));
+      toast.error("Could not save weekly limits");
+    }
+  };
+
+
 
 
   const setHeight = (clientId: string, value: string) => {
@@ -882,6 +900,12 @@ export default function Dashboard() {
                                   ))}
                                 </div>
                               )}
+                              <div className="border-t pt-3">
+                                <WeeklyLimitsEditor
+                                  value={client.weekly_food_limits ?? {}}
+                                  onSave={(next) => saveWeeklyFoodLimits(client.id, next)}
+                                />
+                              </div>
                             </div>
                           );
                         })() : client.phase !== "phase3" ? (

@@ -71,6 +71,7 @@ Deno.serve(async (req) => {
         phase2_strict_started_at: c.phase2_strict_started_at ?? null,
         phase2_strict_extra_days: c.phase2_strict_extra_days ?? 0,
         phase2_food_list: c.phase2_food_list ?? null,
+        weekly_food_limits: c.weekly_food_limits ?? {},
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
