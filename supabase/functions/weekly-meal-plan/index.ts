@@ -10,7 +10,7 @@ const SelectionMap = z.record(z.string().min(1).max(80), z.string().min(1).max(2
 
 const Body = z.object({
   token: z.string().min(10).max(200),
-  action: z.enum(["get", "save", "confirm", "reset"]),
+  action: z.enum(["get", "save", "confirm", "reset", "acknowledge"]),
   breakfast_meal_id: z.number().int().nullable().optional(),
   lunch_meal_id: z.number().int().nullable().optional(),
   dinner_meal_id: z.number().int().nullable().optional(),
@@ -26,6 +26,9 @@ const Body = z.object({
   breakfast_primary_days: z.number().int().min(0).max(7).optional(),
   lunch_primary_days: z.number().int().min(0).max(7).optional(),
   dinner_primary_days: z.number().int().min(0).max(7).optional(),
+  ack_food_name: z.string().min(1).max(120).optional(),
+  ack_limit: z.number().optional(),
+  ack_per_serving_qty: z.number().optional(),
 });
 
 function mondayOf(d: Date): string {
