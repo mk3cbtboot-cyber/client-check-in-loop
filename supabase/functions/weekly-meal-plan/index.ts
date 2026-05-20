@@ -17,6 +17,15 @@ const Body = z.object({
   breakfast_selections: SelectionMap.optional(),
   lunch_selections: SelectionMap.optional(),
   dinner_selections: SelectionMap.optional(),
+  breakfast_meal_id_alt: z.number().int().nullable().optional(),
+  lunch_meal_id_alt: z.number().int().nullable().optional(),
+  dinner_meal_id_alt: z.number().int().nullable().optional(),
+  breakfast_selections_alt: SelectionMap.optional(),
+  lunch_selections_alt: SelectionMap.optional(),
+  dinner_selections_alt: SelectionMap.optional(),
+  breakfast_primary_days: z.number().int().min(0).max(7).optional(),
+  lunch_primary_days: z.number().int().min(0).max(7).optional(),
+  dinner_primary_days: z.number().int().min(0).max(7).optional(),
 });
 
 function mondayOf(d: Date): string {
