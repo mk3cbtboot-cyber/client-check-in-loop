@@ -75,6 +75,10 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   const [showShopping, setShowShopping] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
+  const [acks, setAcks] = useState<Array<{ food_name: string }>>([]);
+
+  const normalizeFood = (s: string) => s.trim().toLowerCase();
+  const isAcknowledged = (food: string) => acks.some((a) => normalizeFood(a.food_name) === normalizeFood(food));
 
   const load = async () => {
     setLoading(true);
@@ -83,6 +87,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
       if (error) throw error;
       setPlan(data?.plan ?? null);
       setWeekStart(data?.week_start_date ?? "");
+      setAcks(data?.acknowledgements ?? []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -91,6 +96,19 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   };
 
   useEffect(() => { void load(); }, [token]);
+
+  const acknowledge = async (food: string, limit: number, perServing: number) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("weekly-meal-plan", {
+        body: { token, action: "acknowledge", ack_food_name: food, ack_limit: limit, ack_per_serving_qty: perServing },
+      });
+      if (error) throw error;
+      setAcks(data?.acknowledgements ?? []);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not save acknowledgement");
+    }
+  };
+
 
   const sel = (m: MealType, slot: "primary" | "alt"): SelectionMap => {
     if (!plan) return {};
@@ -122,9 +140,10 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
     if (!isOptionComplete(primaryOpt, sel(m, "primary"))) return false;
     const lc = limitCheck(m);
     if (!lc.limited) return true;
+    // require ack for every limited reason
+    if (!lc.reasons.every((r) => isAcknowledged(r.food))) return false;
     const altOpt = selectedOption(m, "alt");
     if (!altOpt) return false;
-    // alt must not itself be limited by the same reason — re-run check on alt
     const altLc = checkMealLimits(altOpt, sel(m, "alt"), weeklyFoodLimits ?? null);
     if (altLc.maxDays < 7 - lc.maxDays) return false;
     return isOptionComplete(altOpt, sel(m, "alt"));
@@ -419,6 +438,36 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
                   </span>
                 )}
               </div>
+
+              {lc.limited && primaryOpt && !confirmed && (() => {
+                const r = lc.reasons[0];
+                const acked = isAcknowledged(r.food);
+                return (
+                  <Alert variant="default" className="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertTitle className="text-sm">Weekly limit reached</AlertTitle>
+                    <AlertDescription className="text-xs space-y-2">
+                      <p>
+                        Your plan allows <span className="font-medium">{r.limit} {r.food.toLowerCase()} / week</span>.
+                        This meal uses <span className="font-medium">{r.unitNote}</span> — enough for{" "}
+                        <span className="font-medium">{primaryDays} {primaryDays === 1 ? "day" : "days"}</span>.
+                        Pick an alternative for the remaining <span className="font-medium">{altDays} {altDays === 1 ? "day" : "days"}</span>.
+                      </p>
+                      <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                        <Checkbox
+                          checked={acked}
+                          onCheckedChange={(v) => { if (v && !acked) void acknowledge(r.food, r.limit, r.perServing); }}
+                          disabled={acked}
+                        />
+                        <span className={acked ? "text-muted-foreground" : "font-medium"}>
+                          {acked ? "Acknowledged — you can now pick an alternate meal." : "I understand and want to continue"}
+                        </span>
+                      </label>
+                    </AlertDescription>
+                  </Alert>
+                );
+              })()}
+
               <div className="space-y-2">
                 {options.map((opt) =>
                   renderOptionCard("primary", opt, primaryDays,
@@ -428,23 +477,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
                 )}
               </div>
 
-              {lc.limited && primaryOpt && !confirmed && (() => {
-                const r = lc.reasons[0];
-                return (
-                  <Alert variant="default" className="border-amber-500/50">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    <AlertTitle className="text-sm">Weekly limit reached</AlertTitle>
-                    <AlertDescription className="text-xs">
-                      Your plan allows <span className="font-medium">{r.limit} {r.food.toLowerCase()} / week</span>.
-                      This meal uses <span className="font-medium">{r.unitNote}</span> — enough for{" "}
-                      <span className="font-medium">{primaryDays} {primaryDays === 1 ? "day" : "days"}</span>.
-                      Pick an alternative for the remaining <span className="font-medium">{altDays} {altDays === 1 ? "day" : "days"}</span>.
-                    </AlertDescription>
-                  </Alert>
-                );
-              })()}
-
-              {lc.limited && primaryOpt && (
+              {lc.limited && primaryOpt && lc.reasons.every((r) => isAcknowledged(r.food)) && (
                 <div className="space-y-2 pt-1">
                   <p className="text-xs font-medium text-muted-foreground">
                     Alternate {m} — covers {altDays} {altDays === 1 ? "day" : "days"}

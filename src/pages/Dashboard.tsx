@@ -96,6 +96,7 @@ export default function Dashboard() {
   const [clients, setClients] = useState<Client[]>([]);
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn[]>>({});
   const [recipes, setRecipes] = useState<Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]>>({});
+  const [weeklyAcks, setWeeklyAcks] = useState<Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]>>({});
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -175,9 +176,16 @@ export default function Dashboard() {
     setClients(clientRows as Client[]);
     if (clientRows && clientRows.length) {
       const ids = clientRows.map((c) => c.id);
-      const [{ data: checkRows }, { data: recipeRows }] = await Promise.all([
+      const monday = (() => {
+        const dt = new Date();
+        const day = (dt.getUTCDay() + 6) % 7;
+        dt.setUTCDate(dt.getUTCDate() - day);
+        return dt.toISOString().slice(0, 10);
+      })();
+      const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }] = await Promise.all([
         supabase.from("check_ins").select("*").in("client_id", ids).order("created_at", { ascending: false }),
         supabase.from("recipes").select("id, client_id, name, meal_type, created_at").in("client_id", ids).order("created_at", { ascending: false }),
+        supabase.from("weekly_limit_acknowledgements").select("client_id, food_name, limit_value, acknowledged_at").in("client_id", ids).eq("week_start_date", monday),
       ]);
       const grouped: Record<string, CheckIn[]> = {};
       (checkRows ?? []).forEach((ci) => { (grouped[ci.client_id] ||= []).push(ci); });
@@ -185,6 +193,9 @@ export default function Dashboard() {
       const rg: Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]> = {};
       (recipeRows ?? []).forEach((r: any) => { (rg[r.client_id] ||= []).push(r); });
       setRecipes(rg);
+      const ag: Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]> = {};
+      (ackRows ?? []).forEach((a: any) => { (ag[a.client_id] ||= []).push(a); });
+      setWeeklyAcks(ag);
     }
   };
 
@@ -900,7 +911,20 @@ export default function Dashboard() {
                                   ))}
                                 </div>
                               )}
-                              <div className="border-t pt-3">
+                              <div className="border-t pt-3 space-y-3">
+                                {(weeklyAcks[client.id] ?? []).length > 0 && (
+                                  <div className="rounded-md border border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20 p-3 space-y-1">
+                                    {(weeklyAcks[client.id] ?? []).map((a) => {
+                                      const d = new Date(a.acknowledged_at);
+                                      const when = d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+                                      return (
+                                        <p key={a.food_name} className="text-xs">
+                                          ⚠️ {client.name.split(" ")[0]} acknowledged a weekly {a.food_name.toLowerCase()} limit warning on {when}.
+                                        </p>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                                 <WeeklyLimitsEditor
                                   value={client.weekly_food_limits ?? {}}
                                   onSave={(next) => saveWeeklyFoodLimits(client.id, next)}

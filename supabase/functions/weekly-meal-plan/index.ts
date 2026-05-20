@@ -10,7 +10,7 @@ const SelectionMap = z.record(z.string().min(1).max(80), z.string().min(1).max(2
 
 const Body = z.object({
   token: z.string().min(10).max(200),
-  action: z.enum(["get", "save", "confirm", "reset"]),
+  action: z.enum(["get", "save", "confirm", "reset", "acknowledge"]),
   breakfast_meal_id: z.number().int().nullable().optional(),
   lunch_meal_id: z.number().int().nullable().optional(),
   dinner_meal_id: z.number().int().nullable().optional(),
@@ -26,6 +26,9 @@ const Body = z.object({
   breakfast_primary_days: z.number().int().min(0).max(7).optional(),
   lunch_primary_days: z.number().int().min(0).max(7).optional(),
   dinner_primary_days: z.number().int().min(0).max(7).optional(),
+  ack_food_name: z.string().min(1).max(120).optional(),
+  ack_limit: z.number().optional(),
+  ack_per_serving_qty: z.number().optional(),
 });
 
 function mondayOf(d: Date): string {
@@ -58,13 +61,36 @@ Deno.serve(async (req) => {
     const week = mondayOf(new Date());
 
     if (p.action === "get") {
-      const { data } = await admin
-        .from("weekly_meal_plans")
-        .select("*")
-        .eq("client_id", client.id)
-        .eq("week_start_date", week)
-        .maybeSingle();
-      return new Response(JSON.stringify({ plan: data ?? null, week_start_date: week }), {
+      const [{ data: planRow }, { data: ackRows }] = await Promise.all([
+        admin.from("weekly_meal_plans").select("*").eq("client_id", client.id).eq("week_start_date", week).maybeSingle(),
+        admin.from("weekly_limit_acknowledgements").select("*").eq("client_id", client.id).eq("week_start_date", week),
+      ]);
+      return new Response(JSON.stringify({ plan: planRow ?? null, week_start_date: week, acknowledgements: ackRows ?? [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (p.action === "acknowledge") {
+      if (!p.ack_food_name || p.ack_limit == null || p.ack_per_serving_qty == null) {
+        return new Response(JSON.stringify({ error: "Missing acknowledgement fields" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { error } = await admin
+        .from("weekly_limit_acknowledgements")
+        .upsert({
+          client_id: client.id,
+          week_start_date: week,
+          food_name: p.ack_food_name,
+          limit_value: p.ack_limit,
+          per_serving_qty: p.ack_per_serving_qty,
+          acknowledged_at: new Date().toISOString(),
+        }, { onConflict: "client_id,week_start_date,food_name" });
+      if (error) throw error;
+      const { data: ackRows } = await admin
+        .from("weekly_limit_acknowledgements").select("*")
+        .eq("client_id", client.id).eq("week_start_date", week);
+      return new Response(JSON.stringify({ ok: true, acknowledgements: ackRows ?? [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
