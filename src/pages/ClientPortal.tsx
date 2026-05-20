@@ -449,6 +449,13 @@ export default function ClientPortal() {
                 The recipe builder is not available during Phase 1. Focus on the meal structure in your My Plan tab.
               </p>
             </Card>
+          ) : !weekConfirmed ? (
+            <Card className="p-6 text-center space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Before generating recipes, please head to Meal Planner to select your meals for the week and build your shopping list. Your recipe generator will then be loaded with your chosen foods for the week.
+              </p>
+              <Button onClick={() => changeTab("planner")}>Go to Meal Planner</Button>
+            </Card>
           ) : (
             <>
               {weekConfirmed && (
