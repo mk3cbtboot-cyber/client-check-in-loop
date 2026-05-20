@@ -282,6 +282,22 @@ export default function Dashboard() {
     toast.success("Food list restored to defaults");
   };
 
+  // ----- Weekly food limits -----
+  const saveWeeklyFoodLimits = async (clientId: string, limits: Record<string, number>) => {
+    const prev = clients.find((c) => c.id === clientId)?.weekly_food_limits ?? {};
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, weekly_food_limits: limits } : c)));
+    const { error } = await supabase
+      .from("clients")
+      .update({ weekly_food_limits: limits as never } as never)
+      .eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, weekly_food_limits: prev } : c)));
+      toast.error("Could not save weekly limits");
+    }
+  };
+
+
+
 
   const setHeight = (clientId: string, value: string) => {
     const num = value === "" ? null : Number(value);
