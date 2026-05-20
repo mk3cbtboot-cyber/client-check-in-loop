@@ -900,6 +900,12 @@ export default function Dashboard() {
                                   ))}
                                 </div>
                               )}
+                              <div className="border-t pt-3">
+                                <WeeklyLimitsEditor
+                                  value={client.weekly_food_limits ?? {}}
+                                  onSave={(next) => saveWeeklyFoodLimits(client.id, next)}
+                                />
+                              </div>
                             </div>
                           );
                         })() : client.phase !== "phase3" ? (
