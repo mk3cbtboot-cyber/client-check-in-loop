@@ -75,6 +75,10 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   const [showShopping, setShowShopping] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
+  const [acks, setAcks] = useState<Array<{ food_name: string }>>([]);
+
+  const normalizeFood = (s: string) => s.trim().toLowerCase();
+  const isAcknowledged = (food: string) => acks.some((a) => normalizeFood(a.food_name) === normalizeFood(food));
 
   const load = async () => {
     setLoading(true);
@@ -83,6 +87,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
       if (error) throw error;
       setPlan(data?.plan ?? null);
       setWeekStart(data?.week_start_date ?? "");
+      setAcks(data?.acknowledgements ?? []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -91,6 +96,19 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   };
 
   useEffect(() => { void load(); }, [token]);
+
+  const acknowledge = async (food: string, limit: number, perServing: number) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("weekly-meal-plan", {
+        body: { token, action: "acknowledge", ack_food_name: food, ack_limit: limit, ack_per_serving_qty: perServing },
+      });
+      if (error) throw error;
+      setAcks(data?.acknowledgements ?? []);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not save acknowledgement");
+    }
+  };
+
 
   const sel = (m: MealType, slot: "primary" | "alt"): SelectionMap => {
     if (!plan) return {};
