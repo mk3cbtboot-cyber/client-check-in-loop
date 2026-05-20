@@ -43,6 +43,7 @@ interface ClientState {
   phase3_mb_fat_oil: string;
   show_rules: boolean;
   weight_unit: "kg" | "lbs";
+  length_unit: "cm" | "in";
   height_cm: number | null;
   phase2_strict_started_at: string | null;
   phase2_strict_extra_days: number;
@@ -82,6 +83,7 @@ export default function ClientPortal() {
   // Phase 2 Strict daily progress
   const [weightInput, setWeightInput] = useState<string>("");
   const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">("kg");
+  const [lengthUnit, setLengthUnit] = useState<"cm" | "in">("cm");
   const initialRatings = {
     general_wellbeing: 3, fatigue: 3, sleep: 3, headache: 3, pain: 3,
     joint_pain: 3, acid_reflux: 3, digestion: 3, allergy_skin: 3,
@@ -95,8 +97,6 @@ export default function ClientPortal() {
   const [hipInput, setHipInput] = useState<string>("");
   const [thighInput, setThighInput] = useState<string>("");
 
-  // Length-unit derived from weight unit toggle: kg→cm, lbs→inches
-  const lengthUnit: "cm" | "in" = weightUnit === "lbs" ? "in" : "cm";
   const toCm = (v: string) => {
     if (!v) return undefined;
     const n = Number(v);
@@ -111,6 +111,7 @@ export default function ClientPortal() {
       setClient(data.client);
       setWaterLitres(Number(data.client.water_today_litres) || 0);
       setWeightUnit(data.client.weight_unit || "kg");
+      setLengthUnit(data.client.length_unit || "cm");
     }
   };
 
@@ -157,6 +158,12 @@ export default function ClientPortal() {
     setWeightUnit(unit);
     setClient((c) => (c ? { ...c, weight_unit: unit } : c));
     await supabase.functions.invoke("update-client-prefs", { body: { token, weight_unit: unit } });
+  };
+
+  const updateLengthUnit = async (unit: "cm" | "in") => {
+    setLengthUnit(unit);
+    setClient((c) => (c ? { ...c, length_unit: unit } : c));
+    await supabase.functions.invoke("update-client-prefs", { body: { token, length_unit: unit } });
   };
 
   const pickOption = (m: MealType, o: OptionDef) => {
@@ -619,6 +626,17 @@ export default function ClientPortal() {
                   <Input id="weight" type="number" step="0.1" min={0} value={weightInput} onChange={(e) => setWeightInput(e.target.value)} placeholder={weightUnit === "kg" ? "e.g. 72.4" : "e.g. 159.6"} />
                 </div>
                 <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="waist-main">Waist ({lengthUnit})</Label>
+                    <div className="flex gap-1">
+                      <Button type="button" size="sm" variant={lengthUnit === "cm" ? "default" : "outline"} onClick={() => updateLengthUnit("cm")}>cm</Button>
+                      <Button type="button" size="sm" variant={lengthUnit === "in" ? "default" : "outline"} onClick={() => updateLengthUnit("in")}>inches</Button>
+                    </div>
+                  </div>
+                  <Input id="waist-main" type="number" step="0.1" min={0} value={waistInput} onChange={(e) => setWaistInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 82" : "e.g. 32.3"} />
+                  <p className="text-xs text-muted-foreground">Measured at navel height.</p>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="water">Water intake (litres)</Label>
                   <Input id="water" type="number" step="0.25" min={0} max={20} value={waterLitres} onChange={(e) => setWaterAmount(Number(e.target.value))} />
                   <p className="text-xs text-muted-foreground">Synced with your home screen water tracker.</p>
@@ -668,11 +686,6 @@ export default function ClientPortal() {
                       <div className="space-y-2">
                         <Label htmlFor="bf">Body Fat %</Label>
                         <Input id="bf" type="number" step="0.1" min={0} max={100} value={bodyFatPct} onChange={(e) => setBodyFatPct(e.target.value)} placeholder="e.g. 28.4" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="waist">Waist Circumference ({lengthUnit})</Label>
-                        <Input id="waist" type="number" step="0.1" min={0} value={waistInput} onChange={(e) => setWaistInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 82" : "e.g. 32.3"} />
-                        <p className="text-xs text-muted-foreground">Measure at navel height</p>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="hip">Hip Circumference ({lengthUnit})</Label>

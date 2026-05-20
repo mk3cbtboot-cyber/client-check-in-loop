@@ -1,0 +1,1 @@
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS length_unit text NOT NULL DEFAULT 'cm';

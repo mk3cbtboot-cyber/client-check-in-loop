@@ -9,6 +9,7 @@ const corsHeaders = {
 const Body = z.object({
   token: z.string().min(10).max(200),
   weight_unit: z.enum(["kg", "lbs"]).optional(),
+  length_unit: z.enum(["cm", "in"]).optional(),
 });
 
 Deno.serve(async (req) => {

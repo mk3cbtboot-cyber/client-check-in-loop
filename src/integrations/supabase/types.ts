@@ -107,6 +107,7 @@ export type Database = {
           email: string
           height_cm: number | null
           id: string
+          length_unit: string
           magic_token: string
           meal_streak: number
           medical_conditions: string
@@ -152,6 +153,7 @@ export type Database = {
           email: string
           height_cm?: number | null
           id?: string
+          length_unit?: string
           magic_token?: string
           meal_streak?: number
           medical_conditions?: string
@@ -197,6 +199,7 @@ export type Database = {
           email?: string
           height_cm?: number | null
           id?: string
+          length_unit?: string
           magic_token?: string
           meal_streak?: number
           medical_conditions?: string
