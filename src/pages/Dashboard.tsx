@@ -911,7 +911,20 @@ export default function Dashboard() {
                                   ))}
                                 </div>
                               )}
-                              <div className="border-t pt-3">
+                              <div className="border-t pt-3 space-y-3">
+                                {(weeklyAcks[client.id] ?? []).length > 0 && (
+                                  <div className="rounded-md border border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20 p-3 space-y-1">
+                                    {(weeklyAcks[client.id] ?? []).map((a) => {
+                                      const d = new Date(a.acknowledged_at);
+                                      const when = d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+                                      return (
+                                        <p key={a.food_name} className="text-xs">
+                                          ⚠️ {client.name.split(" ")[0]} acknowledged a weekly {a.food_name.toLowerCase()} limit warning on {when}.
+                                        </p>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                                 <WeeklyLimitsEditor
                                   value={client.weekly_food_limits ?? {}}
                                   onSave={(next) => saveWeeklyFoodLimits(client.id, next)}
