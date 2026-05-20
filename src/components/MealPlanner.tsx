@@ -140,9 +140,10 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
     if (!isOptionComplete(primaryOpt, sel(m, "primary"))) return false;
     const lc = limitCheck(m);
     if (!lc.limited) return true;
+    // require ack for every limited reason
+    if (!lc.reasons.every((r) => isAcknowledged(r.food))) return false;
     const altOpt = selectedOption(m, "alt");
     if (!altOpt) return false;
-    // alt must not itself be limited by the same reason — re-run check on alt
     const altLc = checkMealLimits(altOpt, sel(m, "alt"), weeklyFoodLimits ?? null);
     if (altLc.maxDays < 7 - lc.maxDays) return false;
     return isOptionComplete(altOpt, sel(m, "alt"));
