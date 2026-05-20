@@ -160,6 +160,12 @@ export default function ClientPortal() {
     await supabase.functions.invoke("update-client-prefs", { body: { token, weight_unit: unit } });
   };
 
+  const updateLengthUnit = async (unit: "cm" | "in") => {
+    setLengthUnit(unit);
+    setClient((c) => (c ? { ...c, length_unit: unit } : c));
+    await supabase.functions.invoke("update-client-prefs", { body: { token, length_unit: unit } });
+  };
+
   const pickOption = (m: MealType, o: OptionDef) => {
     setOption(o);
     setMeal(m);
