@@ -61,13 +61,36 @@ Deno.serve(async (req) => {
     const week = mondayOf(new Date());
 
     if (p.action === "get") {
-      const { data } = await admin
-        .from("weekly_meal_plans")
-        .select("*")
-        .eq("client_id", client.id)
-        .eq("week_start_date", week)
-        .maybeSingle();
-      return new Response(JSON.stringify({ plan: data ?? null, week_start_date: week }), {
+      const [{ data: planRow }, { data: ackRows }] = await Promise.all([
+        admin.from("weekly_meal_plans").select("*").eq("client_id", client.id).eq("week_start_date", week).maybeSingle(),
+        admin.from("weekly_limit_acknowledgements").select("*").eq("client_id", client.id).eq("week_start_date", week),
+      ]);
+      return new Response(JSON.stringify({ plan: planRow ?? null, week_start_date: week, acknowledgements: ackRows ?? [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (p.action === "acknowledge") {
+      if (!p.ack_food_name || p.ack_limit == null || p.ack_per_serving_qty == null) {
+        return new Response(JSON.stringify({ error: "Missing acknowledgement fields" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { error } = await admin
+        .from("weekly_limit_acknowledgements")
+        .upsert({
+          client_id: client.id,
+          week_start_date: week,
+          food_name: p.ack_food_name,
+          limit_value: p.ack_limit,
+          per_serving_qty: p.ack_per_serving_qty,
+          acknowledged_at: new Date().toISOString(),
+        }, { onConflict: "client_id,week_start_date,food_name" });
+      if (error) throw error;
+      const { data: ackRows } = await admin
+        .from("weekly_limit_acknowledgements").select("*")
+        .eq("client_id", client.id).eq("week_start_date", week);
+      return new Response(JSON.stringify({ ok: true, acknowledgements: ackRows ?? [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
