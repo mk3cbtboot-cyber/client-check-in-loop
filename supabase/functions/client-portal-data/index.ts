@@ -43,6 +43,14 @@ Deno.serve(async (req) => {
       Object.assign(c, updates);
     }
 
+    const { data: latestCheckIn } = await admin
+      .from("check_ins")
+      .select("weight_kg")
+      .eq("client_id", c.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     return new Response(JSON.stringify({
       valid: true,
       client: {
