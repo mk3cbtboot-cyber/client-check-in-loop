@@ -20,6 +20,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
 import { formatDistanceToNow } from "date-fns";
 import ClientTrendGraphs from "@/components/ClientTrendGraphs";
+import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
 
 interface Client {
   id: string;
