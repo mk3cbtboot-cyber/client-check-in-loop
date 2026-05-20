@@ -47,6 +47,7 @@ interface ClientState {
   phase2_strict_started_at: string | null;
   phase2_strict_extra_days: number;
   phase2_food_list: unknown;
+  weekly_food_limits: Record<string, number>;
 }
 
 type TabKey = "home" | "checkin" | "plan" | "planner";
