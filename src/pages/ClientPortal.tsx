@@ -84,6 +84,7 @@ export default function ClientPortal() {
   const [weightInput, setWeightInput] = useState<string>("");
   const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">("kg");
   const [lengthUnit, setLengthUnit] = useState<"cm" | "in">("cm");
+  const [latestWeightKg, setLatestWeightKg] = useState<number | null>(null);
   const initialRatings = {
     general_wellbeing: 3, fatigue: 3, sleep: 3, headache: 3, pain: 3,
     joint_pain: 3, acid_reflux: 3, digestion: 3, allergy_skin: 3,
@@ -112,6 +113,7 @@ export default function ClientPortal() {
       setWaterLitres(Number(data.client.water_today_litres) || 0);
       setWeightUnit(data.client.weight_unit || "kg");
       setLengthUnit(data.client.length_unit || "cm");
+      setLatestWeightKg(data.client.latest_weight_kg ?? null);
     }
   };
 
@@ -407,7 +409,7 @@ export default function ClientPortal() {
       {tab === "home" && (
         <section className="max-w-5xl mx-auto p-4 space-y-6">
           {/* Trackers */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <Card className="p-4">
               <p className="text-xs uppercase text-muted-foreground">Avocado</p>
               <p className="text-2xl font-semibold">{client.avocado_count_week}/3</p>
@@ -428,6 +430,19 @@ export default function ClientPortal() {
               <p className="text-2xl font-semibold">{client.meal_streak}</p>
               <p className="text-xs text-muted-foreground">consecutive meals logged</p>
             </Card>
+            {(() => {
+              const bmi = client.height_cm && latestWeightKg ? latestWeightKg / Math.pow(client.height_cm / 100, 2) : null;
+              const category = bmi != null
+                ? bmi < 18.5 ? "Underweight" : bmi < 25 ? "Normal" : bmi < 30 ? "Overweight" : "Obese"
+                : null;
+              return (
+                <Card className="p-4">
+                  <p className="text-xs uppercase text-muted-foreground">BMI</p>
+                  <p className="text-2xl font-semibold">{bmi != null ? bmi.toFixed(1) : "—"}</p>
+                  <p className="text-xs text-muted-foreground">{category ?? (client.height_cm ? "No weight check-in yet" : "Height not set")}</p>
+                </Card>
+              );
+            })()}
           </div>
 
           {client.phase === "phase1" ? (
