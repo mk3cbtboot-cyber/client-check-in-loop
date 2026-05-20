@@ -626,6 +626,17 @@ export default function ClientPortal() {
                   <Input id="weight" type="number" step="0.1" min={0} value={weightInput} onChange={(e) => setWeightInput(e.target.value)} placeholder={weightUnit === "kg" ? "e.g. 72.4" : "e.g. 159.6"} />
                 </div>
                 <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="waist-main">Waist ({lengthUnit})</Label>
+                    <div className="flex gap-1">
+                      <Button type="button" size="sm" variant={lengthUnit === "cm" ? "default" : "outline"} onClick={() => updateLengthUnit("cm")}>cm</Button>
+                      <Button type="button" size="sm" variant={lengthUnit === "in" ? "default" : "outline"} onClick={() => updateLengthUnit("in")}>inches</Button>
+                    </div>
+                  </div>
+                  <Input id="waist-main" type="number" step="0.1" min={0} value={waistInput} onChange={(e) => setWaistInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 82" : "e.g. 32.3"} />
+                  <p className="text-xs text-muted-foreground">Measured at navel height.</p>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="water">Water intake (litres)</Label>
                   <Input id="water" type="number" step="0.25" min={0} max={20} value={waterLitres} onChange={(e) => setWaterAmount(Number(e.target.value))} />
                   <p className="text-xs text-muted-foreground">Synced with your home screen water tracker.</p>
