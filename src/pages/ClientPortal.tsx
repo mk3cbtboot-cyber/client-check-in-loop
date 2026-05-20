@@ -43,6 +43,7 @@ interface ClientState {
   phase3_mb_fat_oil: string;
   show_rules: boolean;
   weight_unit: "kg" | "lbs";
+  length_unit: "cm" | "in";
   height_cm: number | null;
   phase2_strict_started_at: string | null;
   phase2_strict_extra_days: number;
