@@ -912,6 +912,10 @@ export default function Dashboard() {
                                 </div>
                               )}
                               <div className="border-t pt-3 space-y-3">
+                                <WeeklyLimitsEditor
+                                  value={client.weekly_food_limits ?? {}}
+                                  onSave={(next) => saveWeeklyFoodLimits(client.id, next)}
+                                />
                                 {(weeklyAcks[client.id] ?? []).length > 0 && (
                                   <div className="rounded-md border border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20 p-3 space-y-1">
                                     {(weeklyAcks[client.id] ?? []).map((a) => {
@@ -925,10 +929,6 @@ export default function Dashboard() {
                                     })}
                                   </div>
                                 )}
-                                <WeeklyLimitsEditor
-                                  value={client.weekly_food_limits ?? {}}
-                                  onSave={(next) => saveWeeklyFoodLimits(client.id, next)}
-                                />
                               </div>
                             </div>
                           );
