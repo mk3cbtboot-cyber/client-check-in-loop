@@ -97,6 +97,15 @@ Deno.serve(async (req) => {
       breakfast_selections: p.breakfast_selections ?? existing?.breakfast_selections ?? {},
       lunch_selections: p.lunch_selections ?? existing?.lunch_selections ?? {},
       dinner_selections: p.dinner_selections ?? existing?.dinner_selections ?? {},
+      breakfast_meal_id_alt: p.breakfast_meal_id_alt ?? existing?.breakfast_meal_id_alt ?? null,
+      lunch_meal_id_alt: p.lunch_meal_id_alt ?? existing?.lunch_meal_id_alt ?? null,
+      dinner_meal_id_alt: p.dinner_meal_id_alt ?? existing?.dinner_meal_id_alt ?? null,
+      breakfast_selections_alt: p.breakfast_selections_alt ?? existing?.breakfast_selections_alt ?? {},
+      lunch_selections_alt: p.lunch_selections_alt ?? existing?.lunch_selections_alt ?? {},
+      dinner_selections_alt: p.dinner_selections_alt ?? existing?.dinner_selections_alt ?? {},
+      breakfast_primary_days: p.breakfast_primary_days ?? existing?.breakfast_primary_days ?? 7,
+      lunch_primary_days: p.lunch_primary_days ?? existing?.lunch_primary_days ?? 7,
+      dinner_primary_days: p.dinner_primary_days ?? existing?.dinner_primary_days ?? 7,
       confirmed_at:
         p.action === "confirm" ? new Date().toISOString() : existing?.confirmed_at ?? null,
     };
