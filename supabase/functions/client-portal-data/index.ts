@@ -43,6 +43,14 @@ Deno.serve(async (req) => {
       Object.assign(c, updates);
     }
 
+    const { data: latestCheckIn } = await admin
+      .from("check_ins")
+      .select("weight_kg")
+      .eq("client_id", c.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     return new Response(JSON.stringify({
       valid: true,
       client: {
@@ -73,6 +81,7 @@ Deno.serve(async (req) => {
         phase2_strict_extra_days: c.phase2_strict_extra_days ?? 0,
         phase2_food_list: c.phase2_food_list ?? null,
         weekly_food_limits: c.weekly_food_limits ?? {},
+        latest_weight_kg: latestCheckIn?.weight_kg != null ? Number(latestCheckIn.weight_kg) : null,
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
