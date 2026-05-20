@@ -688,11 +688,6 @@ export default function ClientPortal() {
                         <Input id="bf" type="number" step="0.1" min={0} max={100} value={bodyFatPct} onChange={(e) => setBodyFatPct(e.target.value)} placeholder="e.g. 28.4" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="waist">Waist Circumference ({lengthUnit})</Label>
-                        <Input id="waist" type="number" step="0.1" min={0} value={waistInput} onChange={(e) => setWaistInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 82" : "e.g. 32.3"} />
-                        <p className="text-xs text-muted-foreground">Measure at navel height</p>
-                      </div>
-                      <div className="space-y-2">
                         <Label htmlFor="hip">Hip Circumference ({lengthUnit})</Label>
                         <Input id="hip" type="number" step="0.1" min={0} value={hipInput} onChange={(e) => setHipInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 96" : "e.g. 37.8"} />
                       </div>
