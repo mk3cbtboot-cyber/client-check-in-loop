@@ -51,6 +51,7 @@ interface Client {
   phase2_strict_extra_days: number;
   phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
+  weekly_food_limits: Record<string, number>;
   system_mode: "mb" | "own_practice";
   meal_streak: number | null;
   avocado_count_week: number | null;
