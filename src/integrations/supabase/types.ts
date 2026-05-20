@@ -318,6 +318,36 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_limit_acknowledgements: {
+        Row: {
+          acknowledged_at: string
+          client_id: string
+          food_name: string
+          id: string
+          limit_value: number
+          per_serving_qty: number
+          week_start_date: string
+        }
+        Insert: {
+          acknowledged_at?: string
+          client_id: string
+          food_name: string
+          id?: string
+          limit_value: number
+          per_serving_qty: number
+          week_start_date: string
+        }
+        Update: {
+          acknowledged_at?: string
+          client_id?: string
+          food_name?: string
+          id?: string
+          limit_value?: number
+          per_serving_qty?: number
+          week_start_date?: string
+        }
+        Relationships: []
+      }
       weekly_meal_plans: {
         Row: {
           breakfast_meal_id: number | null
