@@ -111,6 +111,7 @@ export default function ClientPortal() {
       setClient(data.client);
       setWaterLitres(Number(data.client.water_today_litres) || 0);
       setWeightUnit(data.client.weight_unit || "kg");
+      setLengthUnit(data.client.length_unit || "cm");
     }
   };
 
