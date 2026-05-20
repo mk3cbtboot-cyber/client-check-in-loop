@@ -242,15 +242,21 @@ export default function ClientPortal() {
   const restrictedItems = (sources: (keyof typeof MB_FOODS)[], componentKey: string): string[] => {
     const base = filteredSources(sources);
     if (!weekConfirmed) return base;
-    const locked = lockedSelectionsForMeal(meal)[componentKey];
-    if (!locked) return base;
-    return base.filter((i) => i === locked);
+    const lockedPrimary = lockedSelectionsForMeal(meal)[componentKey];
+    const lockedAlt = meal && weeklyPlan
+      ? ((weeklyPlan as any)[`${meal}_selections_alt`] as Record<string, string> | undefined)?.[componentKey]
+      : undefined;
+    const allowed = [lockedPrimary, lockedAlt].filter(Boolean) as string[];
+    if (!allowed.length) return base;
+    return base.filter((i) => allowed.includes(i));
   };
   const optionsForMeal = (m: MealType): OptionDef[] => {
     if (!weekConfirmed) return MB_OPTIONS[m];
     const lockedId = lockedMealIdFor(m);
-    if (!lockedId) return MB_OPTIONS[m];
-    return MB_OPTIONS[m].filter((o) => o.id === lockedId);
+    const altId = weeklyPlan ? ((weeklyPlan as any)[`${m}_meal_id_alt`] as number | null) : null;
+    const ids = [lockedId, altId].filter((v): v is number => typeof v === "number");
+    if (!ids.length) return MB_OPTIONS[m];
+    return MB_OPTIONS[m].filter((o) => ids.includes(o.id));
   };
 
   // Auto-apply locked picks when the user enters the recipe builder after confirming the week
