@@ -83,6 +83,7 @@ export default function ClientPortal() {
   // Phase 2 Strict daily progress
   const [weightInput, setWeightInput] = useState<string>("");
   const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">("kg");
+  const [lengthUnit, setLengthUnit] = useState<"cm" | "in">("cm");
   const initialRatings = {
     general_wellbeing: 3, fatigue: 3, sleep: 3, headache: 3, pain: 3,
     joint_pain: 3, acid_reflux: 3, digestion: 3, allergy_skin: 3,
@@ -96,8 +97,6 @@ export default function ClientPortal() {
   const [hipInput, setHipInput] = useState<string>("");
   const [thighInput, setThighInput] = useState<string>("");
 
-  // Length-unit derived from weight unit toggle: kg→cm, lbs→inches
-  const lengthUnit: "cm" | "in" = weightUnit === "lbs" ? "in" : "cm";
   const toCm = (v: string) => {
     if (!v) return undefined;
     const n = Number(v);
