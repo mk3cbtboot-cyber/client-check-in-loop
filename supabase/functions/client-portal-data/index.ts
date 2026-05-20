@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
         phase3_mb_fat_oil: c.phase3_mb_fat_oil ?? "",
         show_rules: c.show_rules === true,
         weight_unit: c.weight_unit === "lbs" ? "lbs" : "kg",
+        length_unit: c.length_unit === "in" ? "in" : "cm",
         height_cm: c.height_cm != null ? Number(c.height_cm) : null,
         phase2_strict_started_at: c.phase2_strict_started_at ?? null,
         phase2_strict_extra_days: c.phase2_strict_extra_days ?? 0,
