@@ -822,7 +822,6 @@ export default function Dashboard() {
                                           {measurementFields.filter(([, v]) => v != null).map(([label, v]) => (
                                             <div key={label} className="text-xs"><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{v}</span></div>
                                           ))}
-                                          {bmi != null && <div className="text-xs"><span className="text-muted-foreground">BMI:</span> <span className="font-medium">{bmi.toFixed(1)}</span></div>}
                                           {whtr != null && <div className="text-xs"><span className="text-muted-foreground">WHtR:</span> <span className="font-medium">{whtr.toFixed(2)}</span></div>}
                                         </div>
                                       )}
