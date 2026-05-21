@@ -430,19 +430,6 @@ export default function ClientPortal() {
               <p className="text-2xl font-semibold">{client.meal_streak}</p>
               <p className="text-xs text-muted-foreground">consecutive meals logged</p>
             </Card>
-            {(() => {
-              const bmi = client.height_cm && latestWeightKg ? latestWeightKg / Math.pow(client.height_cm / 100, 2) : null;
-              const category = bmi != null
-                ? bmi < 18.5 ? "Underweight" : bmi < 25 ? "Normal" : bmi < 30 ? "Overweight" : "Obese"
-                : null;
-              return (
-                <Card className="p-4">
-                  <p className="text-xs uppercase text-muted-foreground">BMI</p>
-                  <p className="text-2xl font-semibold">{bmi != null ? bmi.toFixed(1) : "—"}</p>
-                  <p className="text-xs text-muted-foreground">{category ?? (client.height_cm ? "No weight check-in yet" : "Height not set")}</p>
-                </Card>
-              );
-            })()}
           </div>
 
           {client.phase === "phase1" ? (
@@ -689,11 +676,7 @@ export default function ClientPortal() {
                 ))}
                 {isWeeklyMode && (() => {
                   const heightCm = client.height_cm ?? null;
-                  const weightKgNum = weightInput
-                    ? (weightUnit === "lbs" ? Number(weightInput) * 0.45359237 : Number(weightInput))
-                    : null;
                   const waistCmNum = toCm(waistInput) ?? null;
-                  const bmi = heightCm && weightKgNum ? weightKgNum / Math.pow(heightCm / 100, 2) : null;
                   const whtr = heightCm && waistCmNum ? waistCmNum / heightCm : null;
                   return (
                     <div className="space-y-4 border-t pt-4">
@@ -710,20 +693,13 @@ export default function ClientPortal() {
                         <Label htmlFor="thigh">Upper Thigh Circumference ({lengthUnit})</Label>
                         <Input id="thigh" type="number" step="0.1" min={0} value={thighInput} onChange={(e) => setThighInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 56" : "e.g. 22"} />
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-md border p-3">
-                          <p className="text-xs text-muted-foreground">WHtR</p>
-                          <p className="text-lg font-semibold">{whtr != null ? whtr.toFixed(2) : "—"}</p>
-                          <p className="text-[10px] text-muted-foreground">Waist ÷ Height</p>
-                        </div>
-                        <div className="rounded-md border p-3">
-                          <p className="text-xs text-muted-foreground">BMI</p>
-                          <p className="text-lg font-semibold">{bmi != null ? bmi.toFixed(1) : "—"}</p>
-                          <p className="text-[10px] text-muted-foreground">Weight ÷ Height²</p>
-                        </div>
+                      <div className="rounded-md border p-3">
+                        <p className="text-xs text-muted-foreground">WHtR</p>
+                        <p className="text-lg font-semibold">{whtr != null ? whtr.toFixed(2) : "—"}</p>
+                        <p className="text-[10px] text-muted-foreground">Waist ÷ Height</p>
                       </div>
                       {!heightCm && (
-                        <p className="text-xs text-muted-foreground">Ask your practitioner to add your height so BMI &amp; WHtR can be calculated.</p>
+                        <p className="text-xs text-muted-foreground">Ask your practitioner to add your height so WHtR can be calculated.</p>
                       )}
                     </div>
                   );
