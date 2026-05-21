@@ -49,6 +49,15 @@ function Graph({
               contentStyle={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", fontSize: 12 }}
             />
             {lines.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
+            {referenceLines?.map((r) => (
+              <ReferenceLine
+                key={r.label}
+                y={r.y}
+                stroke={r.color ?? "hsl(var(--muted-foreground))"}
+                strokeDasharray="3 3"
+                label={{ value: r.label, fontSize: 10, fill: "hsl(var(--muted-foreground))", position: "insideTopRight" }}
+              />
+            ))}
             {lines.map((l) => (
               <Line key={l.key} type="monotone" dataKey={l.key} name={l.name} stroke={l.color} strokeWidth={2} dot={{ r: 3 }} connectNulls />
             ))}
