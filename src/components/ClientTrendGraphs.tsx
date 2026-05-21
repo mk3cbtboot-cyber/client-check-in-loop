@@ -109,6 +109,20 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", heightC
       {has("weight") && (
         <Graph title={`Weight (${weightUnit})`} data={data} lines={[{ key: "weight", name: "Weight", color: "hsl(var(--primary))" }]} />
       )}
+      {has("bmi") && (
+        <div className="md:col-span-2">
+          <Graph
+            title="BMI Over Time"
+            data={data}
+            lines={[{ key: "bmi", name: "BMI", color: "hsl(var(--primary))" }]}
+            referenceLines={[
+              { y: 18.5, label: "18.5 Underweight" },
+              { y: 25, label: "25 Normal" },
+              { y: 30, label: "30 Overweight" },
+            ]}
+          />
+        </div>
+      )}
       {has("water") && (
         <Graph title="Water Intake (L)" data={data} lines={[{ key: "water", name: "Litres", color: "hsl(217 91% 60%)" }]} />
       )}
