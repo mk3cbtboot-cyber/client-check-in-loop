@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { format } from "date-fns";
 
 export interface CheckInRow {
@@ -19,7 +19,6 @@ export interface CheckInRow {
 interface Props {
   checkIns: CheckInRow[];
   weightUnit?: string;
-  heightCm?: number | null;
 }
 
 function Graph({
@@ -27,13 +26,11 @@ function Graph({
   data,
   lines,
   yDomain,
-  referenceLines,
 }: {
   title: string;
   data: any[];
   lines: { key: string; name: string; color: string }[];
   yDomain?: [number | string, number | string];
-  referenceLines?: { y: number; label: string; color?: string }[];
 }) {
   if (data.length === 0) return null;
   return (
