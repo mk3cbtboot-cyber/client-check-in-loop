@@ -769,7 +769,7 @@ export default function Dashboard() {
                       </TabsContent>
 
                       <TabsContent value="progress" className="pt-3 space-y-4">
-                        <ClientTrendGraphs checkIns={list as any} weightUnit={client.weight_unit} heightCm={client.height_cm ?? null} />
+                        <ClientTrendGraphs checkIns={list as any} weightUnit={client.weight_unit} />
                         <Collapsible open={!!rawOpen[client.id]} onOpenChange={(o) => setRawOpen((s) => ({ ...s, [client.id]: o }))}>
                           <CollapsibleTrigger asChild>
                             <Button variant="outline" size="sm">
@@ -802,7 +802,6 @@ export default function Dashboard() {
                                   ];
                                   const hasMeasurements = measurementFields.some(([, v]) => v != null);
                                   const heightCm = client.height_cm ? Number(client.height_cm) : null;
-                                  const bmi = heightCm && ci.weight_kg ? (Number(ci.weight_kg) / Math.pow(heightCm / 100, 2)) : null;
                                   const whtr = heightCm && ci.waist_cm ? (Number(ci.waist_cm) / heightCm) : null;
                                   return (
                                     <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
@@ -823,7 +822,6 @@ export default function Dashboard() {
                                           {measurementFields.filter(([, v]) => v != null).map(([label, v]) => (
                                             <div key={label} className="text-xs"><span className="text-muted-foreground">{label}:</span> <span className="font-medium">{v}</span></div>
                                           ))}
-                                          {bmi != null && <div className="text-xs"><span className="text-muted-foreground">BMI:</span> <span className="font-medium">{bmi.toFixed(1)}</span></div>}
                                           {whtr != null && <div className="text-xs"><span className="text-muted-foreground">WHtR:</span> <span className="font-medium">{whtr.toFixed(2)}</span></div>}
                                         </div>
                                       )}
