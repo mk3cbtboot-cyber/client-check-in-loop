@@ -19,6 +19,7 @@ export interface CheckInRow {
 interface Props {
   checkIns: CheckInRow[];
   weightUnit?: string;
+  heightCm?: number | null;
 }
 
 function Graph({
@@ -26,11 +27,13 @@ function Graph({
   data,
   lines,
   yDomain,
+  referenceLines,
 }: {
   title: string;
   data: any[];
   lines: { key: string; name: string; color: string }[];
   yDomain?: [number | string, number | string];
+  referenceLines?: { y: number; label: string; color?: string }[];
 }) {
   if (data.length === 0) return null;
   return (
