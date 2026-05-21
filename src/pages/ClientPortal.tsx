@@ -430,19 +430,6 @@ export default function ClientPortal() {
               <p className="text-2xl font-semibold">{client.meal_streak}</p>
               <p className="text-xs text-muted-foreground">consecutive meals logged</p>
             </Card>
-            {(() => {
-              const bmi = client.height_cm && latestWeightKg ? latestWeightKg / Math.pow(client.height_cm / 100, 2) : null;
-              const category = bmi != null
-                ? bmi < 18.5 ? "Underweight" : bmi < 25 ? "Normal" : bmi < 30 ? "Overweight" : "Obese"
-                : null;
-              return (
-                <Card className="p-4">
-                  <p className="text-xs uppercase text-muted-foreground">BMI</p>
-                  <p className="text-2xl font-semibold">{bmi != null ? bmi.toFixed(1) : "—"}</p>
-                  <p className="text-xs text-muted-foreground">{category ?? (client.height_cm ? "No weight check-in yet" : "Height not set")}</p>
-                </Card>
-              );
-            })()}
           </div>
 
           {client.phase === "phase1" ? (
