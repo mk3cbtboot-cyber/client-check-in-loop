@@ -802,7 +802,6 @@ export default function Dashboard() {
                                   ];
                                   const hasMeasurements = measurementFields.some(([, v]) => v != null);
                                   const heightCm = client.height_cm ? Number(client.height_cm) : null;
-                                  const bmi = heightCm && ci.weight_kg ? (Number(ci.weight_kg) / Math.pow(heightCm / 100, 2)) : null;
                                   const whtr = heightCm && ci.waist_cm ? (Number(ci.waist_cm) / heightCm) : null;
                                   return (
                                     <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
