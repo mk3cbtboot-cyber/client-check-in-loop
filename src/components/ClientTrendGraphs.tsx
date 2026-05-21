@@ -78,6 +78,9 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", heightC
     () =>
       sorted.map((ci) => {
         const w = ci.weight_kg != null ? (weightUnit === "lbs" ? Number(ci.weight_kg) * 2.20462 : Number(ci.weight_kg)) : null;
+        const bmi = ci.weight_kg != null && heightCm
+          ? Number(ci.weight_kg) / Math.pow(Number(heightCm) / 100, 2)
+          : null;
         return {
           label: format(new Date(ci.created_at), "MMM d"),
           weight: w != null ? Number(w.toFixed(1)) : null,
@@ -89,9 +92,10 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", heightC
           waist: ci.waist_cm,
           hip: ci.hip_cm,
           upper_thigh: ci.upper_thigh_cm,
+          bmi: bmi != null ? Number(bmi.toFixed(1)) : null,
         };
       }),
-    [sorted, weightUnit],
+    [sorted, weightUnit, heightCm],
   );
 
   const has = (k: string) => data.some((d) => (d as any)[k] != null);
