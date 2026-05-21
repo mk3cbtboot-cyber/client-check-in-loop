@@ -68,7 +68,7 @@ function Graph({
   );
 }
 
-export default function ClientTrendGraphs({ checkIns, weightUnit = "kg" }: Props) {
+export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", heightCm = null }: Props) {
   const sorted = useMemo(
     () => [...checkIns].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
     [checkIns],
