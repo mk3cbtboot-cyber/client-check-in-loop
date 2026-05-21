@@ -46,15 +46,6 @@ function Graph({
               contentStyle={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", fontSize: 12 }}
             />
             {lines.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
-            {referenceLines?.map((r) => (
-              <ReferenceLine
-                key={r.label}
-                y={r.y}
-                stroke={r.color ?? "hsl(var(--muted-foreground))"}
-                strokeDasharray="3 3"
-                label={{ value: r.label, fontSize: 10, fill: "hsl(var(--muted-foreground))", position: "insideTopRight" }}
-              />
-            ))}
             {lines.map((l) => (
               <Line key={l.key} type="monotone" dataKey={l.key} name={l.name} stroke={l.color} strokeWidth={2} dot={{ r: 3 }} connectNulls />
             ))}
@@ -65,7 +56,7 @@ function Graph({
   );
 }
 
-export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", heightCm = null }: Props) {
+export default function ClientTrendGraphs({ checkIns, weightUnit = "kg" }: Props) {
   const sorted = useMemo(
     () => [...checkIns].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
     [checkIns],
@@ -75,9 +66,6 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", heightC
     () =>
       sorted.map((ci) => {
         const w = ci.weight_kg != null ? (weightUnit === "lbs" ? Number(ci.weight_kg) * 2.20462 : Number(ci.weight_kg)) : null;
-        const bmi = ci.weight_kg != null && heightCm
-          ? Number(ci.weight_kg) / Math.pow(Number(heightCm) / 100, 2)
-          : null;
         return {
           label: format(new Date(ci.created_at), "MMM d"),
           weight: w != null ? Number(w.toFixed(1)) : null,
@@ -89,10 +77,9 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", heightC
           waist: ci.waist_cm,
           hip: ci.hip_cm,
           upper_thigh: ci.upper_thigh_cm,
-          bmi: bmi != null ? Number(bmi.toFixed(1)) : null,
         };
       }),
-    [sorted, weightUnit, heightCm],
+    [sorted, weightUnit],
   );
 
   const has = (k: string) => data.some((d) => (d as any)[k] != null);
@@ -105,20 +92,6 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", heightC
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       {has("weight") && (
         <Graph title={`Weight (${weightUnit})`} data={data} lines={[{ key: "weight", name: "Weight", color: "hsl(var(--primary))" }]} />
-      )}
-      {has("bmi") && (
-        <div className="md:col-span-2">
-          <Graph
-            title="BMI Over Time"
-            data={data}
-            lines={[{ key: "bmi", name: "BMI", color: "hsl(var(--primary))" }]}
-            referenceLines={[
-              { y: 18.5, label: "18.5 Underweight" },
-              { y: 25, label: "25 Normal" },
-              { y: 30, label: "30 Overweight" },
-            ]}
-          />
-        </div>
       )}
       {has("water") && (
         <Graph title="Water Intake (L)" data={data} lines={[{ key: "water", name: "Litres", color: "hsl(217 91% 60%)" }]} />
