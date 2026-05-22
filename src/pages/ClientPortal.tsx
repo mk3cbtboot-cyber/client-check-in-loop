@@ -667,6 +667,17 @@ export default function ClientPortal() {
                   <div className="space-y-4 border-t pt-4">
                     <p className="text-sm font-medium">Body measurements</p>
                     <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="waist-main">Waist Circumference ({lengthUnit})</Label>
+                        <div className="flex gap-1">
+                          <Button type="button" size="sm" variant={lengthUnit === "cm" ? "default" : "outline"} onClick={() => updateLengthUnit("cm")}>cm</Button>
+                          <Button type="button" size="sm" variant={lengthUnit === "in" ? "default" : "outline"} onClick={() => updateLengthUnit("in")}>inches</Button>
+                        </div>
+                      </div>
+                      <Input id="waist-main" type="number" step="0.1" min={0} value={waistInput} onChange={(e) => setWaistInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 82" : "e.g. 32.3"} />
+                      <p className="text-xs text-muted-foreground">Measured at navel height.</p>
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="hip">Hip Circumference ({lengthUnit})</Label>
                       <Input id="hip" type="number" step="0.1" min={0} value={hipInput} onChange={(e) => setHipInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 96" : "e.g. 37.8"} />
                     </div>
