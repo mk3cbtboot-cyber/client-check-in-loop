@@ -93,7 +93,7 @@ export default function ClientPortal() {
   const setRating = (k: string, v: number) => setRatings((r) => ({ ...r, [k]: v }));
 
   // Weekly Phase 2 Strict measurements (stored in cm internally)
-  const [bodyFatPct, setBodyFatPct] = useState<string>("");
+  
   const [waistInput, setWaistInput] = useState<string>("");
   const [hipInput, setHipInput] = useState<string>("");
   const [thighInput, setThighInput] = useState<string>("");
@@ -363,7 +363,7 @@ export default function ClientPortal() {
         Object.assign(body, ratings);
         if (isWeeklyMode) {
           body.is_weekly = true;
-          if (bodyFatPct) body.body_fat_pct = Number(bodyFatPct);
+          
           const waist = toCm(waistInput); if (waist !== undefined) body.waist_cm = waist;
           const hip = toCm(hipInput); if (hip !== undefined) body.hip_cm = hip;
           const thigh = toCm(thighInput); if (thigh !== undefined) body.upper_thigh_cm = thigh;
@@ -601,7 +601,7 @@ export default function ClientPortal() {
             <Card className="p-6 text-center space-y-3">
               <h2 className="text-lg font-semibold">Thanks!</h2>
               <p className="text-sm text-muted-foreground">Your nutritionist has been notified.</p>
-              <Button variant="outline" onClick={() => { setCheckinDone(false); setFeeling(3); setNotes(""); setWeightInput(""); setRatings(initialRatings); setBodyFatPct(""); setWaistInput(""); setHipInput(""); setThighInput(""); }}>
+              <Button variant="outline" onClick={() => { setCheckinDone(false); setFeeling(3); setNotes(""); setWeightInput(""); setRatings(initialRatings); setWaistInput(""); setHipInput(""); setThighInput(""); }}>
                 Submit another
               </Button>
             </Card>
@@ -674,36 +674,19 @@ export default function ClientPortal() {
                     </div>
                   </div>
                 ))}
-                {isWeeklyMode && (() => {
-                  const heightCm = client.height_cm ?? null;
-                  const waistCmNum = toCm(waistInput) ?? null;
-                  const whtr = heightCm && waistCmNum ? waistCmNum / heightCm : null;
-                  return (
-                    <div className="space-y-4 border-t pt-4">
-                      <p className="text-sm font-medium">Body measurements</p>
-                      <div className="space-y-2">
-                        <Label htmlFor="bf">Body Fat %</Label>
-                        <Input id="bf" type="number" step="0.1" min={0} max={100} value={bodyFatPct} onChange={(e) => setBodyFatPct(e.target.value)} placeholder="e.g. 28.4" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="hip">Hip Circumference ({lengthUnit})</Label>
-                        <Input id="hip" type="number" step="0.1" min={0} value={hipInput} onChange={(e) => setHipInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 96" : "e.g. 37.8"} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="thigh">Upper Thigh Circumference ({lengthUnit})</Label>
-                        <Input id="thigh" type="number" step="0.1" min={0} value={thighInput} onChange={(e) => setThighInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 56" : "e.g. 22"} />
-                      </div>
-                      <div className="rounded-md border p-3">
-                        <p className="text-xs text-muted-foreground">WHtR</p>
-                        <p className="text-lg font-semibold">{whtr != null ? whtr.toFixed(2) : "—"}</p>
-                        <p className="text-[10px] text-muted-foreground">Waist ÷ Height</p>
-                      </div>
-                      {!heightCm && (
-                        <p className="text-xs text-muted-foreground">Ask your practitioner to add your height so WHtR can be calculated.</p>
-                      )}
+                {isWeeklyMode && (
+                  <div className="space-y-4 border-t pt-4">
+                    <p className="text-sm font-medium">Body measurements</p>
+                    <div className="space-y-2">
+                      <Label htmlFor="hip">Hip Circumference ({lengthUnit})</Label>
+                      <Input id="hip" type="number" step="0.1" min={0} value={hipInput} onChange={(e) => setHipInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 96" : "e.g. 37.8"} />
                     </div>
-                  );
-                })()}
+                    <div className="space-y-2">
+                      <Label htmlFor="thigh">Upper Thigh Circumference ({lengthUnit})</Label>
+                      <Input id="thigh" type="number" step="0.1" min={0} value={thighInput} onChange={(e) => setThighInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 56" : "e.g. 22"} />
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="notes">Any notes for your nutritionist?</Label>
                   <Textarea id="notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
