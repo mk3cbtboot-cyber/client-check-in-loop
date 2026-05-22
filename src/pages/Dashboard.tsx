@@ -712,23 +712,10 @@ export default function Dashboard() {
                               placeholder="e.g. 168"
                             />
                           </div>
-                          {(() => {
-                            const latestWeight = list[0]?.weight_kg ?? null;
-                            const heightCm = client.height_cm ? Number(client.height_cm) : null;
-                            const bmi = heightCm && latestWeight ? latestWeight / Math.pow(heightCm / 100, 2) : null;
-                            const category = bmi != null
-                              ? bmi < 18.5 ? "Underweight" : bmi < 25 ? "Normal" : bmi < 30 ? "Overweight" : "Obese"
-                              : null;
-                            return (
-                              <div className="rounded-md border p-2 min-w-[72px]">
-                                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">BMI</p>
-                                <p className="text-sm font-semibold">{bmi != null ? bmi.toFixed(1) : "—"}</p>
-                                {category && <p className="text-[10px] text-muted-foreground">{category}</p>}
-                              </div>
-                            );
-                          })()}
-                          <p className="text-xs text-muted-foreground">Used for BMI &amp; waist-to-height ratio.</p>
                         </div>
+
+
+
 
                         {(() => {
                           const weightEntries = [...list]
