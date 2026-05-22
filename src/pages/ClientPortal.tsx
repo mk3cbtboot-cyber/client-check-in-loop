@@ -93,7 +93,7 @@ export default function ClientPortal() {
   const setRating = (k: string, v: number) => setRatings((r) => ({ ...r, [k]: v }));
 
   // Weekly Phase 2 Strict measurements (stored in cm internally)
-  const [bodyFatPct, setBodyFatPct] = useState<string>("");
+  
   const [waistInput, setWaistInput] = useState<string>("");
   const [hipInput, setHipInput] = useState<string>("");
   const [thighInput, setThighInput] = useState<string>("");
