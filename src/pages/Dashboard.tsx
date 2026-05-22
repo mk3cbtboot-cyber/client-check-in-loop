@@ -730,6 +730,46 @@ export default function Dashboard() {
                           <p className="text-xs text-muted-foreground">Used for BMI &amp; waist-to-height ratio.</p>
                         </div>
 
+                        {(() => {
+                          const weightEntries = [...list]
+                            .filter((ci) => ci.weight_kg != null)
+                            .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                          if (weightEntries.length === 0) return null;
+                          const isLbs = client.weight_unit === "lbs";
+                          const chartData = weightEntries.map((ci) => ({
+                            label: format(new Date(ci.created_at), "MMM d"),
+                            weight: isLbs
+                              ? Number((Number(ci.weight_kg) * 2.20462).toFixed(1))
+                              : Number(Number(ci.weight_kg).toFixed(1)),
+                          }));
+                          return (
+                            <div className="space-y-1">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Weight Trend ({isLbs ? "lbs" : "kg"})</p>
+                              <div className="h-36 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <LineChart data={chartData} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
+                                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={40} />
+                                    <Tooltip
+                                      contentStyle={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", fontSize: 12 }}
+                                      formatter={(value: number) => [`${value} ${isLbs ? "lbs" : "kg"}`, "Weight"]}
+                                    />
+                                    <Line
+                                      type="monotone"
+                                      dataKey="weight"
+                                      stroke="hsl(var(--primary))"
+                                      strokeWidth={2}
+                                      dot={{ r: 3, fill: "hsl(var(--primary))" }}
+                                      activeDot={{ r: 5 }}
+                                      connectNulls
+                                    />
+                                  </LineChart>
+                                </ResponsiveContainer>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         <div className="space-y-2">
                           <Label htmlFor={`pn-${client.id}`} className="text-sm font-medium">Practitioner Notes</Label>
                           <Textarea
