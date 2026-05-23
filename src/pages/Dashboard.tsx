@@ -10,6 +10,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { X, ArrowLeft } from "lucide-react";
 import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
+
+const DEFAULT_PHASE2_OILS = [
+  "Cold-Pressed Olive Oil",
+  "Cold-Pressed Flaxseed Oil",
+  "Cold-Pressed Coconut Oil",
+  "Avocado Oil",
+];
+
+function categoriesForPhase(raw: unknown, phase: string): FoodCategory[] {
+  const base = resolvePhase2Categories(raw);
+  if (phase === "phase2_extended" && !base.some((c) => /oil/i.test(c.title))) {
+    return [...base, { title: "Oils (Cold-Pressed)", items: DEFAULT_PHASE2_OILS }];
+  }
+  return base;
+}
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PHASE_OPTIONS, type Phase } from "@/lib/phases";
