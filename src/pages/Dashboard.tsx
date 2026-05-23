@@ -290,7 +290,7 @@ export default function Dashboard() {
   const deletePhase2Section = (clientId: string, title: string) => {
     const c = clients.find((cl) => cl.id === clientId);
     if (!c) return;
-    const cats = resolvePhase2Categories(c.phase2_food_list).filter((cat) => cat.title !== title);
+    const cats = categoriesForPhase(c.phase2_food_list, c.phase).filter((cat) => cat.title !== title);
     void savePhase2FoodList(clientId, cats);
     toast.success(`Removed “${title}”`);
   };
@@ -298,7 +298,7 @@ export default function Dashboard() {
   const deletePhase2Item = (clientId: string, title: string, item: string) => {
     const c = clients.find((cl) => cl.id === clientId);
     if (!c) return;
-    const cats = resolvePhase2Categories(c.phase2_food_list).map((cat) =>
+    const cats = categoriesForPhase(c.phase2_food_list, c.phase).map((cat) =>
       cat.title === title ? { ...cat, items: cat.items.filter((i) => i !== item) } : cat,
     );
     void savePhase2FoodList(clientId, cats);
