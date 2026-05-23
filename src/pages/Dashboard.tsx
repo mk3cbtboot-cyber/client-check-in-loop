@@ -504,21 +504,23 @@ export default function Dashboard() {
 
         {clients.length === 0 ? (
           <Card className="p-8 text-center text-muted-foreground">No clients yet. Add your first one.</Card>
+        ) : isDetailView && !clients.some((c) => c.id === routeClientId) ? (
+          <Card className="p-8 text-center text-muted-foreground">Loading client…</Card>
         ) : (
           <div className="space-y-4">
-            {clients.map((client) => {
+            {(isDetailView ? clients.filter((c) => c.id === routeClientId) : clients).map((client) => {
               const list = checkIns[client.id] ?? [];
               const portalLink = `${window.location.origin}/portal/${client.magic_token}`;
               const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at, client.phase2_strict_extra_days ?? 0);
               const phaseLabel = PHASE_OPTIONS.find((p) => p.value === client.phase)?.label ?? client.phase;
               const streak = computeStreak(list);
               const alert = needsAttention(client, list);
-              const isOpen = !!expanded[client.id];
+              const isOpen = isDetailView;
               return (
                 <Card key={client.id} className={`p-4 space-y-3 ${alert ? "border-destructive/60" : ""}`}>
                   <button
                     type="button"
-                    onClick={() => toggleExpanded(client.id)}
+                    onClick={() => { if (!isDetailView) navigate(`/dashboard/clients/${client.id}`); }}
                     className="w-full text-left"
                     aria-expanded={isOpen}
                   >
