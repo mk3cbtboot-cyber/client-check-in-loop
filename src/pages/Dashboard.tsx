@@ -569,7 +569,7 @@ export default function Dashboard() {
                         </div>
                         <span>Water: <span className="font-medium text-foreground">{lastWaterDisplay(list)}</span></span>
                         <span>Streak: <span className="font-medium text-foreground">{streak}d</span></span>
-                        <span className="text-primary ml-auto">{isOpen ? "Hide" : "Details"}</span>
+                        {!isDetailView && <span className="text-primary ml-auto">Details</span>}
                       </div>
                     </div>
                   </button>
