@@ -1039,7 +1039,7 @@ export default function Dashboard() {
                               </div>
                             </div>
                           );
-                        })()}
+                        })() : null}
                       </TabsContent>
                     </Tabs>
                   </div>
