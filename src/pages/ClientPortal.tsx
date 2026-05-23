@@ -439,6 +439,11 @@ export default function ClientPortal() {
               <p className="text-2xl font-semibold">{client.meal_streak}</p>
               <p className="text-xs text-muted-foreground">consecutive meals logged</p>
             </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase text-muted-foreground">Water Streak</p>
+              <p className="text-2xl font-semibold">{client.water_streak ?? 0}</p>
+              <p className="text-xs text-muted-foreground">consecutive days on target</p>
+            </Card>
           </div>
 
 
