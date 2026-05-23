@@ -449,7 +449,7 @@ export default function Dashboard() {
       </header>
 
       <section className="max-w-5xl mx-auto p-4 space-y-6">
-        {(() => {
+        {!isDetailView && (() => {
           const total = clients.length;
           let streaks = 0, waterHit = 0, attention = 0;
           clients.forEach((c) => {
