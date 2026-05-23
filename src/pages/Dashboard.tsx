@@ -114,8 +114,6 @@ export default function Dashboard() {
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn[]>>({});
   const [recipes, setRecipes] = useState<Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]>>({});
   const [weeklyAcks, setWeeklyAcks] = useState<Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]>>({});
-  type TreatMealRow = { id: string; client_id: string; description: string; eaten_on: string; week_start: string };
-  const [treatMealsThisWeek, setTreatMealsThisWeek] = useState<Record<string, TreatMealRow>>({});
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
