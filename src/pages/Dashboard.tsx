@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { X } from "lucide-react";
+import { X, ArrowLeft } from "lucide-react";
 import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
 import { toast } from "sonner";
 import { format } from "date-fns";
