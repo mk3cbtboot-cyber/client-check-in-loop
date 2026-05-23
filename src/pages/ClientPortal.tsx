@@ -80,6 +80,14 @@ export default function ClientPortal() {
   const [submittingCheckin, setSubmittingCheckin] = useState(false);
   const [checkinDone, setCheckinDone] = useState(false);
 
+  // Treat meal state
+  type TreatMeal = { id: string; description: string; eaten_on: string; week_start: string; created_at: string };
+  const [treatMeal, setTreatMeal] = useState<TreatMeal | null>(null);
+  const [treatFormOpen, setTreatFormOpen] = useState(false);
+  const [treatDesc, setTreatDesc] = useState("");
+  const [treatDate, setTreatDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [submittingTreat, setSubmittingTreat] = useState(false);
+
   // Phase 2 Strict daily progress
   const [weightInput, setWeightInput] = useState<string>("");
   const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">("kg");
@@ -120,6 +128,36 @@ export default function ClientPortal() {
   useEffect(() => {
     refresh().finally(() => setLoading(false));
   }, [token]);
+
+  // Load this week's treat meal for Phase 2 Extended / Phase 3 clients
+  useEffect(() => {
+    if (!token || !client) return;
+    if (client.phase !== "phase2_extended" && client.phase !== "phase3") {
+      setTreatMeal(null);
+      return;
+    }
+    (async () => {
+      const { data } = await supabase.functions.invoke("treat-meal", { body: { token, action: "get" } });
+      setTreatMeal(data?.treat_meal ?? null);
+    })();
+  }, [token, client?.phase]);
+
+  const logTreatMeal = async () => {
+    if (!token) return;
+    setSubmittingTreat(true);
+    const { data, error } = await supabase.functions.invoke("treat-meal", {
+      body: { token, action: "log", description: treatDesc, eaten_on: treatDate },
+    });
+    setSubmittingTreat(false);
+    if (error || data?.error) {
+      toast.error(data?.error === "date_outside_week" ? "Pick a date within this week" : "Could not log treat meal");
+      return;
+    }
+    setTreatMeal(data.treat_meal);
+    setTreatFormOpen(false);
+    setTreatDesc("");
+    toast.success("Treat meal logged");
+  };
 
   // Load this week's confirmed meal plan (used to restrict the recipe builder)
   useEffect(() => {
@@ -431,6 +469,61 @@ export default function ClientPortal() {
               <p className="text-xs text-muted-foreground">consecutive meals logged</p>
             </Card>
           </div>
+
+          {(client.phase === "phase2_extended" || client.phase === "phase3") && (
+            <Card className={`p-4 border-primary/40 ${treatMeal ? "opacity-70 bg-muted/30" : "bg-primary/5"}`}>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Treat Meal</p>
+                  <p className="text-lg font-semibold">
+                    {treatMeal
+                      ? "1 / 1 this week — treat meal used"
+                      : "0 / 1 this week"}
+                  </p>
+                  {treatMeal && (
+                    <p className="text-sm text-muted-foreground">
+                      Logged for {new Date(treatMeal.eaten_on + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                      {treatMeal.description ? ` — ${treatMeal.description}` : ""}
+                    </p>
+                  )}
+                </div>
+                {!treatMeal && !treatFormOpen && (
+                  <Button size="sm" onClick={() => setTreatFormOpen(true)}>Log treat meal</Button>
+                )}
+              </div>
+
+              {!treatMeal && treatFormOpen && (
+                <div className="mt-4 space-y-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="treat-desc" className="text-xs">What did you eat?</Label>
+                    <Input
+                      id="treat-desc"
+                      value={treatDesc}
+                      onChange={(e) => setTreatDesc(e.target.value)}
+                      placeholder="e.g. pizza with friends"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="treat-date" className="text-xs">When?</Label>
+                    <Input
+                      id="treat-date"
+                      type="date"
+                      value={treatDate}
+                      onChange={(e) => setTreatDate(e.target.value)}
+                      max={new Date().toISOString().slice(0, 10)}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={logTreatMeal} disabled={submittingTreat}>
+                      {submittingTreat ? "Saving…" : "Submit"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setTreatFormOpen(false)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
+
 
           {client.phase === "phase1" ? (
             <Card className="p-4">

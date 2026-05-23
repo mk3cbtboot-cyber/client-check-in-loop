@@ -300,6 +300,33 @@ export type Database = {
           },
         ]
       }
+      treat_meals: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string
+          eaten_on: string
+          id: string
+          week_start: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string
+          eaten_on: string
+          id?: string
+          week_start: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string
+          eaten_on?: string
+          id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
