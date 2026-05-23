@@ -10,6 +10,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { X, ArrowLeft } from "lucide-react";
 import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
+
+const DEFAULT_PHASE2_OILS = [
+  "Cold-Pressed Olive Oil",
+  "Cold-Pressed Flaxseed Oil",
+  "Cold-Pressed Coconut Oil",
+  "Avocado Oil",
+];
+
+function categoriesForPhase(raw: unknown, phase: string): FoodCategory[] {
+  const base = resolvePhase2Categories(raw);
+  if (phase === "phase2_extended" && !base.some((c) => /oil/i.test(c.title))) {
+    return [...base, { title: "Oils (Cold-Pressed)", items: DEFAULT_PHASE2_OILS }];
+  }
+  return base;
+}
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PHASE_OPTIONS, type Phase } from "@/lib/phases";
@@ -275,7 +290,7 @@ export default function Dashboard() {
   const deletePhase2Section = (clientId: string, title: string) => {
     const c = clients.find((cl) => cl.id === clientId);
     if (!c) return;
-    const cats = resolvePhase2Categories(c.phase2_food_list).filter((cat) => cat.title !== title);
+    const cats = categoriesForPhase(c.phase2_food_list, c.phase).filter((cat) => cat.title !== title);
     void savePhase2FoodList(clientId, cats);
     toast.success(`Removed “${title}”`);
   };
@@ -283,7 +298,7 @@ export default function Dashboard() {
   const deletePhase2Item = (clientId: string, title: string, item: string) => {
     const c = clients.find((cl) => cl.id === clientId);
     if (!c) return;
-    const cats = resolvePhase2Categories(c.phase2_food_list).map((cat) =>
+    const cats = categoriesForPhase(c.phase2_food_list, c.phase).map((cat) =>
       cat.title === title ? { ...cat, items: cat.items.filter((i) => i !== item) } : cat,
     );
     void savePhase2FoodList(clientId, cats);
@@ -885,15 +900,22 @@ export default function Dashboard() {
                       <TabsContent value="mealplan" className="pt-3">
                         {client.system_mode === "own_practice" ? (
                           <p className="text-sm text-muted-foreground">Meal plan tools are MB-specific. Switch this client to MB to manage extended food lists.</p>
-                        ) : client.phase === "phase2_strict" ? (() => {
-                          const cats = resolvePhase2Categories(client.phase2_food_list);
+                        ) : (client.phase === "phase2_strict" || client.phase === "phase2_extended") ? (() => {
+                          const cats = categoriesForPhase(client.phase2_food_list, client.phase);
                           const isCustomised = Array.isArray(client.phase2_food_list);
+                          const isExtended = client.phase === "phase2_extended";
+                          const heading = isExtended
+                            ? "Phase 2 Extended — Personal Food List"
+                            : "Phase 2 Strict — Personal Food List";
+                          const helper = isExtended
+                            ? "Same food list as Phase 2 Strict, plus 3 tablespoons of cold-pressed oil daily. Remove sections or items — changes save instantly."
+                            : "Remove entire sections or individual items. Changes save instantly and appear in the client's My Plan.";
                           return (
                             <div className="space-y-3">
                               <div className="flex items-center justify-between flex-wrap gap-2">
                                 <div>
-                                  <p className="text-sm font-medium">Phase 2 Strict — Personal Food List</p>
-                                  <p className="text-xs text-muted-foreground">Remove entire sections or individual items. Changes save instantly and appear in the client's My Plan.</p>
+                                  <p className="text-sm font-medium">{heading}</p>
+                                  <p className="text-xs text-muted-foreground">{helper}</p>
                                 </div>
                                 {isCustomised && (
                                   <AlertDialog>
@@ -985,9 +1007,7 @@ export default function Dashboard() {
                               </div>
                             </div>
                           );
-                        })() : client.phase !== "phase3" ? (
-                          <p className="text-sm text-muted-foreground">Extended food lists are available once the client reaches Phase 3.</p>
-                        ) : (() => {
+                        })() : client.phase === "phase3" ? (() => {
                           const mode = client.phase3_mode === "mb_standard" ? "mb_standard" : "practitioner_custom";
                           const fields = mode === "mb_standard" ? PHASE3_MB_FIELDS : PHASE3_FIELDS;
                           const heading = mode === "mb_standard"
@@ -1019,7 +1039,7 @@ export default function Dashboard() {
                               </div>
                             </div>
                           );
-                        })()}
+                        })() : null}
                       </TabsContent>
                     </Tabs>
                   </div>
