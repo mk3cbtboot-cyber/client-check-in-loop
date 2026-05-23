@@ -129,6 +129,36 @@ export default function ClientPortal() {
     refresh().finally(() => setLoading(false));
   }, [token]);
 
+  // Load this week's treat meal for Phase 2 Extended / Phase 3 clients
+  useEffect(() => {
+    if (!token || !client) return;
+    if (client.phase !== "phase2_extended" && client.phase !== "phase3") {
+      setTreatMeal(null);
+      return;
+    }
+    (async () => {
+      const { data } = await supabase.functions.invoke("treat-meal", { body: { token, action: "get" } });
+      setTreatMeal(data?.treat_meal ?? null);
+    })();
+  }, [token, client?.phase]);
+
+  const logTreatMeal = async () => {
+    if (!token) return;
+    setSubmittingTreat(true);
+    const { data, error } = await supabase.functions.invoke("treat-meal", {
+      body: { token, action: "log", description: treatDesc, eaten_on: treatDate },
+    });
+    setSubmittingTreat(false);
+    if (error || data?.error) {
+      toast.error(data?.error === "date_outside_week" ? "Pick a date within this week" : "Could not log treat meal");
+      return;
+    }
+    setTreatMeal(data.treat_meal);
+    setTreatFormOpen(false);
+    setTreatDesc("");
+    toast.success("Treat meal logged");
+  };
+
   // Load this week's confirmed meal plan (used to restrict the recipe builder)
   useEffect(() => {
     if (!token) return;
