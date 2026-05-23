@@ -790,6 +790,24 @@ export default function Dashboard() {
                           );
                         })()}
 
+                        {(client.phase === "phase2_extended" || client.phase === "phase3") && (() => {
+                          const tm = treatMealsThisWeek[client.id];
+                          return (
+                            <details className="rounded-md border bg-card p-3 text-sm" open={false}>
+                              <summary className="cursor-pointer select-none font-medium">
+                                {tm
+                                  ? `Treat meal logged — ${format(new Date(tm.eaten_on + "T00:00:00"), "MMM d, yyyy")}`
+                                  : "No treat meal logged this week"}
+                              </summary>
+                              {tm && (
+                                <p className="mt-2 text-muted-foreground">
+                                  {tm.description?.trim() ? tm.description : "(no description provided)"}
+                                </p>
+                              )}
+                            </details>
+                          );
+                        })()}
+
                         <div className="space-y-2">
                           <Label htmlFor={`pn-${client.id}`} className="text-sm font-medium">Practitioner Notes</Label>
                           <Textarea
