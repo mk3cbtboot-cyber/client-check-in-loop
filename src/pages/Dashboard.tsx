@@ -34,7 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
 import { formatDistanceToNow } from "date-fns";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import ClientTrendGraphs from "@/components/ClientTrendGraphs";
 import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
 
@@ -783,6 +783,87 @@ export default function Dashboard() {
                             </div>
                           );
                         })()}
+
+                        {(() => {
+                          const WATER_TARGET = 2.5;
+                          const MEAL_TARGET = 3;
+                          const waterByDay = new Map<string, number>();
+                          for (const ci of list) {
+                            if (ci.water_litres == null) continue;
+                            const k = new Date(ci.created_at).toISOString().slice(0, 10);
+                            const v = Number(ci.water_litres);
+                            waterByDay.set(k, Math.max(waterByDay.get(k) ?? 0, v));
+                          }
+                          const recipesList = recipes[client.id] ?? [];
+                          const mealsByDay = new Map<string, number>();
+                          for (const r of recipesList) {
+                            const k = new Date(r.created_at).toISOString().slice(0, 10);
+                            mealsByDay.set(k, (mealsByDay.get(k) ?? 0) + 1);
+                          }
+                          const waterData = [...waterByDay.entries()]
+                            .sort(([a], [b]) => a.localeCompare(b))
+                            .map(([k, v]) => ({ label: format(new Date(k), "MMM d"), litres: Number(v.toFixed(2)) }));
+                          const mealsData = [...mealsByDay.entries()]
+                            .sort(([a], [b]) => a.localeCompare(b))
+                            .map(([k, v]) => ({ label: format(new Date(k), "MMM d"), meals: Math.min(v, MEAL_TARGET) }));
+                          const renderGraph = (
+                            title: string,
+                            data: any[],
+                            dataKey: string,
+                            yLabel: string,
+                            target: number,
+                            yMax?: number,
+                          ) => (
+                            <div className="space-y-1">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{title}</p>
+                              {data.length === 0 ? (
+                                <p className="text-xs text-muted-foreground">No data yet</p>
+                              ) : (
+                                <div className="h-36 w-full">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={data} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
+                                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                                      <YAxis
+                                        domain={[0, yMax ?? "auto"]}
+                                        tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        width={40}
+                                      />
+                                      <Tooltip
+                                        contentStyle={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", fontSize: 12 }}
+                                        formatter={(value: number) => [`${value} ${yLabel}`, title]}
+                                      />
+                                      <ReferenceLine
+                                        y={target}
+                                        stroke="hsl(var(--muted-foreground))"
+                                        strokeDasharray="4 4"
+                                        label={{ value: `Target ${target}`, fontSize: 10, fill: "hsl(var(--muted-foreground))", position: "insideTopRight" }}
+                                      />
+                                      <Line
+                                        type="monotone"
+                                        dataKey={dataKey}
+                                        stroke="hsl(var(--primary))"
+                                        strokeWidth={2}
+                                        dot={{ r: 3, fill: "hsl(var(--primary))" }}
+                                        activeDot={{ r: 5 }}
+                                        connectNulls
+                                      />
+                                    </LineChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              )}
+                            </div>
+                          );
+                          return (
+                            <>
+                              {renderGraph("Water Intake (L)", waterData, "litres", "L", WATER_TARGET)}
+                              {renderGraph("Meals Logged", mealsData, "meals", "meals", MEAL_TARGET, MEAL_TARGET)}
+                            </>
+                          );
+                        })()}
+
+
 
 
                         <div className="space-y-2">
