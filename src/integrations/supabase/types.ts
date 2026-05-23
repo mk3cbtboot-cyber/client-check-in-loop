@@ -238,6 +238,41 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_water_logs: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          litres: number
+          log_date: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          litres?: number
+          log_date: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          litres?: number
+          log_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_water_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
