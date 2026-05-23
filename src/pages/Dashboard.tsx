@@ -477,28 +477,30 @@ export default function Dashboard() {
           );
         })()}
 
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium">Clients</h2>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button>Add client</Button></DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Add a new client</DialogTitle></DialogHeader>
-              <form onSubmit={addClient} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cname">Name</Label>
-                  <Input id="cname" required value={name} onChange={(e) => setName(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cemail">Email</Label>
-                  <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full" disabled={submitting}>
-                  {submitting ? "Sending invite…" : "Add & send invite"}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+        {!isDetailView && (
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium">Clients</h2>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild><Button>Add client</Button></DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Add a new client</DialogTitle></DialogHeader>
+                <form onSubmit={addClient} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cname">Name</Label>
+                    <Input id="cname" required value={name} onChange={(e) => setName(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cemail">Email</Label>
+                    <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? "Sending invite…" : "Add & send invite"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
 
         {clients.length === 0 ? (
           <Card className="p-8 text-center text-muted-foreground">No clients yet. Add your first one.</Card>
