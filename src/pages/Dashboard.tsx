@@ -199,10 +199,11 @@ export default function Dashboard() {
         dt.setUTCDate(dt.getUTCDate() - day);
         return dt.toISOString().slice(0, 10);
       })();
-      const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }] = await Promise.all([
+      const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }, { data: treatRows }] = await Promise.all([
         supabase.from("check_ins").select("*").in("client_id", ids).order("created_at", { ascending: false }),
         supabase.from("recipes").select("id, client_id, name, meal_type, created_at").in("client_id", ids).order("created_at", { ascending: false }),
         supabase.from("weekly_limit_acknowledgements").select("client_id, food_name, limit_value, acknowledged_at").in("client_id", ids).eq("week_start_date", monday),
+        supabase.from("treat_meals").select("id, client_id, description, eaten_on, week_start").in("client_id", ids).eq("week_start", monday),
       ]);
       const grouped: Record<string, CheckIn[]> = {};
       (checkRows ?? []).forEach((ci) => { (grouped[ci.client_id] ||= []).push(ci); });
@@ -213,6 +214,9 @@ export default function Dashboard() {
       const ag: Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]> = {};
       (ackRows ?? []).forEach((a: any) => { (ag[a.client_id] ||= []).push(a); });
       setWeeklyAcks(ag);
+      const tg: Record<string, TreatMealRow> = {};
+      (treatRows ?? []).forEach((t: any) => { tg[t.client_id] = t; });
+      setTreatMealsThisWeek(tg);
     }
   };
 
