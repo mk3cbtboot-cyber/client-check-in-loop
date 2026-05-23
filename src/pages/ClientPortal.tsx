@@ -80,13 +80,6 @@ export default function ClientPortal() {
   const [submittingCheckin, setSubmittingCheckin] = useState(false);
   const [checkinDone, setCheckinDone] = useState(false);
 
-  // Treat meal state
-  type TreatMeal = { id: string; description: string; eaten_on: string; week_start: string; created_at: string };
-  const [treatMeal, setTreatMeal] = useState<TreatMeal | null>(null);
-  const [treatFormOpen, setTreatFormOpen] = useState(false);
-  const [treatDesc, setTreatDesc] = useState("");
-  const [treatDate, setTreatDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
-  const [submittingTreat, setSubmittingTreat] = useState(false);
 
   // Phase 2 Strict daily progress
   const [weightInput, setWeightInput] = useState<string>("");
