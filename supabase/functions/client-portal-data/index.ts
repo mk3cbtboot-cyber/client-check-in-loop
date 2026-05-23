@@ -51,12 +51,38 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
+    // Sync today's water into daily_water_logs and compute streak
+    const WATER_TARGET = 2.5;
+    const todayLitres = c.water_date === td ? Number(c.water_today_litres) : 0;
+    if (c.water_date === td) {
+      await admin.from("daily_water_logs").upsert({
+        client_id: c.id, log_date: td, litres: todayLitres, updated_at: new Date().toISOString(),
+      }, { onConflict: "client_id,log_date" });
+    }
+    const { data: waterRows } = await admin
+      .from("daily_water_logs")
+      .select("log_date, litres")
+      .eq("client_id", c.id)
+      .order("log_date", { ascending: false })
+      .limit(400);
+    const wmap = new Map((waterRows ?? []).map((r: { log_date: string; litres: number }) => [r.log_date, Number(r.litres)]));
+    let waterStreak = 0;
+    const d = new Date(td + "T00:00:00Z");
+    if ((wmap.get(td) ?? 0) >= WATER_TARGET) waterStreak += 1;
+    d.setUTCDate(d.getUTCDate() - 1);
+    while (true) {
+      const k = d.toISOString().slice(0, 10);
+      if ((wmap.get(k) ?? 0) >= WATER_TARGET) { waterStreak += 1; d.setUTCDate(d.getUTCDate() - 1); }
+      else break;
+    }
+
     return new Response(JSON.stringify({
       valid: true,
       client: {
         id: c.id, name: c.name, phase: c.phase,
         avocado_count_week: c.avocado_count_week, egg_count_week: c.egg_count_week,
         water_today_litres: Number(c.water_today_litres), meal_streak: c.meal_streak,
+        water_streak: waterStreak,
         phase3_additional_foods: c.phase3_additional_foods ?? "",
         phase3_meat: c.phase3_meat ?? "",
         phase3_fish: c.phase3_fish ?? "",
