@@ -94,6 +94,7 @@ interface CheckIn {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { clientId: routeClientId } = useParams<{ clientId: string }>();
   const [clients, setClients] = useState<Client[]>([]);
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn[]>>({});
   const [recipes, setRecipes] = useState<Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]>>({});
@@ -103,11 +104,9 @@ export default function Dashboard() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [rawOpen, setRawOpen] = useState<Record<string, boolean>>({});
 
-  const toggleExpanded = (id: string) =>
-    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  const isDetailView = !!routeClientId;
 
   // Streak: count of trailing consecutive days (ending today or yesterday) with a check-in
   const computeStreak = (list: CheckIn[]): number => {
