@@ -1007,9 +1007,7 @@ export default function Dashboard() {
                               </div>
                             </div>
                           );
-                        })() : client.phase !== "phase3" ? (
-                          <p className="text-sm text-muted-foreground">Extended food lists are available once the client reaches Phase 3.</p>
-                        ) : (() => {
+                        })() : client.phase === "phase3" ? (() => {
                           const mode = client.phase3_mode === "mb_standard" ? "mb_standard" : "practitioner_custom";
                           const fields = mode === "mb_standard" ? PHASE3_MB_FIELDS : PHASE3_FIELDS;
                           const heading = mode === "mb_standard"
