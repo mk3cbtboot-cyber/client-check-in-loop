@@ -431,9 +431,18 @@ export default function Dashboard() {
     <main className="min-h-screen bg-background">
       <header className="border-b">
         <div className="max-w-5xl mx-auto p-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold">Tenacia</h1>
-            <p className="text-xs text-muted-foreground">{userEmail}</p>
+          <div className="min-w-0">
+            {isDetailView ? (
+              <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="h-4 w-4" />
+                Clients
+              </Link>
+            ) : (
+              <>
+                <h1 className="text-xl font-semibold">Tenacia</h1>
+                <p className="text-xs text-muted-foreground">{userEmail}</p>
+              </>
+            )}
           </div>
           <Button variant="outline" size="sm" onClick={logout}>Log out</Button>
         </div>
