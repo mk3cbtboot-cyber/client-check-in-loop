@@ -146,8 +146,11 @@ export default function ClientPortal() {
   const addWater = async () => {
     const { data, error } = await supabase.functions.invoke("client-portal-water", { body: { token } });
     if (error || data?.error) return toast.error("Could not log water");
-    setClient((c) => (c ? { ...c, water_today_litres: data.water_today_litres } : c));
+    setClient((c) => (c ? { ...c, water_today_litres: data.water_today_litres, water_streak: data.water_streak ?? c.water_streak } : c));
     setWaterLitres(Number(data.water_today_litres) || 0);
+    if (data?.just_hit_target) {
+      toast.success("You hit your water target today! 💧 Keep the streak going.");
+    }
   };
 
   const setWaterAmount = async (litres: number) => {
@@ -155,7 +158,10 @@ export default function ClientPortal() {
     setWaterLitres(safe);
     const { data } = await supabase.functions.invoke("client-portal-water", { body: { token, set_litres: safe } });
     if (data?.water_today_litres !== undefined) {
-      setClient((c) => (c ? { ...c, water_today_litres: data.water_today_litres } : c));
+      setClient((c) => (c ? { ...c, water_today_litres: data.water_today_litres, water_streak: data.water_streak ?? c.water_streak } : c));
+      if (data?.just_hit_target) {
+        toast.success("You hit your water target today! 💧 Keep the streak going.");
+      }
     }
   };
 
