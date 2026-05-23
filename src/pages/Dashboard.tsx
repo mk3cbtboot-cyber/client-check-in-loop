@@ -114,8 +114,6 @@ export default function Dashboard() {
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn[]>>({});
   const [recipes, setRecipes] = useState<Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]>>({});
   const [weeklyAcks, setWeeklyAcks] = useState<Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]>>({});
-  type TreatMealRow = { id: string; client_id: string; description: string; eaten_on: string; week_start: string };
-  const [treatMealsThisWeek, setTreatMealsThisWeek] = useState<Record<string, TreatMealRow>>({});
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -199,11 +197,10 @@ export default function Dashboard() {
         dt.setUTCDate(dt.getUTCDate() - day);
         return dt.toISOString().slice(0, 10);
       })();
-      const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }, { data: treatRows }] = await Promise.all([
+      const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }] = await Promise.all([
         supabase.from("check_ins").select("*").in("client_id", ids).order("created_at", { ascending: false }),
         supabase.from("recipes").select("id, client_id, name, meal_type, created_at").in("client_id", ids).order("created_at", { ascending: false }),
         supabase.from("weekly_limit_acknowledgements").select("client_id, food_name, limit_value, acknowledged_at").in("client_id", ids).eq("week_start_date", monday),
-        supabase.from("treat_meals").select("id, client_id, description, eaten_on, week_start").in("client_id", ids).eq("week_start", monday),
       ]);
       const grouped: Record<string, CheckIn[]> = {};
       (checkRows ?? []).forEach((ci) => { (grouped[ci.client_id] ||= []).push(ci); });
@@ -214,9 +211,6 @@ export default function Dashboard() {
       const ag: Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]> = {};
       (ackRows ?? []).forEach((a: any) => { (ag[a.client_id] ||= []).push(a); });
       setWeeklyAcks(ag);
-      const tg: Record<string, TreatMealRow> = {};
-      (treatRows ?? []).forEach((t: any) => { tg[t.client_id] = t; });
-      setTreatMealsThisWeek(tg);
     }
   };
 
@@ -790,23 +784,6 @@ export default function Dashboard() {
                           );
                         })()}
 
-                        {(client.phase === "phase2_extended" || client.phase === "phase3") && (() => {
-                          const tm = treatMealsThisWeek[client.id];
-                          return (
-                            <details className="rounded-md border bg-card p-3 text-sm" open={false}>
-                              <summary className="cursor-pointer select-none font-medium">
-                                {tm
-                                  ? `Treat meal logged — ${format(new Date(tm.eaten_on + "T00:00:00"), "MMM d, yyyy")}`
-                                  : "No treat meal logged this week"}
-                              </summary>
-                              {tm && (
-                                <p className="mt-2 text-muted-foreground">
-                                  {tm.description?.trim() ? tm.description : "(no description provided)"}
-                                </p>
-                              )}
-                            </details>
-                          );
-                        })()}
 
                         <div className="space-y-2">
                           <Label htmlFor={`pn-${client.id}`} className="text-sm font-medium">Practitioner Notes</Label>
