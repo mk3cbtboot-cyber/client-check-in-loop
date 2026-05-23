@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { X } from "lucide-react";
+import { X, ArrowLeft } from "lucide-react";
 import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -94,6 +94,7 @@ interface CheckIn {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { clientId: routeClientId } = useParams<{ clientId: string }>();
   const [clients, setClients] = useState<Client[]>([]);
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn[]>>({});
   const [recipes, setRecipes] = useState<Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]>>({});
@@ -103,11 +104,9 @@ export default function Dashboard() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [rawOpen, setRawOpen] = useState<Record<string, boolean>>({});
 
-  const toggleExpanded = (id: string) =>
-    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  const isDetailView = !!routeClientId;
 
   // Streak: count of trailing consecutive days (ending today or yesterday) with a check-in
   const computeStreak = (list: CheckIn[]): number => {
@@ -432,16 +431,25 @@ export default function Dashboard() {
     <main className="min-h-screen bg-background">
       <header className="border-b">
         <div className="max-w-5xl mx-auto p-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold">Tenacia</h1>
-            <p className="text-xs text-muted-foreground">{userEmail}</p>
+          <div className="min-w-0">
+            {isDetailView ? (
+              <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="h-4 w-4" />
+                Clients
+              </Link>
+            ) : (
+              <>
+                <h1 className="text-xl font-semibold">Tenacia</h1>
+                <p className="text-xs text-muted-foreground">{userEmail}</p>
+              </>
+            )}
           </div>
           <Button variant="outline" size="sm" onClick={logout}>Log out</Button>
         </div>
       </header>
 
       <section className="max-w-5xl mx-auto p-4 space-y-6">
-        {(() => {
+        {!isDetailView && (() => {
           const total = clients.length;
           let streaks = 0, waterHit = 0, attention = 0;
           clients.forEach((c) => {
@@ -469,46 +477,50 @@ export default function Dashboard() {
           );
         })()}
 
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium">Clients</h2>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button>Add client</Button></DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Add a new client</DialogTitle></DialogHeader>
-              <form onSubmit={addClient} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cname">Name</Label>
-                  <Input id="cname" required value={name} onChange={(e) => setName(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cemail">Email</Label>
-                  <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full" disabled={submitting}>
-                  {submitting ? "Sending invite…" : "Add & send invite"}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+        {!isDetailView && (
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium">Clients</h2>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild><Button>Add client</Button></DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Add a new client</DialogTitle></DialogHeader>
+                <form onSubmit={addClient} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cname">Name</Label>
+                    <Input id="cname" required value={name} onChange={(e) => setName(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cemail">Email</Label>
+                    <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {submitting ? "Sending invite…" : "Add & send invite"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
 
         {clients.length === 0 ? (
           <Card className="p-8 text-center text-muted-foreground">No clients yet. Add your first one.</Card>
+        ) : isDetailView && !clients.some((c) => c.id === routeClientId) ? (
+          <Card className="p-8 text-center text-muted-foreground">Loading client…</Card>
         ) : (
           <div className="space-y-4">
-            {clients.map((client) => {
+            {(isDetailView ? clients.filter((c) => c.id === routeClientId) : clients).map((client) => {
               const list = checkIns[client.id] ?? [];
               const portalLink = `${window.location.origin}/portal/${client.magic_token}`;
               const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at, client.phase2_strict_extra_days ?? 0);
               const phaseLabel = PHASE_OPTIONS.find((p) => p.value === client.phase)?.label ?? client.phase;
               const streak = computeStreak(list);
               const alert = needsAttention(client, list);
-              const isOpen = !!expanded[client.id];
+              const isOpen = isDetailView;
               return (
                 <Card key={client.id} className={`p-4 space-y-3 ${alert ? "border-destructive/60" : ""}`}>
                   <button
                     type="button"
-                    onClick={() => toggleExpanded(client.id)}
+                    onClick={() => { if (!isDetailView) navigate(`/dashboard/clients/${client.id}`); }}
                     className="w-full text-left"
                     aria-expanded={isOpen}
                   >
@@ -557,7 +569,7 @@ export default function Dashboard() {
                         </div>
                         <span>Water: <span className="font-medium text-foreground">{lastWaterDisplay(list)}</span></span>
                         <span>Streak: <span className="font-medium text-foreground">{streak}d</span></span>
-                        <span className="text-primary ml-auto">{isOpen ? "Hide" : "Details"}</span>
+                        {!isDetailView && <span className="text-primary ml-auto">Details</span>}
                       </div>
                     </div>
                   </button>

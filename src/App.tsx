@@ -21,6 +21,7 @@ const App = () => (
           <Route path="/" element={<Navigate to="/auth" replace />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard/clients/:clientId" element={<Dashboard />} />
           <Route path="/checkin/:token" element={<CheckIn />} />
           <Route path="/portal/:token" element={<ClientPortal />} />
           <Route path="*" element={<NotFound />} />
