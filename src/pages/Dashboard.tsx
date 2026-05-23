@@ -900,15 +900,22 @@ export default function Dashboard() {
                       <TabsContent value="mealplan" className="pt-3">
                         {client.system_mode === "own_practice" ? (
                           <p className="text-sm text-muted-foreground">Meal plan tools are MB-specific. Switch this client to MB to manage extended food lists.</p>
-                        ) : client.phase === "phase2_strict" ? (() => {
-                          const cats = resolvePhase2Categories(client.phase2_food_list);
+                        ) : (client.phase === "phase2_strict" || client.phase === "phase2_extended") ? (() => {
+                          const cats = categoriesForPhase(client.phase2_food_list, client.phase);
                           const isCustomised = Array.isArray(client.phase2_food_list);
+                          const isExtended = client.phase === "phase2_extended";
+                          const heading = isExtended
+                            ? "Phase 2 Extended — Personal Food List"
+                            : "Phase 2 Strict — Personal Food List";
+                          const helper = isExtended
+                            ? "Same food list as Phase 2 Strict, plus 3 tablespoons of cold-pressed oil daily. Remove sections or items — changes save instantly."
+                            : "Remove entire sections or individual items. Changes save instantly and appear in the client's My Plan.";
                           return (
                             <div className="space-y-3">
                               <div className="flex items-center justify-between flex-wrap gap-2">
                                 <div>
-                                  <p className="text-sm font-medium">Phase 2 Strict — Personal Food List</p>
-                                  <p className="text-xs text-muted-foreground">Remove entire sections or individual items. Changes save instantly and appear in the client's My Plan.</p>
+                                  <p className="text-sm font-medium">{heading}</p>
+                                  <p className="text-xs text-muted-foreground">{helper}</p>
                                 </div>
                                 {isCustomised && (
                                   <AlertDialog>
