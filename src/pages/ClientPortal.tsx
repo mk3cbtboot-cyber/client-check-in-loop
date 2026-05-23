@@ -470,6 +470,61 @@ export default function ClientPortal() {
             </Card>
           </div>
 
+          {(client.phase === "phase2_extended" || client.phase === "phase3") && (
+            <Card className={`p-4 border-primary/40 ${treatMeal ? "opacity-70 bg-muted/30" : "bg-primary/5"}`}>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Treat Meal</p>
+                  <p className="text-lg font-semibold">
+                    {treatMeal
+                      ? "1 / 1 this week — treat meal used"
+                      : "0 / 1 this week"}
+                  </p>
+                  {treatMeal && (
+                    <p className="text-sm text-muted-foreground">
+                      Logged for {new Date(treatMeal.eaten_on + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                      {treatMeal.description ? ` — ${treatMeal.description}` : ""}
+                    </p>
+                  )}
+                </div>
+                {!treatMeal && !treatFormOpen && (
+                  <Button size="sm" onClick={() => setTreatFormOpen(true)}>Log treat meal</Button>
+                )}
+              </div>
+
+              {!treatMeal && treatFormOpen && (
+                <div className="mt-4 space-y-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="treat-desc" className="text-xs">What did you eat?</Label>
+                    <Input
+                      id="treat-desc"
+                      value={treatDesc}
+                      onChange={(e) => setTreatDesc(e.target.value)}
+                      placeholder="e.g. pizza with friends"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="treat-date" className="text-xs">When?</Label>
+                    <Input
+                      id="treat-date"
+                      type="date"
+                      value={treatDate}
+                      onChange={(e) => setTreatDate(e.target.value)}
+                      max={new Date().toISOString().slice(0, 10)}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={logTreatMeal} disabled={submittingTreat}>
+                      {submittingTreat ? "Saving…" : "Submit"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setTreatFormOpen(false)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
+
+
           {client.phase === "phase1" ? (
             <Card className="p-4">
               <p className="text-sm text-muted-foreground">Tap 'My Plan' to view your Phase 1 instructions.</p>
