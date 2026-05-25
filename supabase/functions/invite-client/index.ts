@@ -5,6 +5,7 @@ import { z } from "https://esm.sh/zod@3.23.8";
 const BodySchema = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().email().max(255),
+  system_mode: z.enum(["mb", "own_practice"]).optional(),
 });
 
 Deno.serve(async (req) => {
@@ -43,13 +44,15 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { name, email } = parsed.data;
+    const { name, email, system_mode } = parsed.data;
 
     const admin = createClient(supabaseUrl, serviceKey);
 
+    const insertRow: Record<string, unknown> = { practitioner_id: practitionerId, name, email };
+    if (system_mode) insertRow.system_mode = system_mode;
     const { data: client, error: insertErr } = await admin
       .from("clients")
-      .insert({ practitioner_id: practitionerId, name, email })
+      .insert(insertRow)
       .select()
       .single();
     if (insertErr) throw insertErr;
