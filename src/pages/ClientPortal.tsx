@@ -50,6 +50,7 @@ interface ClientState {
   phase2_strict_extra_days: number;
   phase2_food_list: unknown;
   weekly_food_limits: Record<string, number>;
+  system_mode: "mb" | "own_practice";
 }
 
 type TabKey = "home" | "checkin" | "plan" | "planner";
@@ -451,6 +452,13 @@ export default function ClientPortal() {
           {client.phase === "phase1" ? (
             <Card className="p-4">
               <p className="text-sm text-muted-foreground">Tap 'My Plan' to view your Phase 1 instructions.</p>
+            </Card>
+          ) : client.system_mode === "mb" ? (
+            <Card className="p-4 space-y-3">
+              <p className="font-medium">The 8 Metabolic Balance Rules</p>
+              <ol className="list-decimal list-inside space-y-1 text-sm">
+                {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
+              </ol>
             </Card>
           ) : client.show_rules ? (
             <Collapsible open={rulesOpen} onOpenChange={setRulesOpen}>
