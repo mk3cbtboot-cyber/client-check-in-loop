@@ -484,12 +484,51 @@ export default function Dashboard() {
               </Link>
             ) : (
               <>
-                <h1 className="text-xl font-semibold">Tenacia</h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xl font-semibold">Tenacia</h1>
+                  {tier && (
+                    <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-medium">
+                      {tierLabel(tier)}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">{userEmail}</p>
               </>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={logout}>Log out</Button>
+          <div className="flex items-center gap-2">
+            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" aria-label="Settings">
+                  <SettingsIcon className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Practice type</DialogTitle></DialogHeader>
+                <div className="space-y-2">
+                  {TIERS.map((t) => {
+                    const active = tier === t.value;
+                    return (
+                      <button
+                        key={t.value}
+                        type="button"
+                        disabled={savingTier}
+                        onClick={() => saveTier(t.value)}
+                        className={`w-full text-left rounded-md border p-3 transition ${active ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/40"}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium">{t.label}</p>
+                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{t.short}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{t.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" size="sm" onClick={logout}>Log out</Button>
+          </div>
         </div>
       </header>
 
