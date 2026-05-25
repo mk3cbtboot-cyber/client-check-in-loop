@@ -8,8 +8,9 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { X, ArrowLeft } from "lucide-react";
+import { X, ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
+import { TIERS, tierLabel, tierShowsToggle, defaultSystemMode, type PractitionerTier } from "@/lib/tiers";
 
 const DEFAULT_PHASE2_OILS = [
   "Cold-Pressed Olive Oil",
@@ -119,6 +120,9 @@ export default function Dashboard() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [tier, setTier] = useState<PractitionerTier | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [savingTier, setSavingTier] = useState(false);
   const [rawOpen, setRawOpen] = useState<Record<string, boolean>>({});
 
   const isDetailView = !!routeClientId;
@@ -174,9 +178,35 @@ export default function Dashboard() {
         return;
       }
       setUserEmail(data.session.user.email ?? "");
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("practitioner_tier")
+        .eq("id", userId)
+        .maybeSingle();
+      const t = (profile?.practitioner_tier ?? null) as PractitionerTier | null;
+      if (!t) {
+        navigate("/onboarding/tier", { replace: true });
+        return;
+      }
+      setTier(t);
       load();
     })();
   }, [navigate]);
+
+  const saveTier = async (next: PractitionerTier) => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) return;
+    setSavingTier(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ practitioner_tier: next } as never)
+      .eq("id", data.session.user.id);
+    setSavingTier(false);
+    if (error) return toast.error("Could not update practice type");
+    setTier(next);
+    setSettingsOpen(false);
+    toast.success("Practice type updated");
+  };
 
   const load = async () => {
     const { data: sessionData } = await supabase.auth.getSession();
