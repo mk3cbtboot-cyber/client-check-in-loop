@@ -251,7 +251,7 @@ export default function Dashboard() {
       if (email.trim().toLowerCase() === userEmail.toLowerCase()) {
         throw new Error("You cannot invite yourself as a client");
       }
-      const { data, error } = await supabase.functions.invoke("invite-client", { body: { name, email } });
+      const { data, error } = await supabase.functions.invoke("invite-client", { body: { name, email, system_mode: defaultSystemMode(tier) } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Client invited — magic link emailed");
