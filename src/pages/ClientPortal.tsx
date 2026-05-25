@@ -50,6 +50,7 @@ interface ClientState {
   phase2_strict_extra_days: number;
   phase2_food_list: unknown;
   weekly_food_limits: Record<string, number>;
+  system_mode: "mb" | "own_practice";
 }
 
 type TabKey = "home" | "checkin" | "plan" | "planner";
