@@ -105,6 +105,7 @@ Deno.serve(async (req) => {
         height_cm: c.height_cm != null ? Number(c.height_cm) : null,
         phase2_strict_started_at: c.phase2_strict_started_at ?? null,
         phase2_strict_extra_days: c.phase2_strict_extra_days ?? 0,
+        phase2_strict_mode: c.phase2_strict_mode === "practitioner_custom" ? "practitioner_custom" : "mb_standard",
         phase2_food_list: c.phase2_food_list ?? null,
         weekly_food_limits: c.weekly_food_limits ?? {},
         latest_weight_kg: latestCheckIn?.weight_kg != null ? Number(latestCheckIn.weight_kg) : null,
