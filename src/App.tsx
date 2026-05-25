@@ -7,6 +7,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import CheckIn from "./pages/CheckIn";
 import ClientPortal from "./pages/ClientPortal";
+import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/auth" replace />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/onboarding/tier" element={<Onboarding />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/clients/:clientId" element={<Dashboard />} />
           <Route path="/checkin/:token" element={<CheckIn />} />
