@@ -430,7 +430,7 @@ export default function Dashboard() {
       setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: prev } : c)));
       return toast.error("Could not update system");
     }
-    toast.success(mode === "mb" ? "Switched to Metabolic Balance" : "Switched to Own Practice");
+    toast.success(mode === "mb" ? "Switched to Metabolic Balance" : "Switched to Custom");
   };
 
   const setShowRules = async (clientId: string, value: boolean) => {
@@ -628,29 +628,31 @@ export default function Dashboard() {
                       </div>
                       {/* Row 2: toggles | water | streak | details */}
                       <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-                        <div
-                          role="group"
-                          aria-label="System mode"
-                          className="inline-flex rounded-md border overflow-hidden"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setSystemMode(client.id, "mb"); }}
-                            className={`px-2 py-1 text-xs ${client.system_mode !== "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
-                            aria-pressed={client.system_mode !== "own_practice"}
+                        {tierShowsToggle(tier) && (
+                          <div
+                            role="group"
+                            aria-label="System mode"
+                            className="inline-flex rounded-md border overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            MB
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setSystemMode(client.id, "own_practice"); }}
-                            className={`px-2 py-1 text-xs border-l ${client.system_mode === "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
-                            aria-pressed={client.system_mode === "own_practice"}
-                          >
-                            Own Practice
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setSystemMode(client.id, "mb"); }}
+                              className={`px-2 py-1 text-xs ${client.system_mode !== "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                              aria-pressed={client.system_mode !== "own_practice"}
+                            >
+                              MB
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setSystemMode(client.id, "own_practice"); }}
+                              className={`px-2 py-1 text-xs border-l ${client.system_mode === "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                              aria-pressed={client.system_mode === "own_practice"}
+                            >
+                              Custom
+                            </button>
+                          </div>
+                        )}
                         <span>Water: <span className="font-medium text-foreground">{lastWaterDisplay(list)}</span></span>
                         <span>Streak: <span className="font-medium text-foreground">{streak}d</span></span>
                         {!isDetailView && <span className="text-primary ml-auto">Details</span>}
