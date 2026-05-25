@@ -418,7 +418,7 @@ export default function Dashboard() {
       setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_mode: prev } : c)));
       return toast.error("Could not update Phase 2 mode");
     }
-    toast.success(mode === "mb_standard" ? "Phase 2: MB Standard" : "Phase 2: Practitioner Custom");
+    toast.success(mode === "mb_standard" ? "Phase 2: MB Standard" : "Phase 2: Practitioner Own Practice");
   };
 
   const setSystemMode = async (clientId: string, mode: "mb" | "own_practice") => {
@@ -430,7 +430,7 @@ export default function Dashboard() {
       setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: prev } : c)));
       return toast.error("Could not update system");
     }
-    toast.success(mode === "mb" ? "Switched to Metabolic Balance" : "Switched to Custom");
+    toast.success(mode === "mb" ? "Switched to Metabolic Balance" : "Switched to Own Practice");
   };
 
   const setShowRules = async (clientId: string, value: boolean) => {
@@ -649,7 +649,7 @@ export default function Dashboard() {
                               className={`px-2 py-1 text-xs border-l ${client.system_mode === "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                               aria-pressed={client.system_mode === "own_practice"}
                             >
-                              Custom
+                              Own Practice
                             </button>
                           </div>
                         )}
@@ -773,7 +773,7 @@ export default function Dashboard() {
                                 
                                 <div className="flex gap-1">
                                   <Button type="button" size="sm" variant={p2Mode === "mb_standard" ? "default" : "outline"} onClick={() => setPhase2StrictMode(client.id, "mb_standard")}>MB Standard</Button>
-                                  <Button type="button" size="sm" variant={p2Mode === "practitioner_custom" ? "default" : "outline"} onClick={() => setPhase2StrictMode(client.id, "practitioner_custom")}>Practitioner Custom</Button>
+                                  <Button type="button" size="sm" variant={p2Mode === "practitioner_custom" ? "default" : "outline"} onClick={() => setPhase2StrictMode(client.id, "practitioner_custom")}>Practitioner Own Practice</Button>
                                 </div>
                                 {isCustom && client.phase2_strict_started_at && (
                                   <>
@@ -1165,14 +1165,14 @@ export default function Dashboard() {
                           const fields = mode === "mb_standard" ? PHASE3_MB_FIELDS : PHASE3_FIELDS;
                           const heading = mode === "mb_standard"
                             ? "Extended Personal Food List (MB Standard)"
-                            : "Extended Food List (Practitioner Custom)";
+                            : "Extended Food List (Practitioner Own Practice)";
                           return (
                             <div className="space-y-3">
                               <div className="flex items-center justify-between flex-wrap gap-2">
                                 <p className="text-sm font-medium">{heading}</p>
                                 <div className="flex gap-1">
                                   <Button type="button" size="sm" variant={mode === "mb_standard" ? "default" : "outline"} onClick={() => setPhase3Mode(client.id, "mb_standard")}>MB Standard</Button>
-                                  <Button type="button" size="sm" variant={mode === "practitioner_custom" ? "default" : "outline"} onClick={() => setPhase3Mode(client.id, "practitioner_custom")}>Practitioner Custom</Button>
+                                  <Button type="button" size="sm" variant={mode === "practitioner_custom" ? "default" : "outline"} onClick={() => setPhase3Mode(client.id, "practitioner_custom")}>Practitioner Own Practice</Button>
                                 </div>
                               </div>
                               <p className="text-xs text-muted-foreground">Enter a comma-separated list per category. Saved when you click outside the field.</p>
