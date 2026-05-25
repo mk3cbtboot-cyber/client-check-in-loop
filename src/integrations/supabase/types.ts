@@ -278,16 +278,19 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          practitioner_tier: string | null
         }
         Insert: {
           created_at?: string
           email: string
           id: string
+          practitioner_tier?: string | null
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
+          practitioner_tier?: string | null
         }
         Relationships: []
       }
