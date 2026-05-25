@@ -454,7 +454,7 @@ export default function ClientPortal() {
             <Card className="p-4">
               <p className="text-sm text-muted-foreground">Tap 'My Plan' to view your Phase 1 instructions.</p>
             </Card>
-          ) : client.system_mode === "mb" ? (
+          ) : client.system_mode !== "own_practice" && client.phase2_strict_mode === "mb_standard" ? (
             <Card className="p-4 space-y-3">
               <p className="font-medium">The 8 Metabolic Balance Rules</p>
               <ol className="list-decimal list-inside space-y-1 text-sm">
