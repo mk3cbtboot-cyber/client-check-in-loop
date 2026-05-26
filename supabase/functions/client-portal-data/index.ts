@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
         phase3_mb_legumes: c.phase3_mb_legumes ?? "",
         phase3_mb_vegetables: c.phase3_mb_vegetables ?? "",
         phase3_mb_fat_oil: c.phase3_mb_fat_oil ?? "",
-        show_rules: c.show_rules === true,
+        show_8_rules: c.show_8_rules === true,
         weight_unit: c.weight_unit === "lbs" ? "lbs" : "kg",
         length_unit: c.length_unit === "in" ? "in" : "cm",
         height_cm: c.height_cm != null ? Number(c.height_cm) : null,
