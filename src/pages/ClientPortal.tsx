@@ -901,22 +901,17 @@ export default function ClientPortal() {
                 const populated = groups
                   .map((g) => ({
                     ...g,
-                    items: isMb
-                      ? resolvePhase3MbField(g.field as string, client[g.field] as string)
-                      : parseList(client[g.field] as string),
+                    items: parseList(client[g.field] as string),
                   }))
                   .filter((g) => g.items.length > 0);
-                // Oils is its own section for MB Standard — pulled from phase3_mb_fat_oil,
-                // falling back to default Phase 3 oils when empty.
-                const oilItems = isMb
-                  ? resolvePhase3MbField("phase3_mb_fat_oil", client.phase3_mb_fat_oil)
-                  : [];
+                // Oils is its own section for MB Standard — pulled exclusively from phase3_mb_fat_oil.
+                const oilItems = isMb ? parseList(client.phase3_mb_fat_oil) : [];
                 const hasAnything = populated.length > 0 || oilItems.length > 0;
                 return (
                   <Card className="p-6 space-y-3">
                     <p className="font-medium">{title}</p>
                     {!hasAnything ? (
-                      <p className="text-sm text-muted-foreground">Your practitioner will add your {isMb ? "Extended Personal Food List" : "additional foods"} here once your Phase 3 consultation is complete.</p>
+                      <p className="text-sm text-muted-foreground">{isMb ? "No extended foods have been added yet. Ask your practitioner to update your plan." : "Your practitioner will add your additional foods here once your Phase 3 consultation is complete."}</p>
                     ) : (
                       <>
                         <p className="text-sm text-muted-foreground">{isMb ? "Your MB Standard Phase 3 foods, by category." : "The additional foods Cheryl has added for you, by category."}</p>
