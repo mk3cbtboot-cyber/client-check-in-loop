@@ -39,9 +39,25 @@ interface Props {
   filteredSources: (sources: (keyof typeof MB_FOODS)[]) => string[];
   weeklyFoodLimits?: FoodLimits | null;
   onPlanChanged?: (plan: WeeklyPlan | null) => void;
+  oilAllowed?: boolean;
 }
 
 const MEALS: MealType[] = ["breakfast", "lunch", "dinner"];
+
+const OIL_COMPONENT = {
+  key: "oil",
+  label: "Oil (optional)",
+  qty: "1 tbsp",
+  sources: ["oils"] as (keyof typeof MB_FOODS)[],
+  optional: true as const,
+};
+
+function withOil(opt: OptionDef, oilAllowed: boolean): OptionDef {
+  if (!oilAllowed) return opt;
+  if (opt.components.some((c) => c.key === "oil")) return opt;
+  return { ...opt, components: [...opt.components, OIL_COMPONENT] };
+}
+
 
 function parseGrams(qty: string): number | null {
   const m = qty.match(/(\d+(?:\.\d+)?)\s*g\b/i);
