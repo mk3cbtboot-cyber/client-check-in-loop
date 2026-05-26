@@ -13,9 +13,11 @@ import { toast } from "sonner";
 import { Home, ClipboardCheck, BookOpen, CalendarDays } from "lucide-react";
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
+import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
 import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
 import { getPhaseProgress } from "@/lib/progress";
 import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
+
 
 interface ClientState {
   id: string;
