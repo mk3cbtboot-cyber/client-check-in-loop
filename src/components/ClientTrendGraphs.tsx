@@ -14,6 +14,8 @@ export interface CheckInRow {
   waist_cm: number | null;
   hip_cm: number | null;
   upper_thigh_cm: number | null;
+  allergy_skin: number | null;
+  joint_pain: number | null;
 }
 
 interface Props {
