@@ -869,16 +869,18 @@ export default function ClientPortal() {
                 </p>
               </Card>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                {planCategories.map((cat) => (
-                  <Card key={cat.title} className="p-4">
-                    <p className="font-medium mb-2">{cat.title}</p>
-                    <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                      {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
-                    </ul>
-                  </Card>
-                ))}
-              </div>
+              {!(client.phase === "phase3" && client.phase3_mode === "mb_standard") && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {planCategories.map((cat) => (
+                    <Card key={cat.title} className="p-4">
+                      <p className="font-medium mb-2">{cat.title}</p>
+                      <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                        {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                      </ul>
+                    </Card>
+                  ))}
+                </div>
+              )}
               {client.phase === "phase3" && (() => {
                 const isMb = client.phase3_mode === "mb_standard";
                 const groups: { label: string; field: keyof ClientState }[] = isMb ? [
