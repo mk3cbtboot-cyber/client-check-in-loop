@@ -211,14 +211,15 @@ export default function ClientPortal() {
     phase3_other: ["fish","seafood","poultry","meat","cheese","yogurt","milkProducts","vegetables","vegLettuce","fruit","bread","starch","legumes"],
   };
 
-  // MB Standard mapping (Fat/Oil has no recipe-builder source — surfaces only in My Plan)
+  // MB Standard mapping. phase3_mb_fat_oil sources into the new "oils" key,
+  // which the Meal Planner injects as an optional Oil component when oils are allowed.
   const phase3MbMap: Record<string, (keyof typeof MB_FOODS)[]> = {
     phase3_mb_fish: ["fish"],
     phase3_mb_seafood: ["seafood"],
     phase3_mb_cheese: ["cheese"],
     phase3_mb_legumes: ["legumes"],
     phase3_mb_vegetables: ["vegetables", "vegLettuce"],
-    phase3_mb_fat_oil: [],
+    phase3_mb_fat_oil: ["oils"],
   };
 
   const parseList = (s: string | undefined | null) =>
@@ -227,16 +228,21 @@ export default function ClientPortal() {
   const phase3ExtrasForSources = (sources: (keyof typeof MB_FOODS)[]): string[] => {
     if (!client) return [];
     if (client.phase !== "phase3" && client.phase !== "phase4") return [];
-    const map = client.phase3_mode === "mb_standard" ? phase3MbMap : phase3CustomMap;
+    const isMb = client.phase3_mode === "mb_standard";
+    const map = isMb ? phase3MbMap : phase3CustomMap;
     const sourceSet = new Set(sources);
     const out: string[] = [];
     for (const [field, cats] of Object.entries(map)) {
       if (!cats.some((c) => sourceSet.has(c))) continue;
-      const value = (client as unknown as Record<string, string>)[field];
-      out.push(...parseList(value));
+      const raw = (client as unknown as Record<string, string>)[field];
+      // MB Standard falls back to defaults extracted from the standard MB Phase 3 list
+      // when the practitioner hasn't yet populated the field from the client's PDF.
+      const items = isMb ? resolvePhase3MbField(field, raw) : parseList(raw);
+      out.push(...items);
     }
     return out;
   };
+
 
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
     const items = [...sources.flatMap((s) => MB_FOODS[s]), ...phase3ExtrasForSources(sources)];
