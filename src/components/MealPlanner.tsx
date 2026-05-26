@@ -503,9 +503,10 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
                     {altDays > 0 && <> ({daySplitLabel(primaryDays, 6)})</>}
                   </p>
                   {altOptions.map((opt) =>
-                    renderOptionCard("alt", opt, altDays,
+                    renderOptionCard("alt", withOil(opt, oilAllowed), altDays,
                       altOpt?.id === opt.id ? `${daySplitLabel(primaryDays, 6)} · ${altDays}d` : "Selected"),
                   )}
+
                 </div>
               )}
             </div>
