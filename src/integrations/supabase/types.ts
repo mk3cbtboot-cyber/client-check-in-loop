@@ -135,6 +135,7 @@ export type Database = {
           phase3_vegetables: string
           practitioner_id: string
           practitioner_notes: string
+          show_8_rules: boolean
           show_rules: boolean
           system_mode: string
           vitamins_supplements: string
@@ -181,6 +182,7 @@ export type Database = {
           phase3_vegetables?: string
           practitioner_id: string
           practitioner_notes?: string
+          show_8_rules?: boolean
           show_rules?: boolean
           system_mode?: string
           vitamins_supplements?: string
@@ -227,6 +229,7 @@ export type Database = {
           phase3_vegetables?: string
           practitioner_id?: string
           practitioner_notes?: string
+          show_8_rules?: boolean
           show_rules?: boolean
           system_mode?: string
           vitamins_supplements?: string
