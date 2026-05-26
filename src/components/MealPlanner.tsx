@@ -488,12 +488,13 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
 
               <div className="space-y-2">
                 {options.map((opt) =>
-                  renderOptionCard("primary", opt, primaryDays,
+                  renderOptionCard("primary", withOil(opt, oilAllowed), primaryDays,
                     primaryOpt?.id === opt.id && lc.limited
                       ? `${daySplitLabel(0, primaryDays - 1)} · ${primaryDays}d`
                       : "Selected"),
                 )}
               </div>
+
 
               {lc.limited && primaryOpt && lc.reasons.every((r) => isAcknowledged(r.food)) && (
                 <div className="space-y-2 pt-1">
