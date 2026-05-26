@@ -83,7 +83,7 @@ function categoryForSources(sources: (keyof typeof MB_FOODS)[]): string {
   return "Other";
 }
 
-export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, onPlanChanged }: Props) {
+export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, onPlanChanged, oilAllowed = false }: Props) {
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<WeeklyPlan | null>(null);
   const [weekStart, setWeekStart] = useState<string>("");
