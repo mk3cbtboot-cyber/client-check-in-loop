@@ -13,9 +13,11 @@ import { toast } from "sonner";
 import { Home, ClipboardCheck, BookOpen, CalendarDays } from "lucide-react";
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
+import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
 import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
 import { getPhaseProgress } from "@/lib/progress";
 import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
+
 
 interface ClientState {
   id: string;
@@ -209,14 +211,15 @@ export default function ClientPortal() {
     phase3_other: ["fish","seafood","poultry","meat","cheese","yogurt","milkProducts","vegetables","vegLettuce","fruit","bread","starch","legumes"],
   };
 
-  // MB Standard mapping (Fat/Oil has no recipe-builder source — surfaces only in My Plan)
+  // MB Standard mapping. phase3_mb_fat_oil sources into the new "oils" key,
+  // which the Meal Planner injects as an optional Oil component when oils are allowed.
   const phase3MbMap: Record<string, (keyof typeof MB_FOODS)[]> = {
     phase3_mb_fish: ["fish"],
     phase3_mb_seafood: ["seafood"],
     phase3_mb_cheese: ["cheese"],
     phase3_mb_legumes: ["legumes"],
     phase3_mb_vegetables: ["vegetables", "vegLettuce"],
-    phase3_mb_fat_oil: [],
+    phase3_mb_fat_oil: ["oils"],
   };
 
   const parseList = (s: string | undefined | null) =>
@@ -225,16 +228,21 @@ export default function ClientPortal() {
   const phase3ExtrasForSources = (sources: (keyof typeof MB_FOODS)[]): string[] => {
     if (!client) return [];
     if (client.phase !== "phase3" && client.phase !== "phase4") return [];
-    const map = client.phase3_mode === "mb_standard" ? phase3MbMap : phase3CustomMap;
+    const isMb = client.phase3_mode === "mb_standard";
+    const map = isMb ? phase3MbMap : phase3CustomMap;
     const sourceSet = new Set(sources);
     const out: string[] = [];
     for (const [field, cats] of Object.entries(map)) {
       if (!cats.some((c) => sourceSet.has(c))) continue;
-      const value = (client as unknown as Record<string, string>)[field];
-      out.push(...parseList(value));
+      const raw = (client as unknown as Record<string, string>)[field];
+      // MB Standard falls back to defaults extracted from the standard MB Phase 3 list
+      // when the practitioner hasn't yet populated the field from the client's PDF.
+      const items = isMb ? resolvePhase3MbField(field, raw) : parseList(raw);
+      out.push(...items);
     }
     return out;
   };
+
 
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
     const items = [...sources.flatMap((s) => MB_FOODS[s]), ...phase3ExtrasForSources(sources)];
@@ -879,7 +887,6 @@ export default function ClientPortal() {
                   { label: "Cheese", field: "phase3_mb_cheese" },
                   { label: "Legumes", field: "phase3_mb_legumes" },
                   { label: "Vegetables", field: "phase3_mb_vegetables" },
-                  { label: "Fat / Oil", field: "phase3_mb_fat_oil" },
                 ] : [
                   { label: "Meat", field: "phase3_meat" },
                   { label: "Fish", field: "phase3_fish" },
@@ -892,12 +899,23 @@ export default function ClientPortal() {
                 ];
                 const title = isMb ? "Your Extended Personal Food List" : "Your Additional Foods";
                 const populated = groups
-                  .map((g) => ({ ...g, items: parseList(client[g.field] as string) }))
+                  .map((g) => ({
+                    ...g,
+                    items: isMb
+                      ? resolvePhase3MbField(g.field as string, client[g.field] as string)
+                      : parseList(client[g.field] as string),
+                  }))
                   .filter((g) => g.items.length > 0);
+                // Oils is its own section for MB Standard — pulled from phase3_mb_fat_oil,
+                // falling back to default Phase 3 oils when empty.
+                const oilItems = isMb
+                  ? resolvePhase3MbField("phase3_mb_fat_oil", client.phase3_mb_fat_oil)
+                  : [];
+                const hasAnything = populated.length > 0 || oilItems.length > 0;
                 return (
                   <Card className="p-6 space-y-3">
                     <p className="font-medium">{title}</p>
-                    {populated.length === 0 ? (
+                    {!hasAnything ? (
                       <p className="text-sm text-muted-foreground">Your practitioner will add your {isMb ? "Extended Personal Food List" : "additional foods"} here once your Phase 3 consultation is complete.</p>
                     ) : (
                       <>
@@ -910,11 +928,19 @@ export default function ClientPortal() {
                             </div>
                           ))}
                         </div>
+                        {isMb && oilItems.length > 0 && (
+                          <div className="pt-3 border-t space-y-1">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Oils (Cold-Pressed)</p>
+                            <p className="text-sm text-foreground">{oilItems.join(", ")}</p>
+                            <p className="text-xs text-muted-foreground">Add up to 3 tablespoons per day — ideally 1 tablespoon per meal.</p>
+                          </div>
+                        )}
                       </>
                     )}
                   </Card>
                 );
               })()}
+
               <p className="text-xs text-muted-foreground text-center pt-2">
                 Quantities and exact selections are managed by your nutritionist. Use the Home tab to build today's meal.
               </p>
@@ -935,7 +961,9 @@ export default function ClientPortal() {
               filteredSources={filteredSources}
               weeklyFoodLimits={client.weekly_food_limits ?? {}}
               onPlanChanged={(p) => setWeeklyPlan(p)}
+              oilAllowed={oilAllowed(client.phase)}
             />
+
           )}
         </section>
       )}

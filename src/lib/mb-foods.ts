@@ -12,7 +12,9 @@ export const MB_FOODS = {
   fruit: ["Apple (1)","Gooseberries (100g)","Mango (160g)","Papaya (170g)","Peach (1)","Prunes/Dried (40g)"],
   bread: ["100% Rye Crackers (10g)","100% Sourdough Rye Bread (25g)"],
   starch: ["Rolled Oats (50g)"],
+  oils: [],
 };
+
 
 export type MealType = "breakfast" | "lunch" | "dinner";
 

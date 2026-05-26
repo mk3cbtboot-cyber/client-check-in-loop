@@ -39,9 +39,25 @@ interface Props {
   filteredSources: (sources: (keyof typeof MB_FOODS)[]) => string[];
   weeklyFoodLimits?: FoodLimits | null;
   onPlanChanged?: (plan: WeeklyPlan | null) => void;
+  oilAllowed?: boolean;
 }
 
 const MEALS: MealType[] = ["breakfast", "lunch", "dinner"];
+
+const OIL_COMPONENT = {
+  key: "oil",
+  label: "Oil (optional)",
+  qty: "1 tbsp",
+  sources: ["oils"] as (keyof typeof MB_FOODS)[],
+  optional: true as const,
+};
+
+function withOil(opt: OptionDef, oilAllowed: boolean): OptionDef {
+  if (!oilAllowed) return opt;
+  if (opt.components.some((c) => c.key === "oil")) return opt;
+  return { ...opt, components: [...opt.components, OIL_COMPONENT] };
+}
+
 
 function parseGrams(qty: string): number | null {
   const m = qty.match(/(\d+(?:\.\d+)?)\s*g\b/i);
@@ -67,7 +83,7 @@ function categoryForSources(sources: (keyof typeof MB_FOODS)[]): string {
   return "Other";
 }
 
-export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, onPlanChanged }: Props) {
+export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, onPlanChanged, oilAllowed = false }: Props) {
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<WeeklyPlan | null>(null);
   const [weekStart, setWeekStart] = useState<string>("");
@@ -125,8 +141,10 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   const selectedOption = (m: MealType, slot: "primary" | "alt"): OptionDef | null => {
     const id = mealIdFor(m, slot);
     if (!id) return null;
-    return MB_OPTIONS[m].find((o) => o.id === id) ?? null;
+    const base = MB_OPTIONS[m].find((o) => o.id === id) ?? null;
+    return base ? withOil(base, oilAllowed) : null;
   };
+
 
   const limitCheck = (m: MealType) => checkMealLimits(selectedOption(m, "primary"), sel(m, "primary"), weeklyFoodLimits ?? null);
 
@@ -470,12 +488,13 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
 
               <div className="space-y-2">
                 {options.map((opt) =>
-                  renderOptionCard("primary", opt, primaryDays,
+                  renderOptionCard("primary", withOil(opt, oilAllowed), primaryDays,
                     primaryOpt?.id === opt.id && lc.limited
                       ? `${daySplitLabel(0, primaryDays - 1)} · ${primaryDays}d`
                       : "Selected"),
                 )}
               </div>
+
 
               {lc.limited && primaryOpt && lc.reasons.every((r) => isAcknowledged(r.food)) && (
                 <div className="space-y-2 pt-1">
@@ -484,9 +503,10 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
                     {altDays > 0 && <> ({daySplitLabel(primaryDays, 6)})</>}
                   </p>
                   {altOptions.map((opt) =>
-                    renderOptionCard("alt", opt, altDays,
+                    renderOptionCard("alt", withOil(opt, oilAllowed), altDays,
                       altOpt?.id === opt.id ? `${daySplitLabel(primaryDays, 6)} · ${altDays}d` : "Selected"),
                   )}
+
                 </div>
               )}
             </div>
