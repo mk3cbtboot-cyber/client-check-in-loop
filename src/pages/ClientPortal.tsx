@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { Home, ClipboardCheck, BookOpen, CalendarDays } from "lucide-react";
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
@@ -42,7 +41,7 @@ interface ClientState {
   phase3_mb_legumes: string;
   phase3_mb_vegetables: string;
   phase3_mb_fat_oil: string;
-  show_rules: boolean;
+  show_8_rules: boolean;
   weight_unit: "kg" | "lbs";
   length_unit: "cm" | "in";
   height_cm: number | null;
@@ -67,7 +66,6 @@ export default function ClientPortal() {
   const [client, setClient] = useState<ClientState | null>(null);
 
   // Home/recipe builder state
-  const [rulesOpen, setRulesOpen] = useState(false);
   const [meal, setMeal] = useState<MealType | null>(null);
   const [option, setOption] = useState<OptionDef | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
@@ -461,20 +459,13 @@ export default function ClientPortal() {
                 {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
               </ol>
             </Card>
-          ) : client.show_rules ? (
-            <Collapsible open={rulesOpen} onOpenChange={setRulesOpen}>
-              <Card className="p-4">
-                <CollapsibleTrigger className="w-full text-left flex items-center justify-between">
-                  <span className="font-medium">The 8 Metabolic Balance Rules</span>
-                  <span className="text-sm text-muted-foreground">{rulesOpen ? "Hide" : "Show"}</span>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="pt-3">
-                  <ol className="list-decimal list-inside space-y-1 text-sm">
-                    {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
-                  </ol>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
+          ) : client.system_mode !== "own_practice" && client.phase2_strict_mode === "practitioner_custom" && client.show_8_rules ? (
+            <Card className="p-4 space-y-3">
+              <p className="font-medium">The 8 Metabolic Balance Rules</p>
+              <ol className="list-decimal list-inside space-y-1 text-sm">
+                {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
+              </ol>
+            </Card>
           ) : null}
 
           {!recipeBuilderEnabled(client.phase) ? (
