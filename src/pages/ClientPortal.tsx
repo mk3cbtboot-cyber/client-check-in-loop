@@ -961,7 +961,9 @@ export default function ClientPortal() {
               filteredSources={filteredSources}
               weeklyFoodLimits={client.weekly_food_limits ?? {}}
               onPlanChanged={(p) => setWeeklyPlan(p)}
+              oilAllowed={oilAllowed(client.phase)}
             />
+
           )}
         </section>
       )}
