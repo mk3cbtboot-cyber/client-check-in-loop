@@ -61,7 +61,7 @@ interface Client {
   phase3_mb_legumes: string;
   phase3_mb_vegetables: string;
   phase3_mb_fat_oil: string;
-  show_rules: boolean;
+  show_8_rules: boolean;
   height_cm: number | null;
   water_today_litres: number | null;
   water_date: string | null;
@@ -433,12 +433,12 @@ export default function Dashboard() {
     toast.success(mode === "mb" ? "Switched to Metabolic Balance" : "Switched to Own Practice");
   };
 
-  const setShowRules = async (clientId: string, value: boolean) => {
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, show_rules: value } : c)));
-    const { error } = await supabase.from("clients").update({ show_rules: value }).eq("id", clientId);
+  const setShow8Rules = async (clientId: string, value: boolean) => {
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, show_8_rules: value } : c)));
+    const { error } = await supabase.from("clients").update({ show_8_rules: value }).eq("id", clientId);
     if (error) {
       toast.error("Could not update setting");
-      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, show_rules: !value } : c)));
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, show_8_rules: !value } : c)));
       return;
     }
     toast.success(value ? "8 Rules visible to client" : "8 Rules hidden from client");
@@ -755,13 +755,13 @@ export default function Dashboard() {
                               Copy portal link
                             </Button>
                           </div>
-                          {client.system_mode !== "own_practice" && (
+                          {client.system_mode !== "own_practice" && client.phase2_strict_mode === "practitioner_custom" && (
                             <div className="flex items-center gap-2">
                               <Label htmlFor={`sr-${client.id}`} className="text-xs">Show 8 Rules</Label>
                               <Switch
                                 id={`sr-${client.id}`}
-                                checked={!!client.show_rules}
-                                onCheckedChange={(v) => setShowRules(client.id, v)}
+                                checked={!!client.show_8_rules}
+                                onCheckedChange={(v) => setShow8Rules(client.id, v)}
                               />
                             </div>
                           )}
