@@ -14,6 +14,8 @@ export interface CheckInRow {
   waist_cm: number | null;
   hip_cm: number | null;
   upper_thigh_cm: number | null;
+  allergy_skin: number | null;
+  joint_pain: number | null;
 }
 
 interface Props {
@@ -77,6 +79,8 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg" }: Props
           waist: ci.waist_cm,
           hip: ci.hip_cm,
           upper_thigh: ci.upper_thigh_cm,
+          allergy_skin: ci.allergy_skin,
+          joint_pain: ci.joint_pain,
         };
       }),
     [sorted, weightUnit],
@@ -90,12 +94,6 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg" }: Props
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      {has("weight") && (
-        <Graph title={`Weight (${weightUnit})`} data={data} lines={[{ key: "weight", name: "Weight", color: "hsl(var(--primary))" }]} />
-      )}
-      {has("water") && (
-        <Graph title="Water Intake (L)" data={data} lines={[{ key: "water", name: "Litres", color: "hsl(217 91% 60%)" }]} />
-      )}
       {has("general_wellbeing") && (
         <Graph title="General Well-Being" data={data} yDomain={[0, 5]} lines={[{ key: "general_wellbeing", name: "Rating", color: "hsl(142 71% 45%)" }]} />
       )}
@@ -107,6 +105,12 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg" }: Props
       )}
       {has("digestion") && (
         <Graph title="Digestion" data={data} yDomain={[0, 5]} lines={[{ key: "digestion", name: "Rating", color: "hsl(173 80% 40%)" }]} />
+      )}
+      {has("allergy_skin") && (
+        <Graph title="Allergy / Skin" data={data} yDomain={[0, 5]} lines={[{ key: "allergy_skin", name: "Rating (1 Best, 5 Worst)", color: "hsl(217 91% 60%)" }]} />
+      )}
+      {has("joint_pain") && (
+        <Graph title="Joint Pain" data={data} yDomain={[0, 5]} lines={[{ key: "joint_pain", name: "Rating (1 Best, 5 Worst)", color: "hsl(0 72% 51%)" }]} />
       )}
       {(has("waist") || has("hip") || has("upper_thigh")) && (
         <div className="md:col-span-2">
