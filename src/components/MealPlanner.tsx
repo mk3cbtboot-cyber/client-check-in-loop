@@ -141,8 +141,10 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   const selectedOption = (m: MealType, slot: "primary" | "alt"): OptionDef | null => {
     const id = mealIdFor(m, slot);
     if (!id) return null;
-    return MB_OPTIONS[m].find((o) => o.id === id) ?? null;
+    const base = MB_OPTIONS[m].find((o) => o.id === id) ?? null;
+    return base ? withOil(base, oilAllowed) : null;
   };
+
 
   const limitCheck = (m: MealType) => checkMealLimits(selectedOption(m, "primary"), sel(m, "primary"), weeklyFoodLimits ?? null);
 
