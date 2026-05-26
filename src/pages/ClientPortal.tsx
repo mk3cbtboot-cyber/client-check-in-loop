@@ -887,7 +887,6 @@ export default function ClientPortal() {
                   { label: "Cheese", field: "phase3_mb_cheese" },
                   { label: "Legumes", field: "phase3_mb_legumes" },
                   { label: "Vegetables", field: "phase3_mb_vegetables" },
-                  { label: "Fat / Oil", field: "phase3_mb_fat_oil" },
                 ] : [
                   { label: "Meat", field: "phase3_meat" },
                   { label: "Fish", field: "phase3_fish" },
@@ -900,12 +899,23 @@ export default function ClientPortal() {
                 ];
                 const title = isMb ? "Your Extended Personal Food List" : "Your Additional Foods";
                 const populated = groups
-                  .map((g) => ({ ...g, items: parseList(client[g.field] as string) }))
+                  .map((g) => ({
+                    ...g,
+                    items: isMb
+                      ? resolvePhase3MbField(g.field as string, client[g.field] as string)
+                      : parseList(client[g.field] as string),
+                  }))
                   .filter((g) => g.items.length > 0);
+                // Oils is its own section for MB Standard — pulled from phase3_mb_fat_oil,
+                // falling back to default Phase 3 oils when empty.
+                const oilItems = isMb
+                  ? resolvePhase3MbField("phase3_mb_fat_oil", client.phase3_mb_fat_oil)
+                  : [];
+                const hasAnything = populated.length > 0 || oilItems.length > 0;
                 return (
                   <Card className="p-6 space-y-3">
                     <p className="font-medium">{title}</p>
-                    {populated.length === 0 ? (
+                    {!hasAnything ? (
                       <p className="text-sm text-muted-foreground">Your practitioner will add your {isMb ? "Extended Personal Food List" : "additional foods"} here once your Phase 3 consultation is complete.</p>
                     ) : (
                       <>
@@ -918,11 +928,19 @@ export default function ClientPortal() {
                             </div>
                           ))}
                         </div>
+                        {isMb && oilItems.length > 0 && (
+                          <div className="pt-3 border-t space-y-1">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Oils (Cold-Pressed)</p>
+                            <p className="text-sm text-foreground">{oilItems.join(", ")}</p>
+                            <p className="text-xs text-muted-foreground">Add up to 3 tablespoons per day — ideally 1 tablespoon per meal.</p>
+                          </div>
+                        )}
                       </>
                     )}
                   </Card>
                 );
               })()}
+
               <p className="text-xs text-muted-foreground text-center pt-2">
                 Quantities and exact selections are managed by your nutritionist. Use the Home tab to build today's meal.
               </p>
