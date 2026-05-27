@@ -384,9 +384,10 @@ export default function ClientPortal() {
           body.is_weekly = true;
           
           const waist = toCm(waistInput); if (waist !== undefined) body.waist_cm = waist;
-          if (client?.gender === "male") {
+          if (client?.gender !== "female") {
             const chest = toCm(chestInput); if (chest !== undefined) body.chest_cm = chest;
-          } else {
+          }
+          if (client?.gender !== "male") {
             const hip = toCm(hipInput); if (hip !== undefined) body.hip_cm = hip;
           }
           const thigh = toCm(thighInput); if (thigh !== undefined) body.upper_thigh_cm = thigh;
