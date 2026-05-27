@@ -66,7 +66,6 @@ interface Client {
   water_today_litres: number | null;
   water_date: string | null;
   phase2_strict_started_at: string | null;
-  phase2_strict_extra_days: number;
   phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
   weekly_food_limits: Record<string, number>;
@@ -264,10 +263,9 @@ export default function Dashboard() {
 
   const setPhase = async (clientId: string, phase: Phase) => {
     const current = clients.find((c) => c.id === clientId);
-    const updates: { phase: Phase; phase2_strict_started_at?: string; phase2_strict_extra_days?: number } = { phase };
+    const updates: { phase: Phase; phase2_strict_started_at?: string } = { phase };
     if (phase === "phase2_strict" && !current?.phase2_strict_started_at) {
       updates.phase2_strict_started_at = new Date().toISOString();
-      updates.phase2_strict_extra_days = 0;
     }
     const { error } = await supabase.from("clients").update(updates).eq("id", clientId);
     if (error) return toast.error("Could not update phase");
@@ -276,31 +274,7 @@ export default function Dashboard() {
       ...c,
       phase,
       phase2_strict_started_at: (updates.phase2_strict_started_at as string) ?? c.phase2_strict_started_at,
-      phase2_strict_extra_days: updates.phase2_strict_extra_days ?? c.phase2_strict_extra_days,
     } : c)));
-  };
-
-  const extendPhase2Strict = async (clientId: string) => {
-    const current = clients.find((c) => c.id === clientId);
-    if (!current) return;
-    const newExtra = (current.phase2_strict_extra_days ?? 0) + 14;
-    const { error } = await supabase
-      .from("clients")
-      .update({ phase2_strict_extra_days: newExtra } as never)
-      .eq("id", clientId);
-    if (error) return toast.error("Could not extend Phase 2");
-    toast.success(`Phase 2 extended — now ${14 + newExtra} days total`);
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_extra_days: newExtra } : c)));
-  };
-
-  const resetPhase2Extension = async (clientId: string) => {
-    const { error } = await supabase
-      .from("clients")
-      .update({ phase2_strict_extra_days: 0 } as never)
-      .eq("id", clientId);
-    if (error) return toast.error("Could not reset extension");
-    toast.success("Phase 2 extension reset — back to 14 days");
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_extra_days: 0 } : c)));
   };
 
   // ----- Phase 2 Strict food list editing -----
@@ -410,9 +384,8 @@ export default function Dashboard() {
   const setPhase2StrictMode = async (clientId: string, mode: "mb_standard" | "practitioner_custom") => {
     const prev = clients.find((c) => c.id === clientId)?.phase2_strict_mode ?? "mb_standard";
     if (prev === mode) return;
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_mode: mode, ...(mode === "mb_standard" ? { phase2_strict_extra_days: 0 } : {}) } : c)));
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_mode: mode } : c)));
     const updates: Record<string, unknown> = { phase2_strict_mode: mode };
-    if (mode === "mb_standard") updates.phase2_strict_extra_days = 0;
     const { error } = await supabase.from("clients").update(updates as never).eq("id", clientId);
     if (error) {
       setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, phase2_strict_mode: prev } : c)));
