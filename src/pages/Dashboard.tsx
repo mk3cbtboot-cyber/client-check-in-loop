@@ -248,16 +248,17 @@ export default function Dashboard() {
 
   const addClient = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!gender) { toast.error("Please select a gender"); return; }
     setSubmitting(true);
     try {
       if (email.trim().toLowerCase() === userEmail.toLowerCase()) {
         throw new Error("You cannot invite yourself as a client");
       }
-      const { data, error } = await supabase.functions.invoke("invite-client", { body: { name, email, system_mode: defaultSystemMode(tier) } });
+      const { data, error } = await supabase.functions.invoke("invite-client", { body: { name, email, gender, system_mode: defaultSystemMode(tier) } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Client invited — magic link emailed");
-      setName(""); setEmail(""); setOpen(false);
+      setName(""); setEmail(""); setGender(""); setOpen(false);
       await load();
     } catch (err: any) {
       toast.error(err.message ?? "Failed to invite client");
