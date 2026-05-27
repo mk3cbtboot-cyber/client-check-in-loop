@@ -22,7 +22,7 @@ export interface CheckInRow {
 interface Props {
   checkIns: CheckInRow[];
   weightUnit?: string;
-  gender?: "female" | "male" | null;
+  gender?: "female" | "male" | "unspecified" | null;
 }
 
 function Graph({
