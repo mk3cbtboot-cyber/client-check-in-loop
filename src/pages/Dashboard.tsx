@@ -346,7 +346,7 @@ export default function Dashboard() {
     toast.success("Height saved");
   };
 
-  const saveGender = async (clientId: string, value: "female" | "male") => {
+  const saveGender = async (clientId: string, value: "female" | "male" | "unspecified") => {
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, gender: value } : c)));
     const { error } = await supabase.from("clients").update({ gender: value }).eq("id", clientId);
     if (error) return toast.error("Could not save gender");
