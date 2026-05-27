@@ -109,6 +109,7 @@ Deno.serve(async (req) => {
         weekly_food_limits: c.weekly_food_limits ?? {},
         latest_weight_kg: latestCheckIn?.weight_kg != null ? Number(latestCheckIn.weight_kg) : null,
         system_mode: c.system_mode === "own_practice" ? "own_practice" : "mb",
+        gender: c.gender === "male" ? "male" : c.gender === "female" ? "female" : null,
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
