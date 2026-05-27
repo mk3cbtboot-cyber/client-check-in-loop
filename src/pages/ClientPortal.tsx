@@ -101,6 +101,7 @@ export default function ClientPortal() {
   
   const [waistInput, setWaistInput] = useState<string>("");
   const [hipInput, setHipInput] = useState<string>("");
+  const [chestInput, setChestInput] = useState<string>("");
   const [thighInput, setThighInput] = useState<string>("");
 
   const toCm = (v: string) => {
