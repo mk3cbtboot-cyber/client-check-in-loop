@@ -80,6 +80,7 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", gender 
           digestion: ci.digestion,
           waist: ci.waist_cm,
           hip: ci.hip_cm,
+          chest: ci.chest_cm,
           upper_thigh: ci.upper_thigh_cm,
           allergy_skin: ci.allergy_skin,
           joint_pain: ci.joint_pain,
