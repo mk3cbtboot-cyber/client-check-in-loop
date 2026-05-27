@@ -19,6 +19,7 @@ export type Database = {
           acid_reflux: number | null
           allergy_skin: number | null
           body_fat_pct: number | null
+          chest_cm: number | null
           client_id: string
           created_at: string
           digestion: number | null
@@ -43,6 +44,7 @@ export type Database = {
           acid_reflux?: number | null
           allergy_skin?: number | null
           body_fat_pct?: number | null
+          chest_cm?: number | null
           client_id: string
           created_at?: string
           digestion?: number | null
@@ -67,6 +69,7 @@ export type Database = {
           acid_reflux?: number | null
           allergy_skin?: number | null
           body_fat_pct?: number | null
+          chest_cm?: number | null
           client_id?: string
           created_at?: string
           digestion?: number | null
@@ -105,6 +108,7 @@ export type Database = {
           current_medications: string
           egg_count_week: number
           email: string
+          gender: string | null
           height_cm: number | null
           id: string
           length_unit: string
@@ -151,6 +155,7 @@ export type Database = {
           current_medications?: string
           egg_count_week?: number
           email: string
+          gender?: string | null
           height_cm?: number | null
           id?: string
           length_unit?: string
@@ -197,6 +202,7 @@ export type Database = {
           current_medications?: string
           egg_count_week?: number
           email?: string
+          gender?: string | null
           height_cm?: number | null
           id?: string
           length_unit?: string
