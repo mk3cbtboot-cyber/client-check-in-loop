@@ -115,19 +115,25 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", gender 
       {has("joint_pain") && (
         <Graph title="Joint Pain" data={data} yDomain={[0, 5]} lines={[{ key: "joint_pain", name: "Rating (1 Best, 5 Worst)", color: "hsl(0 72% 51%)" }]} />
       )}
-      {(has("waist") || has("hip") || has("upper_thigh")) && (
-        <div className="md:col-span-2">
-          <Graph
-            title="Body Measurements (cm)"
-            data={data}
-            lines={[
-              { key: "waist", name: "Waist", color: "hsl(var(--primary))" },
-              { key: "hip", name: "Hip", color: "hsl(38 92% 50%)" },
-              { key: "upper_thigh", name: "Upper Thigh", color: "hsl(262 83% 58%)" },
-            ]}
-          />
-        </div>
-      )}
+      {(() => {
+        const isMale = gender === "male";
+        const circKey = isMale ? "chest" : "hip";
+        const circName = isMale ? "Chest Circumference" : "Hip Circumference";
+        if (!has("waist") && !has(circKey) && !has("upper_thigh")) return null;
+        return (
+          <div className="md:col-span-2">
+            <Graph
+              title="Body Measurements (cm)"
+              data={data}
+              lines={[
+                { key: "waist", name: "Waist", color: "hsl(var(--primary))" },
+                { key: circKey, name: circName, color: "hsl(38 92% 50%)" },
+                { key: "upper_thigh", name: "Upper Thigh", color: "hsl(262 83% 58%)" },
+              ]}
+            />
+          </div>
+        );
+      })()}
     </div>
   );
 }
