@@ -662,6 +662,36 @@ export default function ClientPortal() {
                   <Input id="water" type="number" step="0.25" min={0} max={20} value={waterLitres} onChange={(e) => setWaterAmount(Number(e.target.value))} />
                   <p className="text-xs text-muted-foreground">Synced with your home screen water tracker.</p>
                 </div>
+                <div className="space-y-4 border-t pt-4">
+                  <p className="text-sm font-medium">Body measurements</p>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="waist-main">Waist Circumference ({lengthUnit})</Label>
+                      <div className="flex gap-1">
+                        <Button type="button" size="sm" variant={lengthUnit === "cm" ? "default" : "outline"} onClick={() => updateLengthUnit("cm")}>cm</Button>
+                        <Button type="button" size="sm" variant={lengthUnit === "in" ? "default" : "outline"} onClick={() => updateLengthUnit("in")}>inches</Button>
+                      </div>
+                    </div>
+                    <Input id="waist-main" type="number" step="0.1" min={0} value={waistInput} onChange={(e) => setWaistInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 82" : "e.g. 32.3"} />
+                    <p className="text-xs text-muted-foreground">Measured at navel height.</p>
+                  </div>
+                  {client?.gender !== "male" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="hip">Hip Circumference ({lengthUnit})</Label>
+                      <Input id="hip" type="number" step="0.1" min={0} value={hipInput} onChange={(e) => setHipInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 96" : "e.g. 37.8"} />
+                    </div>
+                  )}
+                  {client?.gender !== "female" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="chest">Chest Circumference ({lengthUnit})</Label>
+                      <Input id="chest" type="number" step="0.1" min={0} value={chestInput} onChange={(e) => setChestInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 100" : "e.g. 39.4"} />
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="thigh">Upper Thigh Circumference ({lengthUnit})</Label>
+                    <Input id="thigh" type="number" step="0.1" min={0} value={thighInput} onChange={(e) => setThighInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 56" : "e.g. 22"} />
+                  </div>
+                </div>
                 {([
                   ["general_wellbeing", "General Well-Being"],
                   ["fatigue", "Fatigue"],
@@ -693,37 +723,7 @@ export default function ClientPortal() {
                     </div>
                   </div>
                 ))}
-                {isWeeklyMode && (
-                  <div className="space-y-4 border-t pt-4">
-                    <p className="text-sm font-medium">Body measurements</p>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="waist-main">Waist Circumference ({lengthUnit})</Label>
-                        <div className="flex gap-1">
-                          <Button type="button" size="sm" variant={lengthUnit === "cm" ? "default" : "outline"} onClick={() => updateLengthUnit("cm")}>cm</Button>
-                          <Button type="button" size="sm" variant={lengthUnit === "in" ? "default" : "outline"} onClick={() => updateLengthUnit("in")}>inches</Button>
-                        </div>
-                      </div>
-                      <Input id="waist-main" type="number" step="0.1" min={0} value={waistInput} onChange={(e) => setWaistInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 82" : "e.g. 32.3"} />
-                      <p className="text-xs text-muted-foreground">Measured at navel height.</p>
-                    </div>
-                    {client?.gender === "male" ? (
-                      <div className="space-y-2">
-                        <Label htmlFor="chest">Chest Circumference ({lengthUnit})</Label>
-                        <Input id="chest" type="number" step="0.1" min={0} value={chestInput} onChange={(e) => setChestInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 100" : "e.g. 39.4"} />
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <Label htmlFor="hip">Hip Circumference ({lengthUnit})</Label>
-                        <Input id="hip" type="number" step="0.1" min={0} value={hipInput} onChange={(e) => setHipInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 96" : "e.g. 37.8"} />
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <Label htmlFor="thigh">Upper Thigh Circumference ({lengthUnit})</Label>
-                      <Input id="thigh" type="number" step="0.1" min={0} value={thighInput} onChange={(e) => setThighInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 56" : "e.g. 22"} />
-                    </div>
-                  </div>
-                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="notes">Any notes for your nutritionist?</Label>
                   <Textarea id="notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
