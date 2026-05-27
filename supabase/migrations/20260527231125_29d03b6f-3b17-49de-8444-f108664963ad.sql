@@ -1,0 +1,1 @@
+ALTER TABLE public.clients DROP COLUMN IF EXISTS phase2_strict_extra_days;

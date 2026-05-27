@@ -49,7 +49,6 @@ interface ClientState {
   length_unit: "cm" | "in";
   height_cm: number | null;
   phase2_strict_started_at: string | null;
-  phase2_strict_extra_days: number;
   phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
   weekly_food_limits: Record<string, number>;
@@ -354,7 +353,7 @@ export default function ClientPortal() {
     const start = new Date(client.phase2_strict_started_at).getTime();
     return Math.floor((Date.now() - start) / (1000 * 60 * 60 * 24));
   })();
-  const strictTotalDays = 14 + Math.max(0, client?.phase2_strict_extra_days ?? 0);
+  const strictTotalDays = 14;
   const isAlwaysWeeklyPhase = client?.phase === "phase2_extended" || client?.phase === "phase3" || client?.phase === "phase4";
   const isWeeklyMode = (isP2Strict && daysSinceP2Start >= strictTotalDays) || isAlwaysWeeklyPhase;
   const ratingsTitle = isP2Strict
@@ -365,7 +364,7 @@ export default function ClientPortal() {
         ? `You're past Day ${strictTotalDays} — please complete this once per week. Rate each area from 1 (best) to 5 (worst).`
         : "Please complete this once per week. Rate each area from 1 (best) to 5 (worst).")
     : "Rate each area from 1 (best) to 5 (worst).";
-  const phaseProgress = getPhaseProgress(client?.phase, client?.phase2_strict_started_at, client?.phase2_strict_extra_days ?? 0);
+  const phaseProgress = getPhaseProgress(client?.phase, client?.phase2_strict_started_at);
 
   const submitCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
