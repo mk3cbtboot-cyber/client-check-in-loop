@@ -788,11 +788,12 @@ export default function Dashboard() {
                             <select
                               className="h-8 rounded-md border border-input bg-background px-2 text-sm"
                               value={client.gender ?? ""}
-                              onChange={(e) => saveGender(client.id, e.target.value as "female" | "male")}
+                              onChange={(e) => saveGender(client.id, e.target.value as "female" | "male" | "unspecified")}
                             >
                               <option value="" disabled>Select…</option>
                               <option value="female">Female</option>
                               <option value="male">Male</option>
+                              <option value="unspecified">Prefer not to say</option>
                             </select>
                           </div>
                         </div>
