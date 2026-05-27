@@ -568,7 +568,7 @@ export default function Dashboard() {
             {(isDetailView ? clients.filter((c) => c.id === routeClientId) : clients).map((client) => {
               const list = checkIns[client.id] ?? [];
               const portalLink = `${window.location.origin}/portal/${client.magic_token}`;
-              const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at, client.phase2_strict_extra_days ?? 0);
+              const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at);
               const phaseLabel = PHASE_OPTIONS.find((p) => p.value === client.phase)?.label ?? client.phase;
               const streak = computeStreak(list);
               const alert = needsAttention(client, list);
@@ -749,20 +749,9 @@ export default function Dashboard() {
                                   <Button type="button" size="sm" variant={p2Mode === "practitioner_custom" ? "default" : "outline"} onClick={() => setPhase2StrictMode(client.id, "practitioner_custom")}>MB Custom</Button>
                                 </div>
                                 {isCustom && client.phase2_strict_started_at && (
-                                  <>
-                                    <span className="ml-2">
-                                      Strict period: <span className="font-medium text-foreground">{14 + (client.phase2_strict_extra_days ?? 0)} days</span>
-                                      {(client.phase2_strict_extra_days ?? 0) > 0 && <> (extended +{client.phase2_strict_extra_days})</>}
-                                    </span>
-                                    <Button type="button" size="sm" variant="outline" onClick={() => extendPhase2Strict(client.id)}>
-                                      Extend +14 days
-                                    </Button>
-                                    {(client.phase2_strict_extra_days ?? 0) > 0 && (
-                                      <Button type="button" size="sm" variant="ghost" onClick={() => resetPhase2Extension(client.id)}>
-                                        Reset Extension
-                                      </Button>
-                                    )}
-                                  </>
+                                  <span className="ml-2">
+                                    Strict period: <span className="font-medium text-foreground">14 days</span>
+                                  </span>
                                 )}
                               </div>
                             );
@@ -988,7 +977,7 @@ export default function Dashboard() {
                                     <li key={ci.id} className="text-sm border rounded p-3 space-y-1">
                                       <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                                         {(() => {
-                                          const lbl = progressLabelForCheckin(client.phase, client.phase2_strict_started_at, ci.created_at, !!ci.is_weekly, client.phase2_strict_extra_days ?? 0);
+                                          const lbl = progressLabelForCheckin(client.phase, client.phase2_strict_started_at, ci.created_at, !!ci.is_weekly);
                                           return lbl ? <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] uppercase tracking-wide font-medium">{lbl}</span> : null;
                                         })()}
                                         {format(new Date(ci.created_at), "PPp")}
