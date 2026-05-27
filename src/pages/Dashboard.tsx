@@ -1003,13 +1003,13 @@ export default function Dashboard() {
                                     ["Allergy / Skin", ci.allergy_skin],
                                   ];
                                   const hasRatings = ratingFields.some(([, v]) => v != null);
+                                  const showHip = client.gender !== "male";
+                                  const showChest = client.gender !== "female";
                                   const measurementFields: [string, string | null][] = [
                                     ["Body Fat", ci.body_fat_pct != null ? `${ci.body_fat_pct}%` : null],
                                     ["Waist", ci.waist_cm != null ? `${ci.waist_cm} cm` : null],
-                                    [client.gender === "male" ? "Chest" : "Hip",
-                                      client.gender === "male"
-                                        ? (ci.chest_cm != null ? `${ci.chest_cm} cm` : null)
-                                        : (ci.hip_cm != null ? `${ci.hip_cm} cm` : null)],
+                                    ...(showHip ? [["Hip", ci.hip_cm != null ? `${ci.hip_cm} cm` : null] as [string, string | null]] : []),
+                                    ...(showChest ? [["Chest", ci.chest_cm != null ? `${ci.chest_cm} cm` : null] as [string, string | null]] : []),
                                     ["Upper Thigh", ci.upper_thigh_cm != null ? `${ci.upper_thigh_cm} cm` : null],
                                   ];
                                   const hasMeasurements = measurementFields.some(([, v]) => v != null);
