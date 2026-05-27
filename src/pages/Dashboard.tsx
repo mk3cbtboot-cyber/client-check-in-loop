@@ -344,6 +344,13 @@ export default function Dashboard() {
     toast.success("Height saved");
   };
 
+  const saveGender = async (clientId: string, value: "female" | "male") => {
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, gender: value } : c)));
+    const { error } = await supabase.from("clients").update({ gender: value }).eq("id", clientId);
+    if (error) return toast.error("Could not save gender");
+    toast.success("Gender saved");
+  };
+
   const PHASE3_FIELDS = [
     { key: "phase3_meat", label: "Meat" },
     { key: "phase3_fish", label: "Fish" },
