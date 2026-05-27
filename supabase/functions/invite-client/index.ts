@@ -45,12 +45,13 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { name, email, system_mode } = parsed.data;
+    const { name, email, system_mode, gender } = parsed.data;
 
     const admin = createClient(supabaseUrl, serviceKey);
 
     const insertRow: Record<string, unknown> = { practitioner_id: practitionerId, name, email };
     if (system_mode) insertRow.system_mode = system_mode;
+    if (gender) insertRow.gender = gender;
     const { data: client, error: insertErr } = await admin
       .from("clients")
       .insert(insertRow)
