@@ -63,7 +63,7 @@ interface Client {
   phase3_mb_fat_oil: string;
   show_8_rules: boolean;
   height_cm: number | null;
-  gender: "female" | "male" | null;
+  gender: "female" | "male" | "unspecified" | null;
   water_today_litres: number | null;
   water_date: string | null;
   phase2_strict_started_at: string | null;
@@ -119,6 +119,7 @@ export default function Dashboard() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [gender, setGender] = useState<"female" | "male" | "unspecified" | "">("");
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [tier, setTier] = useState<PractitionerTier | null>(null);
@@ -247,16 +248,17 @@ export default function Dashboard() {
 
   const addClient = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!gender) { toast.error("Please select a gender"); return; }
     setSubmitting(true);
     try {
       if (email.trim().toLowerCase() === userEmail.toLowerCase()) {
         throw new Error("You cannot invite yourself as a client");
       }
-      const { data, error } = await supabase.functions.invoke("invite-client", { body: { name, email, system_mode: defaultSystemMode(tier) } });
+      const { data, error } = await supabase.functions.invoke("invite-client", { body: { name, email, gender, system_mode: defaultSystemMode(tier) } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Client invited — magic link emailed");
-      setName(""); setEmail(""); setOpen(false);
+      setName(""); setEmail(""); setGender(""); setOpen(false);
       await load();
     } catch (err: any) {
       toast.error(err.message ?? "Failed to invite client");
@@ -344,7 +346,7 @@ export default function Dashboard() {
     toast.success("Height saved");
   };
 
-  const saveGender = async (clientId: string, value: "female" | "male") => {
+  const saveGender = async (clientId: string, value: "female" | "male" | "unspecified") => {
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, gender: value } : c)));
     const { error } = await supabase.from("clients").update({ gender: value }).eq("id", clientId);
     if (error) return toast.error("Could not save gender");
@@ -558,6 +560,21 @@ export default function Dashboard() {
                   <div className="space-y-2">
                     <Label htmlFor="cemail">Email</Label>
                     <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cgender">Gender</Label>
+                    <select
+                      id="cgender"
+                      required
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value as "female" | "male" | "unspecified" | "")}
+                    >
+                      <option value="" disabled>Select…</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="unspecified">Prefer not to say</option>
+                    </select>
                   </div>
                   <Button type="submit" className="w-full" disabled={submitting}>
                     {submitting ? "Sending invite…" : "Add & send invite"}
@@ -786,11 +803,12 @@ export default function Dashboard() {
                             <select
                               className="h-8 rounded-md border border-input bg-background px-2 text-sm"
                               value={client.gender ?? ""}
-                              onChange={(e) => saveGender(client.id, e.target.value as "female" | "male")}
+                              onChange={(e) => saveGender(client.id, e.target.value as "female" | "male" | "unspecified")}
                             >
                               <option value="" disabled>Select…</option>
                               <option value="female">Female</option>
                               <option value="male">Male</option>
+                              <option value="unspecified">Prefer not to say</option>
                             </select>
                           </div>
                         </div>
@@ -985,13 +1003,13 @@ export default function Dashboard() {
                                     ["Allergy / Skin", ci.allergy_skin],
                                   ];
                                   const hasRatings = ratingFields.some(([, v]) => v != null);
+                                  const showHip = client.gender !== "male";
+                                  const showChest = client.gender !== "female";
                                   const measurementFields: [string, string | null][] = [
                                     ["Body Fat", ci.body_fat_pct != null ? `${ci.body_fat_pct}%` : null],
                                     ["Waist", ci.waist_cm != null ? `${ci.waist_cm} cm` : null],
-                                    [client.gender === "male" ? "Chest" : "Hip",
-                                      client.gender === "male"
-                                        ? (ci.chest_cm != null ? `${ci.chest_cm} cm` : null)
-                                        : (ci.hip_cm != null ? `${ci.hip_cm} cm` : null)],
+                                    ...(showHip ? [["Hip", ci.hip_cm != null ? `${ci.hip_cm} cm` : null] as [string, string | null]] : []),
+                                    ...(showChest ? [["Chest", ci.chest_cm != null ? `${ci.chest_cm} cm` : null] as [string, string | null]] : []),
                                     ["Upper Thigh", ci.upper_thigh_cm != null ? `${ci.upper_thigh_cm} cm` : null],
                                   ];
                                   const hasMeasurements = measurementFields.some(([, v]) => v != null);
