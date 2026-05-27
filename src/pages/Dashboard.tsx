@@ -781,6 +781,18 @@ export default function Dashboard() {
                               placeholder="e.g. 168"
                             />
                           </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Gender</Label>
+                            <select
+                              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                              value={client.gender ?? ""}
+                              onChange={(e) => saveGender(client.id, e.target.value as "female" | "male")}
+                            >
+                              <option value="" disabled>Select…</option>
+                              <option value="female">Female</option>
+                              <option value="male">Male</option>
+                            </select>
+                          </div>
                         </div>
 
 
