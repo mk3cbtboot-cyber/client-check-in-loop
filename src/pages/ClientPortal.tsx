@@ -53,6 +53,7 @@ interface ClientState {
   phase2_food_list: unknown;
   weekly_food_limits: Record<string, number>;
   system_mode: "mb" | "own_practice";
+  gender: "female" | "male" | null;
 }
 
 type TabKey = "home" | "checkin" | "plan" | "planner";
@@ -100,6 +101,7 @@ export default function ClientPortal() {
   
   const [waistInput, setWaistInput] = useState<string>("");
   const [hipInput, setHipInput] = useState<string>("");
+  const [chestInput, setChestInput] = useState<string>("");
   const [thighInput, setThighInput] = useState<string>("");
 
   const toCm = (v: string) => {
@@ -382,7 +384,11 @@ export default function ClientPortal() {
           body.is_weekly = true;
           
           const waist = toCm(waistInput); if (waist !== undefined) body.waist_cm = waist;
-          const hip = toCm(hipInput); if (hip !== undefined) body.hip_cm = hip;
+          if (client?.gender === "male") {
+            const chest = toCm(chestInput); if (chest !== undefined) body.chest_cm = chest;
+          } else {
+            const hip = toCm(hipInput); if (hip !== undefined) body.hip_cm = hip;
+          }
           const thigh = toCm(thighInput); if (thigh !== undefined) body.upper_thigh_cm = thigh;
         }
       } else {
@@ -701,10 +707,17 @@ export default function ClientPortal() {
                       <Input id="waist-main" type="number" step="0.1" min={0} value={waistInput} onChange={(e) => setWaistInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 82" : "e.g. 32.3"} />
                       <p className="text-xs text-muted-foreground">Measured at navel height.</p>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="hip">Hip Circumference ({lengthUnit})</Label>
-                      <Input id="hip" type="number" step="0.1" min={0} value={hipInput} onChange={(e) => setHipInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 96" : "e.g. 37.8"} />
-                    </div>
+                    {client?.gender === "male" ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="chest">Chest Circumference ({lengthUnit})</Label>
+                        <Input id="chest" type="number" step="0.1" min={0} value={chestInput} onChange={(e) => setChestInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 100" : "e.g. 39.4"} />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label htmlFor="hip">Hip Circumference ({lengthUnit})</Label>
+                        <Input id="hip" type="number" step="0.1" min={0} value={hipInput} onChange={(e) => setHipInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 96" : "e.g. 37.8"} />
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor="thigh">Upper Thigh Circumference ({lengthUnit})</Label>
                       <Input id="thigh" type="number" step="0.1" min={0} value={thighInput} onChange={(e) => setThighInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 56" : "e.g. 22"} />

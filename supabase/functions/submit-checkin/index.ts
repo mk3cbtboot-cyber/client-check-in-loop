@@ -22,6 +22,7 @@ const BodySchema = z.object({
   body_fat_pct: z.number().min(0).max(100).optional(),
   waist_cm: z.number().min(0).max(500).optional(),
   hip_cm: z.number().min(0).max(500).optional(),
+  chest_cm: z.number().min(0).max(500).optional(),
   upper_thigh_cm: z.number().min(0).max(500).optional(),
   is_weekly: z.boolean().optional(),
 });

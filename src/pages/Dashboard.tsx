@@ -63,6 +63,7 @@ interface Client {
   phase3_mb_fat_oil: string;
   show_8_rules: boolean;
   height_cm: number | null;
+  gender: "female" | "male" | null;
   water_today_litres: number | null;
   water_date: string | null;
   phase2_strict_started_at: string | null;
@@ -103,6 +104,7 @@ interface CheckIn {
   body_fat_pct: number | null;
   waist_cm: number | null;
   hip_cm: number | null;
+  chest_cm: number | null;
   upper_thigh_cm: number | null;
   is_weekly: boolean | null;
 }
@@ -340,6 +342,13 @@ export default function Dashboard() {
     const { error } = await supabase.from("clients").update({ height_cm: num }).eq("id", clientId);
     if (error) return toast.error("Could not save height");
     toast.success("Height saved");
+  };
+
+  const saveGender = async (clientId: string, value: "female" | "male") => {
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, gender: value } : c)));
+    const { error } = await supabase.from("clients").update({ gender: value }).eq("id", clientId);
+    if (error) return toast.error("Could not save gender");
+    toast.success("Gender saved");
   };
 
   const PHASE3_FIELDS = [
@@ -772,6 +781,18 @@ export default function Dashboard() {
                               placeholder="e.g. 168"
                             />
                           </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Gender</Label>
+                            <select
+                              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                              value={client.gender ?? ""}
+                              onChange={(e) => saveGender(client.id, e.target.value as "female" | "male")}
+                            >
+                              <option value="" disabled>Select…</option>
+                              <option value="female">Female</option>
+                              <option value="male">Male</option>
+                            </select>
+                          </div>
                         </div>
 
 
@@ -939,7 +960,7 @@ export default function Dashboard() {
                       </TabsContent>
 
                       <TabsContent value="progress" className="pt-3 space-y-4">
-                        <ClientTrendGraphs checkIns={list as any} weightUnit={client.weight_unit} />
+                        <ClientTrendGraphs checkIns={list as any} weightUnit={client.weight_unit} gender={client.gender} />
                         <Collapsible open={!!rawOpen[client.id]} onOpenChange={(o) => setRawOpen((s) => ({ ...s, [client.id]: o }))}>
                           <CollapsibleTrigger asChild>
                             <Button variant="outline" size="sm">
@@ -967,7 +988,10 @@ export default function Dashboard() {
                                   const measurementFields: [string, string | null][] = [
                                     ["Body Fat", ci.body_fat_pct != null ? `${ci.body_fat_pct}%` : null],
                                     ["Waist", ci.waist_cm != null ? `${ci.waist_cm} cm` : null],
-                                    ["Hip", ci.hip_cm != null ? `${ci.hip_cm} cm` : null],
+                                    [client.gender === "male" ? "Chest" : "Hip",
+                                      client.gender === "male"
+                                        ? (ci.chest_cm != null ? `${ci.chest_cm} cm` : null)
+                                        : (ci.hip_cm != null ? `${ci.hip_cm} cm` : null)],
                                     ["Upper Thigh", ci.upper_thigh_cm != null ? `${ci.upper_thigh_cm} cm` : null],
                                   ];
                                   const hasMeasurements = measurementFields.some(([, v]) => v != null);

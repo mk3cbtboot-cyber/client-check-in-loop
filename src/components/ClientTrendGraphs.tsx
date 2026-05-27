@@ -13,6 +13,7 @@ export interface CheckInRow {
   digestion: number | null;
   waist_cm: number | null;
   hip_cm: number | null;
+  chest_cm: number | null;
   upper_thigh_cm: number | null;
   allergy_skin: number | null;
   joint_pain: number | null;
@@ -21,6 +22,7 @@ export interface CheckInRow {
 interface Props {
   checkIns: CheckInRow[];
   weightUnit?: string;
+  gender?: "female" | "male" | null;
 }
 
 function Graph({
@@ -58,7 +60,7 @@ function Graph({
   );
 }
 
-export default function ClientTrendGraphs({ checkIns, weightUnit = "kg" }: Props) {
+export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", gender }: Props) {
   const sorted = useMemo(
     () => [...checkIns].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
     [checkIns],
@@ -78,6 +80,7 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg" }: Props
           digestion: ci.digestion,
           waist: ci.waist_cm,
           hip: ci.hip_cm,
+          chest: ci.chest_cm,
           upper_thigh: ci.upper_thigh_cm,
           allergy_skin: ci.allergy_skin,
           joint_pain: ci.joint_pain,
@@ -112,19 +115,25 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg" }: Props
       {has("joint_pain") && (
         <Graph title="Joint Pain" data={data} yDomain={[0, 5]} lines={[{ key: "joint_pain", name: "Rating (1 Best, 5 Worst)", color: "hsl(0 72% 51%)" }]} />
       )}
-      {(has("waist") || has("hip") || has("upper_thigh")) && (
-        <div className="md:col-span-2">
-          <Graph
-            title="Body Measurements (cm)"
-            data={data}
-            lines={[
-              { key: "waist", name: "Waist", color: "hsl(var(--primary))" },
-              { key: "hip", name: "Hip", color: "hsl(38 92% 50%)" },
-              { key: "upper_thigh", name: "Upper Thigh", color: "hsl(262 83% 58%)" },
-            ]}
-          />
-        </div>
-      )}
+      {(() => {
+        const isMale = gender === "male";
+        const circKey = isMale ? "chest" : "hip";
+        const circName = isMale ? "Chest Circumference" : "Hip Circumference";
+        if (!has("waist") && !has(circKey) && !has("upper_thigh")) return null;
+        return (
+          <div className="md:col-span-2">
+            <Graph
+              title="Body Measurements (cm)"
+              data={data}
+              lines={[
+                { key: "waist", name: "Waist", color: "hsl(var(--primary))" },
+                { key: circKey, name: circName, color: "hsl(38 92% 50%)" },
+                { key: "upper_thigh", name: "Upper Thigh", color: "hsl(262 83% 58%)" },
+              ]}
+            />
+          </div>
+        );
+      })()}
     </div>
   );
 }
