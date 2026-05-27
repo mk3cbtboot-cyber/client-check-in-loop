@@ -13,6 +13,7 @@ export interface CheckInRow {
   digestion: number | null;
   waist_cm: number | null;
   hip_cm: number | null;
+  chest_cm: number | null;
   upper_thigh_cm: number | null;
   allergy_skin: number | null;
   joint_pain: number | null;
@@ -21,6 +22,7 @@ export interface CheckInRow {
 interface Props {
   checkIns: CheckInRow[];
   weightUnit?: string;
+  gender?: "female" | "male" | null;
 }
 
 function Graph({
