@@ -53,7 +53,7 @@ interface ClientState {
   phase2_food_list: unknown;
   weekly_food_limits: Record<string, number>;
   system_mode: "mb" | "own_practice";
-  gender: "female" | "male" | null;
+  gender: "female" | "male" | "unspecified" | null;
 }
 
 type TabKey = "home" | "checkin" | "plan" | "planner";
