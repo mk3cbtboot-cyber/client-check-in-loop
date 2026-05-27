@@ -104,7 +104,6 @@ Deno.serve(async (req) => {
         length_unit: c.length_unit === "in" ? "in" : "cm",
         height_cm: c.height_cm != null ? Number(c.height_cm) : null,
         phase2_strict_started_at: c.phase2_strict_started_at ?? null,
-        phase2_strict_started_at: c.phase2_strict_started_at ?? null,
         phase2_strict_mode: c.phase2_strict_mode === "practitioner_custom" ? "practitioner_custom" : "mb_standard",
         phase2_food_list: c.phase2_food_list ?? null,
         weekly_food_limits: c.weekly_food_limits ?? {},
