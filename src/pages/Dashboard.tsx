@@ -960,7 +960,7 @@ export default function Dashboard() {
                       </TabsContent>
 
                       <TabsContent value="progress" className="pt-3 space-y-4">
-                        <ClientTrendGraphs checkIns={list as any} weightUnit={client.weight_unit} />
+                        <ClientTrendGraphs checkIns={list as any} weightUnit={client.weight_unit} gender={client.gender} />
                         <Collapsible open={!!rawOpen[client.id]} onOpenChange={(o) => setRawOpen((s) => ({ ...s, [client.id]: o }))}>
                           <CollapsibleTrigger asChild>
                             <Button variant="outline" size="sm">
