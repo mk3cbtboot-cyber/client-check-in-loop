@@ -63,6 +63,7 @@ interface Client {
   phase3_mb_fat_oil: string;
   show_8_rules: boolean;
   height_cm: number | null;
+  gender: "female" | "male" | null;
   water_today_litres: number | null;
   water_date: string | null;
   phase2_strict_started_at: string | null;
