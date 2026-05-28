@@ -373,6 +373,13 @@ export default function ClientPortal() {
         : "Please complete this once per week. Rate each area from 1 (best) to 5 (worst).")
     : "Rate each area from 1 (best) to 5 (worst).";
   const phaseProgress = getPhaseProgress(client?.phase, client?.phase2_strict_started_at);
+  const renderGender = client?.gender ?? null;
+
+  useEffect(() => {
+    if (tab === "checkin" && client) {
+      console.log("[ClientPortal] Check-in form gender from backend:", renderGender);
+    }
+  }, [tab, client, renderGender]);
 
   const submitCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -390,9 +397,8 @@ export default function ClientPortal() {
           body.is_weekly = true;
 
           const waist = toCm(waistInput); if (waist !== undefined) body.waist_cm = waist;
-          const g = client?.gender ?? null;
-          const includeHip = g === "female" || g === "unspecified" || g === null;
-          const includeChest = g === "male" || g === "unspecified" || g === null;
+          const includeHip = renderGender !== "male";
+          const includeChest = renderGender !== "female";
           if (includeChest) {
             const chest = toCm(chestInput); if (chest !== undefined) body.chest_cm = chest;
           }
@@ -686,9 +692,8 @@ export default function ClientPortal() {
                     <p className="text-xs text-muted-foreground">Measured at navel height.</p>
                   </div>
                   {(() => {
-                    const g = client?.gender ?? null;
-                    const showHip = g === "female" || g === "unspecified" || g === null;
-                    const showChest = g === "male" || g === "unspecified" || g === null;
+                    const showHip = renderGender !== "male";
+                    const showChest = renderGender !== "female";
                     return (
                       <>
                         {showHip && (
