@@ -555,7 +555,8 @@ export default function Dashboard() {
 
       <section className="max-w-5xl mx-auto p-4 space-y-6">
         {!isDetailView && (() => {
-          const total = clients.length;
+          const activeClients = clients.filter((c) => !c.archived_at);
+          const archivedClients = clients.filter((c) => !!c.archived_at);
           let streaks = 0, waterHit = 0, attention = 0;
           clients.forEach((c) => {
             const list = checkIns[c.id] ?? [];
@@ -564,15 +565,43 @@ export default function Dashboard() {
             if (c.water_date === today && Number(c.water_today_litres ?? 0) >= 2.5) waterHit += 1;
             if (needsAttention(c, list)) attention += 1;
           });
-          const stats = [
-            { label: "Total Clients", value: total, tone: "" },
-            { label: "Active Streaks", value: streaks, tone: "" },
-            { label: "Water Target Hit", value: waterHit, tone: "" },
-            { label: "Need Attention", value: attention, tone: attention > 0 ? "text-destructive" : "" },
-          ];
+          const phaseCounts: Record<string, number> = {};
+          activeClients.forEach((c) => {
+            const label = PHASE_OPTIONS.find((o) => o.value === c.phase)?.label ?? c.phase;
+            phaseCounts[label] = (phaseCounts[label] ?? 0) + 1;
+          });
+          const phaseBreakdown = Object.entries(phaseCounts).sort((a, b) => b[1] - a[1]);
           return (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {stats.map((s) => (
+              <Card className="p-4">
+                <p className="text-xs text-muted-foreground mb-2">Total Clients</p>
+                <div className="flex gap-4 mb-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Active</p>
+                    <p className="text-2xl font-semibold">{activeClients.length}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Archived</p>
+                    <p className="text-2xl font-semibold">{archivedClients.length}</p>
+                  </div>
+                </div>
+                {phaseBreakdown.length > 0 && (
+                  <div className="space-y-0.5 border-t pt-2 mt-1">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Phase Breakdown</p>
+                    {phaseBreakdown.map(([label, count]) => (
+                      <div key={label} className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">{label}</span>
+                        <span className="font-medium">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+              {[
+                { label: "Active Streaks", value: streaks, tone: "" },
+                { label: "Water Target Hit", value: waterHit, tone: "" },
+                { label: "Need Attention", value: attention, tone: attention > 0 ? "text-destructive" : "" },
+              ].map((s) => (
                 <Card key={s.label} className="p-4">
                   <p className="text-xs text-muted-foreground">{s.label}</p>
                   <p className={`text-2xl font-semibold ${s.tone}`}>{s.value}</p>
