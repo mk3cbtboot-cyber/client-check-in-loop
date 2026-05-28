@@ -66,6 +66,7 @@ export default function ClientPortal() {
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
 
   const [loading, setLoading] = useState(true);
+  const [archived, setArchived] = useState(false);
   const [client, setClient] = useState<ClientState | null>(null);
 
   // Home/recipe builder state
