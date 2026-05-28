@@ -116,11 +116,14 @@ export default function ClientPortal() {
     if (!token) return;
     const { data } = await supabase.functions.invoke("client-portal-data", { body: { token } });
     if (data?.valid) {
+      setArchived(false);
       setClient(data.client);
       setWaterLitres(Number(data.client.water_today_litres) || 0);
       setWeightUnit(data.client.weight_unit || "kg");
       setLengthUnit(data.client.length_unit || "cm");
       setLatestWeightKg(data.client.latest_weight_kg ?? null);
+    } else if (data?.archived) {
+      setArchived(true);
     }
   };
 
