@@ -769,7 +769,28 @@ export default function Dashboard() {
                         )}
                         <span>Water: <span className="font-medium text-foreground">{lastWaterDisplay(list)}</span></span>
                         <span>Streak: <span className="font-medium text-foreground">{streak}d</span></span>
-                        {!isDetailView && <span className="text-primary ml-auto">Details</span>}
+                        {!isDetailView && (
+                          <div className="ml-auto inline-flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                            {client.archived_at ? (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setReactivateConfirmId(client.id); }}
+                                className="text-primary hover:underline"
+                              >
+                                Reactivate
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setArchiveConfirmId(client.id); }}
+                                className="text-destructive hover:underline"
+                              >
+                                Archive
+                              </button>
+                            )}
+                            <span className="text-primary">Details</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </button>
