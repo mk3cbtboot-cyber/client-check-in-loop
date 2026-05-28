@@ -127,6 +127,12 @@ export default function ClientPortal() {
     refresh().finally(() => setLoading(false));
   }, [token]);
 
+  // Always refetch client data (incl. fresh gender) when entering the check-in tab
+  useEffect(() => {
+    if (tab === "checkin") refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
 
   // Load this week's confirmed meal plan (used to restrict the recipe builder)
   useEffect(() => {
