@@ -502,22 +502,6 @@ export default function Dashboard() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {isDetailView && (() => {
-              const current = clients.find((c) => c.id === routeClientId);
-              if (!current) return null;
-              if (current.archived_at) {
-                return (
-                  <Button variant="default" size="sm" onClick={() => setReactivateConfirmId(current.id)}>
-                    Reactivate Client
-                  </Button>
-                );
-              }
-              return (
-                <Button variant="outline" size="sm" onClick={() => setArchiveConfirmId(current.id)}>
-                  Archive Client
-                </Button>
-              );
-            })()}
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" aria-label="Settings">
@@ -785,7 +769,28 @@ export default function Dashboard() {
                         )}
                         <span>Water: <span className="font-medium text-foreground">{lastWaterDisplay(list)}</span></span>
                         <span>Streak: <span className="font-medium text-foreground">{streak}d</span></span>
-                        {!isDetailView && <span className="text-primary ml-auto">Details</span>}
+                        {!isDetailView && (
+                          <div className="ml-auto inline-flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                            {client.archived_at ? (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setReactivateConfirmId(client.id); }}
+                                className="text-primary hover:underline"
+                              >
+                                Reactivate
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setArchiveConfirmId(client.id); }}
+                                className="text-destructive hover:underline"
+                              >
+                                Archive
+                              </button>
+                            )}
+                            <span className="text-primary">Details</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </button>
