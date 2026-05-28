@@ -427,6 +427,14 @@ export default function ClientPortal() {
   };
 
   if (loading) return <main className="min-h-screen flex items-center justify-center">Loading…</main>;
+  if (archived) return (
+    <main className="min-h-screen flex items-center justify-center p-4">
+      <Card className="p-6 text-center max-w-md space-y-2">
+        <p className="font-medium">Your programme is currently inactive.</p>
+        <p className="text-sm text-muted-foreground">Please contact your practitioner.</p>
+      </Card>
+    </main>
+  );
   if (!client) return (
     <main className="min-h-screen flex items-center justify-center p-4">
       <Card className="p-6 text-center max-w-md"><p>Invalid link.</p></Card>
