@@ -1286,6 +1286,44 @@ export default function Dashboard() {
           );
         })()}
       </section>
+
+      <AlertDialog open={!!archiveConfirmId} onOpenChange={(o) => { if (!o) setArchiveConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Archive {clients.find((c) => c.id === archiveConfirmId)?.name ?? "client"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They will be hidden from your client list but their data will be kept.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => archiveConfirmId && archiveClient(archiveConfirmId)}>
+              Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!reactivateConfirmId} onOpenChange={(o) => { if (!o) setReactivateConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Reactivate {clients.find((c) => c.id === reactivateConfirmId)?.name ?? "client"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They will be moved back to your active client list.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => reactivateConfirmId && reactivateClient(reactivateConfirmId)}>
+              Reactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
