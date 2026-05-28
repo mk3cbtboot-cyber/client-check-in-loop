@@ -81,6 +81,7 @@ interface Client {
   client_goal: string;
   vitamins_supplements: string;
   weight_unit: string;
+  archived_at: string | null;
 }
 
 interface CheckIn {
