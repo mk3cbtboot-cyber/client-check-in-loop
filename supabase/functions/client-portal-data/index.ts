@@ -16,6 +16,15 @@ function mondayOf(d: Date): string {
 }
 const today = () => new Date().toISOString().slice(0, 10);
 
+function normalizeGender(value: unknown): "female" | "male" | "unspecified" | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "female" || normalized === "male" || normalized === "unspecified") {
+    return normalized;
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -109,7 +118,7 @@ Deno.serve(async (req) => {
         weekly_food_limits: c.weekly_food_limits ?? {},
         latest_weight_kg: latestCheckIn?.weight_kg != null ? Number(latestCheckIn.weight_kg) : null,
         system_mode: c.system_mode === "own_practice" ? "own_practice" : "mb",
-        gender: c.gender === "male" ? "male" : c.gender === "female" ? "female" : c.gender === "unspecified" ? "unspecified" : null,
+        gender: normalizeGender(c.gender),
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
