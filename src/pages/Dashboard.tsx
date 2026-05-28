@@ -269,6 +269,23 @@ export default function Dashboard() {
     } finally { setSubmitting(false); }
   };
 
+  const archiveClient = async (clientId: string) => {
+    const { error } = await supabase.from("clients").update({ archived_at: new Date().toISOString() } as never).eq("id", clientId);
+    if (error) return toast.error("Could not archive client");
+    toast.success("Client archived");
+    setArchiveConfirmId(null);
+    if (isDetailView) navigate("/dashboard");
+    await load();
+  };
+
+  const reactivateClient = async (clientId: string) => {
+    const { error } = await supabase.from("clients").update({ archived_at: null } as never).eq("id", clientId);
+    if (error) return toast.error("Could not reactivate client");
+    toast.success("Client reactivated");
+    setReactivateConfirmId(null);
+    await load();
+  };
+
   const setPhase = async (clientId: string, phase: Phase) => {
     const current = clients.find((c) => c.id === clientId);
     const updates: { phase: Phase; phase2_strict_started_at?: string } = { phase };
