@@ -382,12 +382,15 @@ export default function ClientPortal() {
         Object.assign(body, ratings);
         if (isWeeklyMode) {
           body.is_weekly = true;
-          
+
           const waist = toCm(waistInput); if (waist !== undefined) body.waist_cm = waist;
-          if (client?.gender !== "female") {
+          const g = client?.gender ?? null;
+          const includeHip = g === "female" || g === "unspecified" || g === null;
+          const includeChest = g === "male" || g === "unspecified" || g === null;
+          if (includeChest) {
             const chest = toCm(chestInput); if (chest !== undefined) body.chest_cm = chest;
           }
-          if (client?.gender !== "male") {
+          if (includeHip) {
             const hip = toCm(hipInput); if (hip !== undefined) body.hip_cm = hip;
           }
           const thigh = toCm(thighInput); if (thigh !== undefined) body.upper_thigh_cm = thigh;
