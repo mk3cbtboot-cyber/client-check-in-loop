@@ -679,18 +679,27 @@ export default function ClientPortal() {
                     <Input id="waist-main" type="number" step="0.1" min={0} value={waistInput} onChange={(e) => setWaistInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 82" : "e.g. 32.3"} />
                     <p className="text-xs text-muted-foreground">Measured at navel height.</p>
                   </div>
-                  {client?.gender !== "male" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="hip">Hip Circumference ({lengthUnit})</Label>
-                      <Input id="hip" type="number" step="0.1" min={0} value={hipInput} onChange={(e) => setHipInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 96" : "e.g. 37.8"} />
-                    </div>
-                  )}
-                  {client?.gender !== "female" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="chest">Chest Circumference ({lengthUnit})</Label>
-                      <Input id="chest" type="number" step="0.1" min={0} value={chestInput} onChange={(e) => setChestInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 100" : "e.g. 39.4"} />
-                    </div>
-                  )}
+                  {(() => {
+                    const g = client?.gender ?? null;
+                    const showHip = g === "female" || g === "unspecified" || g === null;
+                    const showChest = g === "male" || g === "unspecified" || g === null;
+                    return (
+                      <>
+                        {showHip && (
+                          <div className="space-y-2">
+                            <Label htmlFor="hip">Hip Circumference ({lengthUnit})</Label>
+                            <Input id="hip" type="number" step="0.1" min={0} value={hipInput} onChange={(e) => setHipInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 96" : "e.g. 37.8"} />
+                          </div>
+                        )}
+                        {showChest && (
+                          <div className="space-y-2">
+                            <Label htmlFor="chest">Chest Circumference ({lengthUnit})</Label>
+                            <Input id="chest" type="number" step="0.1" min={0} value={chestInput} onChange={(e) => setChestInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 100" : "e.g. 39.4"} />
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                   <div className="space-y-2">
                     <Label htmlFor="thigh">Upper Thigh Circumference ({lengthUnit})</Label>
                     <Input id="thigh" type="number" step="0.1" min={0} value={thighInput} onChange={(e) => setThighInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 56" : "e.g. 22"} />
