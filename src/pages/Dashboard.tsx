@@ -567,50 +567,90 @@ export default function Dashboard() {
         })()}
 
         {!isDetailView && (
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium">Clients</h2>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild><Button>Add client</Button></DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Add a new client</DialogTitle></DialogHeader>
-                <form onSubmit={addClient} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cname">Name</Label>
-                    <Input id="cname" required value={name} onChange={(e) => setName(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cemail">Email</Label>
-                    <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cgender">Gender</Label>
-                    <select
-                      id="cgender"
-                      required
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={gender}
-                      onChange={(e) => setGender(e.target.value as "female" | "male" | "unspecified" | "")}
-                    >
-                      <option value="" disabled>Select…</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="unspecified">Prefer not to say</option>
-                    </select>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={submitting}>
-                    {submitting ? "Sending invite…" : "Add & send invite"}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-medium">{showArchived ? "Archived Clients" : "Clients"}</h2>
+              <div role="group" className="inline-flex rounded-md border overflow-hidden text-xs">
+                <button
+                  type="button"
+                  onClick={() => setShowArchived(false)}
+                  className={`px-2.5 py-1 ${!showArchived ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                  aria-pressed={!showArchived}
+                >
+                  Active ({clients.filter((c) => !c.archived_at).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowArchived(true)}
+                  className={`px-2.5 py-1 border-l ${showArchived ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                  aria-pressed={showArchived}
+                >
+                  Archived ({clients.filter((c) => !!c.archived_at).length})
+                </button>
+              </div>
+            </div>
+            {!showArchived && (
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild><Button>Add client</Button></DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Add a new client</DialogTitle></DialogHeader>
+                  <form onSubmit={addClient} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cname">Name</Label>
+                      <Input id="cname" required value={name} onChange={(e) => setName(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cemail">Email</Label>
+                      <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cgender">Gender</Label>
+                      <select
+                        id="cgender"
+                        required
+                        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value as "female" | "male" | "unspecified" | "")}
+                      >
+                        <option value="" disabled>Select…</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="unspecified">Prefer not to say</option>
+                      </select>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={submitting}>
+                      {submitting ? "Sending invite…" : "Add & send invite"}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         )}
 
-        {clients.length === 0 ? (
-          <Card className="p-8 text-center text-muted-foreground">No clients yet. Add your first one.</Card>
-        ) : isDetailView && !clients.some((c) => c.id === routeClientId) ? (
-          <Card className="p-8 text-center text-muted-foreground">Loading client…</Card>
-        ) : (
+        {(() => {
+          const visibleClients = isDetailView
+            ? clients.filter((c) => c.id === routeClientId)
+            : clients.filter((c) => (showArchived ? !!c.archived_at : !c.archived_at));
+          if (visibleClients.length === 0) {
+            if (isDetailView) {
+              return <Card className="p-8 text-center text-muted-foreground">Loading client…</Card>;
+            }
+            return (
+              <Card className="p-8 text-center text-muted-foreground">
+                {showArchived ? "No archived clients." : "No clients yet. Add your first one."}
+              </Card>
+            );
+          }
+          return null;
+        })()}
+
+        {(() => {
+          const visibleClients = isDetailView
+            ? clients.filter((c) => c.id === routeClientId)
+            : clients.filter((c) => (showArchived ? !!c.archived_at : !c.archived_at));
+          if (visibleClients.length === 0) return null;
+          return (
           <div className="space-y-4">
             {(isDetailView ? clients.filter((c) => c.id === routeClientId) : clients).map((client) => {
               const list = checkIns[client.id] ?? [];
