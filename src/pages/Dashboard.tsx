@@ -691,6 +691,9 @@ export default function Dashboard() {
                           {client.name}
                           {alert && <span className="text-destructive" aria-label="Needs attention" title="Needs attention">⚠</span>}
                         </p>
+                        {client.archived_at && (
+                          <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground text-xs">Archived</span>
+                        )}
                         {client.system_mode !== "own_practice" && (
                           <>
                             <span className="px-2 py-0.5 rounded bg-muted text-xs">{phaseLabel}</span>
