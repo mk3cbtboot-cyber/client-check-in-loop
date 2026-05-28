@@ -645,9 +645,20 @@ export default function Dashboard() {
         )}
 
         {(() => {
+          const sortByName = (a: Client, b: Client) => {
+            const aParts = a.name.trim().split(/\s+/);
+            const bParts = b.name.trim().split(/\s+/);
+            const aLast = aParts.pop() ?? "";
+            const bLast = bParts.pop() ?? "";
+            const aFirst = aParts.join(" ");
+            const bFirst = bParts.join(" ");
+            const lastCompare = aLast.localeCompare(bLast);
+            if (lastCompare !== 0) return lastCompare;
+            return aFirst.localeCompare(bFirst);
+          };
           const visibleClients = isDetailView
             ? clients.filter((c) => c.id === routeClientId)
-            : clients.filter((c) => (showArchived ? !!c.archived_at : !c.archived_at));
+            : clients.filter((c) => (showArchived ? !!c.archived_at : !c.archived_at)).sort(sortByName);
           if (visibleClients.length === 0) {
             if (isDetailView) {
               return <Card className="p-8 text-center text-muted-foreground">Loading client…</Card>;
@@ -662,9 +673,20 @@ export default function Dashboard() {
         })()}
 
         {(() => {
+          const sortByName = (a: Client, b: Client) => {
+            const aParts = a.name.trim().split(/\s+/);
+            const bParts = b.name.trim().split(/\s+/);
+            const aLast = aParts.pop() ?? "";
+            const bLast = bParts.pop() ?? "";
+            const aFirst = aParts.join(" ");
+            const bFirst = bParts.join(" ");
+            const lastCompare = aLast.localeCompare(bLast);
+            if (lastCompare !== 0) return lastCompare;
+            return aFirst.localeCompare(bFirst);
+          };
           const visibleClients = isDetailView
             ? clients.filter((c) => c.id === routeClientId)
-            : clients.filter((c) => (showArchived ? !!c.archived_at : !c.archived_at));
+            : clients.filter((c) => (showArchived ? !!c.archived_at : !c.archived_at)).sort(sortByName);
           if (visibleClients.length === 0) return null;
           return (
           <div className="space-y-4">
