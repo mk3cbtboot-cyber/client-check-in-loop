@@ -34,6 +34,7 @@ Deno.serve(async (req) => {
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: c } = await admin.from("clients").select("*").eq("magic_token", parsed.data.token).maybeSingle();
     if (!c) return new Response(JSON.stringify({ valid: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (c.archived_at) return new Response(JSON.stringify({ valid: false, archived: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const updates: Record<string, unknown> = {};
     const monday = mondayOf(new Date());

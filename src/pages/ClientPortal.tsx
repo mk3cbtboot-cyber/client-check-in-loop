@@ -66,6 +66,7 @@ export default function ClientPortal() {
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
 
   const [loading, setLoading] = useState(true);
+  const [archived, setArchived] = useState(false);
   const [client, setClient] = useState<ClientState | null>(null);
 
   // Home/recipe builder state
@@ -115,11 +116,14 @@ export default function ClientPortal() {
     if (!token) return;
     const { data } = await supabase.functions.invoke("client-portal-data", { body: { token } });
     if (data?.valid) {
+      setArchived(false);
       setClient(data.client);
       setWaterLitres(Number(data.client.water_today_litres) || 0);
       setWeightUnit(data.client.weight_unit || "kg");
       setLengthUnit(data.client.length_unit || "cm");
       setLatestWeightKg(data.client.latest_weight_kg ?? null);
+    } else if (data?.archived) {
+      setArchived(true);
     }
   };
 
@@ -423,6 +427,14 @@ export default function ClientPortal() {
   };
 
   if (loading) return <main className="min-h-screen flex items-center justify-center">Loading…</main>;
+  if (archived) return (
+    <main className="min-h-screen flex items-center justify-center p-4">
+      <Card className="p-6 text-center max-w-md space-y-2">
+        <p className="font-medium">Your programme is currently inactive.</p>
+        <p className="text-sm text-muted-foreground">Please contact your practitioner.</p>
+      </Card>
+    </main>
+  );
   if (!client) return (
     <main className="min-h-screen flex items-center justify-center p-4">
       <Card className="p-6 text-center max-w-md"><p>Invalid link.</p></Card>

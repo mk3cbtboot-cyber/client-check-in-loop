@@ -102,6 +102,7 @@ export type Database = {
       }
       clients: {
         Row: {
+          archived_at: string | null
           avocado_count_week: number
           client_goal: string
           created_at: string
@@ -149,6 +150,7 @@ export type Database = {
           weight_unit: string
         }
         Insert: {
+          archived_at?: string | null
           avocado_count_week?: number
           client_goal?: string
           created_at?: string
@@ -196,6 +198,7 @@ export type Database = {
           weight_unit?: string
         }
         Update: {
+          archived_at?: string | null
           avocado_count_week?: number
           client_goal?: string
           created_at?: string

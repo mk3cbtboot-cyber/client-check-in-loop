@@ -21,11 +21,17 @@ Deno.serve(async (req) => {
     );
     const { data, error } = await admin
       .from("clients")
-      .select("id, name")
+      .select("id, name, archived_at")
       .eq("magic_token", parsed.data.token)
       .maybeSingle();
     if (error || !data) {
       return new Response(JSON.stringify({ valid: false }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (data.archived_at) {
+      return new Response(JSON.stringify({ valid: false, archived: true }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
