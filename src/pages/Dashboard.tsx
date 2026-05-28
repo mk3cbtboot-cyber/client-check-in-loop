@@ -127,6 +127,9 @@ export default function Dashboard() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [savingTier, setSavingTier] = useState(false);
   const [rawOpen, setRawOpen] = useState<Record<string, boolean>>({});
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
+  const [reactivateConfirmId, setReactivateConfirmId] = useState<string | null>(null);
 
   const isDetailView = !!routeClientId;
 
