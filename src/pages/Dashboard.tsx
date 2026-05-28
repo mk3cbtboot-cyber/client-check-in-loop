@@ -502,22 +502,6 @@ export default function Dashboard() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {isDetailView && (() => {
-              const current = clients.find((c) => c.id === routeClientId);
-              if (!current) return null;
-              if (current.archived_at) {
-                return (
-                  <Button variant="default" size="sm" onClick={() => setReactivateConfirmId(current.id)}>
-                    Reactivate Client
-                  </Button>
-                );
-              }
-              return (
-                <Button variant="outline" size="sm" onClick={() => setArchiveConfirmId(current.id)}>
-                  Archive Client
-                </Button>
-              );
-            })()}
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" aria-label="Settings">
