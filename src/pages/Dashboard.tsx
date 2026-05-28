@@ -652,7 +652,7 @@ export default function Dashboard() {
           if (visibleClients.length === 0) return null;
           return (
           <div className="space-y-4">
-            {(isDetailView ? clients.filter((c) => c.id === routeClientId) : clients).map((client) => {
+            {visibleClients.map((client) => {
               const list = checkIns[client.id] ?? [];
               const portalLink = `${window.location.origin}/portal/${client.magic_token}`;
               const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at);
