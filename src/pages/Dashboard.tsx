@@ -1393,7 +1393,7 @@ export default function Dashboard() {
                         })() : null}
                       </TabsContent>
                       <TabsContent value="messages" className="pt-3">
-                        <PractitionerMessages clientId={client.id} clientName={client.name} />
+                        <PractitionerMessages clientId={client.id} clientName={client.name} onRead={() => markPractitionerRead(client.id)} />
                       </TabsContent>
                     </Tabs>
 
