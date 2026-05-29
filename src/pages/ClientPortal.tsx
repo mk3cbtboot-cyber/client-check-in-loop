@@ -58,14 +58,17 @@ interface ClientState {
   gender: "female" | "male" | "unspecified" | null;
 }
 
-type TabKey = "home" | "checkin" | "plan" | "planner";
+type TabKey = "home" | "checkin" | "plan" | "planner" | "messages";
 
 export default function ClientPortal() {
   const { token } = useParams<{ token: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = (searchParams.get("tab") as TabKey) || "home";
-  const [tab, setTab] = useState<TabKey>(["home", "checkin", "plan", "planner"].includes(initialTab) ? initialTab : "home");
+  const [tab, setTab] = useState<TabKey>(["home", "checkin", "plan", "planner", "messages"].includes(initialTab) ? initialTab : "home");
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sendingMessage, setSendingMessage] = useState(false);
+
 
   const [loading, setLoading] = useState(true);
   const [archived, setArchived] = useState(false);
