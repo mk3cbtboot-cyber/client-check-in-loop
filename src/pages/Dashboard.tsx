@@ -917,7 +917,12 @@ export default function Dashboard() {
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="progress">Progress</TabsTrigger>
                         <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
-                        <TabsTrigger value="messages">Messages</TabsTrigger>
+                        <TabsTrigger value="messages" className="relative">
+                          Messages
+                          {hasUnreadFromClient(client) && (
+                            <span aria-label="Unread message" className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
+                          )}
+                        </TabsTrigger>
                       </TabsList>
 
 
