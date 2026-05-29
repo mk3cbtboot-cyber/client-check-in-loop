@@ -9,7 +9,9 @@ export interface ChatMessage {
   sender: "client" | "practitioner" | "ai";
   body: string;
   created_at: string;
+  notice?: string | null;
 }
+
 
 interface Props {
   messages: ChatMessage[];
