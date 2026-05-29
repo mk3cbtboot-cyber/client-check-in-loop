@@ -1040,14 +1040,32 @@ export default function ClientPortal() {
         </section>
       )}
 
+      {tab === "messages" && (
+        <section className="max-w-3xl mx-auto p-4 space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold">Messages</h2>
+            <p className="text-xs text-muted-foreground">Chat with Cheryl. Replies usually arrive within a day or two.</p>
+          </div>
+          <ChatThread
+            messages={messages}
+            viewerRole="client"
+            onSend={sendMessage}
+            sending={sendingMessage}
+            placeholder="Write a message to Cheryl…"
+            emptyHint="Say hello — Cheryl will see your message and reply here."
+          />
+        </section>
+      )}
+
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 inset-x-0 border-t bg-background">
-        <div className="max-w-5xl mx-auto grid grid-cols-4">
+        <div className="max-w-5xl mx-auto grid grid-cols-5">
           {([
             { key: "home", label: "Home", Icon: Home },
             { key: "planner", label: "Meal Planner", Icon: CalendarDays },
             { key: "checkin", label: "Check-in", Icon: ClipboardCheck },
             { key: "plan", label: "My Plan", Icon: BookOpen },
+            { key: "messages", label: "Messages", Icon: MessageCircle },
           ] as { key: TabKey; label: string; Icon: typeof Home }[]).map(({ key, label, Icon }) => {
             const active = tab === key;
             return (
@@ -1063,6 +1081,7 @@ export default function ClientPortal() {
           })}
         </div>
       </nav>
+
 
     </main>
   );
