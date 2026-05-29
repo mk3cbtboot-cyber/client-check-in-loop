@@ -138,8 +138,32 @@ export default function Dashboard() {
   const [showArchived, setShowArchived] = useState(false);
   const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
   const [reactivateConfirmId, setReactivateConfirmId] = useState<string | null>(null);
-  // clientId -> ISO timestamp of latest message from client
+  // clientId -> ISO timestamp of latest non-deferred message from client
   const [lastClientMessageAt, setLastClientMessageAt] = useState<Record<string, string>>({});
+
+  // Practitioner availability profile fields
+  const [officeHours, setOfficeHours] = useState<Required<OfficeHours>>(() =>
+    defaultOfficeHours(typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC"),
+  );
+  const [outOfOffice, setOutOfOffice] = useState(false);
+  const [oooMessage, setOooMessage] = useState("");
+  const [oooReturnDate, setOooReturnDate] = useState<string>("");
+  const [savingHours, setSavingHours] = useState(false);
+  const [nowTick, setNowTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setNowTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const availability = (() => {
+    void nowTick;
+    return checkAvailability({
+      office_hours: officeHours,
+      out_of_office: outOfOffice,
+      ooo_return_date: oooReturnDate || null,
+      timezone: officeHours.tz,
+    });
+  })();
+
 
   const markPractitionerRead = async (clientId: string) => {
     const nowIso = new Date().toISOString();
