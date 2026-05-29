@@ -293,6 +293,7 @@ export type Database = {
           body: string
           client_id: string
           created_at: string
+          deferred: boolean
           id: string
           sender: string
         }
@@ -300,6 +301,7 @@ export type Database = {
           body: string
           client_id: string
           created_at?: string
+          deferred?: boolean
           id?: string
           sender: string
         }
@@ -307,6 +309,7 @@ export type Database = {
           body?: string
           client_id?: string
           created_at?: string
+          deferred?: boolean
           id?: string
           sender?: string
         }
@@ -325,19 +328,34 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          office_hours: Json
+          ooo_message: string
+          ooo_return_date: string | null
+          out_of_office: boolean
           practitioner_tier: string | null
+          timezone: string | null
         }
         Insert: {
           created_at?: string
           email: string
           id: string
+          office_hours?: Json
+          ooo_message?: string
+          ooo_return_date?: string | null
+          out_of_office?: boolean
           practitioner_tier?: string | null
+          timezone?: string | null
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
+          office_hours?: Json
+          ooo_message?: string
+          ooo_return_date?: string | null
+          out_of_office?: boolean
           practitioner_tier?: string | null
+          timezone?: string | null
         }
         Relationships: []
       }
