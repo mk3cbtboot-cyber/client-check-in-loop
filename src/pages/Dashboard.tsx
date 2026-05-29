@@ -345,7 +345,15 @@ export default function Dashboard() {
         },
 
       )
-      .subscribe();
+  }, [clients.map((c) => c.id).join(","), availability.available]);
+
+  // When the practitioner becomes available again (office hours resume or OOO toggled off),
+  // re-load message snapshot so any previously deferred client messages surface as unread.
+  useEffect(() => {
+    if (availability.available && clients.length > 0) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availability.available]);
+
     return () => { void supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clients.map((c) => c.id).join(",")]);
