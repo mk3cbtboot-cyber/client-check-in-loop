@@ -607,7 +607,8 @@ export default function Dashboard() {
           });
           const phaseBreakdown = Object.entries(phaseCounts).sort((a, b) => b[1] - a[1]);
           return (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+
               <Card className="p-4">
                 <p className="text-xs text-muted-foreground mb-2">Total Clients</p>
                 <div className="flex gap-4 mb-3">
@@ -632,16 +633,37 @@ export default function Dashboard() {
                   </div>
                 )}
               </Card>
-              {[
-                { label: "Active Streaks", value: streaks, tone: "" },
-                { label: "Water Target Hit", value: waterHit, tone: "" },
-                { label: "Need Attention", value: attention, tone: attention > 0 ? "text-destructive" : "" },
-              ].map((s) => (
-                <Card key={s.label} className="p-4">
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
-                  <p className={`text-2xl font-semibold ${s.tone}`}>{s.value}</p>
-                </Card>
-              ))}
+              {(() => {
+                const unreadClients = activeClients.filter((c) => hasUnreadFromClient(c));
+                const unreadCount = unreadClients.length;
+                const items = [
+                  {
+                    label: "Messages",
+                    value: unreadCount,
+                    tone: unreadCount > 0 ? "text-destructive" : "",
+                    sub: unreadCount > 0 ? `${unreadCount === 1 ? "client has" : "clients have"} new message${unreadCount === 1 ? "" : "s"}` : "No new messages",
+                    onClick: unreadCount > 0 ? () => navigate(`/dashboard/clients/${unreadClients[0].id}`) : undefined,
+                  },
+                  { label: "Active Streaks", value: streaks, tone: "", sub: undefined, onClick: undefined },
+                  { label: "Water Target Hit", value: waterHit, tone: "", sub: undefined, onClick: undefined },
+                  { label: "Need Attention", value: attention, tone: attention > 0 ? "text-destructive" : "", sub: undefined, onClick: undefined },
+                ];
+                return items.map((s) => (
+                  <Card
+                    key={s.label}
+                    onClick={s.onClick}
+                    className={`p-4 relative ${s.onClick ? "cursor-pointer hover:border-primary/60 transition-colors" : ""}`}
+                  >
+                    <p className="text-xs text-muted-foreground">{s.label}</p>
+                    <p className={`text-2xl font-semibold ${s.tone}`}>{s.value}</p>
+                    {s.sub && <p className="text-[10px] text-muted-foreground mt-1">{s.sub}</p>}
+                    {s.label === "Messages" && unreadCount > 0 && (
+                      <span aria-label="Unread messages" className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-destructive" />
+                    )}
+                  </Card>
+                ));
+              })()}
+
             </div>
           );
         })()}
