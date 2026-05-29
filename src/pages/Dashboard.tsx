@@ -11,6 +11,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { X, ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
 import { TIERS, tierLabel, tierShowsToggle, defaultSystemMode, type PractitionerTier } from "@/lib/tiers";
+import {
+  DAY_KEYS, DAY_LABELS, defaultOfficeHours, normalizeOfficeHours, checkAvailability,
+  type OfficeHours, type DayKey,
+} from "@/lib/office-hours";
+
 
 const DEFAULT_PHASE2_OILS = [
   "Cold-Pressed Olive Oil",
@@ -133,8 +138,32 @@ export default function Dashboard() {
   const [showArchived, setShowArchived] = useState(false);
   const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
   const [reactivateConfirmId, setReactivateConfirmId] = useState<string | null>(null);
-  // clientId -> ISO timestamp of latest message from client
+  // clientId -> ISO timestamp of latest non-deferred message from client
   const [lastClientMessageAt, setLastClientMessageAt] = useState<Record<string, string>>({});
+
+  // Practitioner availability profile fields
+  const [officeHours, setOfficeHours] = useState<Required<OfficeHours>>(() =>
+    defaultOfficeHours(typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC"),
+  );
+  const [outOfOffice, setOutOfOffice] = useState(false);
+  const [oooMessage, setOooMessage] = useState("");
+  const [oooReturnDate, setOooReturnDate] = useState<string>("");
+  const [savingHours, setSavingHours] = useState(false);
+  const [nowTick, setNowTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setNowTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const availability = (() => {
+    void nowTick;
+    return checkAvailability({
+      office_hours: officeHours,
+      out_of_office: outOfOffice,
+      ooo_return_date: oooReturnDate || null,
+      timezone: officeHours.tz,
+    });
+  })();
+
 
   const markPractitionerRead = async (clientId: string) => {
     const nowIso = new Date().toISOString();
@@ -205,9 +234,15 @@ export default function Dashboard() {
       setUserEmail(data.session.user.email ?? "");
       const { data: profile } = await supabase
         .from("profiles")
-        .select("practitioner_tier")
+        .select("practitioner_tier, office_hours, out_of_office, ooo_message, ooo_return_date, timezone")
         .eq("id", userId)
         .maybeSingle();
+      const browserTz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+      setOfficeHours(normalizeOfficeHours((profile as any)?.office_hours, (profile as any)?.timezone || browserTz));
+      setOutOfOffice(!!(profile as any)?.out_of_office);
+      setOooMessage(((profile as any)?.ooo_message ?? "") as string);
+      setOooReturnDate(((profile as any)?.ooo_return_date ?? "") as string);
+
       const t = (profile?.practitioner_tier ?? null) as PractitionerTier | null;
       if (!t) {
         navigate("/onboarding/tier", { replace: true });
@@ -232,6 +267,30 @@ export default function Dashboard() {
     setSettingsOpen(false);
     toast.success("Practice type updated");
   };
+
+  const saveAvailability = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) return;
+    setSavingHours(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        office_hours: officeHours,
+        out_of_office: outOfOffice,
+        ooo_message: oooMessage,
+        ooo_return_date: oooReturnDate || null,
+        timezone: officeHours.tz,
+      } as never)
+      .eq("id", data.session.user.id);
+    setSavingHours(false);
+    if (error) return toast.error("Could not save availability");
+    toast.success("Availability saved");
+  };
+
+  const updateDay = (key: DayKey, patch: Partial<{ enabled: boolean; start: string; end: string }>) => {
+    setOfficeHours((h) => ({ ...h, days: { ...h.days, [key]: { ...h.days[key], ...patch } } }));
+  };
+
 
   const load = async () => {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -267,18 +326,29 @@ export default function Dashboard() {
       (ackRows ?? []).forEach((a: any) => { (ag[a.client_id] ||= []).push(a); });
       setWeeklyAcks(ag);
 
-      // Latest client-sent message per client for unread indicator
-      const { data: msgRows } = await supabase
+      // Latest client-sent message per client for unread indicator.
+      // Deferred messages (sent while practitioner was off-hours) are excluded
+      // until the practitioner is currently available again.
+      const msgQuery = supabase
         .from("messages")
-        .select("client_id, created_at")
+        .select("client_id, created_at, deferred")
         .in("client_id", ids)
         .eq("sender", "client")
         .order("created_at", { ascending: false });
+      const { data: msgRows } = await msgQuery;
+      const currentlyAvailable = checkAvailability({
+        office_hours: officeHours, out_of_office: outOfOffice,
+        ooo_return_date: oooReturnDate || null, timezone: officeHours.tz,
+      }).available;
       const latest: Record<string, string> = {};
-      (msgRows ?? []).forEach((m: any) => { if (!latest[m.client_id]) latest[m.client_id] = m.created_at; });
+      (msgRows ?? []).forEach((m: any) => {
+        if (!currentlyAvailable && m.deferred) return;
+        if (!latest[m.client_id]) latest[m.client_id] = m.created_at;
+      });
       setLastClientMessageAt(latest);
     }
   };
+
 
   // Realtime: new client messages bump the unread indicator
   useEffect(() => {
@@ -290,16 +360,26 @@ export default function Dashboard() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
         (payload) => {
-          const row = payload.new as { client_id: string; sender: string; created_at: string };
+          const row = payload.new as { client_id: string; sender: string; created_at: string; deferred?: boolean };
           if (row.sender !== "client") return;
           if (!ids.includes(row.client_id)) return;
+          // Suppress notification while practitioner is currently out of office / out of hours.
+          if (row.deferred && !availability.available) return;
           setLastClientMessageAt((prev) => ({ ...prev, [row.client_id]: row.created_at }));
         },
       )
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clients.map((c) => c.id).join(",")]);
+  }, [clients.map((c) => c.id).join(","), availability.available]);
+
+  // When the practitioner becomes available again (office hours resume or OOO toggled off),
+  // re-load message snapshot so any previously deferred client messages surface as unread.
+  useEffect(() => {
+    if (availability.available && clients.length > 0) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availability.available]);
+
 
   const addClient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -559,29 +639,138 @@ export default function Dashboard() {
                   <SettingsIcon className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Practice type</DialogTitle></DialogHeader>
-                <div className="space-y-2">
-                  {TIERS.map((t) => {
-                    const active = tier === t.value;
-                    return (
-                      <button
-                        key={t.value}
-                        type="button"
-                        disabled={savingTier}
-                        onClick={() => saveTier(t.value)}
-                        className={`w-full text-left rounded-md border p-3 transition ${active ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/40"}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium">{t.label}</p>
-                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{t.short}</span>
+              <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader><DialogTitle>Settings</DialogTitle></DialogHeader>
+                <Tabs defaultValue="practice">
+                  <TabsList className="w-full grid grid-cols-2">
+                    <TabsTrigger value="practice">Practice type</TabsTrigger>
+                    <TabsTrigger value="availability">Availability</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="practice" className="space-y-2 pt-3">
+                    {TIERS.map((t) => {
+                      const active = tier === t.value;
+                      return (
+                        <button
+                          key={t.value}
+                          type="button"
+                          disabled={savingTier}
+                          onClick={() => saveTier(t.value)}
+                          className={`w-full text-left rounded-md border p-3 transition ${active ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/40"}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="font-medium">{t.label}</p>
+                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{t.short}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{t.description}</p>
+                        </button>
+                      );
+                    })}
+                  </TabsContent>
+
+                  <TabsContent value="availability" className="space-y-4 pt-3">
+                    <div className={`rounded-md border p-3 text-xs ${availability.available ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100" : "border-amber-200 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100"}`}>
+                      {availability.available
+                        ? "You're currently within office hours — clients get instant notifications."
+                        : availability.reason === "out_of_office"
+                          ? "You're marked Out of Office. New client messages won't notify you until you return."
+                          : "Outside office hours — new client messages will wait until your next available window."}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="tz">Timezone</Label>
+                      <Input
+                        id="tz"
+                        value={officeHours.tz}
+                        onChange={(e) => setOfficeHours((h) => ({ ...h, tz: e.target.value }))}
+                        placeholder="e.g. Europe/London"
+                      />
+                      <p className="text-[11px] text-muted-foreground">Office hours are saved in this timezone.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Office Hours</Label>
+                      <div className="space-y-2">
+                        {DAY_KEYS.map((k) => {
+                          const day = officeHours.days[k];
+                          return (
+                            <div key={k} className="flex items-center gap-2 rounded-md border p-2">
+                              <div className="flex items-center gap-2 w-32">
+                                <Switch
+                                  checked={day.enabled}
+                                  onCheckedChange={(v) => updateDay(k, { enabled: !!v })}
+                                  aria-label={`Toggle ${DAY_LABELS[k]}`}
+                                />
+                                <span className="text-sm font-medium">{DAY_LABELS[k]}</span>
+                              </div>
+                              <Input
+                                type="time"
+                                disabled={!day.enabled}
+                                value={day.start}
+                                onChange={(e) => updateDay(k, { start: e.target.value })}
+                                className="w-32"
+                              />
+                              <span className="text-xs text-muted-foreground">to</span>
+                              <Input
+                                type="time"
+                                disabled={!day.enabled}
+                                value={day.end}
+                                onChange={(e) => updateDay(k, { end: e.target.value })}
+                                className="w-32"
+                              />
+                              {!day.enabled && <span className="text-xs text-muted-foreground ml-auto">Off</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 rounded-md border p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label htmlFor="ooo">Out of Office</Label>
+                          <p className="text-xs text-muted-foreground">Overrides office hours until switched off or the return date is reached.</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">{t.description}</p>
-                      </button>
-                    );
-                  })}
-                </div>
+                        <Switch id="ooo" checked={outOfOffice} onCheckedChange={(v) => setOutOfOffice(!!v)} />
+                      </div>
+                      {outOfOffice && (
+                        <>
+                          <div className="space-y-1">
+                            <Label htmlFor="ooomsg">Out of office message</Label>
+                            <Textarea
+                              id="ooomsg"
+                              value={oooMessage}
+                              onChange={(e) => setOooMessage(e.target.value)}
+                              placeholder="Hi — I'm away until Monday and will reply when I'm back."
+                              className="min-h-[80px]"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="ooodate">Return date (optional)</Label>
+                            <Input
+                              id="ooodate"
+                              type="date"
+                              value={oooReturnDate}
+                              onChange={(e) => setOooReturnDate(e.target.value)}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button onClick={saveAvailability} disabled={savingHours}>
+                        {savingHours ? "Saving…" : "Save availability"}
+                      </Button>
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground">
+                      When Practice Better is connected, office hours will sync automatically — no need to maintain them here.
+                    </p>
+                  </TabsContent>
+                </Tabs>
               </DialogContent>
+
             </Dialog>
             <Button variant="outline" size="sm" onClick={logout}>Log out</Button>
           </div>

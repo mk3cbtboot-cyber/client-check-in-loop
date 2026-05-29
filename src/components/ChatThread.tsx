@@ -9,7 +9,9 @@ export interface ChatMessage {
   sender: "client" | "practitioner" | "ai";
   body: string;
   created_at: string;
+  notice?: string | null;
 }
+
 
 interface Props {
   messages: ChatMessage[];
@@ -68,9 +70,15 @@ export default function ChatThread({ messages, viewerRole, onSend, sending, plac
                 {!isAi && `${mine ? "You" : label} · `}
                 {format(new Date(m.created_at), "MMM d, p")}
               </p>
+              {m.notice && (
+                <p className="max-w-[80%] mt-1 px-3 py-2 rounded-md bg-muted/60 text-xs text-muted-foreground italic">
+                  {m.notice}
+                </p>
+              )}
             </div>
           );
         })}
+
       </div>
       <div className="border-t p-3 flex gap-2 items-end">
         <Textarea
