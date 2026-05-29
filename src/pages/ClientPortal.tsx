@@ -157,6 +157,12 @@ export default function ClientPortal() {
     if (!token) return;
     const { data } = await supabase.functions.invoke("client-messages", { body: { token, action: "list" } });
     if (Array.isArray(data?.messages)) setMessages(data.messages as ChatMessage[]);
+    setUnreadMessages(0);
+  };
+  const fetchUnread = async () => {
+    if (!token) return;
+    const { data } = await supabase.functions.invoke("client-messages", { body: { token, action: "unread_count" } });
+    if (typeof data?.unread === "number") setUnreadMessages(data.unread);
   };
   const sendMessage = async (body: string) => {
     if (!token) return;
@@ -165,6 +171,7 @@ export default function ClientPortal() {
       const { data, error } = await supabase.functions.invoke("client-messages", { body: { token, action: "send", body } });
       if (error) throw error;
       if (Array.isArray(data?.messages)) setMessages(data.messages as ChatMessage[]);
+      setUnreadMessages(0);
     } catch (e) {
       toast.error("Couldn't send message. Please try again.");
     } finally {
@@ -173,6 +180,16 @@ export default function ClientPortal() {
   };
   useEffect(() => {
     if (tab === "messages") void loadMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, token]);
+
+  // Poll unread count when not on the messages tab.
+  useEffect(() => {
+    if (!token) return;
+    if (tab === "messages") return;
+    void fetchUnread();
+    const id = window.setInterval(() => void fetchUnread(), 20000);
+    return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, token]);
 
