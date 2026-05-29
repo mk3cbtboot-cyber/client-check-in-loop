@@ -268,6 +268,30 @@ export default function Dashboard() {
     toast.success("Practice type updated");
   };
 
+  const saveAvailability = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) return;
+    setSavingHours(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        office_hours: officeHours,
+        out_of_office: outOfOffice,
+        ooo_message: oooMessage,
+        ooo_return_date: oooReturnDate || null,
+        timezone: officeHours.tz,
+      } as never)
+      .eq("id", data.session.user.id);
+    setSavingHours(false);
+    if (error) return toast.error("Could not save availability");
+    toast.success("Availability saved");
+  };
+
+  const updateDay = (key: DayKey, patch: Partial<{ enabled: boolean; start: string; end: string }>) => {
+    setOfficeHours((h) => ({ ...h, days: { ...h.days, [key]: { ...h.days[key], ...patch } } }));
+  };
+
+
   const load = async () => {
     const { data: sessionData } = await supabase.auth.getSession();
     const practitionerEmail = sessionData.session?.user.email?.toLowerCase() ?? "";
