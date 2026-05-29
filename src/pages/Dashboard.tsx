@@ -343,8 +343,10 @@ export default function Dashboard() {
           if (row.deferred && !availability.available) return;
           setLastClientMessageAt((prev) => ({ ...prev, [row.client_id]: row.created_at }));
         },
-
       )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clients.map((c) => c.id).join(","), availability.available]);
 
   // When the practitioner becomes available again (office hours resume or OOO toggled off),
@@ -354,9 +356,6 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availability.available]);
 
-    return () => { void supabase.removeChannel(channel); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clients.map((c) => c.id).join(",")]);
 
   const addClient = async (e: React.FormEvent) => {
     e.preventDefault();
