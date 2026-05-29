@@ -861,12 +861,14 @@ export default function Dashboard() {
                     </p>
 
                     <Tabs defaultValue="overview" className="w-full">
-                      <TabsList className="grid w-full grid-cols-4">
+                      <TabsList className="grid w-full grid-cols-5">
                         <TabsTrigger value="overview">Overview</TabsTrigger>
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="progress">Progress</TabsTrigger>
                         <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
+                        <TabsTrigger value="messages">Messages</TabsTrigger>
                       </TabsList>
+
 
                       <TabsContent value="overview" className="space-y-4 pt-3">
                         <div className="space-y-2">
