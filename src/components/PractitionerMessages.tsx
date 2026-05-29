@@ -3,7 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ChatThread, { type ChatMessage } from "./ChatThread";
 
-export default function PractitionerMessages({ clientId, clientName }: { clientId: string; clientName: string }) {
+interface Props {
+  clientId: string;
+  clientName: string;
+  onRead?: () => void;
+}
+
+export default function PractitionerMessages({ clientId, clientName, onRead }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -20,10 +26,18 @@ export default function PractitionerMessages({ clientId, clientName }: { clientI
 
   useEffect(() => {
     void load();
+    onRead?.();
     const channel = supabase
       .channel(`messages-${clientId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `client_id=eq.${clientId}` },
-        (payload) => setMessages((prev) => [...prev, payload.new as ChatMessage]))
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `client_id=eq.${clientId}` },
+        (payload) => {
+          const row = payload.new as ChatMessage;
+          setMessages((prev) => [...prev, row]);
+          if (row.sender === "client") onRead?.();
+        },
+      )
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
