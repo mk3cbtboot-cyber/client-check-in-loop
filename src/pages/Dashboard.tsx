@@ -777,6 +777,16 @@ export default function Dashboard() {
                           {client.name}
                           {alert && <span className="text-destructive" aria-label="Needs attention" title="Needs attention">⚠</span>}
                         </p>
+                        {hasUnreadFromClient(client) && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold"
+                            aria-label="New message from client"
+                            title="New message from client"
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-destructive-foreground" />
+                            New message
+                          </span>
+                        )}
                         {client.archived_at && (
                           <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground text-xs">Archived</span>
                         )}
