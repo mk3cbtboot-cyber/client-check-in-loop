@@ -61,7 +61,28 @@ Deno.serve(async (req) => {
         });
       }
       await admin.from("messages").insert({ client_id: c.id, sender: "client", body });
-      await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: AI_PLACEHOLDER });
+
+      // AI interceptor: only fire if this starts a new thread AND looks like a question.
+      const { data: priorPractitioner } = await admin
+        .from("messages")
+        .select("id")
+        .eq("client_id", c.id)
+        .eq("sender", "practitioner")
+        .limit(1);
+      const isNewThread = !priorPractitioner || priorPractitioner.length === 0;
+
+      const lower = body.toLowerCase();
+      const phrases = [
+        "can i", "am i allowed", "what is", "what's", "how much", "how many",
+        "is it ok", "is it okay", "what can", "how do i", "how should i",
+        "when should", "do i need", "should i", "could i", "may i",
+        "are there", "is there", "do you", "will i", "why is", "why does",
+      ];
+      const hasQuestion = body.includes("?") || phrases.some((p) => lower.includes(p));
+
+      if (isNewThread && hasQuestion) {
+        await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: AI_PLACEHOLDER });
+      }
     }
 
     // For list (and after send), mark client as having read up to now.
