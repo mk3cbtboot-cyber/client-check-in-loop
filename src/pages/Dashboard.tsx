@@ -302,18 +302,29 @@ export default function Dashboard() {
       (ackRows ?? []).forEach((a: any) => { (ag[a.client_id] ||= []).push(a); });
       setWeeklyAcks(ag);
 
-      // Latest client-sent message per client for unread indicator
-      const { data: msgRows } = await supabase
+      // Latest client-sent message per client for unread indicator.
+      // Deferred messages (sent while practitioner was off-hours) are excluded
+      // until the practitioner is currently available again.
+      const msgQuery = supabase
         .from("messages")
-        .select("client_id, created_at")
+        .select("client_id, created_at, deferred")
         .in("client_id", ids)
         .eq("sender", "client")
         .order("created_at", { ascending: false });
+      const { data: msgRows } = await msgQuery;
+      const currentlyAvailable = checkAvailability({
+        office_hours: officeHours, out_of_office: outOfOffice,
+        ooo_return_date: oooReturnDate || null, timezone: officeHours.tz,
+      }).available;
       const latest: Record<string, string> = {};
-      (msgRows ?? []).forEach((m: any) => { if (!latest[m.client_id]) latest[m.client_id] = m.created_at; });
+      (msgRows ?? []).forEach((m: any) => {
+        if (!currentlyAvailable && m.deferred) return;
+        if (!latest[m.client_id]) latest[m.client_id] = m.created_at;
+      });
       setLastClientMessageAt(latest);
     }
   };
+
 
   // Realtime: new client messages bump the unread indicator
   useEffect(() => {
