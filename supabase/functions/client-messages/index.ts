@@ -11,7 +11,7 @@ const AI_PLACEHOLDER =
 
 const Body = z.object({
   token: z.string().min(10).max(200),
-  action: z.enum(["list", "send"]),
+  action: z.enum(["list", "send", "unread_count"]),
   body: z.string().trim().min(1).max(4000).optional(),
 });
 
@@ -28,10 +28,27 @@ Deno.serve(async (req) => {
     const { token, action, body } = parsed.data;
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    const { data: c } = await admin.from("clients").select("id, archived_at").eq("magic_token", token).maybeSingle();
+    const { data: c } = await admin
+      .from("clients")
+      .select("id, archived_at, client_last_read_at")
+      .eq("magic_token", token)
+      .maybeSingle();
     if (!c || c.archived_at) {
       return new Response(JSON.stringify({ error: "invalid_token" }), {
         status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "unread_count") {
+      const since = c.client_last_read_at ?? "1970-01-01T00:00:00Z";
+      const { count } = await admin
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", c.id)
+        .in("sender", ["practitioner", "ai"])
+        .gt("created_at", since);
+      return new Response(JSON.stringify({ unread: count ?? 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -43,11 +60,15 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      // Insert client message, then auto-insert AI placeholder reply.
-      // Practitioner still receives the message (it's stored as 'client').
       await admin.from("messages").insert({ client_id: c.id, sender: "client", body });
       await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: AI_PLACEHOLDER });
     }
+
+    // For list (and after send), mark client as having read up to now.
+    await admin
+      .from("clients")
+      .update({ client_last_read_at: new Date().toISOString() })
+      .eq("id", c.id);
 
     const { data: messages } = await admin
       .from("messages")
@@ -55,7 +76,7 @@ Deno.serve(async (req) => {
       .eq("client_id", c.id)
       .order("created_at", { ascending: true });
 
-    return new Response(JSON.stringify({ messages: messages ?? [] }), {
+    return new Response(JSON.stringify({ messages: messages ?? [], unread: 0 }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

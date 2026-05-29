@@ -68,6 +68,7 @@ export default function ClientPortal() {
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState<number>(0);
 
 
   const [loading, setLoading] = useState(true);
@@ -156,6 +157,12 @@ export default function ClientPortal() {
     if (!token) return;
     const { data } = await supabase.functions.invoke("client-messages", { body: { token, action: "list" } });
     if (Array.isArray(data?.messages)) setMessages(data.messages as ChatMessage[]);
+    setUnreadMessages(0);
+  };
+  const fetchUnread = async () => {
+    if (!token) return;
+    const { data } = await supabase.functions.invoke("client-messages", { body: { token, action: "unread_count" } });
+    if (typeof data?.unread === "number") setUnreadMessages(data.unread);
   };
   const sendMessage = async (body: string) => {
     if (!token) return;
@@ -164,6 +171,7 @@ export default function ClientPortal() {
       const { data, error } = await supabase.functions.invoke("client-messages", { body: { token, action: "send", body } });
       if (error) throw error;
       if (Array.isArray(data?.messages)) setMessages(data.messages as ChatMessage[]);
+      setUnreadMessages(0);
     } catch (e) {
       toast.error("Couldn't send message. Please try again.");
     } finally {
@@ -172,6 +180,16 @@ export default function ClientPortal() {
   };
   useEffect(() => {
     if (tab === "messages") void loadMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, token]);
+
+  // Poll unread count when not on the messages tab.
+  useEffect(() => {
+    if (!token) return;
+    if (tab === "messages") return;
+    void fetchUnread();
+    const id = window.setInterval(() => void fetchUnread(), 20000);
+    return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, token]);
 
@@ -1068,13 +1086,24 @@ export default function ClientPortal() {
             { key: "messages", label: "Messages", Icon: MessageCircle },
           ] as { key: TabKey; label: string; Icon: typeof Home }[]).map(({ key, label, Icon }) => {
             const active = tab === key;
+            const showBadge = key === "messages" && unreadMessages > 0;
             return (
               <button
                 key={key}
                 onClick={() => changeTab(key)}
                 className={`flex flex-col items-center justify-center py-3 text-xs gap-1 transition-colors ${active ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
               >
-                <Icon className="h-5 w-5" />
+                <span className="relative">
+                  <Icon className="h-5 w-5" />
+                  {showBadge && (
+                    <span
+                      aria-label={`${unreadMessages} unread message${unreadMessages === 1 ? "" : "s"}`}
+                      className="absolute -top-1 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold flex items-center justify-center"
+                    >
+                      {unreadMessages > 9 ? "9+" : unreadMessages}
+                    </span>
+                  )}
+                </span>
                 {label}
               </button>
             );

@@ -84,6 +84,7 @@ interface Client {
   vitamins_supplements: string;
   weight_unit: string;
   archived_at: string | null;
+  practitioner_last_read_at: string | null;
 }
 
 interface CheckIn {
@@ -132,6 +133,22 @@ export default function Dashboard() {
   const [showArchived, setShowArchived] = useState(false);
   const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
   const [reactivateConfirmId, setReactivateConfirmId] = useState<string | null>(null);
+  // clientId -> ISO timestamp of latest message from client
+  const [lastClientMessageAt, setLastClientMessageAt] = useState<Record<string, string>>({});
+
+  const markPractitionerRead = async (clientId: string) => {
+    const nowIso = new Date().toISOString();
+    setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, practitioner_last_read_at: nowIso } : c)));
+    await supabase.from("clients").update({ practitioner_last_read_at: nowIso } as never).eq("id", clientId);
+  };
+
+  const hasUnreadFromClient = (c: Client): boolean => {
+    const last = lastClientMessageAt[c.id];
+    if (!last) return false;
+    const read = c.practitioner_last_read_at;
+    if (!read) return true;
+    return new Date(last).getTime() > new Date(read).getTime();
+  };
 
   const isDetailView = !!routeClientId;
 
@@ -249,8 +266,40 @@ export default function Dashboard() {
       const ag: Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]> = {};
       (ackRows ?? []).forEach((a: any) => { (ag[a.client_id] ||= []).push(a); });
       setWeeklyAcks(ag);
+
+      // Latest client-sent message per client for unread indicator
+      const { data: msgRows } = await supabase
+        .from("messages")
+        .select("client_id, created_at")
+        .in("client_id", ids)
+        .eq("sender", "client")
+        .order("created_at", { ascending: false });
+      const latest: Record<string, string> = {};
+      (msgRows ?? []).forEach((m: any) => { if (!latest[m.client_id]) latest[m.client_id] = m.created_at; });
+      setLastClientMessageAt(latest);
     }
   };
+
+  // Realtime: new client messages bump the unread indicator
+  useEffect(() => {
+    const ids = clients.map((c) => c.id);
+    if (ids.length === 0) return;
+    const channel = supabase
+      .channel("dashboard-messages")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload) => {
+          const row = payload.new as { client_id: string; sender: string; created_at: string };
+          if (row.sender !== "client") return;
+          if (!ids.includes(row.client_id)) return;
+          setLastClientMessageAt((prev) => ({ ...prev, [row.client_id]: row.created_at }));
+        },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clients.map((c) => c.id).join(",")]);
 
   const addClient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -728,6 +777,16 @@ export default function Dashboard() {
                           {client.name}
                           {alert && <span className="text-destructive" aria-label="Needs attention" title="Needs attention">⚠</span>}
                         </p>
+                        {hasUnreadFromClient(client) && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold"
+                            aria-label="New message from client"
+                            title="New message from client"
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-destructive-foreground" />
+                            New message
+                          </span>
+                        )}
                         {client.archived_at && (
                           <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground text-xs">Archived</span>
                         )}
@@ -868,7 +927,12 @@ export default function Dashboard() {
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="progress">Progress</TabsTrigger>
                         <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
-                        <TabsTrigger value="messages">Messages</TabsTrigger>
+                        <TabsTrigger value="messages" className="relative">
+                          Messages
+                          {hasUnreadFromClient(client) && (
+                            <span aria-label="Unread message" className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
+                          )}
+                        </TabsTrigger>
                       </TabsList>
 
 
@@ -1339,7 +1403,7 @@ export default function Dashboard() {
                         })() : null}
                       </TabsContent>
                       <TabsContent value="messages" className="pt-3">
-                        <PractitionerMessages clientId={client.id} clientName={client.name} />
+                        <PractitionerMessages clientId={client.id} clientName={client.name} onRead={() => markPractitionerRead(client.id)} />
                       </TabsContent>
                     </Tabs>
 
