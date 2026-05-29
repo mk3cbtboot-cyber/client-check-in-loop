@@ -64,12 +64,19 @@ export default function ChatThread({ messages, viewerRole, onSend, sending, plac
                     <Sparkles className="h-3 w-3" /> {label}
                   </div>
                 )}
-                {m.body}
-              </div>
               <p className="text-[10px] text-muted-foreground mt-1 px-1">
                 {!isAi && `${mine ? "You" : label} · `}
                 {format(new Date(m.created_at), "MMM d, p")}
               </p>
+              {m.notice && (
+                <p className="max-w-[80%] mt-1 px-3 py-2 rounded-md bg-muted/60 text-xs text-muted-foreground italic">
+                  {m.notice}
+                </p>
+              )}
+            </div>
+          );
+        })}
+
             </div>
           );
         })}
