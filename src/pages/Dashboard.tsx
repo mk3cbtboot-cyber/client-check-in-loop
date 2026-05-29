@@ -639,29 +639,138 @@ export default function Dashboard() {
                   <SettingsIcon className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Practice type</DialogTitle></DialogHeader>
-                <div className="space-y-2">
-                  {TIERS.map((t) => {
-                    const active = tier === t.value;
-                    return (
-                      <button
-                        key={t.value}
-                        type="button"
-                        disabled={savingTier}
-                        onClick={() => saveTier(t.value)}
-                        className={`w-full text-left rounded-md border p-3 transition ${active ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/40"}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium">{t.label}</p>
-                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{t.short}</span>
+              <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader><DialogTitle>Settings</DialogTitle></DialogHeader>
+                <Tabs defaultValue="practice">
+                  <TabsList className="w-full grid grid-cols-2">
+                    <TabsTrigger value="practice">Practice type</TabsTrigger>
+                    <TabsTrigger value="availability">Availability</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="practice" className="space-y-2 pt-3">
+                    {TIERS.map((t) => {
+                      const active = tier === t.value;
+                      return (
+                        <button
+                          key={t.value}
+                          type="button"
+                          disabled={savingTier}
+                          onClick={() => saveTier(t.value)}
+                          className={`w-full text-left rounded-md border p-3 transition ${active ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/40"}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="font-medium">{t.label}</p>
+                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{t.short}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{t.description}</p>
+                        </button>
+                      );
+                    })}
+                  </TabsContent>
+
+                  <TabsContent value="availability" className="space-y-4 pt-3">
+                    <div className={`rounded-md border p-3 text-xs ${availability.available ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100" : "border-amber-200 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100"}`}>
+                      {availability.available
+                        ? "You're currently within office hours — clients get instant notifications."
+                        : availability.reason === "out_of_office"
+                          ? "You're marked Out of Office. New client messages won't notify you until you return."
+                          : "Outside office hours — new client messages will wait until your next available window."}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="tz">Timezone</Label>
+                      <Input
+                        id="tz"
+                        value={officeHours.tz}
+                        onChange={(e) => setOfficeHours((h) => ({ ...h, tz: e.target.value }))}
+                        placeholder="e.g. Europe/London"
+                      />
+                      <p className="text-[11px] text-muted-foreground">Office hours are saved in this timezone.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Office Hours</Label>
+                      <div className="space-y-2">
+                        {DAY_KEYS.map((k) => {
+                          const day = officeHours.days[k];
+                          return (
+                            <div key={k} className="flex items-center gap-2 rounded-md border p-2">
+                              <div className="flex items-center gap-2 w-32">
+                                <Switch
+                                  checked={day.enabled}
+                                  onCheckedChange={(v) => updateDay(k, { enabled: !!v })}
+                                  aria-label={`Toggle ${DAY_LABELS[k]}`}
+                                />
+                                <span className="text-sm font-medium">{DAY_LABELS[k]}</span>
+                              </div>
+                              <Input
+                                type="time"
+                                disabled={!day.enabled}
+                                value={day.start}
+                                onChange={(e) => updateDay(k, { start: e.target.value })}
+                                className="w-32"
+                              />
+                              <span className="text-xs text-muted-foreground">to</span>
+                              <Input
+                                type="time"
+                                disabled={!day.enabled}
+                                value={day.end}
+                                onChange={(e) => updateDay(k, { end: e.target.value })}
+                                className="w-32"
+                              />
+                              {!day.enabled && <span className="text-xs text-muted-foreground ml-auto">Off</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 rounded-md border p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label htmlFor="ooo">Out of Office</Label>
+                          <p className="text-xs text-muted-foreground">Overrides office hours until switched off or the return date is reached.</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">{t.description}</p>
-                      </button>
-                    );
-                  })}
-                </div>
+                        <Switch id="ooo" checked={outOfOffice} onCheckedChange={(v) => setOutOfOffice(!!v)} />
+                      </div>
+                      {outOfOffice && (
+                        <>
+                          <div className="space-y-1">
+                            <Label htmlFor="ooomsg">Out of office message</Label>
+                            <Textarea
+                              id="ooomsg"
+                              value={oooMessage}
+                              onChange={(e) => setOooMessage(e.target.value)}
+                              placeholder="Hi — I'm away until Monday and will reply when I'm back."
+                              className="min-h-[80px]"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="ooodate">Return date (optional)</Label>
+                            <Input
+                              id="ooodate"
+                              type="date"
+                              value={oooReturnDate}
+                              onChange={(e) => setOooReturnDate(e.target.value)}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button onClick={saveAvailability} disabled={savingHours}>
+                        {savingHours ? "Saving…" : "Save availability"}
+                      </Button>
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground">
+                      When Practice Better is connected, office hours will sync automatically — no need to maintain them here.
+                    </p>
+                  </TabsContent>
+                </Tabs>
               </DialogContent>
+
             </Dialog>
             <Button variant="outline" size="sm" onClick={logout}>Log out</Button>
           </div>
