@@ -234,9 +234,15 @@ export default function Dashboard() {
       setUserEmail(data.session.user.email ?? "");
       const { data: profile } = await supabase
         .from("profiles")
-        .select("practitioner_tier")
+        .select("practitioner_tier, office_hours, out_of_office, ooo_message, ooo_return_date, timezone")
         .eq("id", userId)
         .maybeSingle();
+      const browserTz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+      setOfficeHours(normalizeOfficeHours((profile as any)?.office_hours, (profile as any)?.timezone || browserTz));
+      setOutOfOffice(!!(profile as any)?.out_of_office);
+      setOooMessage(((profile as any)?.ooo_message ?? "") as string);
+      setOooReturnDate(((profile as any)?.ooo_return_date ?? "") as string);
+
       const t = (profile?.practitioner_tier ?? null) as PractitionerTier | null;
       if (!t) {
         navigate("/onboarding/tier", { replace: true });
