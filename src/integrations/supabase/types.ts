@@ -105,6 +105,7 @@ export type Database = {
           archived_at: string | null
           avocado_count_week: number
           client_goal: string
+          client_last_read_at: string | null
           created_at: string
           current_medications: string
           egg_count_week: number
@@ -138,6 +139,7 @@ export type Database = {
           phase3_starches: string
           phase3_vegetables: string
           practitioner_id: string
+          practitioner_last_read_at: string | null
           practitioner_notes: string
           show_8_rules: boolean
           show_rules: boolean
@@ -153,6 +155,7 @@ export type Database = {
           archived_at?: string | null
           avocado_count_week?: number
           client_goal?: string
+          client_last_read_at?: string | null
           created_at?: string
           current_medications?: string
           egg_count_week?: number
@@ -186,6 +189,7 @@ export type Database = {
           phase3_starches?: string
           phase3_vegetables?: string
           practitioner_id: string
+          practitioner_last_read_at?: string | null
           practitioner_notes?: string
           show_8_rules?: boolean
           show_rules?: boolean
@@ -201,6 +205,7 @@ export type Database = {
           archived_at?: string | null
           avocado_count_week?: number
           client_goal?: string
+          client_last_read_at?: string | null
           created_at?: string
           current_medications?: string
           egg_count_week?: number
@@ -234,6 +239,7 @@ export type Database = {
           phase3_starches?: string
           phase3_vegetables?: string
           practitioner_id?: string
+          practitioner_last_read_at?: string | null
           practitioner_notes?: string
           show_8_rules?: boolean
           show_rules?: boolean
