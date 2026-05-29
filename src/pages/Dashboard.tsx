@@ -645,6 +645,7 @@ export default function Dashboard() {
                     onClick: unreadCount > 0 ? () => navigate(`/dashboard/clients/${unreadClients[0].id}`) : undefined,
                   },
                   { label: "Active Streaks", value: streaks, tone: "", sub: undefined, onClick: undefined },
+                  { label: "Water Target Hit", value: waterHit, tone: "", sub: undefined, onClick: undefined },
                   { label: "Need Attention", value: attention, tone: attention > 0 ? "text-destructive" : "", sub: undefined, onClick: undefined },
                 ];
                 return items.map((s) => (
