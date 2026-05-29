@@ -336,11 +336,14 @@ export default function Dashboard() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
         (payload) => {
-          const row = payload.new as { client_id: string; sender: string; created_at: string };
+          const row = payload.new as { client_id: string; sender: string; created_at: string; deferred?: boolean };
           if (row.sender !== "client") return;
           if (!ids.includes(row.client_id)) return;
+          // Suppress notification while practitioner is currently out of office / out of hours.
+          if (row.deferred && !availability.available) return;
           setLastClientMessageAt((prev) => ({ ...prev, [row.client_id]: row.created_at }));
         },
+
       )
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
