@@ -68,6 +68,7 @@ export default function ClientPortal() {
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState<number>(0);
 
 
   const [loading, setLoading] = useState(true);
