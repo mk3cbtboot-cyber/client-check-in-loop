@@ -132,6 +132,22 @@ export default function Dashboard() {
   const [showArchived, setShowArchived] = useState(false);
   const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
   const [reactivateConfirmId, setReactivateConfirmId] = useState<string | null>(null);
+  // clientId -> ISO timestamp of latest message from client
+  const [lastClientMessageAt, setLastClientMessageAt] = useState<Record<string, string>>({});
+
+  const markPractitionerRead = async (clientId: string) => {
+    const nowIso = new Date().toISOString();
+    setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, practitioner_last_read_at: nowIso } : c)));
+    await supabase.from("clients").update({ practitioner_last_read_at: nowIso } as never).eq("id", clientId);
+  };
+
+  const hasUnreadFromClient = (c: Client): boolean => {
+    const last = lastClientMessageAt[c.id];
+    if (!last) return false;
+    const read = c.practitioner_last_read_at;
+    if (!read) return true;
+    return new Date(last).getTime() > new Date(read).getTime();
+  };
 
   const isDetailView = !!routeClientId;
 
