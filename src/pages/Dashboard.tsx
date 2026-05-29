@@ -266,8 +266,40 @@ export default function Dashboard() {
       const ag: Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]> = {};
       (ackRows ?? []).forEach((a: any) => { (ag[a.client_id] ||= []).push(a); });
       setWeeklyAcks(ag);
+
+      // Latest client-sent message per client for unread indicator
+      const { data: msgRows } = await supabase
+        .from("messages")
+        .select("client_id, created_at")
+        .in("client_id", ids)
+        .eq("sender", "client")
+        .order("created_at", { ascending: false });
+      const latest: Record<string, string> = {};
+      (msgRows ?? []).forEach((m: any) => { if (!latest[m.client_id]) latest[m.client_id] = m.created_at; });
+      setLastClientMessageAt(latest);
     }
   };
+
+  // Realtime: new client messages bump the unread indicator
+  useEffect(() => {
+    const ids = clients.map((c) => c.id);
+    if (ids.length === 0) return;
+    const channel = supabase
+      .channel("dashboard-messages")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload) => {
+          const row = payload.new as { client_id: string; sender: string; created_at: string };
+          if (row.sender !== "client") return;
+          if (!ids.includes(row.client_id)) return;
+          setLastClientMessageAt((prev) => ({ ...prev, [row.client_id]: row.created_at }));
+        },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clients.map((c) => c.id).join(",")]);
 
   const addClient = async (e: React.FormEvent) => {
     e.preventDefault();
