@@ -152,6 +152,30 @@ export default function ClientPortal() {
     })();
   }, [token]);
 
+  const loadMessages = async () => {
+    if (!token) return;
+    const { data } = await supabase.functions.invoke("client-messages", { body: { token, action: "list" } });
+    if (Array.isArray(data?.messages)) setMessages(data.messages as ChatMessage[]);
+  };
+  const sendMessage = async (body: string) => {
+    if (!token) return;
+    setSendingMessage(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("client-messages", { body: { token, action: "send", body } });
+      if (error) throw error;
+      if (Array.isArray(data?.messages)) setMessages(data.messages as ChatMessage[]);
+    } catch (e) {
+      toast.error("Couldn't send message. Please try again.");
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+  useEffect(() => {
+    if (tab === "messages") void loadMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, token]);
+
+
   const changeTab = (t: TabKey) => {
     setTab(t);
     const next = new URLSearchParams(searchParams);
