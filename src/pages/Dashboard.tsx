@@ -607,7 +607,8 @@ export default function Dashboard() {
           });
           const phaseBreakdown = Object.entries(phaseCounts).sort((a, b) => b[1] - a[1]);
           return (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+
               <Card className="p-4">
                 <p className="text-xs text-muted-foreground mb-2">Total Clients</p>
                 <div className="flex gap-4 mb-3">
