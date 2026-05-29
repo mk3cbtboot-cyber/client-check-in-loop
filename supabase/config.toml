@@ -8,3 +8,7 @@ verify_jwt = false
 
 [functions.categorize-foods]
 verify_jwt = false
+
+[functions.client-messages]
+verify_jwt = false
+

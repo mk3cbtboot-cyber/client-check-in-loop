@@ -10,7 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { Home, ClipboardCheck, BookOpen, CalendarDays } from "lucide-react";
+import { Home, ClipboardCheck, BookOpen, CalendarDays, MessageCircle } from "lucide-react";
+import ChatThread, { type ChatMessage } from "@/components/ChatThread";
+
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
@@ -56,14 +58,17 @@ interface ClientState {
   gender: "female" | "male" | "unspecified" | null;
 }
 
-type TabKey = "home" | "checkin" | "plan" | "planner";
+type TabKey = "home" | "checkin" | "plan" | "planner" | "messages";
 
 export default function ClientPortal() {
   const { token } = useParams<{ token: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = (searchParams.get("tab") as TabKey) || "home";
-  const [tab, setTab] = useState<TabKey>(["home", "checkin", "plan", "planner"].includes(initialTab) ? initialTab : "home");
+  const [tab, setTab] = useState<TabKey>(["home", "checkin", "plan", "planner", "messages"].includes(initialTab) ? initialTab : "home");
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sendingMessage, setSendingMessage] = useState(false);
+
 
   const [loading, setLoading] = useState(true);
   const [archived, setArchived] = useState(false);
@@ -146,6 +151,30 @@ export default function ClientPortal() {
       setWeeklyPlan(data?.plan ?? null);
     })();
   }, [token]);
+
+  const loadMessages = async () => {
+    if (!token) return;
+    const { data } = await supabase.functions.invoke("client-messages", { body: { token, action: "list" } });
+    if (Array.isArray(data?.messages)) setMessages(data.messages as ChatMessage[]);
+  };
+  const sendMessage = async (body: string) => {
+    if (!token) return;
+    setSendingMessage(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("client-messages", { body: { token, action: "send", body } });
+      if (error) throw error;
+      if (Array.isArray(data?.messages)) setMessages(data.messages as ChatMessage[]);
+    } catch (e) {
+      toast.error("Couldn't send message. Please try again.");
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+  useEffect(() => {
+    if (tab === "messages") void loadMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, token]);
+
 
   const changeTab = (t: TabKey) => {
     setTab(t);
@@ -1011,14 +1040,32 @@ export default function ClientPortal() {
         </section>
       )}
 
+      {tab === "messages" && (
+        <section className="max-w-3xl mx-auto p-4 space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold">Messages</h2>
+            <p className="text-xs text-muted-foreground">Chat with Cheryl. Replies usually arrive within a day or two.</p>
+          </div>
+          <ChatThread
+            messages={messages}
+            viewerRole="client"
+            onSend={sendMessage}
+            sending={sendingMessage}
+            placeholder="Write a message to Cheryl…"
+            emptyHint="Say hello — Cheryl will see your message and reply here."
+          />
+        </section>
+      )}
+
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 inset-x-0 border-t bg-background">
-        <div className="max-w-5xl mx-auto grid grid-cols-4">
+        <div className="max-w-5xl mx-auto grid grid-cols-5">
           {([
             { key: "home", label: "Home", Icon: Home },
             { key: "planner", label: "Meal Planner", Icon: CalendarDays },
             { key: "checkin", label: "Check-in", Icon: ClipboardCheck },
             { key: "plan", label: "My Plan", Icon: BookOpen },
+            { key: "messages", label: "Messages", Icon: MessageCircle },
           ] as { key: TabKey; label: string; Icon: typeof Home }[]).map(({ key, label, Icon }) => {
             const active = tab === key;
             return (
@@ -1034,6 +1081,7 @@ export default function ClientPortal() {
           })}
         </div>
       </nav>
+
 
     </main>
   );

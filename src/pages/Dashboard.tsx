@@ -38,6 +38,8 @@ import { formatDistanceToNow } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import ClientTrendGraphs from "@/components/ClientTrendGraphs";
 import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
+import PractitionerMessages from "@/components/PractitionerMessages";
+
 
 interface Client {
   id: string;
@@ -861,12 +863,14 @@ export default function Dashboard() {
                     </p>
 
                     <Tabs defaultValue="overview" className="w-full">
-                      <TabsList className="grid w-full grid-cols-4">
+                      <TabsList className="grid w-full grid-cols-5">
                         <TabsTrigger value="overview">Overview</TabsTrigger>
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="progress">Progress</TabsTrigger>
                         <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
+                        <TabsTrigger value="messages">Messages</TabsTrigger>
                       </TabsList>
+
 
                       <TabsContent value="overview" className="space-y-4 pt-3">
                         <div className="space-y-2">
@@ -1334,7 +1338,11 @@ export default function Dashboard() {
                           );
                         })() : null}
                       </TabsContent>
+                      <TabsContent value="messages" className="pt-3">
+                        <PractitionerMessages clientId={client.id} clientName={client.name} />
+                      </TabsContent>
                     </Tabs>
+
                   </div>
                     );
                   })()}
