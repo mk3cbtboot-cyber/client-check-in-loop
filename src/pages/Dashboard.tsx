@@ -11,6 +11,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { X, ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
 import { TIERS, tierLabel, tierShowsToggle, defaultSystemMode, type PractitionerTier } from "@/lib/tiers";
+import {
+  DAY_KEYS, DAY_LABELS, defaultOfficeHours, normalizeOfficeHours, checkAvailability,
+  type OfficeHours, type DayKey,
+} from "@/lib/office-hours";
+
 
 const DEFAULT_PHASE2_OILS = [
   "Cold-Pressed Olive Oil",
