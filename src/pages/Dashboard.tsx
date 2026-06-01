@@ -782,7 +782,7 @@ export default function Dashboard() {
           const activeClients = clients.filter((c) => !c.archived_at);
           const archivedClients = clients.filter((c) => !!c.archived_at);
           let streaks = 0, waterHit = 0, attention = 0;
-          clients.forEach((c) => {
+          activeClients.forEach((c) => {
             const list = checkIns[c.id] ?? [];
             if (computeStreak(list) >= 7) streaks += 1;
             const today = new Date().toISOString().slice(0, 10);
