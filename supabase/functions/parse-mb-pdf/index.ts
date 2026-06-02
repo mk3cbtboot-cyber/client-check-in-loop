@@ -394,6 +394,90 @@ function parseSproutsField(phase3Section: string, stripFooter: (s: string) => st
   return items.length ? Array.from(new Set(items)).join(", ") : null;
 }
 
+// Phase 3 parser using partial keyword matching (more tolerant of heading variations).
+// Returns map of phase3_mb_* field -> comma-joined items, plus a debug headings list.
+type Phase3Spec = { field: string; match: RegExp; reject?: RegExp };
+const PHASE3_SPECS: Phase3Spec[] = [
+  { field: "phase3_mb_fish",        match: /\bFish\b/i, reject: /\b(Seafood|Shellfish)\b/i },
+  { field: "phase3_mb_seafood",     match: /\b(Seafood|Shellfish)\b/i },
+  { field: "phase3_mb_meat",        match: /\bMeat\b/i, reject: /\bPoultry\b/i },
+  { field: "phase3_mb_cheese",      match: /\bCheese\b/i },
+  { field: "phase3_mb_legumes",     match: /\b(Legumes|Beans)\b/i },
+  { field: "phase3_mb_vegetables",  match: /\bVegetables?\b/i, reject: /\b(Veg\.?\s*\/?\s*Lettuce|Lettuce)\b/i },
+  { field: "phase3_mb_veg_lettuce", match: /\b(Veg\.?\s*\/?\s*Lettuce|Lettuce)\b/i },
+  { field: "phase3_mb_sprouts",     match: /\bSprouts?\b/i },
+  { field: "phase3_mb_fat_oil",     match: /\b(Fat\s*\/?\s*Oil|\bFat\b|\bOil\b)\b/i },
+];
+// Words that act as STOP boundaries but are NOT stored as fields themselves.
+const PHASE3_BOUNDARY_KEYWORDS = /\b(Poultry|Fruit|Bread|Starch|Nuts|Yogurt|Milk Products|Pumpkin Seeds|Sunflower Seeds|Shopping Helper|From now on|Please note|\bNote:)\b/i;
+
+function parsePhase3SectionByKeyword(
+  section: string,
+  stripFooter: (s: string) => string,
+  debugLog: { headings: { field: string; heading: string; index: number }[]; missing: string[] },
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  // Collect heading positions: for each spec find first occurrence (skip if reject matches at same position).
+  type Heading = { field: string; idx: number; endIdx: number; raw: string };
+  const headings: Heading[] = [];
+  for (const spec of PHASE3_SPECS) {
+    const re = new RegExp(spec.match.source, "gi");
+    let mm: RegExpExecArray | null;
+    while ((mm = re.exec(section)) !== null) {
+      // Avoid matching if a reject keyword overlaps this exact position context
+      const around = section.slice(Math.max(0, mm.index - 2), mm.index + mm[0].length + 8);
+      if (spec.reject && spec.reject.test(around)) continue;
+      headings.push({ field: spec.field, idx: mm.index, endIdx: mm.index + mm[0].length, raw: mm[0] });
+      debugLog.headings.push({ field: spec.field, heading: mm[0], index: mm.index });
+      break; // first occurrence only
+    }
+    if (!headings.some((h) => h.field === spec.field)) {
+      debugLog.missing.push(spec.field);
+    }
+  }
+
+  if (!headings.length) return out;
+
+  // Also collect boundary positions (Poultry, Fruit, Bread, etc.) to act as stop markers.
+  const boundaryPositions: number[] = [];
+  {
+    const re = new RegExp(PHASE3_BOUNDARY_KEYWORDS.source, "gi");
+    let mm: RegExpExecArray | null;
+    while ((mm = re.exec(section)) !== null) boundaryPositions.push(mm.index);
+  }
+
+  headings.sort((a, b) => a.idx - b.idx);
+
+  for (let i = 0; i < headings.length; i++) {
+    const cur = headings[i];
+    // End at the next heading OR next boundary keyword, whichever comes first.
+    let end = i + 1 < headings.length ? headings[i + 1].idx : section.length;
+    for (const bp of boundaryPositions) {
+      if (bp > cur.endIdx && bp < end) end = bp;
+    }
+    let chunk = section.slice(cur.endIdx, end);
+    // Drop leading punctuation
+    chunk = chunk.replace(/^\s*[:\-–]?\s*/, "");
+    chunk = stripFooter(chunk);
+    const items = chunk
+      .split(/[,;\n]+/)
+      .map((s) => s.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .filter((s) => {
+        if (s.length < 2 || s.length > 60) return false;
+        if (!/[A-Za-z]/.test(s)) return false;
+        if (/Personal Food List|Extended personal|Shopping Helper|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:|Phase\s*3/i.test(s)) return false;
+        if (s.split(/\s+/).length > 5) return false;
+        return true;
+      });
+    if (items.length) {
+      const existing = out[cur.field] ? out[cur.field].split(",").map((x) => x.trim()).filter(Boolean) : [];
+      out[cur.field] = Array.from(new Set([...existing, ...items])).join(", ");
+    }
+  }
+  return out;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
