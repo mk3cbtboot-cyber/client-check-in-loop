@@ -5,9 +5,26 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, UploadCloud, AlertTriangle } from "lucide-react";
+
+type MealOption = {
+  protein_category: string | null;
+  protein_grams: number | null;
+  veg_grams: number | null;
+  has_fruit: boolean;
+  has_bread: boolean;
+};
+type MealKey = "breakfast" | "lunch" | "dinner";
+type MealOptionsMap = Record<MealKey, MealOption[]>;
+const EMPTY_OPTION = (): MealOption => ({ protein_category: null, protein_grams: null, veg_grams: null, has_fruit: false, has_bread: false });
+const EMPTY_MEAL_OPTIONS = (): MealOptionsMap => ({
+  breakfast: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
+  lunch: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
+  dinner: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
+});
 
 type FieldVal = { value: string | number | null; extracted: boolean };
 type FieldsMap = Record<string, FieldVal>;
@@ -62,11 +79,13 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
   const [busy, setBusy] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [fields, setFields] = useState<FieldsMap | null>(null);
+  const [mealOptions, setMealOptions] = useState<MealOptionsMap>(EMPTY_MEAL_OPTIONS());
   const [storagePath, setStoragePath] = useState<string | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
   const reset = () => {
     setFields(null);
+    setMealOptions(EMPTY_MEAL_OPTIONS());
     setStoragePath(null);
     setReviewError(null);
     setReviewOpen(false);
@@ -105,7 +124,7 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
         setReviewOpen(true);
         throw new Error(detail);
       }
-      const response = data as { fields?: FieldsMap; error?: string; detail?: string; debug?: Record<string, unknown> };
+      const response = data as { fields?: FieldsMap; mealOptions?: MealOptionsMap; error?: string; detail?: string; debug?: Record<string, unknown> };
       if (response.error || !response.fields) {
         const detail = [
           `Step: parse-mb-pdf`,
@@ -118,8 +137,18 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
         setReviewOpen(true);
         throw new Error(detail);
       }
-      const parsedFields = response.fields;
-      setFields(parsedFields);
+      setFields(response.fields);
+      const incoming = response.mealOptions;
+      const normalize = (arr: MealOption[] | undefined): MealOption[] => {
+        const base = [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()];
+        (arr ?? []).slice(0, 3).forEach((o, i) => { base[i] = { ...base[i], ...o }; });
+        return base;
+      };
+      setMealOptions({
+        breakfast: normalize(incoming?.breakfast),
+        lunch: normalize(incoming?.lunch),
+        dinner: normalize(incoming?.dinner),
+      });
       setStoragePath(path);
       setReviewOpen(true);
     } catch (err) {
@@ -133,6 +162,14 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
   const update = (key: string, value: string | number | null) => {
     setFields((f) => (f ? { ...f, [key]: { value, extracted: true } } : f));
   };
+
+  const updateOption = (meal: MealKey, idx: number, patch: Partial<MealOption>) => {
+    setMealOptions((m) => {
+      const next = { ...m, [meal]: m[meal].map((o, i) => (i === idx ? { ...o, ...patch } : o)) };
+      return next;
+    });
+  };
+
 
   const save = async () => {
     if (!fields || !storagePath) return;
@@ -159,6 +196,8 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
           update[k] = val == null ? "" : String(val);
         }
       }
+      // Persist 3 options per meal into the jsonb column.
+      update.mb_meal_options = mealOptions;
       const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
       if (error) throw error;
       toast.success("MB data saved");
@@ -232,18 +271,79 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
           {fields && (
             <div className="space-y-6">
               <section>
-                <h3 className="text-sm font-semibold mb-2">Meal plan grams</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <h3 className="text-sm font-semibold mb-2">Meal plan — 3 options per meal</h3>
+                <div className="space-y-4">
                   {MEALS.map((m) => (
-                    <div key={m.key} className="rounded-md border p-3 space-y-2">
-                      <p className="text-xs font-medium">{m.label}</p>
-                      <FieldRow k={`${m.key}_protein_category`} label="Protein category" />
-                      <FieldRow k={`${m.key}_protein_grams`} label="Protein (g)" type="number" />
-                      <FieldRow k={`${m.key}_veg_grams`} label="Vegetable (g)" type="number" />
+                    <div key={m.key} className="rounded-md border p-3">
+                      <p className="text-xs font-medium mb-2">{m.label}</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {mealOptions[m.key as MealKey].map((opt, idx) => {
+                          const extracted = !!opt.protein_category;
+                          return (
+                            <div key={idx} className={`rounded-md border p-2 space-y-2 ${!extracted ? "border-amber-400" : ""}`}>
+                              <div className="flex items-center justify-between">
+                                <p className="text-[11px] font-medium">Option {idx + 1}</p>
+                                {!extracted && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
+                                    <AlertTriangle className="h-3 w-3" /> Not extracted
+                                  </span>
+                                )}
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Protein category</Label>
+                                <Input
+                                  className="h-8"
+                                  value={opt.protein_category ?? ""}
+                                  onChange={(e) => updateOption(m.key as MealKey, idx, { protein_category: e.target.value || null })}
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <Label className="text-[10px]">Protein (g)</Label>
+                                  <Input
+                                    type="number"
+                                    step="any"
+                                    className="h-8"
+                                    value={opt.protein_grams ?? ""}
+                                    onChange={(e) => updateOption(m.key as MealKey, idx, { protein_grams: e.target.value === "" ? null : Number(e.target.value) })}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[10px]">Veg (g)</Label>
+                                  <Input
+                                    type="number"
+                                    step="any"
+                                    className="h-8"
+                                    value={opt.veg_grams ?? ""}
+                                    onChange={(e) => updateOption(m.key as MealKey, idx, { veg_grams: e.target.value === "" ? null : Number(e.target.value) })}
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3 pt-1">
+                                <label className="flex items-center gap-1 text-[11px]">
+                                  <Checkbox
+                                    checked={opt.has_fruit}
+                                    onCheckedChange={(c) => updateOption(m.key as MealKey, idx, { has_fruit: !!c })}
+                                  />
+                                  Fruit
+                                </label>
+                                <label className="flex items-center gap-1 text-[11px]">
+                                  <Checkbox
+                                    checked={opt.has_bread}
+                                    onCheckedChange={(c) => updateOption(m.key as MealKey, idx, { has_bread: !!c })}
+                                  />
+                                  Bread
+                                </label>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   ))}
                 </div>
               </section>
+
 
               <section>
                 <h3 className="text-sm font-semibold mb-2">Additional information</h3>
