@@ -90,30 +90,34 @@ function buildTrailingNameStripper(clientName: string | null): (s: string) => st
   const firstPattern = first ? escapeRegExp(first) : "";
   const lastPattern = last ? escapeRegExp(last) : "";
 
-  const patterns = [
-    new RegExp(`(?:\\s*[|,:;/-]?\\s*)${fullPattern}(?:\\s*\\|.*)?$`, "i"),
+  // Aggressive: strip trailing occurrences of full name / first+last / first / last,
+  // regardless of leading separator (space, comma, pipe, newline, etc.)
+  const patterns: RegExp[] = [
+    new RegExp(`[\\s,;:|/\\-]*${fullPattern}(?:\\s*\\|.*)?\\s*$`, "i"),
     first && last
-      ? new RegExp(`(?:\\s*[|,:;/-]?\\s*)${firstPattern}(?:\\s*\\|\\s*|\\s+)${lastPattern}(?:\\s*\\|.*)?$`, "i")
+      ? new RegExp(`[\\s,;:|/\\-]*${firstPattern}\\s+${lastPattern}(?:\\s*\\|.*)?\\s*$`, "i")
       : null,
-    first ? new RegExp(`(?:\\s*[|,:;/-]?\\s*)${firstPattern}(?:\\s*\\|.*)?$`, "i") : null,
-    last ? new RegExp(`(?:\\s*[|,:;/-]?\\s*)${lastPattern}(?:\\s*\\|.*)?$`, "i") : null,
-  ].filter((pattern): pattern is RegExp => Boolean(pattern));
+    first ? new RegExp(`[\\s,;:|/\\-]+${firstPattern}(?:\\s*\\|.*)?\\s*$`, "i") : null,
+    last ? new RegExp(`[\\s,;:|/\\-]+${lastPattern}(?:\\s*\\|.*)?\\s*$`, "i") : null,
+  ].filter((p): p is RegExp => Boolean(p));
 
   return (s: string) => {
     let out = s.replace(/\s+/g, " ").trim();
     let changed = true;
-
     while (changed && out) {
       changed = false;
       for (const pattern of patterns) {
-        const next = out.replace(pattern, "").replace(/\s*\|\s*$/g, "").trim();
+        const next = out
+          .replace(pattern, "")
+          .replace(/\s*\|\s*$/g, "")
+          .replace(/[\s,;]+$/g, "")
+          .trim();
         if (next !== out) {
           out = next;
           changed = true;
         }
       }
     }
-
     return out;
   };
 }
@@ -180,7 +184,9 @@ function parseFoodSection(
   const labels = Object.keys(categoryMap);
   labels.sort((a, b) => b.length - a.length);
   const labelPattern = labels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
-  const splitRe = new RegExp(`(?:^|\\n)\\s*(${labelPattern})\\s*[:\\-–]?\\s*`, "g");
+  // Allow heading to start after newline, semicolon, comma-newline, or after gram-amount entries
+  // (since unpdf often flattens columns into one line, "Sunflower Seeds" etc. may not be newline-prefixed).
+  const splitRe = new RegExp(`(?:^|[\\n;]|(?<=\\bg\\s)|(?<=\\)\\s)|(?<=[.,]\\s))\\s*(${labelPattern})\\s*[:\\-–]?\\s+`, "g");
 
   const matches: { label: string; start: number; contentStart: number }[] = [];
   let m: RegExpExecArray | null;
@@ -241,11 +247,12 @@ function isProteinLabel(label: string): boolean {
   return Object.keys(PHASE2_PROTEIN_CATEGORIES).some((k) => k.toLowerCase() === lc);
 }
 
-// Parse meal table by extracting all "[grams] g [Category]" matches sequentially.
-// Layout (flattened): 9 protein matches in column-major order (B1,B2,B3,L1,L2,L3,D1,D2,D3).
-// Veg matches follow the same ordering. Robust to missing "5 h" delimiters.
+// Parse meal table by collecting protein/veg/eggs candidates in document order,
+// then grouping every 3 into Breakfast / Lunch / Dinner.
+// - Handles "+" combos: "35g Pumpkin Seeds + 20g Sunflower Seeds" = ONE option.
+// - Handles "N Eggs" (no g unit): protein=Eggs, grams=null.
 function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record<string, string | number | null> } {
-  let options = createEmptyMealOptions();
+  const options = createEmptyMealOptions();
   const legacy: Record<string, string | number | null> = {};
 
   const startIdx = text.search(/\bBreakfast\b/i);
@@ -257,80 +264,72 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
 
   const mealKeys: MealKey[] = ["breakfast", "lunch", "dinner"];
 
-  const allLabels = [
-    ...Object.keys(PHASE2_PROTEIN_CATEGORIES),
-    "Vegetables", "Vegetable", "Veg./Lettuce", "Veg. /Lettuce", "Veg/Lettuce", "Vegetable/Lettuce",
-  ];
+  const proteinLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES);
+  const vegLabels = ["Vegetables", "Vegetable", "Veg./Lettuce", "Veg. /Lettuce", "Veg/Lettuce", "Vegetable/Lettuce"];
+  const allLabels = [...proteinLabels, ...vegLabels];
   allLabels.sort((a, b) => b.length - a.length);
   const labelAlt = allLabels.map((l) => escapeRegExp(l)).join("|");
-  const re = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
 
-  const allProteins: { grams: number; label: string; idx: number }[] = [];
-  const allVegs: { grams: number; idx: number }[] = [];
+  // Two patterns: "Ng Label" (standard) and "N Eggs" (no g).
+  const gramRe = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
+  const eggsRe = /(\d+)\s+Eggs\b/gi;
+
+  type Candidate = { kind: "protein" | "veg" | "eggs"; label: string; grams: number | null; idx: number; end: number };
+  const candidates: Candidate[] = [];
+
   let m: RegExpExecArray | null;
-  re.lastIndex = 0;
-  while ((m = re.exec(region)) !== null) {
+  gramRe.lastIndex = 0;
+  while ((m = gramRe.exec(region)) !== null) {
     const grams = parseFloat(m[1]);
     const label = m[2];
-    if (isVegLabel(label)) allVegs.push({ grams, idx: m.index });
-    else if (isProteinLabel(label)) allProteins.push({ grams, label, idx: m.index });
+    const end = m.index + m[0].length;
+    if (isVegLabel(label)) candidates.push({ kind: "veg", label, grams, idx: m.index, end });
+    else if (isProteinLabel(label)) candidates.push({ kind: "protein", label, grams, idx: m.index, end });
+  }
+  eggsRe.lastIndex = 0;
+  while ((m = eggsRe.exec(region)) !== null) {
+    candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx: m.index, end: m.index + m[0].length });
   }
 
-  const mealChunks = region.split(/\b5\s*h(?:rs?)?\b/i).map((chunk) => chunk.trim()).filter(Boolean);
-  if (mealChunks.length >= 3) {
-    for (let mi = 0; mi < 3; mi++) {
-      const chunk = mealChunks[mi] ?? "";
-      const chunkProteins: { grams: number; label: string }[] = [];
-      const chunkVegs: number[] = [];
-      re.lastIndex = 0;
-      while ((m = re.exec(chunk)) !== null) {
-        const grams = parseFloat(m[1]);
-        const label = m[2];
-        if (isVegLabel(label)) {
-          if (chunkVegs.length < 3) chunkVegs.push(grams);
-        } else if (isProteinLabel(label)) {
-          if (chunkProteins.length < 3) chunkProteins.push({ grams, label });
-        }
-      }
+  candidates.sort((a, b) => a.idx - b.idx);
 
-      const hasFruit = /\bFruit\b/i.test(chunk);
-      const hasBread = /\bBread\b/i.test(chunk);
-      for (let i = 0; i < 3; i++) {
-        if (chunkProteins[i]) {
-          options[mealKeys[mi]][i].protein_category = chunkProteins[i].label;
-          options[mealKeys[mi]][i].protein_grams = chunkProteins[i].grams;
-          options[mealKeys[mi]][i].has_fruit = hasFruit;
-          options[mealKeys[mi]][i].has_bread = hasBread;
-        }
-        if (chunkVegs[i] !== undefined) options[mealKeys[mi]][i].veg_grams = chunkVegs[i];
-      }
+  // Filter secondary "+" continuations: if a candidate of the same kind is preceded
+  // (between previous candidate's end and this candidate's start) by a "+", drop it.
+  const filtered: Candidate[] = [];
+  for (let i = 0; i < candidates.length; i++) {
+    const cur = candidates[i];
+    const prev = filtered.length ? filtered[filtered.length - 1] : null;
+    if (prev && prev.kind === cur.kind) {
+      const between = region.slice(prev.end, cur.idx);
+      if (/\+/.test(between) && between.length < 40) continue; // secondary ingredient
     }
+    filtered.push(cur);
   }
 
-  const missingLaterMeals = !options.lunch.some((option) => option.protein_category) || !options.dinner.some((option) => option.protein_category);
-  if (mealChunks.length < 3 || missingLaterMeals) {
-    options = createEmptyMealOptions();
+  const proteinCandidates = filtered.filter((c) => c.kind === "protein" || c.kind === "eggs");
+  const vegCandidates = filtered.filter((c) => c.kind === "veg");
 
-    for (let i = 0; i < Math.min(9, allProteins.length); i++) {
-      const mi = Math.floor(i / 3);
-      const oi = i % 3;
-      options[mealKeys[mi]][oi].protein_category = allProteins[i].label;
-      options[mealKeys[mi]][oi].protein_grams = allProteins[i].grams;
-    }
-    for (let i = 0; i < Math.min(9, allVegs.length); i++) {
-      const mi = Math.floor(i / 3);
-      const oi = i % 3;
-      options[mealKeys[mi]][oi].veg_grams = allVegs[i].grams;
-    }
+  for (let i = 0; i < Math.min(9, proteinCandidates.length); i++) {
+    const mi = Math.floor(i / 3);
+    const oi = i % 3;
+    options[mealKeys[mi]][oi].protein_category = proteinCandidates[i].label;
+    options[mealKeys[mi]][oi].protein_grams = proteinCandidates[i].grams;
+  }
+  for (let i = 0; i < Math.min(9, vegCandidates.length); i++) {
+    const mi = Math.floor(i / 3);
+    const oi = i % 3;
+    options[mealKeys[mi]][oi].veg_grams = vegCandidates[i].grams;
+  }
 
-    for (let mi = 0; mi < Math.min(3, mealChunks.length); mi++) {
-      const hasFruit = /\bFruit\b/i.test(mealChunks[mi] ?? "");
-      const hasBread = /\bBread\b/i.test(mealChunks[mi] ?? "");
-      for (let i = 0; i < 3; i++) {
-        if (options[mealKeys[mi]][i].protein_category) {
-          options[mealKeys[mi]][i].has_fruit = hasFruit;
-          options[mealKeys[mi]][i].has_bread = hasBread;
-        }
+  // Has fruit/bread per meal chunk (split on "5 h").
+  const mealChunks = region.split(/\b5\s*h(?:rs?)?\b/i).map((c) => c.trim()).filter(Boolean);
+  for (let mi = 0; mi < Math.min(3, mealChunks.length); mi++) {
+    const hasFruit = /\bFruit\b/i.test(mealChunks[mi]);
+    const hasBread = /\bBread\b/i.test(mealChunks[mi]);
+    for (let i = 0; i < 3; i++) {
+      if (options[mealKeys[mi]][i].protein_category) {
+        options[mealKeys[mi]][i].has_fruit = hasFruit;
+        options[mealKeys[mi]][i].has_bread = hasBread;
       }
     }
   }
@@ -393,6 +392,90 @@ function parseSproutsField(phase3Section: string, stripFooter: (s: string) => st
     .filter(Boolean)
     .filter((s) => s.length >= 2 && s.length <= 40 && /[A-Za-z]/.test(s) && s.split(/\s+/).length <= 4);
   return items.length ? Array.from(new Set(items)).join(", ") : null;
+}
+
+// Phase 3 parser using partial keyword matching (more tolerant of heading variations).
+// Returns map of phase3_mb_* field -> comma-joined items, plus a debug headings list.
+type Phase3Spec = { field: string; match: RegExp; reject?: RegExp };
+const PHASE3_SPECS: Phase3Spec[] = [
+  { field: "phase3_mb_fish",        match: /\bFish\b/i, reject: /\b(Seafood|Shellfish)\b/i },
+  { field: "phase3_mb_seafood",     match: /\b(Seafood|Shellfish)\b/i },
+  { field: "phase3_mb_meat",        match: /\bMeat\b/i, reject: /\bPoultry\b/i },
+  { field: "phase3_mb_cheese",      match: /\bCheese\b/i },
+  { field: "phase3_mb_legumes",     match: /\b(Legumes|Beans)\b/i },
+  { field: "phase3_mb_vegetables",  match: /\bVegetables?\b/i, reject: /\b(Veg\.?\s*\/?\s*Lettuce|Lettuce)\b/i },
+  { field: "phase3_mb_veg_lettuce", match: /\b(Veg\.?\s*\/?\s*Lettuce|Lettuce)\b/i },
+  { field: "phase3_mb_sprouts",     match: /\bSprouts?\b/i },
+  { field: "phase3_mb_fat_oil",     match: /\b(Fat\s*\/?\s*Oil|\bFat\b|\bOil\b)\b/i },
+];
+// Words that act as STOP boundaries but are NOT stored as fields themselves.
+const PHASE3_BOUNDARY_KEYWORDS = /\b(Poultry|Fruit|Bread|Starch|Nuts|Yogurt|Milk Products|Pumpkin Seeds|Sunflower Seeds|Shopping Helper|From now on|Please note|\bNote:)\b/i;
+
+function parsePhase3SectionByKeyword(
+  section: string,
+  stripFooter: (s: string) => string,
+  debugLog: { headings: { field: string; heading: string; index: number }[]; missing: string[] },
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  // Collect heading positions: for each spec find first occurrence (skip if reject matches at same position).
+  type Heading = { field: string; idx: number; endIdx: number; raw: string };
+  const headings: Heading[] = [];
+  for (const spec of PHASE3_SPECS) {
+    const re = new RegExp(spec.match.source, "gi");
+    let mm: RegExpExecArray | null;
+    while ((mm = re.exec(section)) !== null) {
+      // Avoid matching if a reject keyword overlaps this exact position context
+      const around = section.slice(Math.max(0, mm.index - 2), mm.index + mm[0].length + 8);
+      if (spec.reject && spec.reject.test(around)) continue;
+      headings.push({ field: spec.field, idx: mm.index, endIdx: mm.index + mm[0].length, raw: mm[0] });
+      debugLog.headings.push({ field: spec.field, heading: mm[0], index: mm.index });
+      break; // first occurrence only
+    }
+    if (!headings.some((h) => h.field === spec.field)) {
+      debugLog.missing.push(spec.field);
+    }
+  }
+
+  if (!headings.length) return out;
+
+  // Also collect boundary positions (Poultry, Fruit, Bread, etc.) to act as stop markers.
+  const boundaryPositions: number[] = [];
+  {
+    const re = new RegExp(PHASE3_BOUNDARY_KEYWORDS.source, "gi");
+    let mm: RegExpExecArray | null;
+    while ((mm = re.exec(section)) !== null) boundaryPositions.push(mm.index);
+  }
+
+  headings.sort((a, b) => a.idx - b.idx);
+
+  for (let i = 0; i < headings.length; i++) {
+    const cur = headings[i];
+    // End at the next heading OR next boundary keyword, whichever comes first.
+    let end = i + 1 < headings.length ? headings[i + 1].idx : section.length;
+    for (const bp of boundaryPositions) {
+      if (bp > cur.endIdx && bp < end) end = bp;
+    }
+    let chunk = section.slice(cur.endIdx, end);
+    // Drop leading punctuation
+    chunk = chunk.replace(/^\s*[:\-–]?\s*/, "");
+    chunk = stripFooter(chunk);
+    const items = chunk
+      .split(/[,;\n]+/)
+      .map((s) => s.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .filter((s) => {
+        if (s.length < 2 || s.length > 60) return false;
+        if (!/[A-Za-z]/.test(s)) return false;
+        if (/Personal Food List|Extended personal|Shopping Helper|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:|Phase\s*3/i.test(s)) return false;
+        if (s.split(/\s+/).length > 5) return false;
+        return true;
+      });
+    if (items.length) {
+      const existing = out[cur.field] ? out[cur.field].split(",").map((x) => x.trim()).filter(Boolean) : [];
+      out[cur.field] = Array.from(new Set([...existing, ...items])).join(", ");
+    }
+  }
+  return out;
 }
 
 Deno.serve(async (req) => {
@@ -464,7 +547,13 @@ Deno.serve(async (req) => {
 
     const phase2Proteins = phase2ProteinSection ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES, stripFooter) : {};
     const phase2Carbs = phase2CarbSection ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES, stripFooter) : {};
-    const phase3 = phase3Section ? parseFoodSection(phase3Section, PHASE3_CATEGORIES, stripFooter) : {};
+    const phase3DebugLog = { headings: [] as { field: string; heading: string; index: number }[], missing: [] as string[] };
+    const phase3: Record<string, string> = phase3Section
+      ? parsePhase3SectionByKeyword(phase3Section, stripFooter, phase3DebugLog)
+      : {};
+    debug.phase3_headings = phase3DebugLog.headings;
+    debug.phase3_missing = phase3DebugLog.missing;
+    console.log("[parse-mb-pdf] phase3 headings", phase3DebugLog);
 
     // Override Sprouts with stricter parser (stops at instructional note).
     if (phase3Section) {
