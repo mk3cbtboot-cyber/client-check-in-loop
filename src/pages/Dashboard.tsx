@@ -125,6 +125,7 @@ export default function Dashboard() {
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn[]>>({});
   const [recipes, setRecipes] = useState<Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]>>({});
   const [weeklyAcks, setWeeklyAcks] = useState<Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]>>({});
+  const [waterStreaks, setWaterStreaks] = useState<Record<string, number>>({});
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -193,6 +194,23 @@ export default function Dashboard() {
     while (dayKeys.has(d.toISOString().slice(0, 10))) {
       streak += 1;
       d.setUTCDate(d.getUTCDate() - 1);
+    }
+    return streak;
+  };
+
+  const WATER_TARGET = 2.5;
+  const computeWaterStreak = (rows: { log_date: string; litres: number }[], todayStr: string): number => {
+    const map = new Map(rows.map((r) => [r.log_date, Number(r.litres)]));
+    let streak = 0;
+    const d = new Date(todayStr + "T00:00:00Z");
+    if ((map.get(todayStr) ?? 0) >= WATER_TARGET) streak += 1;
+    d.setUTCDate(d.getUTCDate() - 1);
+    while (true) {
+      const key = d.toISOString().slice(0, 10);
+      if ((map.get(key) ?? 0) >= WATER_TARGET) {
+        streak += 1;
+        d.setUTCDate(d.getUTCDate() - 1);
+      } else break;
     }
     return streak;
   };
@@ -311,10 +329,11 @@ export default function Dashboard() {
         dt.setUTCDate(dt.getUTCDate() - day);
         return dt.toISOString().slice(0, 10);
       })();
-      const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }] = await Promise.all([
+      const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }, { data: waterRows }] = await Promise.all([
         supabase.from("check_ins").select("*").in("client_id", ids).order("created_at", { ascending: false }),
         supabase.from("recipes").select("id, client_id, name, meal_type, created_at").in("client_id", ids).order("created_at", { ascending: false }),
         supabase.from("weekly_limit_acknowledgements").select("client_id, food_name, limit_value, acknowledged_at").in("client_id", ids).eq("week_start_date", monday),
+        supabase.from("daily_water_logs").select("client_id, log_date, litres").in("client_id", ids).order("log_date", { ascending: false }).limit(400),
       ]);
       const grouped: Record<string, CheckIn[]> = {};
       (checkRows ?? []).forEach((ci) => { (grouped[ci.client_id] ||= []).push(ci); });
@@ -325,6 +344,14 @@ export default function Dashboard() {
       const ag: Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]> = {};
       (ackRows ?? []).forEach((a: any) => { (ag[a.client_id] ||= []).push(a); });
       setWeeklyAcks(ag);
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const ws: Record<string, number> = {};
+      ids.forEach((id) => {
+        const rows = (waterRows ?? []).filter((w: any) => w.client_id === id);
+        ws[id] = computeWaterStreak(rows, todayStr);
+      });
+      setWaterStreaks(ws);
 
       // Latest client-sent message per client for unread indicator.
       // Deferred messages (sent while practitioner was off-hours) are excluded
@@ -1040,7 +1067,8 @@ export default function Dashboard() {
                           </div>
                         )}
                         <span>Water: <span className="font-medium text-foreground">{lastWaterDisplay(list)}</span></span>
-                        <span>Streak: <span className="font-medium text-foreground">{streak}d</span></span>
+                        <span>Meal Streak: <span className="font-medium text-foreground">{client.meal_streak ?? 0}d</span></span>
+                        <span>Water Streak: <span className="font-medium text-foreground">{waterStreaks[client.id] ?? 0}d</span></span>
                         {!isDetailView && (
                           <div className="ml-auto inline-flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                             {client.archived_at ? (
