@@ -198,6 +198,23 @@ export default function Dashboard() {
     return streak;
   };
 
+  const WATER_TARGET = 2.5;
+  const computeWaterStreak = (rows: { log_date: string; litres: number }[], todayStr: string): number => {
+    const map = new Map(rows.map((r) => [r.log_date, Number(r.litres)]));
+    let streak = 0;
+    const d = new Date(todayStr + "T00:00:00Z");
+    if ((map.get(todayStr) ?? 0) >= WATER_TARGET) streak += 1;
+    d.setUTCDate(d.getUTCDate() - 1);
+    while (true) {
+      const key = d.toISOString().slice(0, 10);
+      if ((map.get(key) ?? 0) >= WATER_TARGET) {
+        streak += 1;
+        d.setUTCDate(d.getUTCDate() - 1);
+      } else break;
+    }
+    return streak;
+  };
+
   // Need attention: meal_streak is 0, or today's water intake is below 1.0L
   const needsAttention = (client: Client, _list: CheckIn[]): boolean => {
     const today = new Date().toISOString().slice(0, 10);
