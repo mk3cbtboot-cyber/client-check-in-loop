@@ -436,6 +436,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const stripFooter = buildFooterStripper(clientRow.name ?? null);
+    const stripTrailingName = buildTrailingNameStripper(clientRow.name ?? null);
 
     debug.step = "download_pdf";
     const { data: file, error: dErr } = await admin.storage.from("mb-pdfs").download(storagePath);
@@ -478,10 +479,19 @@ Deno.serve(async (req) => {
       water = parseWater(additionalInfoSection);
     }
 
-    const buildField = (v: unknown) => ({
-      value: v ?? null,
-      extracted: v !== null && v !== undefined && v !== "",
-    });
+    const sanitizeExtractedValue = (value: unknown) => {
+      if (typeof value !== "string") return value ?? null;
+      const cleaned = stripTrailingName(stripFooter(value)).trim();
+      return cleaned;
+    };
+
+    const buildField = (v: unknown) => {
+      const value = sanitizeExtractedValue(v);
+      return {
+        value,
+        extracted: value !== null && value !== undefined && value !== "",
+      };
+    };
 
     const phase2ProteinFields = Object.values(PHASE2_PROTEIN_CATEGORIES);
     const phase2CarbFields = Object.values(PHASE2_CARB_CATEGORIES);
