@@ -90,30 +90,34 @@ function buildTrailingNameStripper(clientName: string | null): (s: string) => st
   const firstPattern = first ? escapeRegExp(first) : "";
   const lastPattern = last ? escapeRegExp(last) : "";
 
-  const patterns = [
-    new RegExp(`(?:\\s*[|,:;/-]?\\s*)${fullPattern}(?:\\s*\\|.*)?$`, "i"),
+  // Aggressive: strip trailing occurrences of full name / first+last / first / last,
+  // regardless of leading separator (space, comma, pipe, newline, etc.)
+  const patterns: RegExp[] = [
+    new RegExp(`[\\s,;:|/\\-]*${fullPattern}(?:\\s*\\|.*)?\\s*$`, "i"),
     first && last
-      ? new RegExp(`(?:\\s*[|,:;/-]?\\s*)${firstPattern}(?:\\s*\\|\\s*|\\s+)${lastPattern}(?:\\s*\\|.*)?$`, "i")
+      ? new RegExp(`[\\s,;:|/\\-]*${firstPattern}\\s+${lastPattern}(?:\\s*\\|.*)?\\s*$`, "i")
       : null,
-    first ? new RegExp(`(?:\\s*[|,:;/-]?\\s*)${firstPattern}(?:\\s*\\|.*)?$`, "i") : null,
-    last ? new RegExp(`(?:\\s*[|,:;/-]?\\s*)${lastPattern}(?:\\s*\\|.*)?$`, "i") : null,
-  ].filter((pattern): pattern is RegExp => Boolean(pattern));
+    first ? new RegExp(`[\\s,;:|/\\-]+${firstPattern}(?:\\s*\\|.*)?\\s*$`, "i") : null,
+    last ? new RegExp(`[\\s,;:|/\\-]+${lastPattern}(?:\\s*\\|.*)?\\s*$`, "i") : null,
+  ].filter((p): p is RegExp => Boolean(p));
 
   return (s: string) => {
     let out = s.replace(/\s+/g, " ").trim();
     let changed = true;
-
     while (changed && out) {
       changed = false;
       for (const pattern of patterns) {
-        const next = out.replace(pattern, "").replace(/\s*\|\s*$/g, "").trim();
+        const next = out
+          .replace(pattern, "")
+          .replace(/\s*\|\s*$/g, "")
+          .replace(/[\s,;]+$/g, "")
+          .trim();
         if (next !== out) {
           out = next;
           changed = true;
         }
       }
     }
-
     return out;
   };
 }
