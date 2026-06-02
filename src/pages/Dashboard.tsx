@@ -1197,6 +1197,9 @@ export default function Dashboard() {
                               onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
                               Copy portal link
                             </Button>
+                            {client.system_mode !== "own_practice" && (
+                              <MbPdfImport clientId={client.id} onSaved={load} />
+                            )}
                           </div>
                           {client.system_mode !== "own_practice" && client.phase2_strict_mode === "practitioner_custom" && (
                             <div className="flex items-center gap-2">
