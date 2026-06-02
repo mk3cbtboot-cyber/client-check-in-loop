@@ -547,7 +547,13 @@ Deno.serve(async (req) => {
 
     const phase2Proteins = phase2ProteinSection ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES, stripFooter) : {};
     const phase2Carbs = phase2CarbSection ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES, stripFooter) : {};
-    const phase3 = phase3Section ? parseFoodSection(phase3Section, PHASE3_CATEGORIES, stripFooter) : {};
+    const phase3DebugLog = { headings: [] as { field: string; heading: string; index: number }[], missing: [] as string[] };
+    const phase3: Record<string, string> = phase3Section
+      ? parsePhase3SectionByKeyword(phase3Section, stripFooter, phase3DebugLog)
+      : {};
+    debug.phase3_headings = phase3DebugLog.headings;
+    debug.phase3_missing = phase3DebugLog.missing;
+    console.log("[parse-mb-pdf] phase3 headings", phase3DebugLog);
 
     // Override Sprouts with stricter parser (stops at instructional note).
     if (phase3Section) {
