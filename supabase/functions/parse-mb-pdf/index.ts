@@ -245,11 +245,12 @@ function isProteinLabel(label: string): boolean {
   return Object.keys(PHASE2_PROTEIN_CATEGORIES).some((k) => k.toLowerCase() === lc);
 }
 
-// Parse meal table by extracting all "[grams] g [Category]" matches sequentially.
-// Layout (flattened): 9 protein matches in column-major order (B1,B2,B3,L1,L2,L3,D1,D2,D3).
-// Veg matches follow the same ordering. Robust to missing "5 h" delimiters.
+// Parse meal table by collecting protein/veg/eggs candidates in document order,
+// then grouping every 3 into Breakfast / Lunch / Dinner.
+// - Handles "+" combos: "35g Pumpkin Seeds + 20g Sunflower Seeds" = ONE option.
+// - Handles "N Eggs" (no g unit): protein=Eggs, grams=null.
 function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record<string, string | number | null> } {
-  let options = createEmptyMealOptions();
+  const options = createEmptyMealOptions();
   const legacy: Record<string, string | number | null> = {};
 
   const startIdx = text.search(/\bBreakfast\b/i);
@@ -261,80 +262,72 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
 
   const mealKeys: MealKey[] = ["breakfast", "lunch", "dinner"];
 
-  const allLabels = [
-    ...Object.keys(PHASE2_PROTEIN_CATEGORIES),
-    "Vegetables", "Vegetable", "Veg./Lettuce", "Veg. /Lettuce", "Veg/Lettuce", "Vegetable/Lettuce",
-  ];
+  const proteinLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES);
+  const vegLabels = ["Vegetables", "Vegetable", "Veg./Lettuce", "Veg. /Lettuce", "Veg/Lettuce", "Vegetable/Lettuce"];
+  const allLabels = [...proteinLabels, ...vegLabels];
   allLabels.sort((a, b) => b.length - a.length);
   const labelAlt = allLabels.map((l) => escapeRegExp(l)).join("|");
-  const re = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
 
-  const allProteins: { grams: number; label: string; idx: number }[] = [];
-  const allVegs: { grams: number; idx: number }[] = [];
+  // Two patterns: "Ng Label" (standard) and "N Eggs" (no g).
+  const gramRe = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
+  const eggsRe = /(\d+)\s+Eggs\b/gi;
+
+  type Candidate = { kind: "protein" | "veg" | "eggs"; label: string; grams: number | null; idx: number; end: number };
+  const candidates: Candidate[] = [];
+
   let m: RegExpExecArray | null;
-  re.lastIndex = 0;
-  while ((m = re.exec(region)) !== null) {
+  gramRe.lastIndex = 0;
+  while ((m = gramRe.exec(region)) !== null) {
     const grams = parseFloat(m[1]);
     const label = m[2];
-    if (isVegLabel(label)) allVegs.push({ grams, idx: m.index });
-    else if (isProteinLabel(label)) allProteins.push({ grams, label, idx: m.index });
+    const end = m.index + m[0].length;
+    if (isVegLabel(label)) candidates.push({ kind: "veg", label, grams, idx: m.index, end });
+    else if (isProteinLabel(label)) candidates.push({ kind: "protein", label, grams, idx: m.index, end });
+  }
+  eggsRe.lastIndex = 0;
+  while ((m = eggsRe.exec(region)) !== null) {
+    candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx: m.index, end: m.index + m[0].length });
   }
 
-  const mealChunks = region.split(/\b5\s*h(?:rs?)?\b/i).map((chunk) => chunk.trim()).filter(Boolean);
-  if (mealChunks.length >= 3) {
-    for (let mi = 0; mi < 3; mi++) {
-      const chunk = mealChunks[mi] ?? "";
-      const chunkProteins: { grams: number; label: string }[] = [];
-      const chunkVegs: number[] = [];
-      re.lastIndex = 0;
-      while ((m = re.exec(chunk)) !== null) {
-        const grams = parseFloat(m[1]);
-        const label = m[2];
-        if (isVegLabel(label)) {
-          if (chunkVegs.length < 3) chunkVegs.push(grams);
-        } else if (isProteinLabel(label)) {
-          if (chunkProteins.length < 3) chunkProteins.push({ grams, label });
-        }
-      }
+  candidates.sort((a, b) => a.idx - b.idx);
 
-      const hasFruit = /\bFruit\b/i.test(chunk);
-      const hasBread = /\bBread\b/i.test(chunk);
-      for (let i = 0; i < 3; i++) {
-        if (chunkProteins[i]) {
-          options[mealKeys[mi]][i].protein_category = chunkProteins[i].label;
-          options[mealKeys[mi]][i].protein_grams = chunkProteins[i].grams;
-          options[mealKeys[mi]][i].has_fruit = hasFruit;
-          options[mealKeys[mi]][i].has_bread = hasBread;
-        }
-        if (chunkVegs[i] !== undefined) options[mealKeys[mi]][i].veg_grams = chunkVegs[i];
-      }
+  // Filter secondary "+" continuations: if a candidate of the same kind is preceded
+  // (between previous candidate's end and this candidate's start) by a "+", drop it.
+  const filtered: Candidate[] = [];
+  for (let i = 0; i < candidates.length; i++) {
+    const cur = candidates[i];
+    const prev = filtered.length ? filtered[filtered.length - 1] : null;
+    if (prev && prev.kind === cur.kind) {
+      const between = region.slice(prev.end, cur.idx);
+      if (/\+/.test(between) && between.length < 40) continue; // secondary ingredient
     }
+    filtered.push(cur);
   }
 
-  const missingLaterMeals = !options.lunch.some((option) => option.protein_category) || !options.dinner.some((option) => option.protein_category);
-  if (mealChunks.length < 3 || missingLaterMeals) {
-    options = createEmptyMealOptions();
+  const proteinCandidates = filtered.filter((c) => c.kind === "protein" || c.kind === "eggs");
+  const vegCandidates = filtered.filter((c) => c.kind === "veg");
 
-    for (let i = 0; i < Math.min(9, allProteins.length); i++) {
-      const mi = Math.floor(i / 3);
-      const oi = i % 3;
-      options[mealKeys[mi]][oi].protein_category = allProteins[i].label;
-      options[mealKeys[mi]][oi].protein_grams = allProteins[i].grams;
-    }
-    for (let i = 0; i < Math.min(9, allVegs.length); i++) {
-      const mi = Math.floor(i / 3);
-      const oi = i % 3;
-      options[mealKeys[mi]][oi].veg_grams = allVegs[i].grams;
-    }
+  for (let i = 0; i < Math.min(9, proteinCandidates.length); i++) {
+    const mi = Math.floor(i / 3);
+    const oi = i % 3;
+    options[mealKeys[mi]][oi].protein_category = proteinCandidates[i].label;
+    options[mealKeys[mi]][oi].protein_grams = proteinCandidates[i].grams;
+  }
+  for (let i = 0; i < Math.min(9, vegCandidates.length); i++) {
+    const mi = Math.floor(i / 3);
+    const oi = i % 3;
+    options[mealKeys[mi]][oi].veg_grams = vegCandidates[i].grams;
+  }
 
-    for (let mi = 0; mi < Math.min(3, mealChunks.length); mi++) {
-      const hasFruit = /\bFruit\b/i.test(mealChunks[mi] ?? "");
-      const hasBread = /\bBread\b/i.test(mealChunks[mi] ?? "");
-      for (let i = 0; i < 3; i++) {
-        if (options[mealKeys[mi]][i].protein_category) {
-          options[mealKeys[mi]][i].has_fruit = hasFruit;
-          options[mealKeys[mi]][i].has_bread = hasBread;
-        }
+  // Has fruit/bread per meal chunk (split on "5 h").
+  const mealChunks = region.split(/\b5\s*h(?:rs?)?\b/i).map((c) => c.trim()).filter(Boolean);
+  for (let mi = 0; mi < Math.min(3, mealChunks.length); mi++) {
+    const hasFruit = /\bFruit\b/i.test(mealChunks[mi]);
+    const hasBread = /\bBread\b/i.test(mealChunks[mi]);
+    for (let i = 0; i < 3; i++) {
+      if (options[mealKeys[mi]][i].protein_category) {
+        options[mealKeys[mi]][i].has_fruit = hasFruit;
+        options[mealKeys[mi]][i].has_bread = hasBread;
       }
     }
   }
