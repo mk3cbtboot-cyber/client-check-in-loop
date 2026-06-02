@@ -133,58 +133,110 @@ function parseFoodSection(text: string, categoryMap: Record<string, string>): Re
   return result;
 }
 
-function parseMealTable(text: string) {
-  const out: Record<string, string | number | null> = {
-    breakfast_protein_category: null, breakfast_protein_grams: null, breakfast_veg_grams: null,
-    lunch_protein_category: null, lunch_protein_grams: null, lunch_veg_grams: null,
-    dinner_protein_category: null, dinner_protein_grams: null, dinner_veg_grams: null,
-  };
+type MealOption = {
+  protein_category: string | null;
+  protein_grams: number | null;
+  veg_grams: number | null;
+  has_fruit: boolean;
+  has_bread: boolean;
+};
 
-  const meals: Array<{ key: "breakfast" | "lunch" | "dinner"; label: string }> = [
+type MealKey = "breakfast" | "lunch" | "dinner";
+type MealOptionsMap = Record<MealKey, MealOption[]>;
+
+const EMPTY_OPTION = (): MealOption => ({
+  protein_category: null,
+  protein_grams: null,
+  veg_grams: null,
+  has_fruit: false,
+  has_bread: false,
+});
+
+const VEG_LABEL_RE = /^(?:Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce|Vegetable\/Lettuce)$/i;
+
+function isVegLabel(label: string): boolean {
+  return VEG_LABEL_RE.test(label.trim());
+}
+
+function isProteinLabel(label: string): boolean {
+  const lc = label.trim().toLowerCase();
+  return Object.keys(PHASE2_PROTEIN_CATEGORIES).some((k) => k.toLowerCase() === lc);
+}
+
+function extractMealChunk(text: string, label: string): string {
+  const re = new RegExp(`\\b${label}\\b([\\s\\S]*?)(?=\\b(?:Breakfast|Lunch|Dinner)\\b|Personal Food List|$)`, "i");
+  const m = text.match(re);
+  return m ? m[1] : "";
+}
+
+function parseMealOptions(chunk: string): MealOption[] {
+  const options: MealOption[] = [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()];
+  if (!chunk) return options;
+
+  // Collect all "<grams> g <Label>" matches in order across the flattened columns.
+  // Order = column-major (left to right across the 3 option columns), so the
+  // 1st protein match belongs to option 1, the 2nd to option 2, the 3rd to option 3.
+  const allLabels = [
+    ...Object.keys(PHASE2_PROTEIN_CATEGORIES),
+    "Vegetables", "Vegetable", "Veg./Lettuce", "Veg. /Lettuce", "Veg/Lettuce", "Vegetable/Lettuce",
+  ];
+  allLabels.sort((a, b) => b.length - a.length);
+  const labelAlt = allLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
+  const re = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
+
+  const proteinMatches: { grams: number; label: string }[] = [];
+  const vegMatches: { grams: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(chunk)) !== null) {
+    const grams = parseFloat(m[1]);
+    const label = m[2];
+    if (isVegLabel(label)) vegMatches.push({ grams });
+    else if (isProteinLabel(label)) proteinMatches.push({ grams, label });
+  }
+
+  for (let i = 0; i < 3; i++) {
+    if (proteinMatches[i]) {
+      options[i].protein_category = proteinMatches[i].label;
+      options[i].protein_grams = proteinMatches[i].grams;
+    }
+    if (vegMatches[i]) {
+      options[i].veg_grams = vegMatches[i].grams;
+    }
+  }
+
+  // Fruit / Bread appear without grams. If present in the meal chunk, mark
+  // them on every option that has a protein assigned (standard MB pattern).
+  const hasFruit = /\bFruit\b/i.test(chunk);
+  const hasBread = /\bBread\b/i.test(chunk);
+  for (let i = 0; i < 3; i++) {
+    if (options[i].protein_category) {
+      options[i].has_fruit = hasFruit;
+      options[i].has_bread = hasBread;
+    }
+  }
+
+  return options;
+}
+
+function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record<string, string | number | null> } {
+  const meals: Array<{ key: MealKey; label: string }> = [
     { key: "breakfast", label: "Breakfast" },
     { key: "lunch", label: "Lunch" },
     { key: "dinner", label: "Dinner" },
   ];
 
-  const proteinLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES);
-  proteinLabels.sort((a, b) => b.length - a.length);
-  const proteinAlt = proteinLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
-
+  const options: MealOptionsMap = { breakfast: [], lunch: [], dinner: [] };
+  const legacy: Record<string, string | number | null> = {};
   for (const meal of meals) {
-    const re = new RegExp(`${meal.label}([\\s\\S]{0,800}?)(?=Breakfast|Lunch|Dinner|Personal Food List|$)`, "i");
-    const m = text.match(re);
-    if (!m) continue;
-    const chunk = m[1];
-
-    // MB layout commonly prints "<grams> g <Category>" (e.g. "200 g Yogurt", "140 g Fish").
-    const r1 = new RegExp(`(\\d{2,4})\\s*g\\s+(${proteinAlt})\\b`, "i");
-    const m1 = chunk.match(r1);
-    if (m1) {
-      out[`${meal.key}_protein_grams`] = parseFloat(m1[1]);
-      out[`${meal.key}_protein_category`] = m1[2];
-    } else {
-      // Fallback: "<Category> ... <grams> g"
-      for (const pl of proteinLabels) {
-        const r2 = new RegExp(`(${pl.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")})[^\\d]{0,40}(\\d{2,4})\\s*g`, "i");
-        const mm = chunk.match(r2);
-        if (mm) {
-          out[`${meal.key}_protein_category`] = mm[1];
-          out[`${meal.key}_protein_grams`] = parseFloat(mm[2]);
-          break;
-        }
-      }
-    }
-
-    // Veg grams — try "<grams> g Veg./Lettuce" first, then fallback to "<Label> ... <grams> g"
-    const v1 = chunk.match(/(\d{2,4})\s*g\s+(?:Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce|Vegetable\/Lettuce)/i);
-    if (v1) {
-      out[`${meal.key}_veg_grams`] = parseFloat(v1[1]);
-    } else {
-      const v2 = chunk.match(/(?:Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce)[^\d]{0,40}(\d{2,4})\s*g/i);
-      if (v2) out[`${meal.key}_veg_grams`] = parseFloat(v2[1]);
-    }
+    const chunk = extractMealChunk(text, meal.label);
+    const opts = parseMealOptions(chunk);
+    options[meal.key] = opts;
+    // Keep legacy single-option fields populated from option 1 for backward compat.
+    legacy[`${meal.key}_protein_category`] = opts[0].protein_category;
+    legacy[`${meal.key}_protein_grams`] = opts[0].protein_grams;
+    legacy[`${meal.key}_veg_grams`] = opts[0].veg_grams;
   }
-  return out;
+  return { options, legacy };
 }
 
 function parseEggs(text: string): { eggs_min_per_week: number | null; eggs_max_per_week: number | null } {
