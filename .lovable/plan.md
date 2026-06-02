@@ -1,70 +1,66 @@
-## Weekly Meal Planner — Weekly Food Limits & Meal Splits
+# MB PDF Parser
 
-This is a sizable feature touching the database, practitioner dashboard, client meal planner, edge function, and shopping list. Outlining the approach so we agree before I build it.
+Parse a client's MB meal plan PDF and populate their food data in Supabase, with a practitioner review step before save.
 
-### 1. Data model
+## 1. Database / storage
 
-**`clients` table** — add one column:
-- `weekly_food_limits jsonb default '{}'` — flat map of normalized food name → units allowed per week.
-  - Example: `{ "eggs": 5, "salmon": 2, "avocado": 3 }`
-  - Units are interpreted contextually: "eggs" = count, "salmon" = serves, etc. Practitioner sees a free-text label so the UX stays simple.
+New migration:
 
-**`weekly_meal_plans` table** — add per-meal "alternate" fields so a slot can hold two meals split across the week:
-- `breakfast_meal_id_alt int`, `lunch_meal_id_alt int`, `dinner_meal_id_alt int`
-- `breakfast_selections_alt jsonb default '{}'`, `lunch_selections_alt`, `dinner_selections_alt`
-- `breakfast_primary_days int` (number of days the primary meal covers, 1–7; alt covers `7 - primary_days`), same for lunch/dinner.
+- Add columns to `public.clients`:
+  - Phase 2 proteins: `food_fish`, `food_seafood`, `food_milk_products`, `food_yogurt`, `food_nuts`, `food_meat`, `food_poultry`, `food_cheese`, `food_legumes`, `food_pumpkin_seeds`, `food_sunflower_seeds` (text, default `''`)
+  - Phase 2 carbs: `food_vegetables`, `food_veg_lettuce`, `food_starch`, `food_bread`, `food_fruit` (text, default `''`)
+  - Meal plan grams (per meal): `breakfast_protein_category`, `breakfast_protein_grams`, `breakfast_veg_grams`, and the same for `lunch_*` and `dinner_*`
+  - Limits: `eggs_min_per_week` (int), `eggs_max_per_week` (int), `water_target_litres` (numeric, default 2.5)
+  - New Phase 3 fields: `phase3_mb_meat`, `phase3_mb_sprouts`, `phase3_mb_veg_lettuce` (text, default `''`)
+  - `mb_pdf_path` (text) — storage object path of the uploaded PDF
+- Create private storage bucket `mb-pdfs` with RLS so a practitioner can read/write only files under `clients/<client_id>/...` for clients they own.
 
-No new tables.
+## 2. Edge function: `parse-mb-pdf`
 
-### 2. Limit-detection logic (shared util `src/lib/food-limits.ts`)
+- Input: `{ clientId, storagePath }`. Verifies the caller is the client's practitioner.
+- Downloads the PDF from `mb-pdfs` using the service-role client.
+- Extracts text using `unpdf` (`npm:unpdf`) — pure JS, works in Deno edge runtime.
+- Anchors used to slice the document:
+  - `Personal Food List - Protein`
+  - `Personal Food List - Carbohydrates`
+  - `Additional Information about the Meal Plan`
+  - `$$CA_PHASE3$$`
+  - `Extended personal Food List`
+- Parses:
+  - Meal table (page before the food list): regex per meal column for protein category + grams and Vegetable/Veg.Lettuce grams.
+  - Phase 2 protein/carb categories: split section by known category labels, capture food items until the next label.
+  - Egg limits: regex like `(\d+)\s*-\s*(\d+)\s*eggs?\s*per week` (with min/max variants).
+  - Water: regex matching `(\d+(?:\s*[½¼¾]|\.\d+)?)\s*l(?:iters|itres)?` and normalises `½/¼/¾`.
+  - Phase 3 extended list: same category-split approach, mapped to `phase3_mb_*`.
+- Returns a structured JSON object with each field plus a per-field `extracted: boolean` flag so the UI can mark unextracted fields.
+- Does **not** write to `clients` — review/save is a separate step done from the client.
 
-For a given meal option + selections + limits:
-1. Walk fixed ingredients and component selections, extract `(foodKey, perServingQty)` where:
-   - Eggs → parse count from "Eggs — 3" style.
-   - Selected food name → normalize (lowercase, singularize) and match against limit keys (also normalized).
-   - Quantity sourced from the component `qty` ("160g") or trailing `(…)` in the food name.
-2. For each matched food: `maxDays = floor(limit / perServingQty)`. Meal max days = min across all matched components. If `maxDays < 7`, the meal is "limited".
-3. Returns `{ limited: boolean, maxDays: number, reasons: [{food, limit, perServing, maxDays}] }`.
+## 3. Practitioner UI (client profile page in `src/pages/Dashboard.tsx`)
 
-### 3. Practitioner dashboard
+New component `src/components/MbPdfImport.tsx`:
 
-In the Phase 2 Strict client card (Meal Plan tab), add a **Weekly Food Limits** editor below the existing food-list editor:
-- Rows of `[food name] [units/week] [remove]`
-- "Add limit" button.
-- Saves to `clients.weekly_food_limits` on blur (same pattern as existing field edits).
-- Helper text: "Used by the Weekly Meal Planner to warn clients when a meal would exceed their allowance."
+- "Upload MB PDF" button → file input (PDF only).
+- On select: uploads to `mb-pdfs/clients/<clientId>/<timestamp>.pdf`, then invokes `parse-mb-pdf`.
+- Shows a review modal/sheet with all extracted fields grouped:
+  - Meal plan grams (3 meal cards)
+  - Phase 2 — Proteins
+  - Phase 2 — Carbohydrates
+  - Additional info (eggs min/max, water litres)
+  - Phase 3 extended list
+- Every field is editable (text inputs for comma-separated lists, number inputs for grams/eggs/water).
+- Fields flagged as unextracted render with a warning style and a "Not extracted — please fill in" hint.
+- Footer buttons: **Re-upload** (resets, opens file picker again) and **Confirm and Save** (writes all fields to `clients` row, sets `mb_pdf_path`, closes modal, refreshes dashboard data).
 
-### 4. Client meal planner (`MealPlanner.tsx`)
+Wire the button into the existing client profile/expanded card area in `Dashboard.tsx`.
 
-For each of breakfast/lunch/dinner:
-- After the selected option's components are filled, run the limit check.
-- If `limited`, render a warning card beneath the meal column:
-  > ⚠️ Your plan allows {limit} {food}/week. This meal uses {perServing} per serving — that's enough for {maxDays} {day(s)}. Choose an alternative for the remaining {7-maxDays} days.
-- Reveal a second option picker ("Alternate meal — covers {7-maxDays} days"). Same component flow as the primary, persists into the `*_alt` fields.
-- Show split summary: "Primary — Mon, Tue / Alternate — Wed–Sun" (we'll just label by day-count to keep it dietless of real weekdays unless the user wants real weekday names).
-- `isMealComplete` requires the alternate to also be complete when the primary is limited.
-- Confirm button gating updated accordingly.
+## 4. Out of scope
 
-### 5. Shopping list
+- No changes to other features (messaging, office hours, HUD).
+- AI interceptor integration with the stored PDF will be wired up in a later task — this task only stores the PDF path.
 
-`shoppingList` memo updated:
-- For each meal slot, multiply primary ingredients by `primaryDays` (default 7).
-- If alt exists, add alt ingredients × `(7 - primaryDays)`.
-- Same dedupe/grouping as today; identical foods with different qty are combined by summing grams/ml/count.
+## Technical notes
 
-### 6. Edge function `weekly-meal-plan`
-
-- `get` returns the new `*_alt` and `*_primary_days` fields.
-- `save` accepts and persists them.
-- No other behavior changes.
-
-### 7. Recipe Generator restriction
-
-`ClientPortal.tsx`'s `restrictedItems` is expanded to also include `*_selections_alt` so the generator allows the alt-meal ingredients too.
-
-### Out of scope (call out for later)
-- The MB PDF parser auto-populating limits — explicitly deferred per your message.
-- Real calendar day assignment (Mon/Tue vs Wed/Sun is just a label; we always put the primary at the start of the week).
-- Three-way splits (only primary + one alternate is supported).
-
-If this matches what you want I'll ship it end-to-end.
+- `unpdf` is used in the edge function because it has no native deps and runs in Deno; PDF text comes back per-page which is enough for the anchor-based parser.
+- All grams/eggs/water values are coerced to numbers in the review step before save; blank = `null`.
+- Storage path is saved in `clients.mb_pdf_path` so later features can fetch the same PDF.
+- Frontend uses the existing `supabase` client; edge function uses `verify_jwt = false` plus an in-function auth check (same pattern as `client-messages`), and is added to `supabase/config.toml`.
