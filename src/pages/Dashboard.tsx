@@ -345,6 +345,14 @@ export default function Dashboard() {
       (ackRows ?? []).forEach((a: any) => { (ag[a.client_id] ||= []).push(a); });
       setWeeklyAcks(ag);
 
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const ws: Record<string, number> = {};
+      ids.forEach((id) => {
+        const rows = (waterRows ?? []).filter((w: any) => w.client_id === id);
+        ws[id] = computeWaterStreak(rows, todayStr);
+      });
+      setWaterStreaks(ws);
+
       // Latest client-sent message per client for unread indicator.
       // Deferred messages (sent while practitioner was off-hours) are excluded
       // until the practitioner is currently available again.
