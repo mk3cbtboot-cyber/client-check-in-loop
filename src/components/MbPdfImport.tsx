@@ -93,6 +93,7 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
       if (up.error) {
         const detail = [`Step: storage upload`, `Path: ${path}`, `Error: ${up.error.message}`].join("\n");
         setReviewError(detail);
+        setReviewOpen(true);
         throw new Error(detail);
       }
       const { data, error } = await supabase.functions.invoke("parse-mb-pdf", {
@@ -101,6 +102,7 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
       if (error) {
         const detail = [`Step: edge function invocation`, `Function: parse-mb-pdf`, `Error: ${error.message}`].join("\n");
         setReviewError(detail);
+        setReviewOpen(true);
         throw new Error(detail);
       }
       const response = data as { fields?: FieldsMap; error?: string; detail?: string; debug?: Record<string, unknown> };
@@ -113,6 +115,7 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
           response.debug?.storagePath ? `Path: ${String(response.debug.storagePath)}` : null,
         ].filter(Boolean).join("\n");
         setReviewError(detail);
+        setReviewOpen(true);
         throw new Error(detail);
       }
       const parsedFields = response.fields;
