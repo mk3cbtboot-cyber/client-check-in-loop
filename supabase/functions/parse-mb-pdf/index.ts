@@ -184,7 +184,9 @@ function parseFoodSection(
   const labels = Object.keys(categoryMap);
   labels.sort((a, b) => b.length - a.length);
   const labelPattern = labels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
-  const splitRe = new RegExp(`(?:^|\\n)\\s*(${labelPattern})\\s*[:\\-–]?\\s*`, "g");
+  // Allow heading to start after newline, semicolon, comma-newline, or after gram-amount entries
+  // (since unpdf often flattens columns into one line, "Sunflower Seeds" etc. may not be newline-prefixed).
+  const splitRe = new RegExp(`(?:^|[\\n;]|(?<=\\bg\\s)|(?<=\\)\\s)|(?<=[.,]\\s))\\s*(${labelPattern})\\s*[:\\-–]?\\s+`, "g");
 
   const matches: { label: string; start: number; contentStart: number }[] = [];
   let m: RegExpExecArray | null;
