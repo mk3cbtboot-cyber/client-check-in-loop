@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -62,10 +63,12 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [fields, setFields] = useState<FieldsMap | null>(null);
   const [storagePath, setStoragePath] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const reset = () => {
     setFields(null);
     setStoragePath(null);
+    setReviewError(null);
     setReviewOpen(false);
     if (fileRef.current) fileRef.current.value = "";
   };
@@ -82,16 +85,37 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
     setBusy(true);
     try {
       const path = `clients/${clientId}/${Date.now()}.pdf`;
+      setReviewError(null);
       const up = await supabase.storage.from("mb-pdfs").upload(path, file, {
         contentType: "application/pdf",
         upsert: false,
       });
-      if (up.error) throw up.error;
+      if (up.error) {
+        const detail = [`Step: storage upload`, `Path: ${path}`, `Error: ${up.error.message}`].join("\n");
+        setReviewError(detail);
+        throw new Error(detail);
+      }
       const { data, error } = await supabase.functions.invoke("parse-mb-pdf", {
         body: { clientId, storagePath: path },
       });
-      if (error) throw error;
-      const parsedFields = (data as { fields: FieldsMap }).fields;
+      if (error) {
+        const detail = [`Step: edge function invocation`, `Function: parse-mb-pdf`, `Error: ${error.message}`].join("\n");
+        setReviewError(detail);
+        throw new Error(detail);
+      }
+      const response = data as { fields?: FieldsMap; error?: string; detail?: string; debug?: Record<string, unknown> };
+      if (response.error || !response.fields) {
+        const detail = [
+          `Step: parse-mb-pdf`,
+          `Error: ${response.error ?? "unknown parser error"}`,
+          response.detail ? `Detail: ${response.detail}` : null,
+          response.debug?.step ? `Failing step: ${String(response.debug.step)}` : null,
+          response.debug?.storagePath ? `Path: ${String(response.debug.storagePath)}` : null,
+        ].filter(Boolean).join("\n");
+        setReviewError(detail);
+        throw new Error(detail);
+      }
+      const parsedFields = response.fields;
       setFields(parsedFields);
       setStoragePath(path);
       setReviewOpen(true);
@@ -189,7 +213,18 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Review extracted MB data</DialogTitle>
+            <DialogDescription>Check extracted values before saving them to the client record.</DialogDescription>
           </DialogHeader>
+
+          {reviewError && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Parser error details</AlertTitle>
+              <AlertDescription>
+                <pre className="whitespace-pre-wrap break-words text-xs">{reviewError}</pre>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {fields && (
             <div className="space-y-6">
