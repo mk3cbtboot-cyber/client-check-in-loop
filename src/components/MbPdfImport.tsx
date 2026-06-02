@@ -1,0 +1,255 @@
+import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Loader2, UploadCloud, AlertTriangle } from "lucide-react";
+
+type FieldVal = { value: string | number | null; extracted: boolean };
+type FieldsMap = Record<string, FieldVal>;
+
+const PHASE2_PROTEIN = [
+  ["food_fish", "Fish"],
+  ["food_seafood", "Seafood"],
+  ["food_milk_products", "Milk Products"],
+  ["food_yogurt", "Yogurt"],
+  ["food_nuts", "Nuts"],
+  ["food_meat", "Meat"],
+  ["food_poultry", "Poultry"],
+  ["food_cheese", "Cheese"],
+  ["food_legumes", "Legumes"],
+  ["food_pumpkin_seeds", "Pumpkin Seeds"],
+  ["food_sunflower_seeds", "Sunflower Seeds"],
+] as const;
+
+const PHASE2_CARB = [
+  ["food_vegetables", "Vegetables"],
+  ["food_veg_lettuce", "Veg./Lettuce"],
+  ["food_starch", "Starch"],
+  ["food_bread", "Bread"],
+  ["food_fruit", "Fruit"],
+] as const;
+
+const PHASE3 = [
+  ["phase3_mb_fish", "Fish"],
+  ["phase3_mb_seafood", "Seafood"],
+  ["phase3_mb_meat", "Meat"],
+  ["phase3_mb_cheese", "Cheese"],
+  ["phase3_mb_legumes", "Legumes"],
+  ["phase3_mb_vegetables", "Vegetables"],
+  ["phase3_mb_veg_lettuce", "Veg./Lettuce"],
+  ["phase3_mb_sprouts", "Sprouts"],
+  ["phase3_mb_fat_oil", "Fat / Oil"],
+] as const;
+
+const MEALS = [
+  { key: "breakfast", label: "Breakfast" },
+  { key: "lunch", label: "Lunch" },
+  { key: "dinner", label: "Dinner" },
+] as const;
+
+interface Props {
+  clientId: string;
+  onSaved?: () => void;
+}
+
+export function MbPdfImport({ clientId, onSaved }: Props) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [fields, setFields] = useState<FieldsMap | null>(null);
+  const [storagePath, setStoragePath] = useState<string | null>(null);
+
+  const reset = () => {
+    setFields(null);
+    setStoragePath(null);
+    setReviewOpen(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const startUpload = () => fileRef.current?.click();
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Please upload a PDF file");
+      return;
+    }
+    setBusy(true);
+    try {
+      const path = `clients/${clientId}/${Date.now()}.pdf`;
+      const up = await supabase.storage.from("mb-pdfs").upload(path, file, {
+        contentType: "application/pdf",
+        upsert: false,
+      });
+      if (up.error) throw up.error;
+      const { data, error } = await supabase.functions.invoke("parse-mb-pdf", {
+        body: { clientId, storagePath: path },
+      });
+      if (error) throw error;
+      const parsedFields = (data as { fields: FieldsMap }).fields;
+      setFields(parsedFields);
+      setStoragePath(path);
+      setReviewOpen(true);
+    } catch (err) {
+      toast.error("Could not parse PDF", { description: (err as Error).message });
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const update = (key: string, value: string | number | null) => {
+    setFields((f) => (f ? { ...f, [key]: { value, extracted: true } } : f));
+  };
+
+  const save = async () => {
+    if (!fields || !storagePath) return;
+    setBusy(true);
+    try {
+      const update: Record<string, unknown> = { mb_pdf_path: storagePath };
+      for (const [k, v] of Object.entries(fields)) {
+        const val = v.value;
+        // Coerce numeric fields
+        const numericKeys = new Set([
+          "breakfast_protein_grams", "breakfast_veg_grams",
+          "lunch_protein_grams", "lunch_veg_grams",
+          "dinner_protein_grams", "dinner_veg_grams",
+          "eggs_min_per_week", "eggs_max_per_week",
+          "water_target_litres",
+        ]);
+        if (numericKeys.has(k)) {
+          if (val === null || val === "" || val === undefined) update[k] = null;
+          else {
+            const n = typeof val === "number" ? val : parseFloat(String(val));
+            update[k] = Number.isFinite(n) ? n : null;
+          }
+        } else {
+          update[k] = val == null ? "" : String(val);
+        }
+      }
+      const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
+      if (error) throw error;
+      toast.success("MB data saved");
+      onSaved?.();
+      reset();
+    } catch (err) {
+      toast.error("Could not save", { description: (err as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const FieldRow = ({ k, label, type = "text" }: { k: string; label: string; type?: "text" | "number" | "textarea" }) => {
+    const f = fields?.[k];
+    const extracted = !!f?.extracted;
+    return (
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <Label className="text-xs">{label}</Label>
+          {!extracted && (
+            <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
+              <AlertTriangle className="h-3 w-3" /> Not extracted — please fill in
+            </span>
+          )}
+        </div>
+        {type === "textarea" ? (
+          <Textarea
+            value={(f?.value as string) ?? ""}
+            onChange={(e) => update(k, e.target.value)}
+            className={`min-h-[60px] text-sm ${!extracted ? "border-amber-400" : ""}`}
+            placeholder="Comma-separated list"
+          />
+        ) : (
+          <Input
+            type={type}
+            step={type === "number" ? "any" : undefined}
+            value={f?.value == null ? "" : String(f.value)}
+            onChange={(e) => update(k, type === "number" ? (e.target.value === "" ? null : Number(e.target.value)) : e.target.value)}
+            className={`h-8 ${!extracted ? "border-amber-400" : ""}`}
+          />
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={handleFile} />
+      <Button type="button" size="sm" variant="outline" onClick={startUpload} disabled={busy}>
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+        Upload MB PDF
+      </Button>
+
+      <Dialog open={reviewOpen} onOpenChange={(o) => { if (!o) reset(); }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Review extracted MB data</DialogTitle>
+          </DialogHeader>
+
+          {fields && (
+            <div className="space-y-6">
+              <section>
+                <h3 className="text-sm font-semibold mb-2">Meal plan grams</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {MEALS.map((m) => (
+                    <div key={m.key} className="rounded-md border p-3 space-y-2">
+                      <p className="text-xs font-medium">{m.label}</p>
+                      <FieldRow k={`${m.key}_protein_category`} label="Protein category" />
+                      <FieldRow k={`${m.key}_protein_grams`} label="Protein (g)" type="number" />
+                      <FieldRow k={`${m.key}_veg_grams`} label="Vegetable (g)" type="number" />
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-sm font-semibold mb-2">Additional information</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <FieldRow k="eggs_min_per_week" label="Eggs min/week" type="number" />
+                  <FieldRow k="eggs_max_per_week" label="Eggs max/week" type="number" />
+                  <FieldRow k="water_target_litres" label="Water (litres/day)" type="number" />
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-sm font-semibold mb-2">Phase 2 — Proteins</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {PHASE2_PROTEIN.map(([k, l]) => <FieldRow key={k} k={k} label={l} type="textarea" />)}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-sm font-semibold mb-2">Phase 2 — Carbohydrates</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {PHASE2_CARB.map(([k, l]) => <FieldRow key={k} k={k} label={l} type="textarea" />)}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-sm font-semibold mb-2">Phase 3 — Extended Personal Food List</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {PHASE3.map(([k, l]) => <FieldRow key={k} k={k} label={l} type="textarea" />)}
+                </div>
+              </section>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => { reset(); setTimeout(startUpload, 50); }} disabled={busy}>
+              Re-upload
+            </Button>
+            <Button type="button" onClick={save} disabled={busy}>
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+              Confirm and Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

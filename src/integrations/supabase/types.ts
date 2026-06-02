@@ -104,17 +104,45 @@ export type Database = {
         Row: {
           archived_at: string | null
           avocado_count_week: number
+          breakfast_protein_category: string | null
+          breakfast_protein_grams: number | null
+          breakfast_veg_grams: number | null
           client_goal: string
           client_last_read_at: string | null
           created_at: string
           current_medications: string
+          dinner_protein_category: string | null
+          dinner_protein_grams: number | null
+          dinner_veg_grams: number | null
           egg_count_week: number
+          eggs_max_per_week: number | null
+          eggs_min_per_week: number | null
           email: string
+          food_bread: string
+          food_cheese: string
+          food_fish: string
+          food_fruit: string
+          food_legumes: string
+          food_meat: string
+          food_milk_products: string
+          food_nuts: string
+          food_poultry: string
+          food_pumpkin_seeds: string
+          food_seafood: string
+          food_starch: string
+          food_sunflower_seeds: string
+          food_veg_lettuce: string
+          food_vegetables: string
+          food_yogurt: string
           gender: string | null
           height_cm: number | null
           id: string
           length_unit: string
+          lunch_protein_category: string | null
+          lunch_protein_grams: number | null
+          lunch_veg_grams: number | null
           magic_token: string
+          mb_pdf_path: string | null
           meal_streak: number
           medical_conditions: string
           name: string
@@ -131,7 +159,10 @@ export type Database = {
           phase3_mb_fat_oil: string
           phase3_mb_fish: string
           phase3_mb_legumes: string
+          phase3_mb_meat: string
           phase3_mb_seafood: string
+          phase3_mb_sprouts: string
+          phase3_mb_veg_lettuce: string
           phase3_mb_vegetables: string
           phase3_meat: string
           phase3_mode: string
@@ -146,6 +177,7 @@ export type Database = {
           system_mode: string
           vitamins_supplements: string
           water_date: string
+          water_target_litres: number
           water_today_litres: number
           week_reset_date: string
           weekly_food_limits: Json
@@ -154,17 +186,45 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           avocado_count_week?: number
+          breakfast_protein_category?: string | null
+          breakfast_protein_grams?: number | null
+          breakfast_veg_grams?: number | null
           client_goal?: string
           client_last_read_at?: string | null
           created_at?: string
           current_medications?: string
+          dinner_protein_category?: string | null
+          dinner_protein_grams?: number | null
+          dinner_veg_grams?: number | null
           egg_count_week?: number
+          eggs_max_per_week?: number | null
+          eggs_min_per_week?: number | null
           email: string
+          food_bread?: string
+          food_cheese?: string
+          food_fish?: string
+          food_fruit?: string
+          food_legumes?: string
+          food_meat?: string
+          food_milk_products?: string
+          food_nuts?: string
+          food_poultry?: string
+          food_pumpkin_seeds?: string
+          food_seafood?: string
+          food_starch?: string
+          food_sunflower_seeds?: string
+          food_veg_lettuce?: string
+          food_vegetables?: string
+          food_yogurt?: string
           gender?: string | null
           height_cm?: number | null
           id?: string
           length_unit?: string
+          lunch_protein_category?: string | null
+          lunch_protein_grams?: number | null
+          lunch_veg_grams?: number | null
           magic_token?: string
+          mb_pdf_path?: string | null
           meal_streak?: number
           medical_conditions?: string
           name: string
@@ -181,7 +241,10 @@ export type Database = {
           phase3_mb_fat_oil?: string
           phase3_mb_fish?: string
           phase3_mb_legumes?: string
+          phase3_mb_meat?: string
           phase3_mb_seafood?: string
+          phase3_mb_sprouts?: string
+          phase3_mb_veg_lettuce?: string
           phase3_mb_vegetables?: string
           phase3_meat?: string
           phase3_mode?: string
@@ -196,6 +259,7 @@ export type Database = {
           system_mode?: string
           vitamins_supplements?: string
           water_date?: string
+          water_target_litres?: number
           water_today_litres?: number
           week_reset_date?: string
           weekly_food_limits?: Json
@@ -204,17 +268,45 @@ export type Database = {
         Update: {
           archived_at?: string | null
           avocado_count_week?: number
+          breakfast_protein_category?: string | null
+          breakfast_protein_grams?: number | null
+          breakfast_veg_grams?: number | null
           client_goal?: string
           client_last_read_at?: string | null
           created_at?: string
           current_medications?: string
+          dinner_protein_category?: string | null
+          dinner_protein_grams?: number | null
+          dinner_veg_grams?: number | null
           egg_count_week?: number
+          eggs_max_per_week?: number | null
+          eggs_min_per_week?: number | null
           email?: string
+          food_bread?: string
+          food_cheese?: string
+          food_fish?: string
+          food_fruit?: string
+          food_legumes?: string
+          food_meat?: string
+          food_milk_products?: string
+          food_nuts?: string
+          food_poultry?: string
+          food_pumpkin_seeds?: string
+          food_seafood?: string
+          food_starch?: string
+          food_sunflower_seeds?: string
+          food_veg_lettuce?: string
+          food_vegetables?: string
+          food_yogurt?: string
           gender?: string | null
           height_cm?: number | null
           id?: string
           length_unit?: string
+          lunch_protein_category?: string | null
+          lunch_protein_grams?: number | null
+          lunch_veg_grams?: number | null
           magic_token?: string
+          mb_pdf_path?: string | null
           meal_streak?: number
           medical_conditions?: string
           name?: string
@@ -231,7 +323,10 @@ export type Database = {
           phase3_mb_fat_oil?: string
           phase3_mb_fish?: string
           phase3_mb_legumes?: string
+          phase3_mb_meat?: string
           phase3_mb_seafood?: string
+          phase3_mb_sprouts?: string
+          phase3_mb_veg_lettuce?: string
           phase3_mb_vegetables?: string
           phase3_meat?: string
           phase3_mode?: string
@@ -246,6 +341,7 @@ export type Database = {
           system_mode?: string
           vitamins_supplements?: string
           water_date?: string
+          water_target_litres?: number
           water_today_litres?: number
           week_reset_date?: string
           weekly_food_limits?: Json
