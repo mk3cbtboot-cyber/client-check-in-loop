@@ -481,7 +481,7 @@ const PHASE3_BOUNDARY_KEYWORDS = /\b(Poultry|Fruit|Bread|Starch|Nuts|Yogurt|Milk
 function parsePhase3SectionByKeyword(
   section: string,
   stripFooter: (s: string) => string,
-  debugLog: { headings: { field: string; heading: string; index: number }[]; missing: string[] },
+  debugLog: { headings: { field: string; heading: string; index: number }[]; missing: string[]; fatOilLines: string[] },
 ): Record<string, string> {
   const out: Record<string, string> = {};
   // Collect heading positions: for each spec find first occurrence (skip if reject matches at same position).
@@ -519,10 +519,16 @@ function parsePhase3SectionByKeyword(
     const cur = headings[i];
     // End at the next heading OR next boundary keyword, whichever comes first.
     let end = i + 1 < headings.length ? headings[i + 1].idx : section.length;
-    for (const bp of boundaryPositions) {
-      if (bp > cur.endIdx && bp < end) end = bp;
+    if (cur.field !== "phase3_mb_fat_oil") {
+      for (const bp of boundaryPositions) {
+        if (bp > cur.endIdx && bp < end) end = bp;
+      }
     }
     let chunk = section.slice(cur.endIdx, end);
+    if (cur.field === "phase3_mb_fat_oil") {
+      debugLog.fatOilLines = chunk.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      console.log("[parse-mb-pdf] phase3 fat_oil raw lines", debugLog.fatOilLines);
+    }
     // Drop leading punctuation
     chunk = chunk.replace(/^\s*[:\-–]?\s*/, "");
     chunk = stripFooter(chunk);
