@@ -342,7 +342,7 @@ Deno.serve(async (req) => {
     // Meal table — the page just before phase 2 protein list. Use everything before the phase2 anchor.
     const mealTableEnd = fullText.search(/Personal Food List\s*[-–]\s*Protein/i);
     const mealTableText = mealTableEnd > 0 ? fullText.slice(Math.max(0, mealTableEnd - 4000), mealTableEnd) : fullText.slice(0, 4000);
-    const mealGrams = parseMealTable(mealTableText);
+    const { options: mealOptions, legacy: mealLegacy } = parseMealTable(mealTableText);
 
     const phase2Proteins = phase2ProteinSection ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES) : {};
     const phase2Carbs = phase2CarbSection ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES) : {};
@@ -370,13 +370,20 @@ Deno.serve(async (req) => {
     for (const f of unique(phase2ProteinFields)) result[f] = buildField(phase2Proteins[f] ?? "");
     for (const f of unique(phase2CarbFields)) result[f] = buildField(phase2Carbs[f] ?? "");
     for (const f of unique(phase3Fields)) result[f] = buildField(phase3[f] ?? "");
-    for (const k of Object.keys(mealGrams)) result[k] = buildField(mealGrams[k]);
+    for (const k of Object.keys(mealLegacy)) result[k] = buildField(mealLegacy[k]);
     result.eggs_min_per_week = buildField(eggs.eggs_min_per_week);
     result.eggs_max_per_week = buildField(eggs.eggs_max_per_week);
     result.water_target_litres = buildField(water);
 
+    // mealOptions: per-meal array of 3 options; "extracted" if option has a protein category.
+    const mealOptionsResult: Record<string, MealOption[]> = {
+      breakfast: mealOptions.breakfast,
+      lunch: mealOptions.lunch,
+      dinner: mealOptions.dinner,
+    };
+
     debug.step = "complete";
-    return new Response(JSON.stringify({ fields: result, storagePath }), {
+    return new Response(JSON.stringify({ fields: result, mealOptions: mealOptionsResult, storagePath }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
