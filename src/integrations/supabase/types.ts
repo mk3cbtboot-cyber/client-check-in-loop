@@ -142,6 +142,7 @@ export type Database = {
           lunch_protein_grams: number | null
           lunch_veg_grams: number | null
           magic_token: string
+          mb_meal_options: Json
           mb_pdf_path: string | null
           meal_streak: number
           medical_conditions: string
@@ -224,6 +225,7 @@ export type Database = {
           lunch_protein_grams?: number | null
           lunch_veg_grams?: number | null
           magic_token?: string
+          mb_meal_options?: Json
           mb_pdf_path?: string | null
           meal_streak?: number
           medical_conditions?: string
@@ -306,6 +308,7 @@ export type Database = {
           lunch_protein_grams?: number | null
           lunch_veg_grams?: number | null
           magic_token?: string
+          mb_meal_options?: Json
           mb_pdf_path?: string | null
           meal_streak?: number
           medical_conditions?: string

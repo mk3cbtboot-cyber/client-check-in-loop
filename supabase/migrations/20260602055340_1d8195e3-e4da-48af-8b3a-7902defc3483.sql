@@ -1,0 +1,1 @@
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS mb_meal_options jsonb NOT NULL DEFAULT '{}'::jsonb;
