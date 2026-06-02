@@ -73,21 +73,67 @@ function normalizeWater(raw: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+}
+
+function buildTrailingNameStripper(clientName: string | null): (s: string) => string {
+  const trimmed = clientName?.trim() ?? "";
+  if (!trimmed) {
+    return (s: string) => s.replace(/\s+/g, " ").replace(/\s*\|\s*$/g, "").trim();
+  }
+
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  const first = parts[0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1] : "";
+  const fullPattern = escapeRegExp(trimmed).replace(/\s+/g, "\\s+");
+  const firstPattern = first ? escapeRegExp(first) : "";
+  const lastPattern = last ? escapeRegExp(last) : "";
+
+  const patterns = [
+    new RegExp(`(?:\\s*[|,:;/-]?\\s*)${fullPattern}(?:\\s*\\|.*)?$`, "i"),
+    first && last
+      ? new RegExp(`(?:\\s*[|,:;/-]?\\s*)${firstPattern}(?:\\s*\\|\\s*|\\s+)${lastPattern}(?:\\s*\\|.*)?$`, "i")
+      : null,
+    first ? new RegExp(`(?:\\s*[|,:;/-]?\\s*)${firstPattern}(?:\\s*\\|.*)?$`, "i") : null,
+    last ? new RegExp(`(?:\\s*[|,:;/-]?\\s*)${lastPattern}(?:\\s*\\|.*)?$`, "i") : null,
+  ].filter((pattern): pattern is RegExp => Boolean(pattern));
+
+  return (s: string) => {
+    let out = s.replace(/\s+/g, " ").trim();
+    let changed = true;
+
+    while (changed && out) {
+      changed = false;
+      for (const pattern of patterns) {
+        const next = out.replace(pattern, "").replace(/\s*\|\s*$/g, "").trim();
+        if (next !== out) {
+          out = next;
+          changed = true;
+        }
+      }
+    }
+
+    return out;
+  };
+}
+
 // Returns a regex that strips lines/spans matching the page footer pattern:
 // "[First] [Last] | © Metabolic Balance | Coach: [Coach Name]"
 function buildFooterStripper(clientName: string | null): (s: string) => string {
+  const stripTrailingName = buildTrailingNameStripper(clientName);
   return (s: string) => {
     let out = s;
     out = out.replace(/[^\n]*©\s*Metabolic Balance[^\n]*/gi, " ");
     out = out.replace(/Coach\s*:\s*[^\n|]+/gi, " ");
     if (clientName) {
       const trimmed = clientName.trim();
-      const escapedFull = trimmed.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&").replace(/\s+/g, "\\s+");
+      const escapedFull = escapeRegExp(trimmed).replace(/\s+/g, "\\s+");
       out = out.replace(new RegExp(`${escapedFull}\\s*\\|?`, "gi"), " ");
       out = out.replace(new RegExp(escapedFull, "gi"), " ");
       for (const part of trimmed.split(/\s+/)) {
         if (part.length < 2) continue;
-        const esc = part.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+        const esc = escapeRegExp(part);
         out = out.replace(new RegExp(`\\b${esc}\\b`, "gi"), " ");
       }
     }
@@ -95,7 +141,7 @@ function buildFooterStripper(clientName: string | null): (s: string) => string {
     out = out.replace(/\b[A-Z][a-z]+\s+[A-Z][a-z]+\s*\|/g, " ");
     out = out.replace(/\s*\|\s*\|/g, " ");
     out = out.replace(/\s*\|\s*$/gm, " ");
-    return out;
+    return stripTrailingName(out);
   };
 }
 
@@ -180,6 +226,13 @@ type MealOptionsMap = Record<MealKey, MealOption[]>;
 const EMPTY_OPTION = (): MealOption => ({
   protein_category: null, protein_grams: null, veg_grams: null, has_fruit: false, has_bread: false,
 });
+function createEmptyMealOptions(): MealOptionsMap {
+  return {
+    breakfast: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
+    lunch: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
+    dinner: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
+  };
+}
 
 const VEG_LABEL_RE = /^(?:Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce|Vegetable\/Lettuce)$/i;
 function isVegLabel(label: string): boolean { return VEG_LABEL_RE.test(label.trim()); }
@@ -192,11 +245,7 @@ function isProteinLabel(label: string): boolean {
 // Layout (flattened): 9 protein matches in column-major order (B1,B2,B3,L1,L2,L3,D1,D2,D3).
 // Veg matches follow the same ordering. Robust to missing "5 h" delimiters.
 function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record<string, string | number | null> } {
-  const options: MealOptionsMap = {
-    breakfast: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
-    lunch: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
-    dinner: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
-  };
+  let options = createEmptyMealOptions();
   const legacy: Record<string, string | number | null> = {};
 
   const startIdx = text.search(/\bBreakfast\b/i);
@@ -213,12 +262,8 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
     "Vegetables", "Vegetable", "Veg./Lettuce", "Veg. /Lettuce", "Veg/Lettuce", "Vegetable/Lettuce",
   ];
   allLabels.sort((a, b) => b.length - a.length);
-  const labelAlt = allLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
+  const labelAlt = allLabels.map((l) => escapeRegExp(l)).join("|");
   const re = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
-
-  // Try split-based approach first (preserves per-meal fruit/bread context).
-  const parts = region.split(/\b5\s*h(?:rs?)?\b/i);
-  const useSplit = parts.length >= 3;
 
   const allProteins: { grams: number; label: string; idx: number }[] = [];
   const allVegs: { grams: number; idx: number }[] = [];
@@ -231,57 +276,41 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
     else if (isProteinLabel(label)) allProteins.push({ grams, label, idx: m.index });
   }
 
-  // Determine which meal each match belongs to.
-  function mealIndexFor(idx: number): number {
-    if (!useSplit) return -1;
-    // Compute cumulative offsets of split parts.
-    let offset = 0;
-    const boundaries: number[] = [];
-    for (let i = 0; i < parts.length - 1; i++) {
-      offset += parts[i].length;
-      boundaries.push(offset);
-      // Add the delimiter length (varies); search for it after offset.
-      const after = region.slice(offset);
-      const delim = after.match(/\b5\s*h(?:rs?)?\b/i);
-      offset += delim ? (delim.index ?? 0) + delim[0].length : 0;
-    }
-    if (idx < boundaries[0]) return 0;
-    if (boundaries[1] !== undefined && idx < boundaries[1]) return 1;
-    return 2;
-  }
-
-  // Assign proteins.
-  if (useSplit) {
-    const perMealProteins: { grams: number; label: string }[][] = [[], [], []];
-    const perMealVegs: { grams: number }[][] = [[], [], []];
-    for (const p of allProteins) {
-      const mi = mealIndexFor(p.idx);
-      if (mi >= 0 && perMealProteins[mi].length < 3) perMealProteins[mi].push({ grams: p.grams, label: p.label });
-    }
-    for (const v of allVegs) {
-      const mi = mealIndexFor(v.idx);
-      if (mi >= 0 && perMealVegs[mi].length < 3) perMealVegs[mi].push({ grams: v.grams });
-    }
+  const mealChunks = region.split(/\b5\s*h(?:rs?)?\b/i).map((chunk) => chunk.trim()).filter(Boolean);
+  if (mealChunks.length >= 3) {
     for (let mi = 0; mi < 3; mi++) {
-      const chunk = parts[mi] ?? "";
+      const chunk = mealChunks[mi] ?? "";
+      const chunkProteins: { grams: number; label: string }[] = [];
+      const chunkVegs: number[] = [];
+      re.lastIndex = 0;
+      while ((m = re.exec(chunk)) !== null) {
+        const grams = parseFloat(m[1]);
+        const label = m[2];
+        if (isVegLabel(label)) {
+          if (chunkVegs.length < 3) chunkVegs.push(grams);
+        } else if (isProteinLabel(label)) {
+          if (chunkProteins.length < 3) chunkProteins.push({ grams, label });
+        }
+      }
+
       const hasFruit = /\bFruit\b/i.test(chunk);
       const hasBread = /\bBread\b/i.test(chunk);
       for (let i = 0; i < 3; i++) {
-        if (perMealProteins[mi][i]) {
-          options[mealKeys[mi]][i].protein_category = perMealProteins[mi][i].label;
-          options[mealKeys[mi]][i].protein_grams = perMealProteins[mi][i].grams;
-        }
-        if (perMealVegs[mi][i]) {
-          options[mealKeys[mi]][i].veg_grams = perMealVegs[mi][i].grams;
-        }
-        if (options[mealKeys[mi]][i].protein_category) {
+        if (chunkProteins[i]) {
+          options[mealKeys[mi]][i].protein_category = chunkProteins[i].label;
+          options[mealKeys[mi]][i].protein_grams = chunkProteins[i].grams;
           options[mealKeys[mi]][i].has_fruit = hasFruit;
           options[mealKeys[mi]][i].has_bread = hasBread;
         }
+        if (chunkVegs[i] !== undefined) options[mealKeys[mi]][i].veg_grams = chunkVegs[i];
       }
     }
-  } else {
-    // Fallback: sequential — proteins 0-2 = Breakfast, 3-5 = Lunch, 6-8 = Dinner.
+  }
+
+  const missingLaterMeals = !options.lunch.some((option) => option.protein_category) || !options.dinner.some((option) => option.protein_category);
+  if (mealChunks.length < 3 || missingLaterMeals) {
+    options = createEmptyMealOptions();
+
     for (let i = 0; i < Math.min(9, allProteins.length); i++) {
       const mi = Math.floor(i / 3);
       const oi = i % 3;
@@ -292,6 +321,17 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
       const mi = Math.floor(i / 3);
       const oi = i % 3;
       options[mealKeys[mi]][oi].veg_grams = allVegs[i].grams;
+    }
+
+    for (let mi = 0; mi < Math.min(3, mealChunks.length); mi++) {
+      const hasFruit = /\bFruit\b/i.test(mealChunks[mi] ?? "");
+      const hasBread = /\bBread\b/i.test(mealChunks[mi] ?? "");
+      for (let i = 0; i < 3; i++) {
+        if (options[mealKeys[mi]][i].protein_category) {
+          options[mealKeys[mi]][i].has_fruit = hasFruit;
+          options[mealKeys[mi]][i].has_bread = hasBread;
+        }
+      }
     }
   }
 
