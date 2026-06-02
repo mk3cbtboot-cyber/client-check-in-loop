@@ -271,18 +271,79 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
           {fields && (
             <div className="space-y-6">
               <section>
-                <h3 className="text-sm font-semibold mb-2">Meal plan grams</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <h3 className="text-sm font-semibold mb-2">Meal plan — 3 options per meal</h3>
+                <div className="space-y-4">
                   {MEALS.map((m) => (
-                    <div key={m.key} className="rounded-md border p-3 space-y-2">
-                      <p className="text-xs font-medium">{m.label}</p>
-                      <FieldRow k={`${m.key}_protein_category`} label="Protein category" />
-                      <FieldRow k={`${m.key}_protein_grams`} label="Protein (g)" type="number" />
-                      <FieldRow k={`${m.key}_veg_grams`} label="Vegetable (g)" type="number" />
+                    <div key={m.key} className="rounded-md border p-3">
+                      <p className="text-xs font-medium mb-2">{m.label}</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {mealOptions[m.key as MealKey].map((opt, idx) => {
+                          const extracted = !!opt.protein_category;
+                          return (
+                            <div key={idx} className={`rounded-md border p-2 space-y-2 ${!extracted ? "border-amber-400" : ""}`}>
+                              <div className="flex items-center justify-between">
+                                <p className="text-[11px] font-medium">Option {idx + 1}</p>
+                                {!extracted && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
+                                    <AlertTriangle className="h-3 w-3" /> Not extracted
+                                  </span>
+                                )}
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">Protein category</Label>
+                                <Input
+                                  className="h-8"
+                                  value={opt.protein_category ?? ""}
+                                  onChange={(e) => updateOption(m.key as MealKey, idx, { protein_category: e.target.value || null })}
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <Label className="text-[10px]">Protein (g)</Label>
+                                  <Input
+                                    type="number"
+                                    step="any"
+                                    className="h-8"
+                                    value={opt.protein_grams ?? ""}
+                                    onChange={(e) => updateOption(m.key as MealKey, idx, { protein_grams: e.target.value === "" ? null : Number(e.target.value) })}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[10px]">Veg (g)</Label>
+                                  <Input
+                                    type="number"
+                                    step="any"
+                                    className="h-8"
+                                    value={opt.veg_grams ?? ""}
+                                    onChange={(e) => updateOption(m.key as MealKey, idx, { veg_grams: e.target.value === "" ? null : Number(e.target.value) })}
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3 pt-1">
+                                <label className="flex items-center gap-1 text-[11px]">
+                                  <Checkbox
+                                    checked={opt.has_fruit}
+                                    onCheckedChange={(c) => updateOption(m.key as MealKey, idx, { has_fruit: !!c })}
+                                  />
+                                  Fruit
+                                </label>
+                                <label className="flex items-center gap-1 text-[11px]">
+                                  <Checkbox
+                                    checked={opt.has_bread}
+                                    onCheckedChange={(c) => updateOption(m.key as MealKey, idx, { has_bread: !!c })}
+                                  />
+                                  Bread
+                                </label>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   ))}
                 </div>
               </section>
+
 
               <section>
                 <h3 className="text-sm font-semibold mb-2">Additional information</h3>
