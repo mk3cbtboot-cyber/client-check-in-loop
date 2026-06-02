@@ -78,18 +78,23 @@ function normalizeWater(raw: string): number | null {
 function buildFooterStripper(clientName: string | null): (s: string) => string {
   return (s: string) => {
     let out = s;
-    // Generic copyright/footer patterns
     out = out.replace(/[^\n]*©\s*Metabolic Balance[^\n]*/gi, " ");
     out = out.replace(/Coach\s*:\s*[^\n|]+/gi, " ");
     if (clientName) {
-      const escaped = clientName.trim().replace(/\s+/g, "\\s+").replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
-      // strip the literal client name everywhere
-      out = out.replace(new RegExp(escaped, "gi"), " ");
-      // also strip "<name> |"
-      out = out.replace(new RegExp(`${escaped}\\s*\\|`, "gi"), " ");
+      const trimmed = clientName.trim();
+      const escapedFull = trimmed.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&").replace(/\s+/g, "\\s+");
+      out = out.replace(new RegExp(`${escapedFull}\\s*\\|?`, "gi"), " ");
+      out = out.replace(new RegExp(escapedFull, "gi"), " ");
+      for (const part of trimmed.split(/\s+/)) {
+        if (part.length < 2) continue;
+        const esc = part.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+        out = out.replace(new RegExp(`\\b${esc}\\b`, "gi"), " ");
+      }
     }
-    // Stray pipes from broken footers
+    // Strip any "Word Word |" proper-noun-pair followed by pipe (page footer remnant)
+    out = out.replace(/\b[A-Z][a-z]+\s+[A-Z][a-z]+\s*\|/g, " ");
     out = out.replace(/\s*\|\s*\|/g, " ");
+    out = out.replace(/\s*\|\s*$/gm, " ");
     return out;
   };
 }
