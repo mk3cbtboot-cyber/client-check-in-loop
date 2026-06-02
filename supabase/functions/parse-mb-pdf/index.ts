@@ -113,6 +113,7 @@ const CHUNK_END_PATTERNS: RegExp[] = [
   /Please note/i,
   /\bNote:\s/i,
   /Coach\s*:/i,
+  /Phase\s*3\s*:/i,
 ];
 
 function truncateAtBoundary(chunk: string): string {
