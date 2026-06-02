@@ -176,28 +176,36 @@ function sliceBetween(text: string, startAnchor: RegExp, endAnchor: RegExp | nul
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const debug: Record<string, unknown> = { step: "init" };
   try {
+    debug.step = "read_auth_header";
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    debug.step = "parse_body";
     const parsed = Body.safeParse(await req.json());
     if (!parsed.success) {
       return new Response(JSON.stringify({ error: parsed.error.flatten().fieldErrors }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const { clientId, storagePath } = parsed.data;
+    debug.clientId = clientId;
+    debug.storagePath = storagePath;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
+    debug.step = "resolve_user";
     const { data: userData, error: userErr } = await userClient.auth.getUser();
     if (userErr || !userData?.user) {
       return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    debug.userId = userData.user.id;
     const admin = createClient(supabaseUrl, serviceKey);
 
     // Verify ownership
+    debug.step = "verify_client_ownership";
     const { data: clientRow, error: cErr } = await admin
       .from("clients")
       .select("id, practitioner_id")
@@ -208,16 +216,27 @@ Deno.serve(async (req) => {
     }
 
     // Download PDF
+    debug.step = "download_pdf";
     const { data: file, error: dErr } = await admin.storage.from("mb-pdfs").download(storagePath);
     if (dErr || !file) {
+      console.error("parse-mb-pdf download failure", {
+        operation: "storage.download",
+        bucket: "mb-pdfs",
+        storagePath,
+        clientId,
+        userId: userData.user.id,
+        error: dErr,
+      });
       return new Response(JSON.stringify({ error: "pdf_not_found", detail: dErr?.message }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    debug.step = "extract_pdf_text";
     const buf = new Uint8Array(await file.arrayBuffer());
     const pdf = await getDocumentProxy(buf);
     const { text: pages } = await extractText(pdf, { mergePages: false });
     const fullText = Array.isArray(pages) ? pages.join("\n\n") : String(pages);
 
     // Locate sections
+    debug.step = "parse_pdf_sections";
     const phase2ProteinSection = sliceBetween(fullText, /Personal Food List\s*[-–]\s*Protein/i, /Personal Food List\s*[-–]\s*Carbohydrates|Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$/i);
     const phase2CarbSection = sliceBetween(fullText, /Personal Food List\s*[-–]\s*Carbohydrates/i, /Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$/i);
     const additionalInfoSection = sliceBetween(fullText, /Additional Information about the Meal Plan/i, /\$\$CA_PHASE3\$\$|Extended personal Food List/i);
@@ -259,11 +278,20 @@ Deno.serve(async (req) => {
     result.eggs_max_per_week = buildField(eggs.eggs_max_per_week);
     result.water_target_litres = buildField(water);
 
+    debug.step = "complete";
     return new Response(JSON.stringify({ fields: result, storagePath }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: "parse_failed", detail: String((e as Error).message ?? e) }), {
+    console.error("parse-mb-pdf failure", {
+      operation: "parse-mb-pdf",
+      step: debug.step,
+      clientId: debug.clientId,
+      storagePath: debug.storagePath,
+      userId: debug.userId,
+      error: e,
+    });
+    return new Response(JSON.stringify({ error: "parse_failed", detail: String((e as Error).message ?? e), debug }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
