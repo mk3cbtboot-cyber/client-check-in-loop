@@ -598,6 +598,7 @@ function parsePhase3SectionByKeyword(
     }
     // Drop leading punctuation
     chunk = chunk.replace(/^\s*[:\-–]?\s*/, "");
+    chunk = truncateAtBoundary(chunk);
     chunk = stripFooter(chunk);
     const items = chunk
       .split(/[,;\n]+/)
