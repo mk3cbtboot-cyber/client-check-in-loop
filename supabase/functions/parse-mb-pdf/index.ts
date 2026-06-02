@@ -413,7 +413,9 @@ const PHASE3_SPECS: Phase3Spec[] = [
   { field: "phase3_mb_fat_oil",     match: /\b(Fat\s*\/?\s*Oil|\bFat\b|\bOil\b)\b/i },
 ];
 // Words that act as STOP boundaries but are NOT stored as fields themselves.
-const PHASE3_BOUNDARY_KEYWORDS = /\b(Poultry|Fruit|Bread|Starch|Nuts|Yogurt|Milk Products|Pumpkin Seeds|Sunflower Seeds|Shopping Helper|From now on|Please note|\bNote:)\b/i;
+// Only section-level boundaries — NOT "From now on"/"Please note"/"Note:" (those
+// can appear between items in Fat/Oil etc. and would truncate the list early).
+const PHASE3_BOUNDARY_KEYWORDS = /\b(Poultry|Fruit|Bread|Starch|Nuts|Yogurt|Milk Products|Pumpkin Seeds|Sunflower Seeds|Shopping Helper)\b/i;
 
 function parsePhase3SectionByKeyword(
   section: string,
