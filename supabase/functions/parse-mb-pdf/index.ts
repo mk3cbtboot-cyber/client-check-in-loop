@@ -257,10 +257,14 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
 
   const startIdx = text.search(/\bBreakfast\b/i);
   const endIdx = text.search(/Personal Food List/i);
-  const region = text.slice(
+  let region = text.slice(
     startIdx >= 0 ? startIdx : 0,
     endIdx > 0 ? endIdx : text.length,
   );
+
+  // FIX 1: pre-strip "+ N(g) Ingredient" combo continuations so the secondary
+  // ingredient cannot be picked up as a separate meal slot.
+  region = region.replace(/\+\s*\d{1,4}\s*g?\s+[A-Za-z][A-Za-z .\/]{1,40}/g, " ");
 
   const mealKeys: MealKey[] = ["breakfast", "lunch", "dinner"];
 
@@ -270,21 +274,26 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
   allLabels.sort((a, b) => b.length - a.length);
   const labelAlt = allLabels.map((l) => escapeRegExp(l)).join("|");
 
-  // Two patterns: "Ng Label" (standard) and "N Eggs" (no g).
+  // Patterns: "Ng Label", "Label Ng" (reversed), and "N Eggs" (no g).
   const gramRe = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
+  const gramReReversed = new RegExp(`(${labelAlt})\\s+(\\d{2,4})\\s*g\\b`, "gi");
   const eggsRe = /(\d+)\s+Eggs\b/gi;
 
   type Candidate = { kind: "protein" | "veg" | "eggs"; label: string; grams: number | null; idx: number; end: number };
   const candidates: Candidate[] = [];
+  const pushFromMatch = (label: string, grams: number, idx: number, end: number) => {
+    if (isVegLabel(label)) candidates.push({ kind: "veg", label, grams, idx, end });
+    else if (isProteinLabel(label)) candidates.push({ kind: "protein", label, grams, idx, end });
+  };
 
   let m: RegExpExecArray | null;
   gramRe.lastIndex = 0;
   while ((m = gramRe.exec(region)) !== null) {
-    const grams = parseFloat(m[1]);
-    const label = m[2];
-    const end = m.index + m[0].length;
-    if (isVegLabel(label)) candidates.push({ kind: "veg", label, grams, idx: m.index, end });
-    else if (isProteinLabel(label)) candidates.push({ kind: "protein", label, grams, idx: m.index, end });
+    pushFromMatch(m[2], parseFloat(m[1]), m.index, m.index + m[0].length);
+  }
+  gramReReversed.lastIndex = 0;
+  while ((m = gramReReversed.exec(region)) !== null) {
+    pushFromMatch(m[1], parseFloat(m[2]), m.index, m.index + m[0].length);
   }
   eggsRe.lastIndex = 0;
   while ((m = eggsRe.exec(region)) !== null) {
@@ -293,17 +302,12 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
 
   candidates.sort((a, b) => a.idx - b.idx);
 
-  // Filter secondary "+" continuations: if a candidate of the same kind is preceded
-  // (between previous candidate's end and this candidate's start) by a "+", drop it.
+  // De-duplicate overlapping matches from forward+reversed patterns.
   const filtered: Candidate[] = [];
-  for (let i = 0; i < candidates.length; i++) {
-    const cur = candidates[i];
+  for (const c of candidates) {
     const prev = filtered.length ? filtered[filtered.length - 1] : null;
-    if (prev && prev.kind === cur.kind) {
-      const between = region.slice(prev.end, cur.idx);
-      if (/\+/.test(between) && between.length < 40) continue; // secondary ingredient
-    }
-    filtered.push(cur);
+    if (prev && prev.kind === c.kind && prev.label === c.label && Math.abs(prev.idx - c.idx) < 30) continue;
+    filtered.push(c);
   }
 
   const proteinCandidates = filtered.filter((c) => c.kind === "protein" || c.kind === "eggs");
