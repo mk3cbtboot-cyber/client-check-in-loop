@@ -683,7 +683,15 @@ Deno.serve(async (req) => {
 
     const mealTableEnd = fullText.search(/Personal Food List\s*[-–]\s*Protein/i);
     const mealTableText = mealTableEnd > 0 ? fullText.slice(Math.max(0, mealTableEnd - 4000), mealTableEnd) : fullText.slice(0, 4000);
-    const { options: mealOptions, legacy: mealLegacy } = parseMealTable(stripFooter(mealTableText));
+    const mealPageIndex = Array.isArray(pages)
+      ? pages.findIndex((pageText) => /\bBreakfast\b/i.test(pageText) && /\bLunch\b/i.test(pageText) && /\bDinner\b/i.test(pageText))
+      : -1;
+    const mealPage = mealPageIndex >= 0 && Array.isArray((pdf as { pages?: unknown[] }).pages)
+      ? (pdf as { pages?: unknown[] }).pages?.[mealPageIndex]
+      : null;
+    const mealPositionedItems = mealPage ? extractPositionedTextForPage(mealPage) : [];
+    const { options: mealOptions, legacy: mealLegacy, debug: mealDebug } = parseMealTable(stripFooter(mealTableText), mealPositionedItems);
+    debug.meal_parser = mealDebug;
 
     const phase2Proteins = phase2ProteinSection ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES, stripFooter) : {};
     const phase2Carbs = phase2CarbSection ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES, stripFooter) : {};
