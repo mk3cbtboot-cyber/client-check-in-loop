@@ -574,9 +574,31 @@ Deno.serve(async (req) => {
       water = parseWater(additionalInfoSection);
     }
 
+    // FIX 3: build an explicit final-pass regex to strip "[space][First][space][Last]"
+    // (or just first / just last) at the very end of any field value, even when
+    // adjacent to a food item with no separator (e.g. "Raspberries (110g) Carson Visser").
+    const clientNameTrimmed = (clientRow.name ?? "").trim();
+    const nameParts = clientNameTrimmed.split(/\s+/).filter((p) => p.length >= 2);
+    const firstName = nameParts[0] ?? "";
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
+    const finalNameStripRegexes: RegExp[] = [];
+    if (firstName && lastName) {
+      finalNameStripRegexes.push(new RegExp(`\\s+${escapeRegExp(firstName)}\\s+${escapeRegExp(lastName)}\\s*$`, "i"));
+    }
+    if (firstName) finalNameStripRegexes.push(new RegExp(`\\s+${escapeRegExp(firstName)}\\s*$`, "i"));
+    if (lastName) finalNameStripRegexes.push(new RegExp(`\\s+${escapeRegExp(lastName)}\\s*$`, "i"));
+
     const sanitizeExtractedValue = (value: unknown) => {
       if (typeof value !== "string") return value ?? null;
-      const cleaned = stripTrailingName(stripFooter(value)).trim();
+      let cleaned = stripTrailingName(stripFooter(value)).trim();
+      // Final aggressive trailing-name pass (run until stable).
+      let prev = "";
+      while (prev !== cleaned) {
+        prev = cleaned;
+        for (const re of finalNameStripRegexes) cleaned = cleaned.replace(re, "").trim();
+        // Strip trailing punctuation/pipes left over
+        cleaned = cleaned.replace(/[\s,;|]+$/g, "").trim();
+      }
       return cleaned;
     };
 
