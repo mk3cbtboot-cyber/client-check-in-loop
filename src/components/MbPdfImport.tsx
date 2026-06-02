@@ -5,9 +5,26 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, UploadCloud, AlertTriangle } from "lucide-react";
+
+type MealOption = {
+  protein_category: string | null;
+  protein_grams: number | null;
+  veg_grams: number | null;
+  has_fruit: boolean;
+  has_bread: boolean;
+};
+type MealKey = "breakfast" | "lunch" | "dinner";
+type MealOptionsMap = Record<MealKey, MealOption[]>;
+const EMPTY_OPTION = (): MealOption => ({ protein_category: null, protein_grams: null, veg_grams: null, has_fruit: false, has_bread: false });
+const EMPTY_MEAL_OPTIONS = (): MealOptionsMap => ({
+  breakfast: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
+  lunch: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
+  dinner: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
+});
 
 type FieldVal = { value: string | number | null; extracted: boolean };
 type FieldsMap = Record<string, FieldVal>;
