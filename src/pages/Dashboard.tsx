@@ -1066,6 +1066,7 @@ export default function Dashboard() {
                             </button>
                           </div>
                         )}
+                        <span>Water: <span className="font-medium text-foreground">{lastWaterDisplay(list)}</span></span>
                         <span>Meal Streak: <span className="font-medium text-foreground">{client.meal_streak ?? 0}d</span></span>
                         <span>Water Streak: <span className="font-medium text-foreground">{waterStreaks[client.id] ?? 0}d</span></span>
                         {!isDetailView && (
