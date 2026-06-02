@@ -124,7 +124,7 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
         setReviewOpen(true);
         throw new Error(detail);
       }
-      const response = data as { fields?: FieldsMap; error?: string; detail?: string; debug?: Record<string, unknown> };
+      const response = data as { fields?: FieldsMap; mealOptions?: MealOptionsMap; error?: string; detail?: string; debug?: Record<string, unknown> };
       if (response.error || !response.fields) {
         const detail = [
           `Step: parse-mb-pdf`,
@@ -137,8 +137,18 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
         setReviewOpen(true);
         throw new Error(detail);
       }
-      const parsedFields = response.fields;
-      setFields(parsedFields);
+      setFields(response.fields);
+      const incoming = response.mealOptions;
+      const normalize = (arr: MealOption[] | undefined): MealOption[] => {
+        const base = [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()];
+        (arr ?? []).slice(0, 3).forEach((o, i) => { base[i] = { ...base[i], ...o }; });
+        return base;
+      };
+      setMealOptions({
+        breakfast: normalize(incoming?.breakfast),
+        lunch: normalize(incoming?.lunch),
+        dinner: normalize(incoming?.dinner),
+      });
       setStoragePath(path);
       setReviewOpen(true);
     } catch (err) {
