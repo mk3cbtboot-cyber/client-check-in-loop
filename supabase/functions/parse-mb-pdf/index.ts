@@ -737,8 +737,25 @@ Deno.serve(async (req) => {
       return cleaned;
     };
 
-    const buildField = (v: unknown) => {
-      const value = sanitizeExtractedValue(v);
+    const stripTrailingClientNameWithLogging = (field: string, value: string): string => {
+      if (field !== "food_fruit") return sanitizeExtractedValue(value) as string;
+      const before = typeof value === "string" ? value : String(value ?? "");
+      const after = sanitizeExtractedValue(before) as string;
+      console.log(`[parse-mb-pdf] DEBUG name-strip: before='${before}', after='${after}'`);
+      if (before === after) {
+        console.log("[parse-mb-pdf] DEBUG name-strip patterns", {
+          field,
+          firstName,
+          lastName,
+          patterns: getTrailingClientNamePatterns(firstName, lastName),
+          comparedValue: before,
+        });
+      }
+      return after;
+    };
+
+    const buildField = (v: unknown, field?: string) => {
+      const value = typeof v === "string" && field ? stripTrailingClientNameWithLogging(field, v) : sanitizeExtractedValue(v);
       return {
         value,
         extracted: value !== null && value !== undefined && value !== "",
@@ -751,13 +768,13 @@ Deno.serve(async (req) => {
     const unique = (arr: string[]) => Array.from(new Set(arr));
 
     const result: Record<string, { value: unknown; extracted: boolean }> = {};
-    for (const f of unique(phase2ProteinFields)) result[f] = buildField(phase2Proteins[f] ?? "");
-    for (const f of unique(phase2CarbFields)) result[f] = buildField(phase2Carbs[f] ?? "");
-    for (const f of unique(phase3Fields)) result[f] = buildField(phase3[f] ?? "");
-    for (const k of Object.keys(mealLegacy)) result[k] = buildField(mealLegacy[k]);
-    result.eggs_min_per_week = buildField(eggs.eggs_min_per_week);
-    result.eggs_max_per_week = buildField(eggs.eggs_max_per_week);
-    result.water_target_litres = buildField(water);
+    for (const f of unique(phase2ProteinFields)) result[f] = buildField(phase2Proteins[f] ?? "", f);
+    for (const f of unique(phase2CarbFields)) result[f] = buildField(phase2Carbs[f] ?? "", f);
+    for (const f of unique(phase3Fields)) result[f] = buildField(phase3[f] ?? "", f);
+    for (const k of Object.keys(mealLegacy)) result[k] = buildField(mealLegacy[k], k);
+    result.eggs_min_per_week = buildField(eggs.eggs_min_per_week, "eggs_min_per_week");
+    result.eggs_max_per_week = buildField(eggs.eggs_max_per_week, "eggs_max_per_week");
+    result.water_target_litres = buildField(water, "water_target_litres");
 
     const mealOptionsResult: Record<string, MealOption[]> = {
       breakfast: mealOptions.breakfast,
