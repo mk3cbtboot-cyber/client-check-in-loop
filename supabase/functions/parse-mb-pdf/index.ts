@@ -188,9 +188,9 @@ function isProteinLabel(label: string): boolean {
   return Object.keys(PHASE2_PROTEIN_CATEGORIES).some((k) => k.toLowerCase() === lc);
 }
 
-// Parse meal table by splitting on "5 h" markers between meals.
-// Layout (flattened): <breakfast block> 5 h <lunch block> 5 h <dinner block>
-// Each block contains 3 columns -> first 3 protein matches = options 1,2,3.
+// Parse meal table by extracting all "[grams] g [Category]" matches sequentially.
+// Layout (flattened): 9 protein matches in column-major order (B1,B2,B3,L1,L2,L3,D1,D2,D3).
+// Veg matches follow the same ordering. Robust to missing "5 h" delimiters.
 function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record<string, string | number | null> } {
   const options: MealOptionsMap = {
     breakfast: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
@@ -199,7 +199,6 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
   };
   const legacy: Record<string, string | number | null> = {};
 
-  // Trim down to the meal table region: from "Breakfast" up to first food-list heading.
   const startIdx = text.search(/\bBreakfast\b/i);
   const endIdx = text.search(/Personal Food List/i);
   const region = text.slice(
@@ -207,8 +206,6 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
     endIdx > 0 ? endIdx : text.length,
   );
 
-  // Split into 3 meal chunks by "5 h" boundaries (cooking-time markers between meals).
-  const parts = region.split(/\b5\s*h\b/i);
   const mealKeys: MealKey[] = ["breakfast", "lunch", "dinner"];
 
   const allLabels = [
@@ -219,34 +216,86 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
   const labelAlt = allLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
   const re = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
 
-  for (let mi = 0; mi < 3 && mi < parts.length; mi++) {
-    const chunk = parts[mi];
-    if (!chunk) continue;
-    const proteinMatches: { grams: number; label: string }[] = [];
-    const vegMatches: { grams: number }[] = [];
-    let m: RegExpExecArray | null;
-    re.lastIndex = 0;
-    while ((m = re.exec(chunk)) !== null) {
-      const grams = parseFloat(m[1]);
-      const label = m[2];
-      if (isVegLabel(label)) vegMatches.push({ grams });
-      else if (isProteinLabel(label)) proteinMatches.push({ grams, label });
+  // Try split-based approach first (preserves per-meal fruit/bread context).
+  const parts = region.split(/\b5\s*h(?:rs?)?\b/i);
+  const useSplit = parts.length >= 3;
+
+  const allProteins: { grams: number; label: string; idx: number }[] = [];
+  const allVegs: { grams: number; idx: number }[] = [];
+  let m: RegExpExecArray | null;
+  re.lastIndex = 0;
+  while ((m = re.exec(region)) !== null) {
+    const grams = parseFloat(m[1]);
+    const label = m[2];
+    if (isVegLabel(label)) allVegs.push({ grams, idx: m.index });
+    else if (isProteinLabel(label)) allProteins.push({ grams, label, idx: m.index });
+  }
+
+  // Determine which meal each match belongs to.
+  function mealIndexFor(idx: number): number {
+    if (!useSplit) return -1;
+    // Compute cumulative offsets of split parts.
+    let offset = 0;
+    const boundaries: number[] = [];
+    for (let i = 0; i < parts.length - 1; i++) {
+      offset += parts[i].length;
+      boundaries.push(offset);
+      // Add the delimiter length (varies); search for it after offset.
+      const after = region.slice(offset);
+      const delim = after.match(/\b5\s*h(?:rs?)?\b/i);
+      offset += delim ? (delim.index ?? 0) + delim[0].length : 0;
     }
-    const hasFruit = /\bFruit\b/i.test(chunk);
-    const hasBread = /\bBread\b/i.test(chunk);
-    for (let i = 0; i < 3; i++) {
-      if (proteinMatches[i]) {
-        options[mealKeys[mi]][i].protein_category = proteinMatches[i].label;
-        options[mealKeys[mi]][i].protein_grams = proteinMatches[i].grams;
-      }
-      if (vegMatches[i]) {
-        options[mealKeys[mi]][i].veg_grams = vegMatches[i].grams;
-      }
-      if (options[mealKeys[mi]][i].protein_category) {
-        options[mealKeys[mi]][i].has_fruit = hasFruit;
-        options[mealKeys[mi]][i].has_bread = hasBread;
+    if (idx < boundaries[0]) return 0;
+    if (boundaries[1] !== undefined && idx < boundaries[1]) return 1;
+    return 2;
+  }
+
+  // Assign proteins.
+  if (useSplit) {
+    const perMealProteins: { grams: number; label: string }[][] = [[], [], []];
+    const perMealVegs: { grams: number }[][] = [[], [], []];
+    for (const p of allProteins) {
+      const mi = mealIndexFor(p.idx);
+      if (mi >= 0 && perMealProteins[mi].length < 3) perMealProteins[mi].push({ grams: p.grams, label: p.label });
+    }
+    for (const v of allVegs) {
+      const mi = mealIndexFor(v.idx);
+      if (mi >= 0 && perMealVegs[mi].length < 3) perMealVegs[mi].push({ grams: v.grams });
+    }
+    for (let mi = 0; mi < 3; mi++) {
+      const chunk = parts[mi] ?? "";
+      const hasFruit = /\bFruit\b/i.test(chunk);
+      const hasBread = /\bBread\b/i.test(chunk);
+      for (let i = 0; i < 3; i++) {
+        if (perMealProteins[mi][i]) {
+          options[mealKeys[mi]][i].protein_category = perMealProteins[mi][i].label;
+          options[mealKeys[mi]][i].protein_grams = perMealProteins[mi][i].grams;
+        }
+        if (perMealVegs[mi][i]) {
+          options[mealKeys[mi]][i].veg_grams = perMealVegs[mi][i].grams;
+        }
+        if (options[mealKeys[mi]][i].protein_category) {
+          options[mealKeys[mi]][i].has_fruit = hasFruit;
+          options[mealKeys[mi]][i].has_bread = hasBread;
+        }
       }
     }
+  } else {
+    // Fallback: sequential — proteins 0-2 = Breakfast, 3-5 = Lunch, 6-8 = Dinner.
+    for (let i = 0; i < Math.min(9, allProteins.length); i++) {
+      const mi = Math.floor(i / 3);
+      const oi = i % 3;
+      options[mealKeys[mi]][oi].protein_category = allProteins[i].label;
+      options[mealKeys[mi]][oi].protein_grams = allProteins[i].grams;
+    }
+    for (let i = 0; i < Math.min(9, allVegs.length); i++) {
+      const mi = Math.floor(i / 3);
+      const oi = i % 3;
+      options[mealKeys[mi]][oi].veg_grams = allVegs[i].grams;
+    }
+  }
+
+  for (let mi = 0; mi < 3; mi++) {
     const first = options[mealKeys[mi]][0];
     legacy[`${mealKeys[mi]}_protein_category`] = first.protein_category;
     legacy[`${mealKeys[mi]}_protein_grams`] = first.protein_grams;
