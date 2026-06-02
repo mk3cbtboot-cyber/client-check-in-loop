@@ -77,6 +77,21 @@ function escapeRegExp(value: string): string {
   return value.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
 }
 
+function stripTrailingClientName(value: string, firstName: string, lastName: string): string {
+  let out = value;
+  if (firstName && lastName) {
+    const pattern = new RegExp(`\\s+${escapeRegExp(firstName)}\\s+${escapeRegExp(lastName)}$`, "i");
+    out = out.replace(pattern, "").trim();
+  }
+  if (firstName) {
+    out = out.replace(new RegExp(`\\s+${escapeRegExp(firstName)}$`, "i"), "").trim();
+  }
+  if (lastName) {
+    out = out.replace(new RegExp(`\\s+${escapeRegExp(lastName)}$`, "i"), "").trim();
+  }
+  return out;
+}
+
 function buildTrailingNameStripper(clientName: string | null): (s: string) => string {
   const trimmed = clientName?.trim() ?? "";
   if (!trimmed) {
@@ -247,6 +262,31 @@ function isProteinLabel(label: string): boolean {
   return Object.keys(PHASE2_PROTEIN_CATEGORIES).some((k) => k.toLowerCase() === lc);
 }
 
+function preprocessMealRegion(region: string): string {
+  const sourceLines = region.split(/\r?\n/);
+  const mergedLines: string[] = [];
+
+  for (const rawLine of sourceLines) {
+    const trimmed = rawLine.trim();
+    if (trimmed.startsWith("+") && mergedLines.length > 0) {
+      mergedLines[mergedLines.length - 1] = `${mergedLines[mergedLines.length - 1]} ${trimmed}`;
+      continue;
+    }
+    mergedLines.push(rawLine);
+  }
+
+  return mergedLines
+    .map((line) => line
+      .replace(
+        /\s+\+\s*\d{1,4}\s*g?\s+[A-Za-z][A-Za-z .\/()%-]{1,80}?(?=(?:\s+\d{2,4}\s*g\b)|(?:\s+(?:Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce|Vegetable\/Lettuce|Fruit|Bread)\b)|(?:\s+5\s*h\b)|$)/gi,
+        "",
+      )
+      .replace(/\s+/g, " ")
+      .trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
 // Parse meal table by collecting protein/veg/eggs candidates in document order,
 // then grouping every 3 into Breakfast / Lunch / Dinner.
 // - Handles "+" combos: "35g Pumpkin Seeds + 20g Sunflower Seeds" = ONE option.
@@ -261,10 +301,7 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
     startIdx >= 0 ? startIdx : 0,
     endIdx > 0 ? endIdx : text.length,
   );
-
-  // FIX 1: pre-strip "+ N(g) Ingredient" combo continuations so the secondary
-  // ingredient cannot be picked up as a separate meal slot.
-  region = region.replace(/\+\s*\d{1,4}\s*g?\s+[A-Za-z][A-Za-z .\/]{1,40}/g, " ");
+  region = preprocessMealRegion(region);
 
   const mealKeys: MealKey[] = ["breakfast", "lunch", "dinner"];
 
@@ -273,6 +310,7 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
   const allLabels = [...proteinLabels, ...vegLabels];
   allLabels.sort((a, b) => b.length - a.length);
   const labelAlt = allLabels.map((l) => escapeRegExp(l)).join("|");
+  const vegLabelAlt = vegLabels.map((l) => escapeRegExp(l)).join("|");
 
   // Patterns: "Ng Label", "Label Ng" (reversed), and "N Eggs" (no g).
   const gramRe = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
@@ -313,16 +351,39 @@ function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record
   const proteinCandidates = filtered.filter((c) => c.kind === "protein" || c.kind === "eggs");
   const vegCandidates = filtered.filter((c) => c.kind === "veg");
 
+  const extractVegGramsForSlot = (slotChunk: string, proteinGrams: number | null): number | null => {
+    const explicitForward = new RegExp(`(\\d{2,4})\\s*g\\s+(?:${vegLabelAlt})\\b`, "i");
+    const explicitReverse = new RegExp(`(?:${vegLabelAlt})\\s+(\\d{2,4})\\s*g\\b`, "i");
+    const forwardMatch = slotChunk.match(explicitForward);
+    if (forwardMatch) {
+      const grams = parseInt(forwardMatch[1], 10);
+      if (Number.isFinite(grams) && grams !== proteinGrams) return grams;
+    }
+    const reverseMatch = slotChunk.match(explicitReverse);
+    if (reverseMatch) {
+      const grams = parseInt(reverseMatch[1], 10);
+      if (Number.isFinite(grams) && grams !== proteinGrams) return grams;
+    }
+
+    const numberMatches = Array.from(slotChunk.matchAll(/\b(\d{2,4})\b(?:\s*g\b)?/gi))
+      .map((match) => parseInt(match[1], 10))
+      .filter((grams) => Number.isFinite(grams) && grams !== proteinGrams && grams >= 80 && grams <= 250);
+
+    const preferred = numberMatches.find((grams) => grams >= 100 && grams <= 200);
+    return preferred ?? numberMatches[0] ?? null;
+  };
+
   for (let i = 0; i < Math.min(9, proteinCandidates.length); i++) {
     const mi = Math.floor(i / 3);
     const oi = i % 3;
     options[mealKeys[mi]][oi].protein_category = proteinCandidates[i].label;
     options[mealKeys[mi]][oi].protein_grams = proteinCandidates[i].grams;
-  }
-  for (let i = 0; i < Math.min(9, vegCandidates.length); i++) {
-    const mi = Math.floor(i / 3);
-    const oi = i % 3;
-    options[mealKeys[mi]][oi].veg_grams = vegCandidates[i].grams;
+    const nextProteinIdx = proteinCandidates[i + 1]?.idx ?? region.length;
+    const slotChunk = region.slice(proteinCandidates[i].end, nextProteinIdx);
+    options[mealKeys[mi]][oi].veg_grams = extractVegGramsForSlot(slotChunk, proteinCandidates[i].grams);
+    if (options[mealKeys[mi]][oi].veg_grams == null && vegCandidates[i]) {
+      options[mealKeys[mi]][oi].veg_grams = vegCandidates[i].grams;
+    }
   }
 
   // Has fruit/bread per meal chunk (split on "5 h").
