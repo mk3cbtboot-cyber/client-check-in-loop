@@ -12,7 +12,6 @@ const Body = z.object({
   storagePath: z.string().min(1).max(500),
 });
 
-// Field key conventions
 const PHASE2_PROTEIN_CATEGORIES: Record<string, string> = {
   "Fish": "food_fish",
   "Seafood": "food_seafood",
@@ -43,6 +42,7 @@ const PHASE3_CATEGORIES: Record<string, string> = {
   "Fish": "phase3_mb_fish",
   "Seafood": "phase3_mb_seafood",
   "Meat": "phase3_mb_meat",
+  "Poultry": "__phase3_poultry_boundary__", // boundary only; not stored
   "Cheese": "phase3_mb_cheese",
   "Legumes": "phase3_mb_legumes",
   "Vegetables": "phase3_mb_vegetables",
@@ -52,10 +52,17 @@ const PHASE3_CATEGORIES: Record<string, string> = {
   "Sprouts": "phase3_mb_sprouts",
   "Fat/Oil": "phase3_mb_fat_oil",
   "Fat / Oil": "phase3_mb_fat_oil",
+  "Fruit": "__phase3_fruit_boundary__",
+  "Bread": "__phase3_bread_boundary__",
+  "Starch": "__phase3_starch_boundary__",
+  "Nuts": "__phase3_nuts_boundary__",
+  "Yogurt": "__phase3_yogurt_boundary__",
+  "Milk Products": "__phase3_milk_boundary__",
+  "Pumpkin Seeds": "__phase3_pumpkin_boundary__",
+  "Sunflower Seeds": "__phase3_sunflower_boundary__",
 };
 
 function normalizeWater(raw: string): number | null {
-  // Handles "2 ½", "2.5", "2,5", "2 1/2"
   const cleaned = raw.replace(/,/g, ".").trim();
   const fracMap: Record<string, number> = { "½": 0.5, "¼": 0.25, "¾": 0.75 };
   const m = cleaned.match(/^(\d+)\s*([½¼¾])?$/);
@@ -66,9 +73,27 @@ function normalizeWater(raw: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-// Patterns that mark the end of a food list chunk regardless of category labels.
-// Includes page footers (e.g. "Carson Visser | © Metabolic Balance"), page numbers,
-// section headings, and instructional notes.
+// Returns a regex that strips lines/spans matching the page footer pattern:
+// "[First] [Last] | © Metabolic Balance | Coach: [Coach Name]"
+function buildFooterStripper(clientName: string | null): (s: string) => string {
+  return (s: string) => {
+    let out = s;
+    // Generic copyright/footer patterns
+    out = out.replace(/[^\n]*©\s*Metabolic Balance[^\n]*/gi, " ");
+    out = out.replace(/Coach\s*:\s*[^\n|]+/gi, " ");
+    if (clientName) {
+      const escaped = clientName.trim().replace(/\s+/g, "\\s+").replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+      // strip the literal client name everywhere
+      out = out.replace(new RegExp(escaped, "gi"), " ");
+      // also strip "<name> |"
+      out = out.replace(new RegExp(`${escaped}\\s*\\|`, "gi"), " ");
+    }
+    // Stray pipes from broken footers
+    out = out.replace(/\s*\|\s*\|/g, " ");
+    return out;
+  };
+}
+
 const CHUNK_END_PATTERNS: RegExp[] = [
   /\|\s*©/i,
   /©\s*Metabolic Balance/i,
@@ -76,11 +101,13 @@ const CHUNK_END_PATTERNS: RegExp[] = [
   /Personal Food List/i,
   /Additional Information about the Meal Plan/i,
   /Extended personal Food List/i,
+  /Shopping Helper/i,
   /\$\$CA_PHASE3\$\$/i,
   /From now on you have sprouts/i,
   /From now on,?\s*you/i,
   /Please note/i,
   /\bNote:\s/i,
+  /Coach\s*:/i,
 ];
 
 function truncateAtBoundary(chunk: string): string {
@@ -92,8 +119,11 @@ function truncateAtBoundary(chunk: string): string {
   return chunk.slice(0, cut);
 }
 
-// Parse a "category: items" block from a chunk of lines. Returns map of fieldKey -> comma-joined items.
-function parseFoodSection(text: string, categoryMap: Record<string, string>): Record<string, string> {
+function parseFoodSection(
+  text: string,
+  categoryMap: Record<string, string>,
+  stripFooter: (s: string) => string,
+): Record<string, string> {
   const result: Record<string, string> = {};
   const labels = Object.keys(categoryMap);
   labels.sort((a, b) => b.length - a.length);
@@ -109,23 +139,22 @@ function parseFoodSection(text: string, categoryMap: Record<string, string>): Re
     const cur = matches[i];
     const end = i + 1 < matches.length ? matches[i + 1].start : text.length;
     let chunk = text.slice(cur.contentStart, end);
-    // Stop at boilerplate / page footer / instructional notes before the next category label.
     chunk = truncateAtBoundary(chunk);
+    chunk = stripFooter(chunk);
     const items = chunk
       .split(/[,;\n]+/)
       .map((s) => s.replace(/\s+/g, " ").trim())
       .filter(Boolean)
       .filter((s) => {
         if (s.length < 2 || s.length > 60) return false;
-        if (/Personal Food List|Additional Information|Extended personal|Page\s*\d|©|Metabolic Balance|From now on|Please note|\bNote:/i.test(s)) return false;
+        if (/Personal Food List|Additional Information|Extended personal|Shopping Helper|Page\s*\d|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:/i.test(s)) return false;
         if (!/[A-Za-z]/.test(s)) return false;
-        // Drop sentence-like fragments
         if (/\.\s+[a-z]/.test(s)) return false;
         if (s.split(/\s+/).length > 5) return false;
         return true;
       });
     const field = categoryMap[cur.label];
-    if (!field) continue;
+    if (!field || field.startsWith("__")) continue; // boundary-only label
     const existing = result[field] ? result[field].split(",").map((s) => s.trim()).filter(Boolean) : [];
     const merged = Array.from(new Set([...existing, ...items]));
     if (merged.length) result[field] = merged.join(", ");
@@ -140,42 +169,42 @@ type MealOption = {
   has_fruit: boolean;
   has_bread: boolean;
 };
-
 type MealKey = "breakfast" | "lunch" | "dinner";
 type MealOptionsMap = Record<MealKey, MealOption[]>;
-
 const EMPTY_OPTION = (): MealOption => ({
-  protein_category: null,
-  protein_grams: null,
-  veg_grams: null,
-  has_fruit: false,
-  has_bread: false,
+  protein_category: null, protein_grams: null, veg_grams: null, has_fruit: false, has_bread: false,
 });
 
 const VEG_LABEL_RE = /^(?:Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce|Vegetable\/Lettuce)$/i;
-
-function isVegLabel(label: string): boolean {
-  return VEG_LABEL_RE.test(label.trim());
-}
-
+function isVegLabel(label: string): boolean { return VEG_LABEL_RE.test(label.trim()); }
 function isProteinLabel(label: string): boolean {
   const lc = label.trim().toLowerCase();
   return Object.keys(PHASE2_PROTEIN_CATEGORIES).some((k) => k.toLowerCase() === lc);
 }
 
-function extractMealChunk(text: string, label: string): string {
-  const re = new RegExp(`\\b${label}\\b([\\s\\S]*?)(?=\\b(?:Breakfast|Lunch|Dinner)\\b|Personal Food List|$)`, "i");
-  const m = text.match(re);
-  return m ? m[1] : "";
-}
+// Parse meal table by splitting on "5 h" markers between meals.
+// Layout (flattened): <breakfast block> 5 h <lunch block> 5 h <dinner block>
+// Each block contains 3 columns -> first 3 protein matches = options 1,2,3.
+function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record<string, string | number | null> } {
+  const options: MealOptionsMap = {
+    breakfast: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
+    lunch: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
+    dinner: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
+  };
+  const legacy: Record<string, string | number | null> = {};
 
-function parseMealOptions(chunk: string): MealOption[] {
-  const options: MealOption[] = [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()];
-  if (!chunk) return options;
+  // Trim down to the meal table region: from "Breakfast" up to first food-list heading.
+  const startIdx = text.search(/\bBreakfast\b/i);
+  const endIdx = text.search(/Personal Food List/i);
+  const region = text.slice(
+    startIdx >= 0 ? startIdx : 0,
+    endIdx > 0 ? endIdx : text.length,
+  );
 
-  // Collect all "<grams> g <Label>" matches in order across the flattened columns.
-  // Order = column-major (left to right across the 3 option columns), so the
-  // 1st protein match belongs to option 1, the 2nd to option 2, the 3rd to option 3.
+  // Split into 3 meal chunks by "5 h" boundaries (cooking-time markers between meals).
+  const parts = region.split(/\b5\s*h\b/i);
+  const mealKeys: MealKey[] = ["breakfast", "lunch", "dinner"];
+
   const allLabels = [
     ...Object.keys(PHASE2_PROTEIN_CATEGORIES),
     "Vegetables", "Vegetable", "Veg./Lettuce", "Veg. /Lettuce", "Veg/Lettuce", "Vegetable/Lettuce",
@@ -184,77 +213,56 @@ function parseMealOptions(chunk: string): MealOption[] {
   const labelAlt = allLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
   const re = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
 
-  const proteinMatches: { grams: number; label: string }[] = [];
-  const vegMatches: { grams: number }[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(chunk)) !== null) {
-    const grams = parseFloat(m[1]);
-    const label = m[2];
-    if (isVegLabel(label)) vegMatches.push({ grams });
-    else if (isProteinLabel(label)) proteinMatches.push({ grams, label });
-  }
-
-  for (let i = 0; i < 3; i++) {
-    if (proteinMatches[i]) {
-      options[i].protein_category = proteinMatches[i].label;
-      options[i].protein_grams = proteinMatches[i].grams;
+  for (let mi = 0; mi < 3 && mi < parts.length; mi++) {
+    const chunk = parts[mi];
+    if (!chunk) continue;
+    const proteinMatches: { grams: number; label: string }[] = [];
+    const vegMatches: { grams: number }[] = [];
+    let m: RegExpExecArray | null;
+    re.lastIndex = 0;
+    while ((m = re.exec(chunk)) !== null) {
+      const grams = parseFloat(m[1]);
+      const label = m[2];
+      if (isVegLabel(label)) vegMatches.push({ grams });
+      else if (isProteinLabel(label)) proteinMatches.push({ grams, label });
     }
-    if (vegMatches[i]) {
-      options[i].veg_grams = vegMatches[i].grams;
+    const hasFruit = /\bFruit\b/i.test(chunk);
+    const hasBread = /\bBread\b/i.test(chunk);
+    for (let i = 0; i < 3; i++) {
+      if (proteinMatches[i]) {
+        options[mealKeys[mi]][i].protein_category = proteinMatches[i].label;
+        options[mealKeys[mi]][i].protein_grams = proteinMatches[i].grams;
+      }
+      if (vegMatches[i]) {
+        options[mealKeys[mi]][i].veg_grams = vegMatches[i].grams;
+      }
+      if (options[mealKeys[mi]][i].protein_category) {
+        options[mealKeys[mi]][i].has_fruit = hasFruit;
+        options[mealKeys[mi]][i].has_bread = hasBread;
+      }
     }
+    const first = options[mealKeys[mi]][0];
+    legacy[`${mealKeys[mi]}_protein_category`] = first.protein_category;
+    legacy[`${mealKeys[mi]}_protein_grams`] = first.protein_grams;
+    legacy[`${mealKeys[mi]}_veg_grams`] = first.veg_grams;
   }
 
-  // Fruit / Bread appear without grams. If present in the meal chunk, mark
-  // them on every option that has a protein assigned (standard MB pattern).
-  const hasFruit = /\bFruit\b/i.test(chunk);
-  const hasBread = /\bBread\b/i.test(chunk);
-  for (let i = 0; i < 3; i++) {
-    if (options[i].protein_category) {
-      options[i].has_fruit = hasFruit;
-      options[i].has_bread = hasBread;
-    }
-  }
-
-  return options;
-}
-
-function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record<string, string | number | null> } {
-  const meals: Array<{ key: MealKey; label: string }> = [
-    { key: "breakfast", label: "Breakfast" },
-    { key: "lunch", label: "Lunch" },
-    { key: "dinner", label: "Dinner" },
-  ];
-
-  const options: MealOptionsMap = { breakfast: [], lunch: [], dinner: [] };
-  const legacy: Record<string, string | number | null> = {};
-  for (const meal of meals) {
-    const chunk = extractMealChunk(text, meal.label);
-    const opts = parseMealOptions(chunk);
-    options[meal.key] = opts;
-    // Keep legacy single-option fields populated from option 1 for backward compat.
-    legacy[`${meal.key}_protein_category`] = opts[0].protein_category;
-    legacy[`${meal.key}_protein_grams`] = opts[0].protein_grams;
-    legacy[`${meal.key}_veg_grams`] = opts[0].veg_grams;
-  }
   return { options, legacy };
 }
 
 function parseEggs(text: string): { eggs_min_per_week: number | null; eggs_max_per_week: number | null } {
-  // Common phrasings: "3-4 eggs per week", "min 2 max 4 eggs", "Eggs per week: 3-5"
   const m1 = text.match(/(\d+)\s*[-–]\s*(\d+)\s*eggs?\s*per\s*week/i);
   if (m1) return { eggs_min_per_week: +m1[1], eggs_max_per_week: +m1[2] };
   const m2 = text.match(/eggs?\s*per\s*week[^\d]{0,10}(\d+)\s*[-–]\s*(\d+)/i);
   if (m2) return { eggs_min_per_week: +m2[1], eggs_max_per_week: +m2[2] };
   const m3 = text.match(/min(?:imum)?[^\d]{0,10}(\d+)[^\d]{0,40}max(?:imum)?[^\d]{0,10}(\d+)\s*eggs/i);
   if (m3) return { eggs_min_per_week: +m3[1], eggs_max_per_week: +m3[2] };
-  // Single number fallback
   const m4 = text.match(/(\d+)\s*eggs?\s*per\s*week/i);
   if (m4) return { eggs_min_per_week: +m4[1], eggs_max_per_week: +m4[1] };
   return { eggs_min_per_week: null, eggs_max_per_week: null };
 }
 
 function parseWater(text: string): number | null {
-  // "2 ½ liters", "2.5 litres", "2,5 l", "2 1/2 liters", "drink 2.5 l"
   const re = /(\d+(?:[.,]\d+)?(?:\s*[½¼¾])?(?:\s*1\/\d)?)\s*(?:l(?:iters?|itres?)?|L)\b/i;
   const m = text.match(re);
   if (!m) return null;
@@ -266,8 +274,30 @@ function sliceBetween(text: string, startAnchor: RegExp, endAnchor: RegExp | nul
   if (s < 0) return null;
   const rest = text.slice(s);
   if (!endAnchor) return rest;
-  const e = rest.slice(50).search(endAnchor); // skip past the start anchor itself
+  const e = rest.slice(50).search(endAnchor);
   return e < 0 ? rest : rest.slice(0, 50 + e);
+}
+
+// Special parser for Phase 3 Sprouts: takes only the items on the heading line,
+// then stops at the instructional note or next category.
+function parseSproutsField(phase3Section: string, stripFooter: (s: string) => string): string | null {
+  const m = phase3Section.match(/\bSprouts\b\s*[:\-–]?\s*([^\n]*)/i);
+  if (!m) return null;
+  let chunk = m[1] ?? "";
+  chunk = chunk.split(/From now on/i)[0];
+  chunk = chunk.split(/Please note/i)[0];
+  chunk = chunk.split(/\bNote:/i)[0];
+  // Stop at next category heading on the same line (e.g. "Fat/Oil")
+  const stopRe = /\b(Fat\s*\/?\s*Oil|Vegetables|Veg\.?\s*\/?\s*Lettuce|Fruit|Bread|Starch|Cheese|Meat|Poultry|Fish|Seafood|Legumes|Nuts|Yogurt|Milk Products)\b/i;
+  const stop = chunk.search(stopRe);
+  if (stop >= 0) chunk = chunk.slice(0, stop);
+  chunk = stripFooter(chunk);
+  const items = chunk
+    .split(/[,;]+/)
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .filter((s) => s.length >= 2 && s.length <= 40 && /[A-Za-z]/.test(s) && s.split(/\s+/).length <= 4);
+  return items.length ? Array.from(new Set(items)).join(", ") : null;
 }
 
 Deno.serve(async (req) => {
@@ -301,29 +331,20 @@ Deno.serve(async (req) => {
     debug.userId = userData.user.id;
     const admin = createClient(supabaseUrl, serviceKey);
 
-    // Verify ownership
     debug.step = "verify_client_ownership";
     const { data: clientRow, error: cErr } = await admin
       .from("clients")
-      .select("id, practitioner_id")
+      .select("id, practitioner_id, name")
       .eq("id", clientId)
       .maybeSingle();
     if (cErr || !clientRow || clientRow.practitioner_id !== userData.user.id) {
       return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    const stripFooter = buildFooterStripper(clientRow.name ?? null);
 
-    // Download PDF
     debug.step = "download_pdf";
     const { data: file, error: dErr } = await admin.storage.from("mb-pdfs").download(storagePath);
     if (dErr || !file) {
-      console.error("parse-mb-pdf download failure", {
-        operation: "storage.download",
-        bucket: "mb-pdfs",
-        storagePath,
-        clientId,
-        userId: userData.user.id,
-        error: dErr,
-      });
       return new Response(JSON.stringify({ error: "pdf_not_found", detail: dErr?.message }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     debug.step = "extract_pdf_text";
@@ -332,21 +353,28 @@ Deno.serve(async (req) => {
     const { text: pages } = await extractText(pdf, { mergePages: false });
     const fullText = Array.isArray(pages) ? pages.join("\n\n") : String(pages);
 
-    // Locate sections
     debug.step = "parse_pdf_sections";
     const phase2ProteinSection = sliceBetween(fullText, /Personal Food List\s*[-–]\s*Protein/i, /Personal Food List\s*[-–]\s*Carbohydrates|Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$/i);
-    const phase2CarbSection = sliceBetween(fullText, /Personal Food List\s*[-–]\s*Carbohydrates/i, /Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$/i);
+    const phase2CarbSection = sliceBetween(fullText, /Personal Food List\s*[-–]\s*Carbohydrates/i, /Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$|Extended personal Food List/i);
     const additionalInfoSection = sliceBetween(fullText, /Additional Information about the Meal Plan/i, /\$\$CA_PHASE3\$\$|Extended personal Food List/i);
-    const phase3Section = sliceBetween(fullText, /Extended personal Food List/i, null) ?? sliceBetween(fullText, /\$\$CA_PHASE3\$\$/i, null);
+    // Phase 3: bound on "Shopping Helper" to avoid pulling the combined list.
+    const phase3SectionRaw = sliceBetween(fullText, /Extended personal Food List/i, /Shopping Helper/i)
+      ?? sliceBetween(fullText, /\$\$CA_PHASE3\$\$/i, /Shopping Helper/i);
+    const phase3Section = phase3SectionRaw ? stripFooter(phase3SectionRaw) : null;
 
-    // Meal table — the page just before phase 2 protein list. Use everything before the phase2 anchor.
     const mealTableEnd = fullText.search(/Personal Food List\s*[-–]\s*Protein/i);
     const mealTableText = mealTableEnd > 0 ? fullText.slice(Math.max(0, mealTableEnd - 4000), mealTableEnd) : fullText.slice(0, 4000);
-    const { options: mealOptions, legacy: mealLegacy } = parseMealTable(mealTableText);
+    const { options: mealOptions, legacy: mealLegacy } = parseMealTable(stripFooter(mealTableText));
 
-    const phase2Proteins = phase2ProteinSection ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES) : {};
-    const phase2Carbs = phase2CarbSection ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES) : {};
-    const phase3 = phase3Section ? parseFoodSection(phase3Section, PHASE3_CATEGORIES) : {};
+    const phase2Proteins = phase2ProteinSection ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES, stripFooter) : {};
+    const phase2Carbs = phase2CarbSection ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES, stripFooter) : {};
+    const phase3 = phase3Section ? parseFoodSection(phase3Section, PHASE3_CATEGORIES, stripFooter) : {};
+
+    // Override Sprouts with stricter parser (stops at instructional note).
+    if (phase3Section) {
+      const sprouts = parseSproutsField(phase3Section, stripFooter);
+      if (sprouts !== null) phase3["phase3_mb_sprouts"] = sprouts;
+    }
 
     let eggs = { eggs_min_per_week: null as number | null, eggs_max_per_week: null as number | null };
     let water: number | null = null;
@@ -355,7 +383,6 @@ Deno.serve(async (req) => {
       water = parseWater(additionalInfoSection);
     }
 
-    // Build response: each value + extracted flag
     const buildField = (v: unknown) => ({
       value: v ?? null,
       extracted: v !== null && v !== undefined && v !== "",
@@ -363,7 +390,7 @@ Deno.serve(async (req) => {
 
     const phase2ProteinFields = Object.values(PHASE2_PROTEIN_CATEGORIES);
     const phase2CarbFields = Object.values(PHASE2_CARB_CATEGORIES);
-    const phase3Fields = Object.values(PHASE3_CATEGORIES);
+    const phase3Fields = Object.values(PHASE3_CATEGORIES).filter((f) => !f.startsWith("__"));
     const unique = (arr: string[]) => Array.from(new Set(arr));
 
     const result: Record<string, { value: unknown; extracted: boolean }> = {};
@@ -375,7 +402,6 @@ Deno.serve(async (req) => {
     result.eggs_max_per_week = buildField(eggs.eggs_max_per_week);
     result.water_target_litres = buildField(water);
 
-    // mealOptions: per-meal array of 3 options; "extracted" if option has a protein category.
     const mealOptionsResult: Record<string, MealOption[]> = {
       breakfast: mealOptions.breakfast,
       lunch: mealOptions.lunch,
@@ -387,14 +413,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("parse-mb-pdf failure", {
-      operation: "parse-mb-pdf",
-      step: debug.step,
-      clientId: debug.clientId,
-      storagePath: debug.storagePath,
-      userId: debug.userId,
-      error: e,
-    });
+    console.error("parse-mb-pdf failure", { step: debug.step, error: e });
     return new Response(JSON.stringify({ error: "parse_failed", detail: String((e as Error).message ?? e), debug }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
