@@ -242,6 +242,11 @@ type MealOption = {
   has_fruit: boolean;
   has_bread: boolean;
 };
+type PositionedText = {
+  text: string;
+  x: number;
+  y: number;
+};
 type MealKey = "breakfast" | "lunch" | "dinner";
 type MealOptionsMap = Record<MealKey, MealOption[]>;
 const EMPTY_OPTION = (): MealOption => ({
@@ -262,36 +267,78 @@ function isProteinLabel(label: string): boolean {
   return Object.keys(PHASE2_PROTEIN_CATEGORIES).some((k) => k.toLowerCase() === lc);
 }
 
-function preprocessMealRegion(region: string): string {
-  const sourceLines = region.split(/\r?\n/);
-  const mergedLines: string[] = [];
-
-  for (const rawLine of sourceLines) {
-    const trimmed = rawLine.trim();
-    if (trimmed.startsWith("+") && mergedLines.length > 0) {
-      mergedLines[mergedLines.length - 1] = `${mergedLines[mergedLines.length - 1]} ${trimmed}`;
-      continue;
-    }
-    mergedLines.push(rawLine);
-  }
-
-  return mergedLines
-    .map((line) => line
-      .replace(
-        /\s+\+\s*\d{1,4}\s*g?\s+[A-Za-z][A-Za-z .\/()%-]{1,80}?(?=(?:\s+\d{2,4}\s*g\b)|(?:\s+(?:Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce|Vegetable\/Lettuce|Fruit|Bread)\b)|(?:\s+5\s*h\b)|$)/gi,
-        "",
-      )
-      .replace(/\s+/g, " ")
-      .trim())
-    .filter(Boolean)
-    .join("\n");
+function getTrailingClientNamePatterns(firstName: string, lastName: string): string[] {
+  const patterns: string[] = [];
+  if (firstName && lastName) patterns.push(`\\s+${escapeRegExp(firstName)}\\s+${escapeRegExp(lastName)}$`);
+  if (firstName) patterns.push(`\\s+${escapeRegExp(firstName)}$`);
+  if (lastName) patterns.push(`\\s+${escapeRegExp(lastName)}$`);
+  return patterns;
 }
 
-// Parse meal table by collecting protein/veg/eggs candidates in document order,
-// then grouping every 3 into Breakfast / Lunch / Dinner.
-// - Handles "+" combos: "35g Pumpkin Seeds + 20g Sunflower Seeds" = ONE option.
-// - Handles "N Eggs" (no g unit): protein=Eggs, grams=null.
-function parseMealTable(text: string): { options: MealOptionsMap; legacy: Record<string, string | number | null> } {
+function preprocessMealLines(lines: string[]): string[] {
+  const merged: string[] = [];
+  for (const rawLine of lines) {
+    const trimmed = rawLine.replace(/\s+/g, " ").trim();
+    if (!trimmed) continue;
+    if (/^\+/.test(trimmed) && merged.length > 0) {
+      merged[merged.length - 1] = `${merged[merged.length - 1]} ${trimmed}`.replace(/\s+/g, " ").trim();
+      continue;
+    }
+    merged.push(trimmed);
+  }
+  return merged;
+}
+
+function extractMealLineFromItems(items: PositionedText[]): string {
+  return items
+    .sort((a, b) => a.x - b.x)
+    .map((item) => item.text)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function groupItemsIntoLines(items: PositionedText[], tolerance = 2.5): string[] {
+  const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x);
+  const lines: { y: number; items: PositionedText[] }[] = [];
+
+  for (const item of sorted) {
+    const existing = lines.find((line) => Math.abs(line.y - item.y) <= tolerance);
+    if (existing) {
+      existing.items.push(item);
+      existing.y = (existing.y + item.y) / 2;
+    } else {
+      lines.push({ y: item.y, items: [item] });
+    }
+  }
+
+  return lines
+    .sort((a, b) => b.y - a.y)
+    .map((line) => extractMealLineFromItems(line.items))
+    .filter(Boolean);
+}
+
+function extractMealProtein(line: string): { label: string; grams: number | null } | null {
+  const proteinLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES)
+    .sort((a, b) => b.length - a.length)
+    .map((label) => escapeRegExp(label))
+    .join("|");
+
+  const forward = new RegExp(`(\\d{1,4})\\s*g\\s+(${proteinLabels})\\b`, "i");
+  const reversed = new RegExp(`(${proteinLabels})\\s+(\\d{1,4})\\s*g\\b`, "i");
+  const eggs = /(\d+)\s+Eggs\b/i;
+
+  const forwardMatch = line.match(forward);
+  if (forwardMatch) return { label: forwardMatch[2], grams: parseInt(forwardMatch[1], 10) };
+
+  const reversedMatch = line.match(reversed);
+  if (reversedMatch) return { label: reversedMatch[1], grams: parseInt(reversedMatch[2], 10) };
+
+  const eggsMatch = line.match(eggs);
+  if (eggsMatch) return { label: "Eggs", grams: null };
+
+  return null;
+}
   const options = createEmptyMealOptions();
   const legacy: Record<string, string | number | null> = {};
 
