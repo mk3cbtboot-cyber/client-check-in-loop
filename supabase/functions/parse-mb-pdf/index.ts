@@ -235,6 +235,25 @@ function parseFoodSection(
   return result;
 }
 
+function extractPositionedTextForPage(page: unknown): PositionedText[] {
+  const items = (page as { content?: { items?: Array<Record<string, unknown>> } })?.content?.items;
+  if (!Array.isArray(items)) return [];
+
+  return items
+    .map((item) => {
+      const text = typeof item.str === "string"
+        ? item.str
+        : Array.isArray(item.textRuns)
+          ? item.textRuns.map((run) => String((run as { str?: unknown }).str ?? "")).join("")
+          : "";
+      const transform = Array.isArray(item.transform) ? item.transform : [];
+      const x = typeof transform[4] === "number" ? transform[4] : typeof item.x === "number" ? item.x : 0;
+      const y = typeof transform[5] === "number" ? transform[5] : typeof item.y === "number" ? item.y : 0;
+      return { text: text.replace(/\s+/g, " ").trim(), x, y };
+    })
+    .filter((item) => item.text);
+}
+
 type MealOption = {
   protein_category: string | null;
   protein_grams: number | null;
