@@ -66,12 +66,36 @@ function normalizeWater(raw: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// Patterns that mark the end of a food list chunk regardless of category labels.
+// Includes page footers (e.g. "Carson Visser | © Metabolic Balance"), page numbers,
+// section headings, and instructional notes.
+const CHUNK_END_PATTERNS: RegExp[] = [
+  /\|\s*©/i,
+  /©\s*Metabolic Balance/i,
+  /Page\s*\d+\s*(?:of\s*\d+)?/i,
+  /Personal Food List/i,
+  /Additional Information about the Meal Plan/i,
+  /Extended personal Food List/i,
+  /\$\$CA_PHASE3\$\$/i,
+  /From now on you have sprouts/i,
+  /From now on,?\s*you/i,
+  /Please note/i,
+  /\bNote:\s/i,
+];
+
+function truncateAtBoundary(chunk: string): string {
+  let cut = chunk.length;
+  for (const re of CHUNK_END_PATTERNS) {
+    const m = chunk.match(re);
+    if (m && m.index !== undefined && m.index < cut) cut = m.index;
+  }
+  return chunk.slice(0, cut);
+}
+
 // Parse a "category: items" block from a chunk of lines. Returns map of fieldKey -> comma-joined items.
 function parseFoodSection(text: string, categoryMap: Record<string, string>): Record<string, string> {
   const result: Record<string, string> = {};
-  // Build a regex that splits by category labels (case-sensitive at line start or after newline)
   const labels = Object.keys(categoryMap);
-  // Sort by length desc so longer labels match first ("Pumpkin Seeds" before "Seeds")
   labels.sort((a, b) => b.length - a.length);
   const labelPattern = labels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
   const splitRe = new RegExp(`(?:^|\\n)\\s*(${labelPattern})\\s*[:\\-–]?\\s*`, "g");
@@ -84,14 +108,22 @@ function parseFoodSection(text: string, categoryMap: Record<string, string>): Re
   for (let i = 0; i < matches.length; i++) {
     const cur = matches[i];
     const end = i + 1 < matches.length ? matches[i + 1].start : text.length;
-    const chunk = text.slice(cur.contentStart, end);
-    // Split items on commas, semicolons, newlines, slashes (kept slashes for things like Squid/Octopus — but those are single tokens with no surrounding spaces, so prefer comma/newline splits)
+    let chunk = text.slice(cur.contentStart, end);
+    // Stop at boilerplate / page footer / instructional notes before the next category label.
+    chunk = truncateAtBoundary(chunk);
     const items = chunk
       .split(/[,;\n]+/)
       .map((s) => s.replace(/\s+/g, " ").trim())
       .filter(Boolean)
-      // Drop fragments that look like headings or page footers
-      .filter((s) => s.length > 1 && s.length < 80 && !/Personal Food List|Additional Information|Page\s*\d|©|Metabolic Balance/i.test(s));
+      .filter((s) => {
+        if (s.length < 2 || s.length > 60) return false;
+        if (/Personal Food List|Additional Information|Extended personal|Page\s*\d|©|Metabolic Balance|From now on|Please note|\bNote:/i.test(s)) return false;
+        if (!/[A-Za-z]/.test(s)) return false;
+        // Drop sentence-like fragments
+        if (/\.\s+[a-z]/.test(s)) return false;
+        if (s.split(/\s+/).length > 5) return false;
+        return true;
+      });
     const field = categoryMap[cur.label];
     if (!field) continue;
     const existing = result[field] ? result[field].split(",").map((s) => s.trim()).filter(Boolean) : [];
@@ -102,8 +134,6 @@ function parseFoodSection(text: string, categoryMap: Record<string, string>): Re
 }
 
 function parseMealTable(text: string) {
-  // Look for the meal plan grams. Expect lines mentioning Breakfast, Lunch, Dinner with category + grams + veg grams.
-  // Heuristic: scan for "Breakfast", "Lunch", "Dinner" sections individually.
   const out: Record<string, string | number | null> = {
     breakfast_protein_category: null, breakfast_protein_grams: null, breakfast_veg_grams: null,
     lunch_protein_category: null, lunch_protein_grams: null, lunch_veg_grams: null,
@@ -116,28 +146,43 @@ function parseMealTable(text: string) {
     { key: "dinner", label: "Dinner" },
   ];
 
+  const proteinLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES);
+  proteinLabels.sort((a, b) => b.length - a.length);
+  const proteinAlt = proteinLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
+
   for (const meal of meals) {
-    // Try to find a window after the meal label up to the next meal label or 600 chars.
-    const re = new RegExp(`${meal.label}([\\s\\S]{0,600}?)(?=Breakfast|Lunch|Dinner|Personal Food List|$)`, "i");
+    const re = new RegExp(`${meal.label}([\\s\\S]{0,800}?)(?=Breakfast|Lunch|Dinner|Personal Food List|$)`, "i");
     const m = text.match(re);
     if (!m) continue;
     const chunk = m[1];
-    // Find protein category and grams. Look for any known protein label followed by a number+g.
-    const proteinLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES);
-    proteinLabels.sort((a, b) => b.length - a.length);
-    for (const pl of proteinLabels) {
-      const r = new RegExp(`(${pl.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")})[^\\d]{0,40}(\\d{2,4})\\s*g`, "i");
-      const mm = chunk.match(r);
-      if (mm) {
-        out[`${meal.key}_protein_category`] = mm[1];
-        out[`${meal.key}_protein_grams`] = parseFloat(mm[2]);
-        break;
+
+    // MB layout commonly prints "<grams> g <Category>" (e.g. "200 g Yogurt", "140 g Fish").
+    const r1 = new RegExp(`(\\d{2,4})\\s*g\\s+(${proteinAlt})\\b`, "i");
+    const m1 = chunk.match(r1);
+    if (m1) {
+      out[`${meal.key}_protein_grams`] = parseFloat(m1[1]);
+      out[`${meal.key}_protein_category`] = m1[2];
+    } else {
+      // Fallback: "<Category> ... <grams> g"
+      for (const pl of proteinLabels) {
+        const r2 = new RegExp(`(${pl.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")})[^\\d]{0,40}(\\d{2,4})\\s*g`, "i");
+        const mm = chunk.match(r2);
+        if (mm) {
+          out[`${meal.key}_protein_category`] = mm[1];
+          out[`${meal.key}_protein_grams`] = parseFloat(mm[2]);
+          break;
+        }
       }
     }
-    // Veg grams
-    const vegRe = /(Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce)[^\d]{0,40}(\d{2,4})\s*g/i;
-    const vm = chunk.match(vegRe);
-    if (vm) out[`${meal.key}_veg_grams`] = parseFloat(vm[2]);
+
+    // Veg grams — try "<grams> g Veg./Lettuce" first, then fallback to "<Label> ... <grams> g"
+    const v1 = chunk.match(/(\d{2,4})\s*g\s+(?:Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce|Vegetable\/Lettuce)/i);
+    if (v1) {
+      out[`${meal.key}_veg_grams`] = parseFloat(v1[1]);
+    } else {
+      const v2 = chunk.match(/(?:Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce)[^\d]{0,40}(\d{2,4})\s*g/i);
+      if (v2) out[`${meal.key}_veg_grams`] = parseFloat(v2[1]);
+    }
   }
   return out;
 }
