@@ -380,9 +380,24 @@ function parseMealLinesBySection(lines: string[], options: MealOptionsMap) {
   for (const rawLine of lines) {
     const line = rawLine.replace(/\s+/g, " ").trim();
     if (!line) continue;
-    if (/\bBreakfast\b/i.test(line)) currentMeal = "breakfast";
-    else if (/\bLunch\b/i.test(line)) currentMeal = "lunch";
-    else if (/\bDinner\b/i.test(line)) currentMeal = "dinner";
+    if (/^\s*Breakfast\b/i.test(line)) {
+      currentMeal = "breakfast";
+      const remainder = line.replace(/^\s*Breakfast\b\s*/i, "").trim();
+      sections.breakfast.push(remainder || "Breakfast");
+      continue;
+    }
+    if (/^\s*Lunch\b/i.test(line)) {
+      currentMeal = "lunch";
+      const remainder = line.replace(/^\s*Lunch\b\s*/i, "").trim();
+      sections.lunch.push(remainder || "Lunch");
+      continue;
+    }
+    if (/^\s*Dinner\b/i.test(line)) {
+      currentMeal = "dinner";
+      const remainder = line.replace(/^\s*Dinner\b\s*/i, "").trim();
+      sections.dinner.push(remainder || "Dinner");
+      continue;
+    }
     if (!currentMeal) continue;
     sections[currentMeal].push(line);
   }
