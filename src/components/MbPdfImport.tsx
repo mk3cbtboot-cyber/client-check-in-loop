@@ -163,6 +163,14 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
     setFields((f) => (f ? { ...f, [key]: { value, extracted: true } } : f));
   };
 
+  const updateOption = (meal: MealKey, idx: number, patch: Partial<MealOption>) => {
+    setMealOptions((m) => {
+      const next = { ...m, [meal]: m[meal].map((o, i) => (i === idx ? { ...o, ...patch } : o)) };
+      return next;
+    });
+  };
+
+
   const save = async () => {
     if (!fields || !storagePath) return;
     setBusy(true);
