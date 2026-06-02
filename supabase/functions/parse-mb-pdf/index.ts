@@ -620,12 +620,13 @@ Deno.serve(async (req) => {
 
     const phase2Proteins = phase2ProteinSection ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES, stripFooter) : {};
     const phase2Carbs = phase2CarbSection ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES, stripFooter) : {};
-    const phase3DebugLog = { headings: [] as { field: string; heading: string; index: number }[], missing: [] as string[] };
+    const phase3DebugLog = { headings: [] as { field: string; heading: string; index: number }[], missing: [] as string[], fatOilLines: [] as string[] };
     const phase3: Record<string, string> = phase3Section
       ? parsePhase3SectionByKeyword(phase3Section, stripFooter, phase3DebugLog)
       : {};
     debug.phase3_headings = phase3DebugLog.headings;
     debug.phase3_missing = phase3DebugLog.missing;
+    debug.phase3_fat_oil_lines = phase3DebugLog.fatOilLines;
     console.log("[parse-mb-pdf] phase3 headings", phase3DebugLog);
 
     // Override Sprouts with stricter parser (stops at instructional note).
@@ -641,29 +642,20 @@ Deno.serve(async (req) => {
       water = parseWater(additionalInfoSection);
     }
 
-    // FIX 3: build an explicit final-pass regex to strip "[space][First][space][Last]"
-    // (or just first / just last) at the very end of any field value, even when
-    // adjacent to a food item with no separator (e.g. "Raspberries (110g) Carson Visser").
     const clientNameTrimmed = (clientRow.name ?? "").trim();
     const nameParts = clientNameTrimmed.split(/\s+/).filter((p) => p.length >= 2);
     const firstName = nameParts[0] ?? "";
     const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
-    const finalNameStripRegexes: RegExp[] = [];
-    if (firstName && lastName) {
-      finalNameStripRegexes.push(new RegExp(`\\s+${escapeRegExp(firstName)}\\s+${escapeRegExp(lastName)}\\s*$`, "i"));
-    }
-    if (firstName) finalNameStripRegexes.push(new RegExp(`\\s+${escapeRegExp(firstName)}\\s*$`, "i"));
-    if (lastName) finalNameStripRegexes.push(new RegExp(`\\s+${escapeRegExp(lastName)}\\s*$`, "i"));
 
     const sanitizeExtractedValue = (value: unknown) => {
       if (typeof value !== "string") return value ?? null;
-      let cleaned = stripTrailingName(stripFooter(value)).trim();
-      // Final aggressive trailing-name pass (run until stable).
+      let cleaned = value.replace(/\r\n/g, "\n").trim();
+      cleaned = stripFooter(cleaned);
+      cleaned = stripTrailingName(cleaned);
       let prev = "";
       while (prev !== cleaned) {
         prev = cleaned;
-        for (const re of finalNameStripRegexes) cleaned = cleaned.replace(re, "").trim();
-        // Strip trailing punctuation/pipes left over
+        cleaned = stripTrailingClientName(cleaned, firstName, lastName);
         cleaned = cleaned.replace(/[\s,;|]+$/g, "").trim();
       }
       return cleaned;
