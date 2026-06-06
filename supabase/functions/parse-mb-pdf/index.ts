@@ -478,7 +478,7 @@ function parseMealTable(
 
   const gramRe = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
   const gramReReversed = new RegExp(`(${labelAlt})\\s+(\\d{2,4})\\s*g\\b`, "gi");
-  const eggsRe = /(\d+)\s+Eggs\b/gi;
+  const eggsRe = /(\d+)\s+Egg/gi;
 
   type Candidate = { kind: "protein" | "veg" | "eggs"; label: string; grams: number | null; idx: number; end: number };
   const candidates: Candidate[] = [];
@@ -498,21 +498,21 @@ function parseMealTable(
   }
   eggsRe.lastIndex = 0;
   while ((m = eggsRe.exec(region)) !== null) {
-    candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx: m.index, end: m.index + m[0].length });
+    candidates.push({ kind: "eggs", label: "Egg(s)", grams: null, idx: m.index, end: m.index + m[0].length });
   }
 
-  // Additional pass: lines that contain "N Eggs" (no gram unit) — scan line-by-line and add candidates.
+  // Additional pass: lines that contain "N Egg(s)" (no gram unit) — scan line-by-line and add candidates.
   // Strip trailing whitespace/\r and any leading "+" before testing. No end-anchor — permissive.
-  const eggsLineRe = /^(\d+)\s+[Ee]ggs?\b/;
+  const eggsLineRe = /^\d+\s+Egg/i;
   let lineOffset = 0;
   for (const rawLine of region.split(/\r?\n/)) {
-    const cleaned = rawLine.replace(/[\r\s]+$/g, "").replace(/^\s*\+\s*/, "").trim();
+    const cleaned = rawLine.replace(/[\r\n\s]+$/g, "").replace(/^\s*\+\s*/, "").trim();
     if (eggsLineRe.test(cleaned)) {
       const trimmedIdx = region.indexOf(cleaned, lineOffset);
       const idx = trimmedIdx >= 0 ? trimmedIdx : lineOffset;
       const alreadyPresent = candidates.some((c) => c.kind === "eggs" && Math.abs(c.idx - idx) < 40);
       if (!alreadyPresent) {
-        candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx, end: idx + cleaned.length });
+        candidates.push({ kind: "eggs", label: "Egg(s)", grams: null, idx, end: idx + cleaned.length });
       }
     }
     lineOffset += rawLine.length + 1;
@@ -901,6 +901,11 @@ Deno.serve(async (req) => {
     const sanitizeExtractedValue = (value: unknown) => {
       if (typeof value !== "string") return value ?? null;
       let cleaned = value.replace(/\r\n/g, "\n").trim();
+      // Strip page-footer bleed from first " | " onwards
+      const pipeIdx = cleaned.indexOf(" | ");
+      if (pipeIdx >= 0) cleaned = cleaned.slice(0, pipeIdx).trim();
+      // Strip trailing bare page number
+      cleaned = cleaned.replace(/\s+\d+\s*$/g, "").trim();
       cleaned = stripFooter(cleaned);
       cleaned = stripTrailingName(cleaned);
       let prev = "";
