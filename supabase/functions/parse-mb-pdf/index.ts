@@ -88,6 +88,10 @@ function stripTrailingClientName(value: string, firstName: string, lastName: str
   }
   if (lastName) {
     out = out.replace(new RegExp(`\\s+${escapeRegExp(lastName)}$`, "i"), "").trim();
+    // Fallback 1: optional preceding word + last name at end of string
+    out = out.replace(new RegExp(`\\s+\\S+\\s+${escapeRegExp(lastName)}\\s*$`, "i"), "").trim();
+    // Fallback 2: last name alone at end of string (with any whitespace)
+    out = out.replace(new RegExp(`\\s+${escapeRegExp(lastName)}\\s*$`, "i"), "").trim();
   }
   return out;
 }
@@ -497,19 +501,21 @@ function parseMealTable(
     candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx: m.index, end: m.index + m[0].length });
   }
 
-  // Additional pass: lines that are just "N Eggs" (no gram unit) — scan line-by-line and add candidates.
-  const eggsLineRe = /^\s*(\d+)\s+Eggs\s*$/i;
+  // Additional pass: lines that contain "N Eggs" (no gram unit) — scan line-by-line and add candidates.
+  // Strip trailing whitespace/\r and any leading "+" before testing. No end-anchor — permissive.
+  const eggsLineRe = /^(\d+)\s+[Ee]ggs?\b/;
   let lineOffset = 0;
-  for (const line of region.split(/\r?\n/)) {
-    if (eggsLineRe.test(line.trim())) {
-      const trimmedIdx = region.indexOf(line.trim(), lineOffset);
+  for (const rawLine of region.split(/\r?\n/)) {
+    const cleaned = rawLine.replace(/[\r\s]+$/g, "").replace(/^\s*\+\s*/, "").trim();
+    if (eggsLineRe.test(cleaned)) {
+      const trimmedIdx = region.indexOf(cleaned, lineOffset);
       const idx = trimmedIdx >= 0 ? trimmedIdx : lineOffset;
       const alreadyPresent = candidates.some((c) => c.kind === "eggs" && Math.abs(c.idx - idx) < 40);
       if (!alreadyPresent) {
-        candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx, end: idx + line.trim().length });
+        candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx, end: idx + cleaned.length });
       }
     }
-    lineOffset += line.length + 1;
+    lineOffset += rawLine.length + 1;
   }
 
   candidates.sort((a, b) => a.idx - b.idx);
@@ -827,8 +833,8 @@ Deno.serve(async (req) => {
 
     // Fallback: extract Sunflower Seeds from Phase 2 protein section if the main parser missed it.
     if (phase2ProteinSection && !phase2Proteins["food_sunflower_seeds"]) {
-      const protLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES).filter((l) => l !== "Sunflower Seeds");
-      const sunMatch = phase2ProteinSection.match(/Sunflower\s+Seeds\b[:\s-]*/i);
+      const protLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES).filter((l) => !/sunflower/i.test(l));
+      const sunMatch = phase2ProteinSection.match(/sunflower[^\n]*?(?:seeds?)?[:\s-]*/i);
       if (sunMatch && sunMatch.index !== undefined) {
         const start = sunMatch.index + sunMatch[0].length;
         const rest = phase2ProteinSection.slice(start);
@@ -850,10 +856,17 @@ Deno.serve(async (req) => {
             if (s.split(/\s+/).length > 5) return false;
             return true;
           });
-        if (items.length) phase2Proteins["food_sunflower_seeds"] = Array.from(new Set(items)).join(", ");
+        if (items.length) {
+          phase2Proteins["food_sunflower_seeds"] = Array.from(new Set(items)).join(", ");
+        } else {
+          // Default: the heading exists but no items were listed under it — use the category name itself.
+          phase2Proteins["food_sunflower_seeds"] = "Sunflower Seeds";
+        }
         console.log("[parse-mb-pdf] sunflower seeds fallback", { found: items.length, items });
       } else {
-        console.log("[parse-mb-pdf] sunflower seeds heading not found in phase2 protein section");
+        // Heading not found at all — still default since we know it's a Phase 2 protein category.
+        phase2Proteins["food_sunflower_seeds"] = "Sunflower Seeds";
+        console.log("[parse-mb-pdf] sunflower seeds heading not found in phase2 protein section — defaulted");
       }
     }
 
