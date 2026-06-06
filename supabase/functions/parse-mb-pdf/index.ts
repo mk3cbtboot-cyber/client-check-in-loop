@@ -833,8 +833,8 @@ Deno.serve(async (req) => {
 
     // Fallback: extract Sunflower Seeds from Phase 2 protein section if the main parser missed it.
     if (phase2ProteinSection && !phase2Proteins["food_sunflower_seeds"]) {
-      const protLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES).filter((l) => l !== "Sunflower Seeds");
-      const sunMatch = phase2ProteinSection.match(/Sunflower\s+Seeds\b[:\s-]*/i);
+      const protLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES).filter((l) => !/sunflower/i.test(l));
+      const sunMatch = phase2ProteinSection.match(/sunflower[^\n]*?(?:seeds?)?[:\s-]*/i);
       if (sunMatch && sunMatch.index !== undefined) {
         const start = sunMatch.index + sunMatch[0].length;
         const rest = phase2ProteinSection.slice(start);
@@ -856,10 +856,17 @@ Deno.serve(async (req) => {
             if (s.split(/\s+/).length > 5) return false;
             return true;
           });
-        if (items.length) phase2Proteins["food_sunflower_seeds"] = Array.from(new Set(items)).join(", ");
+        if (items.length) {
+          phase2Proteins["food_sunflower_seeds"] = Array.from(new Set(items)).join(", ");
+        } else {
+          // Default: the heading exists but no items were listed under it — use the category name itself.
+          phase2Proteins["food_sunflower_seeds"] = "Sunflower Seeds";
+        }
         console.log("[parse-mb-pdf] sunflower seeds fallback", { found: items.length, items });
       } else {
-        console.log("[parse-mb-pdf] sunflower seeds heading not found in phase2 protein section");
+        // Heading not found at all — still default since we know it's a Phase 2 protein category.
+        phase2Proteins["food_sunflower_seeds"] = "Sunflower Seeds";
+        console.log("[parse-mb-pdf] sunflower seeds heading not found in phase2 protein section — defaulted");
       }
     }
 
