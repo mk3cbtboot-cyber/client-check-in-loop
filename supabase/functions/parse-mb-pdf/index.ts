@@ -921,8 +921,11 @@ Deno.serve(async (req) => {
       if (field !== "food_fruit") return sanitizeExtractedValue(value) as string;
       const before = typeof value === "string" ? value : String(value ?? "");
       const after = sanitizeExtractedValue(before) as string;
-      console.log(`[parse-mb-pdf] DEBUG name-strip: before='${before}', after='${after}'`);
-      if (before === after) {
+      let finalValue = after;
+      const lastParen = finalValue.lastIndexOf(")");
+      if (lastParen !== -1) finalValue = finalValue.slice(0, lastParen + 1).trim();
+      console.log(`[parse-mb-pdf] DEBUG name-strip: before='${before}', after='${finalValue}'`);
+      if (before === finalValue) {
         console.log("[parse-mb-pdf] DEBUG name-strip patterns", {
           field,
           firstName,
@@ -931,7 +934,7 @@ Deno.serve(async (req) => {
           comparedValue: before,
         });
       }
-      return after;
+      return finalValue;
     };
 
     const buildField = (v: unknown, field?: string) => {
