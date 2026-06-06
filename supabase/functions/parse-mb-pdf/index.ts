@@ -286,6 +286,11 @@ function isProteinLabel(label: string): boolean {
   return Object.keys(PHASE2_PROTEIN_CATEGORIES).some((k) => k.toLowerCase() === lc);
 }
 
+function isSeedMealProtein(label: string): boolean {
+  const normalized = label.replace(/\s+/g, " ").trim().toLowerCase();
+  return ["sunflower seeds", "pumpkin seeds", "sesame seeds", "hemp seeds", "flaxseeds"].includes(normalized);
+}
+
 function getTrailingClientNamePatterns(firstName: string, lastName: string): string[] {
   const patterns: string[] = [];
   if (firstName && lastName) patterns.push(`\\s+${escapeRegExp(firstName)}\\s+${escapeRegExp(lastName)}$`);
@@ -501,9 +506,29 @@ function parseMealTable(
     filtered.push(c);
   }
 
-  const proteinCandidates = filtered.filter((c) => c.kind === "protein" || c.kind === "eggs");
+  const rawProteinCandidates = filtered.filter((c) => c.kind === "protein" || c.kind === "eggs");
+  const proteinCandidates: Candidate[] = [];
+  let removedSeedContinuation = false;
+  for (let i = 0; i < rawProteinCandidates.length; i++) {
+    const candidate = rawProteinCandidates[i];
+    const previous = rawProteinCandidates[i - 1] ?? null;
+    const shouldDropSeedContinuation = Boolean(
+      previous &&
+      i - 1 === 2 &&
+      isSeedMealProtein(previous.label) &&
+      isSeedMealProtein(candidate.label),
+    );
+
+    if (shouldDropSeedContinuation) {
+      removedSeedContinuation = true;
+      continue;
+    }
+
+    proteinCandidates.push(candidate);
+  }
   const vegCandidates = filtered.filter((c) => c.kind === "veg");
   debug.meal_parser_mode = "sequential";
+  debug.meal_seed_continuation_removed = removedSeedContinuation;
   debug.meal_protein_candidates = proteinCandidates.map((c) => ({ label: c.label, grams: c.grams, idx: c.idx }));
   debug.meal_veg_candidates = vegCandidates.map((c) => ({ label: c.label, grams: c.grams, idx: c.idx }));
 
