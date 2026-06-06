@@ -841,9 +841,11 @@ Deno.serve(async (req) => {
     const phase2Proteins = phase2ProteinSection ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES, stripFooter) : {};
 
     // Fallback: extract Sunflower Seeds from Phase 2 protein section if the main parser missed it.
+    // Only default to "Sunflower Seeds" when the heading is ACTUALLY present in the PDF.
     if (phase2ProteinSection && !phase2Proteins["food_sunflower_seeds"]) {
       const protLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES).filter((l) => !/sunflower/i.test(l));
       const sunMatch = phase2ProteinSection.match(/sunflower[^\n]*?(?:seeds?)?[:\s-]*/i);
+      const sunflowerHeadingFound = !!sunMatch;
       if (sunMatch && sunMatch.index !== undefined) {
         const start = sunMatch.index + sunMatch[0].length;
         const rest = phase2ProteinSection.slice(start);
@@ -867,19 +869,40 @@ Deno.serve(async (req) => {
           });
         if (items.length) {
           phase2Proteins["food_sunflower_seeds"] = Array.from(new Set(items)).join(", ");
-        } else {
-          // Default: the heading exists but no items were listed under it — use the category name itself.
+        } else if (sunflowerHeadingFound) {
+          // Heading present but no items listed under it — default to category name.
           phase2Proteins["food_sunflower_seeds"] = "Sunflower Seeds";
         }
-        console.log("[parse-mb-pdf] sunflower seeds fallback", { found: items.length, items });
+        console.log("[parse-mb-pdf] sunflower seeds fallback", { headingFound: sunflowerHeadingFound, found: items.length, items });
       } else {
-        // Heading not found at all — still default since we know it's a Phase 2 protein category.
-        phase2Proteins["food_sunflower_seeds"] = "Sunflower Seeds";
-        console.log("[parse-mb-pdf] sunflower seeds heading not found in phase2 protein section — defaulted");
+        // Heading not found at all — leave field empty (PDF has no Sunflower Seeds).
+        console.log("[parse-mb-pdf] sunflower seeds heading not found in phase2 protein section — leaving empty");
       }
     }
 
     const phase2Carbs = phase2CarbSection ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES, stripFooter) : {};
+
+    // Fallback: same-line Starch extraction (e.g. "Starch Oatmeal" on a single line
+    // followed by a note that defeats the multi-line parser).
+    if (phase2CarbSection && !phase2Carbs["food_starch"]) {
+      const m = phase2CarbSection.match(/^\s*Starch\s+([^\n]+)/im);
+      if (m) {
+        let rest = m[1].trim();
+        // Stop at any subsequent carb category keyword on the same line
+        const stopRe = /\b(?:Vegetables|Veg\.?\s*\/?\s*Lettuce|Bread|Fruit)\b/i;
+        const sm = rest.match(stopRe);
+        if (sm && sm.index !== undefined) rest = rest.slice(0, sm.index).trim();
+        rest = stripFooter(rest);
+        const items = rest
+          .split(/[,;]+/)
+          .map((s) => s.replace(/\s+/g, " ").trim())
+          .filter((s) => s.length >= 2 && s.length <= 60 && /[A-Za-z]/.test(s) && s.split(/\s+/).length <= 5);
+        if (items.length) {
+          phase2Carbs["food_starch"] = Array.from(new Set(items)).join(", ");
+          console.log("[parse-mb-pdf] starch same-line fallback", items);
+        }
+      }
+    }
     const phase3DebugLog = { headings: [] as { field: string; heading: string; index: number }[], missing: [] as string[], fatOilLines: [] as string[] };
     const phase3: Record<string, string> = phase3Section
       ? parsePhase3SectionByKeyword(phase3Section, stripFooter, phase3DebugLog)
