@@ -442,7 +442,7 @@ function preprocessMealRegion(region: string): string {
   return mergedLines
     .map((line) => line
       .replace(
-        /\s+\+\s*\d{1,4}\s*g?\s+[A-Za-z][A-Za-z .\/()%-]{1,80}?(?=(?:\s+\d{2,4}\s*g\b)|(?:\s+(?:Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce|Vegetable\/Lettuce|Fruit|Bread)\b)|(?:\s+5\s*h\b)|$)/gi,
+        /\s+\+\s*\d{1,4}\s*g\s+[A-Za-z][A-Za-z .\/()%-]{1,80}?(?=(?:\s+\d{2,4}\s*g\b)|(?:\s+(?:Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce|Vegetable\/Lettuce|Fruit|Bread)\b)|(?:\s+5\s*h\b)|$)/gi,
         "",
       )
       .replace(/\s+/g, " ")
@@ -495,6 +495,21 @@ function parseMealTable(
   eggsRe.lastIndex = 0;
   while ((m = eggsRe.exec(region)) !== null) {
     candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx: m.index, end: m.index + m[0].length });
+  }
+
+  // Additional pass: lines that are just "N Eggs" (no gram unit) — scan line-by-line and add candidates.
+  const eggsLineRe = /^\s*(\d+)\s+Eggs\s*$/i;
+  let lineOffset = 0;
+  for (const line of region.split(/\r?\n/)) {
+    if (eggsLineRe.test(line.trim())) {
+      const trimmedIdx = region.indexOf(line.trim(), lineOffset);
+      const idx = trimmedIdx >= 0 ? trimmedIdx : lineOffset;
+      const alreadyPresent = candidates.some((c) => c.kind === "eggs" && Math.abs(c.idx - idx) < 40);
+      if (!alreadyPresent) {
+        candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx, end: idx + line.trim().length });
+      }
+    }
+    lineOffset += line.length + 1;
   }
 
   candidates.sort((a, b) => a.idx - b.idx);
@@ -809,6 +824,39 @@ Deno.serve(async (req) => {
     debug.meal_parser = mealDebug;
 
     const phase2Proteins = phase2ProteinSection ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES, stripFooter) : {};
+
+    // Fallback: extract Sunflower Seeds from Phase 2 protein section if the main parser missed it.
+    if (phase2ProteinSection && !phase2Proteins["food_sunflower_seeds"]) {
+      const protLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES).filter((l) => l !== "Sunflower Seeds");
+      const sunMatch = phase2ProteinSection.match(/Sunflower\s+Seeds\b[:\s-]*/i);
+      if (sunMatch && sunMatch.index !== undefined) {
+        const start = sunMatch.index + sunMatch[0].length;
+        const rest = phase2ProteinSection.slice(start);
+        const stopRe = new RegExp(
+          `\\b(?:${protLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|")}|Personal Food List|Additional Information|Extended personal|Shopping Helper)\\b`,
+          "i",
+        );
+        const stopMatch = rest.match(stopRe);
+        let chunk = stopMatch && stopMatch.index !== undefined ? rest.slice(0, stopMatch.index) : rest;
+        chunk = stripFooter(chunk);
+        const items = chunk
+          .split(/[,;\n]+/)
+          .map((s) => s.replace(/\s+/g, " ").trim())
+          .filter(Boolean)
+          .filter((s) => {
+            if (s.length < 2 || s.length > 60) return false;
+            if (/Personal Food List|Additional Information|Extended personal|Shopping Helper|Page\s*\d|©|Metabolic Balance/i.test(s)) return false;
+            if (!/[A-Za-z]/.test(s)) return false;
+            if (s.split(/\s+/).length > 5) return false;
+            return true;
+          });
+        if (items.length) phase2Proteins["food_sunflower_seeds"] = Array.from(new Set(items)).join(", ");
+        console.log("[parse-mb-pdf] sunflower seeds fallback", { found: items.length, items });
+      } else {
+        console.log("[parse-mb-pdf] sunflower seeds heading not found in phase2 protein section");
+      }
+    }
+
     const phase2Carbs = phase2CarbSection ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES, stripFooter) : {};
     const phase3DebugLog = { headings: [] as { field: string; heading: string; index: number }[], missing: [] as string[], fatOilLines: [] as string[] };
     const phase3: Record<string, string> = phase3Section
