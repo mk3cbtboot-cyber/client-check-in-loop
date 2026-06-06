@@ -88,6 +88,10 @@ function stripTrailingClientName(value: string, firstName: string, lastName: str
   }
   if (lastName) {
     out = out.replace(new RegExp(`\\s+${escapeRegExp(lastName)}$`, "i"), "").trim();
+    // Fallback 1: optional preceding word + last name at end of string
+    out = out.replace(new RegExp(`\\s+\\S+\\s+${escapeRegExp(lastName)}\\s*$`, "i"), "").trim();
+    // Fallback 2: last name alone at end of string (with any whitespace)
+    out = out.replace(new RegExp(`\\s+${escapeRegExp(lastName)}\\s*$`, "i"), "").trim();
   }
   return out;
 }
