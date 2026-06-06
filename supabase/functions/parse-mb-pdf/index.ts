@@ -686,54 +686,64 @@ function parsePhase3SectionByKeyword(
   debugLog: { headings: { field: string; heading: string; index: number }[]; missing: string[]; fatOilLines: string[] },
 ): Record<string, string> {
   const out: Record<string, string> = {};
-  // Collect heading positions: for each spec find first occurrence (skip if reject matches at same position).
-  type Heading = { field: string; idx: number; endIdx: number; raw: string };
-  const headings: Heading[] = [];
-  for (const spec of PHASE3_SPECS) {
-    const re = new RegExp(spec.match.source, "gi");
-    let mm: RegExpExecArray | null;
-    while ((mm = re.exec(section)) !== null) {
-      // Avoid matching if a reject keyword overlaps this exact position context
-      const around = section.slice(Math.max(0, mm.index - 2), mm.index + mm[0].length + 8);
-      if (spec.reject && spec.reject.test(around)) continue;
-      headings.push({ field: spec.field, idx: mm.index, endIdx: mm.index + mm[0].length, raw: mm[0] });
-      debugLog.headings.push({ field: spec.field, heading: mm[0], index: mm.index });
-      break; // first occurrence only
+  const lines = section.split(/\r?\n/);
+
+  // Build line-start anchored matchers for each Phase 3 spec.
+  const anchoredSpecs = PHASE3_SPECS.map((s) => ({
+    field: s.field,
+    match: new RegExp(`^\\s*(?:${s.match.source})\\b`, "i"),
+    reject: s.reject,
+  }));
+
+  // Boundary keywords at line start (other category names that end a section).
+  const boundaryLineRe = new RegExp(`^\\s*(?:${PHASE3_BOUNDARY_KEYWORDS.source.replace(/^\\b|\\b$/g, "")})\\b`, "i");
+  const boundaryAtLineStart = (ln: string): boolean => {
+    if (boundaryLineRe.test(ln)) return true;
+    for (const sp of anchoredSpecs) {
+      if (sp.match.test(ln)) return true;
     }
-    if (!headings.some((h) => h.field === spec.field)) {
-      debugLog.missing.push(spec.field);
+    return false;
+  };
+
+  type Hit = { field: string; lineIdx: number; rest: string; heading: string };
+  const hits: Hit[] = [];
+  const seen = new Set<string>();
+  for (let li = 0; li < lines.length; li++) {
+    const ln = lines[li];
+    for (const sp of anchoredSpecs) {
+      if (seen.has(sp.field)) continue;
+      const m = ln.match(sp.match);
+      if (!m) continue;
+      const around = ln.slice(0, m[0].length + 8);
+      if (sp.reject && sp.reject.test(around)) continue;
+      const rest = ln.slice(m[0].length);
+      hits.push({ field: sp.field, lineIdx: li, rest, heading: m[0].trim() });
+      seen.add(sp.field);
+      debugLog.headings.push({ field: sp.field, heading: m[0].trim(), index: li });
+      break;
     }
   }
+  for (const sp of PHASE3_SPECS) if (!seen.has(sp.field)) debugLog.missing.push(sp.field);
 
-  if (!headings.length) return out;
+  if (!hits.length) return out;
+  hits.sort((a, b) => a.lineIdx - b.lineIdx);
 
-  // Also collect boundary positions (Poultry, Fruit, Bread, etc.) to act as stop markers.
-  const boundaryPositions: number[] = [];
-  {
-    const re = new RegExp(PHASE3_BOUNDARY_KEYWORDS.source, "gi");
-    let mm: RegExpExecArray | null;
-    while ((mm = re.exec(section)) !== null) boundaryPositions.push(mm.index);
-  }
-
-  headings.sort((a, b) => a.idx - b.idx);
-
-  for (let i = 0; i < headings.length; i++) {
-    const cur = headings[i];
-    // End at the next heading OR next boundary keyword, whichever comes first.
-    let end = i + 1 < headings.length ? headings[i + 1].idx : section.length;
-    if (cur.field !== "phase3_mb_fat_oil") {
-      for (const bp of boundaryPositions) {
-        if (bp > cur.endIdx && bp < end) end = bp;
-      }
+  for (let i = 0; i < hits.length; i++) {
+    const cur = hits[i];
+    const collected: string[] = [];
+    // Heading line: take rest verbatim (do NOT apply boundary stop on same line).
+    if (cur.rest.trim()) collected.push(cur.rest);
+    const nextHitLine = i + 1 < hits.length ? hits[i + 1].lineIdx : lines.length;
+    for (let li = cur.lineIdx + 1; li < nextHitLine; li++) {
+      if (boundaryAtLineStart(lines[li])) break;
+      collected.push(lines[li]);
     }
-    let chunk = section.slice(cur.endIdx, end);
+    let chunk = collected.join("\n");
     if (cur.field === "phase3_mb_fat_oil") {
       debugLog.fatOilLines = chunk.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
       console.log("[parse-mb-pdf] phase3 fat_oil raw lines", debugLog.fatOilLines);
     }
-    // Drop leading punctuation
     chunk = chunk.replace(/^\s*[:\-–]?\s*/, "");
-    chunk = truncateAtBoundary(chunk);
     chunk = stripFooter(chunk);
     const items = chunk
       .split(/[,;\n]+/)
@@ -747,8 +757,7 @@ function parsePhase3SectionByKeyword(
         return true;
       });
     if (items.length) {
-      const existing = out[cur.field] ? out[cur.field].split(",").map((x) => x.trim()).filter(Boolean) : [];
-      out[cur.field] = Array.from(new Set([...existing, ...items])).join(", ");
+      out[cur.field] = Array.from(new Set(items)).join(", ");
     }
   }
   return out;
