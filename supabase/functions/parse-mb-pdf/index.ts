@@ -497,6 +497,21 @@ function parseMealTable(
     candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx: m.index, end: m.index + m[0].length });
   }
 
+  // Additional pass: lines that are just "N Eggs" (no gram unit) — scan line-by-line and add candidates.
+  const eggsLineRe = /^\s*(\d+)\s+Eggs\s*$/i;
+  let lineOffset = 0;
+  for (const line of region.split(/\r?\n/)) {
+    if (eggsLineRe.test(line.trim())) {
+      const trimmedIdx = region.indexOf(line.trim(), lineOffset);
+      const idx = trimmedIdx >= 0 ? trimmedIdx : lineOffset;
+      const alreadyPresent = candidates.some((c) => c.kind === "eggs" && Math.abs(c.idx - idx) < 40);
+      if (!alreadyPresent) {
+        candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx, end: idx + line.trim().length });
+      }
+    }
+    lineOffset += line.length + 1;
+  }
+
   candidates.sort((a, b) => a.idx - b.idx);
 
   const filtered: Candidate[] = [];
