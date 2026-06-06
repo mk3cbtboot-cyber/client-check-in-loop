@@ -421,6 +421,31 @@ function parseMealLinesBySection(lines: string[], options: MealOptionsMap) {
   }
 }
 
+function preprocessMealRegion(region: string): string {
+  const sourceLines = region.split(/\r?\n/);
+  const mergedLines: string[] = [];
+
+  for (const rawLine of sourceLines) {
+    const trimmed = rawLine.trim();
+    if (trimmed.startsWith("+") && mergedLines.length > 0) {
+      mergedLines[mergedLines.length - 1] = `${mergedLines[mergedLines.length - 1]} ${trimmed}`;
+      continue;
+    }
+    mergedLines.push(rawLine);
+  }
+
+  return mergedLines
+    .map((line) => line
+      .replace(
+        /\s+\+\s*\d{1,4}\s*g?\s+[A-Za-z][A-Za-z .\/()%-]{1,80}?(?=(?:\s+\d{2,4}\s*g\b)|(?:\s+(?:Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce|Vegetable\/Lettuce|Fruit|Bread)\b)|(?:\s+5\s*h\b)|$)/gi,
+        "",
+      )
+      .replace(/\s+/g, " ")
+      .trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
 function parseMealTable(
   text: string,
   positionedItems: PositionedText[] = [],
@@ -432,53 +457,102 @@ function parseMealTable(
 
   const startIdx = text.search(/\bBreakfast\b/i);
   const endIdx = text.search(/Personal Food List/i);
-  const region = text.slice(startIdx >= 0 ? startIdx : 0, endIdx > 0 ? endIdx : text.length).replace(/\r\n/g, "\n");
+  let region = text.slice(startIdx >= 0 ? startIdx : 0, endIdx > 0 ? endIdx : text.length);
+  region = preprocessMealRegion(region);
 
-  const normalizedItems = positionedItems
-    .map((item) => ({ text: item.text.replace(/\s+/g, " ").trim(), x: item.x, y: item.y }))
-    .filter((item) => item.text);
+  const proteinLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES);
+  const vegLabels = ["Vegetables", "Vegetable", "Veg./Lettuce", "Veg. /Lettuce", "Veg/Lettuce", "Vegetable/Lettuce"];
+  const allLabels = [...proteinLabels, ...vegLabels];
+  allLabels.sort((a, b) => b.length - a.length);
+  const labelAlt = allLabels.map((l) => escapeRegExp(l)).join("|");
+  const vegLabelAlt = vegLabels.map((l) => escapeRegExp(l)).join("|");
 
-  const headers = (["Breakfast", "Lunch", "Dinner"] as const)
-    .map((header) => {
-      const match = normalizedItems.find((item) => new RegExp(`\\b${header}\\b`, "i").test(item.text));
-      return match ? { meal: header.toLowerCase() as MealKey, x: match.x, y: match.y } : null;
-    })
-    .filter((item): item is { meal: MealKey; x: number; y: number } => Boolean(item));
+  const gramRe = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
+  const gramReReversed = new RegExp(`(${labelAlt})\\s+(\\d{2,4})\\s*g\\b`, "gi");
+  const eggsRe = /(\d+)\s+Eggs\b/gi;
 
-  debug.meal_header_positions = headers;
+  type Candidate = { kind: "protein" | "veg" | "eggs"; label: string; grams: number | null; idx: number; end: number };
+  const candidates: Candidate[] = [];
+  const pushFromMatch = (label: string, grams: number, idx: number, end: number) => {
+    if (isVegLabel(label)) candidates.push({ kind: "veg", label, grams, idx, end });
+    else if (isProteinLabel(label)) candidates.push({ kind: "protein", label, grams, idx, end });
+  };
 
-  if (headers.length === 3) {
-    const maxHeaderY = Math.max(...headers.map((header) => header.y));
-    const bodyItems = normalizedItems.filter((item) => item.y < maxHeaderY - 2);
-    const columns: Record<MealKey, PositionedText[]> = { breakfast: [], lunch: [], dinner: [] };
+  let m: RegExpExecArray | null;
+  gramRe.lastIndex = 0;
+  while ((m = gramRe.exec(region)) !== null) {
+    pushFromMatch(m[2], parseFloat(m[1]), m.index, m.index + m[0].length);
+  }
+  gramReReversed.lastIndex = 0;
+  while ((m = gramReReversed.exec(region)) !== null) {
+    pushFromMatch(m[1], parseFloat(m[2]), m.index, m.index + m[0].length);
+  }
+  eggsRe.lastIndex = 0;
+  while ((m = eggsRe.exec(region)) !== null) {
+    candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx: m.index, end: m.index + m[0].length });
+  }
 
-    for (const item of bodyItems) {
-      const nearest = headers.reduce((best, header) => {
-        const distance = Math.abs(item.x - header.x);
-        return distance < best.distance ? { meal: header.meal, distance } : best;
-      }, { meal: headers[0].meal, distance: Math.abs(item.x - headers[0].x) });
-      columns[nearest.meal].push(item);
+  candidates.sort((a, b) => a.idx - b.idx);
+
+  const filtered: Candidate[] = [];
+  for (const c of candidates) {
+    const prev = filtered.length ? filtered[filtered.length - 1] : null;
+    if (prev && prev.kind === c.kind && prev.label === c.label && Math.abs(prev.idx - c.idx) < 30) continue;
+    filtered.push(c);
+  }
+
+  const proteinCandidates = filtered.filter((c) => c.kind === "protein" || c.kind === "eggs");
+  const vegCandidates = filtered.filter((c) => c.kind === "veg");
+  debug.meal_parser_mode = "sequential";
+  debug.meal_protein_candidates = proteinCandidates.map((c) => ({ label: c.label, grams: c.grams, idx: c.idx }));
+  debug.meal_veg_candidates = vegCandidates.map((c) => ({ label: c.label, grams: c.grams, idx: c.idx }));
+
+  const extractVegGramsForSlot = (slotChunk: string, proteinGrams: number | null): number | null => {
+    const explicitForward = new RegExp(`(\\d{2,4})\\s*g\\s+(?:${vegLabelAlt})\\b`, "i");
+    const explicitReverse = new RegExp(`(?:${vegLabelAlt})\\s+(\\d{2,4})\\s*g\\b`, "i");
+    const forwardMatch = slotChunk.match(explicitForward);
+    if (forwardMatch) {
+      const grams = parseInt(forwardMatch[1], 10);
+      if (Number.isFinite(grams) && grams !== proteinGrams) return grams;
+    }
+    const reverseMatch = slotChunk.match(explicitReverse);
+    if (reverseMatch) {
+      const grams = parseInt(reverseMatch[1], 10);
+      if (Number.isFinite(grams) && grams !== proteinGrams) return grams;
     }
 
-    const columnLines: Record<MealKey, string[]> = {
-      breakfast: preprocessMealLines(groupItemsIntoLines(columns.breakfast)),
-      lunch: preprocessMealLines(groupItemsIntoLines(columns.lunch)),
-      dinner: preprocessMealLines(groupItemsIntoLines(columns.dinner)),
-    };
-    debug.meal_column_lines = columnLines;
+    const numberMatches = Array.from(slotChunk.matchAll(/\b(\d{2,4})\b(?:\s*g\b)?/gi))
+      .map((match) => parseInt(match[1], 10))
+      .filter((grams) => Number.isFinite(grams) && grams !== proteinGrams && grams >= 80 && grams <= 250);
 
-    parseMealLinesBySection([
-      "Breakfast",
-      ...columnLines.breakfast,
-      "Lunch",
-      ...columnLines.lunch,
-      "Dinner",
-      ...columnLines.dinner,
-    ], options);
-  } else {
-    const lines = preprocessMealLines(region.split(/\r?\n/));
-    debug.meal_section_lines = lines;
-    parseMealLinesBySection(lines, options);
+    const preferred = numberMatches.find((grams) => grams >= 100 && grams <= 200);
+    return preferred ?? numberMatches[0] ?? null;
+  };
+
+  for (let i = 0; i < Math.min(9, proteinCandidates.length); i++) {
+    const mi = Math.floor(i / 3);
+    const oi = i % 3;
+    options[mealKeys[mi]][oi].protein_category = proteinCandidates[i].label;
+    options[mealKeys[mi]][oi].protein_grams = proteinCandidates[i].grams;
+    const nextProteinIdx = proteinCandidates[i + 1]?.idx ?? region.length;
+    const slotChunk = region.slice(proteinCandidates[i].end, nextProteinIdx);
+    options[mealKeys[mi]][oi].veg_grams = extractVegGramsForSlot(slotChunk, proteinCandidates[i].grams);
+    if (options[mealKeys[mi]][oi].veg_grams == null && vegCandidates[i]) {
+      options[mealKeys[mi]][oi].veg_grams = vegCandidates[i].grams;
+    }
+  }
+
+  const mealChunks = region.split(/\b5\s*h(?:rs?)?\b/i).map((c) => c.trim()).filter(Boolean);
+  debug.meal_chunks = mealChunks;
+  for (let mi = 0; mi < Math.min(3, mealChunks.length); mi++) {
+    const hasFruit = /\bFruit\b/i.test(mealChunks[mi]);
+    const hasBread = /\bBread\b/i.test(mealChunks[mi]);
+    for (let i = 0; i < 3; i++) {
+      if (options[mealKeys[mi]][i].protein_category) {
+        options[mealKeys[mi]][i].has_fruit = hasFruit;
+        options[mealKeys[mi]][i].has_bread = hasBread;
+      }
+    }
   }
 
   for (let mi = 0; mi < 3; mi++) {
