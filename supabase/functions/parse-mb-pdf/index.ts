@@ -501,19 +501,21 @@ function parseMealTable(
     candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx: m.index, end: m.index + m[0].length });
   }
 
-  // Additional pass: lines that are just "N Eggs" (no gram unit) — scan line-by-line and add candidates.
-  const eggsLineRe = /^\s*(\d+)\s+Eggs\s*$/i;
+  // Additional pass: lines that contain "N Eggs" (no gram unit) — scan line-by-line and add candidates.
+  // Strip trailing whitespace/\r and any leading "+" before testing. No end-anchor — permissive.
+  const eggsLineRe = /^(\d+)\s+[Ee]ggs?\b/;
   let lineOffset = 0;
-  for (const line of region.split(/\r?\n/)) {
-    if (eggsLineRe.test(line.trim())) {
-      const trimmedIdx = region.indexOf(line.trim(), lineOffset);
+  for (const rawLine of region.split(/\r?\n/)) {
+    const cleaned = rawLine.replace(/[\r\s]+$/g, "").replace(/^\s*\+\s*/, "").trim();
+    if (eggsLineRe.test(cleaned)) {
+      const trimmedIdx = region.indexOf(cleaned, lineOffset);
       const idx = trimmedIdx >= 0 ? trimmedIdx : lineOffset;
       const alreadyPresent = candidates.some((c) => c.kind === "eggs" && Math.abs(c.idx - idx) < 40);
       if (!alreadyPresent) {
-        candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx, end: idx + line.trim().length });
+        candidates.push({ kind: "eggs", label: "Eggs", grams: null, idx, end: idx + cleaned.length });
       }
     }
-    lineOffset += line.length + 1;
+    lineOffset += rawLine.length + 1;
   }
 
   candidates.sort((a, b) => a.idx - b.idx);
