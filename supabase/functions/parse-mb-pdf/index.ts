@@ -918,6 +918,43 @@ Deno.serve(async (req) => {
       if (sprouts !== null) phase3["phase3_mb_sprouts"] = sprouts;
     }
 
+    // Fallback: single-line scan for Phase 3 categories whose multi-line extraction
+    // returned nothing. Handles PDFs where heading + items appear on the same line.
+    if (phase3Section) {
+      const phase3FallbackSpecs: { field: string; re: RegExp }[] = [
+        { field: "phase3_mb_fish",        re: /^[ \t]*Fish[ \t]+(.+)$/im },
+        { field: "phase3_mb_seafood",     re: /^[ \t]*(?:Seafood|Shellfish)[ \t]+(.+)$/im },
+        { field: "phase3_mb_meat",        re: /^[ \t]*Meat[ \t]+(.+)$/im },
+        { field: "phase3_mb_cheese",      re: /^[ \t]*Cheese[ \t]+(.+)$/im },
+        { field: "phase3_mb_legumes",     re: /^[ \t]*(?:Legumes|Beans)[ \t]+(.+)$/im },
+        { field: "phase3_mb_vegetables",  re: /^[ \t]*Vegetables?[ \t]+(.+)$/im },
+        { field: "phase3_mb_veg_lettuce", re: /^[ \t]*Veg\.?\s*\/?\s*Lettuce[ \t]+(.+)$/im },
+        { field: "phase3_mb_sprouts",     re: /^[ \t]*Sprouts?[ \t]+(.+)$/im },
+        { field: "phase3_mb_fat_oil",     re: /^[ \t]*Fat\s*\/?\s*Oil[ \t]+(.+)$/im },
+      ];
+      for (const spec of phase3FallbackSpecs) {
+        if (phase3[spec.field] && phase3[spec.field].trim()) continue;
+        const m = phase3Section.match(spec.re);
+        if (!m) continue;
+        const raw = stripFooter(m[1]).replace(/^\s*[:\-–]?\s*/, "");
+        const items = raw
+          .split(/[,;]+/)
+          .map((s) => s.replace(/\s+/g, " ").trim())
+          .filter(Boolean)
+          .filter((s) => {
+            if (s.length < 2 || s.length > 60) return false;
+            if (!/[A-Za-z]/.test(s)) return false;
+            if (/Personal Food List|Extended personal|Shopping Helper|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:|Phase\s*3/i.test(s)) return false;
+            if (s.split(/\s+/).length > 6) return false;
+            return true;
+          });
+        if (items.length) {
+          phase3[spec.field] = Array.from(new Set(items)).join(", ");
+          console.log("[parse-mb-pdf] phase3 single-line fallback", spec.field, items);
+        }
+      }
+    }
+
     let eggs = { eggs_min_per_week: null as number | null, eggs_max_per_week: null as number | null };
     let water: number | null = null;
     if (additionalInfoSection) {
