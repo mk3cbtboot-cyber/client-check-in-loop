@@ -903,52 +903,37 @@ Deno.serve(async (req) => {
         }
       }
     }
-    const _p3Hardcoded = `
-Extended personal Food List
-for Thomas Young
+    const phase3: Record<string, string | null> = {};
 
-Your personal food list has been expanded to include the following foods:
-
-Fish
-
-Eel
-
-Seafood
-
-Crab
-
-Cheese
-
-Gruyere (<45%Fat)
-
-Legumes
-
-Pinto Beans
-
-Vegetables
-
-Green Beans, Peas, Spring Onions
-
-Fat / Oil
-
-Cold-pressed Olive Oil (for Salads), Ghee
-`;
-
-    const _ep3 = (kw: string, txt: string): string | null => {
-      const m = txt.match(new RegExp("\\n" + kw.replace(/[-/\\^$*+?.()|[\\]{}]/g, "\\$&") + "\\n\\n([^\\n]+)"));
+    const extractP3Field = (keyword: string, text: string): string | null => {
+      const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const m = text.match(new RegExp('\\n' + escaped + '\\n\\n([^\\n]+)'));
       return m ? m[1].trim() : null;
     };
 
-    phase3["phase3_mb_fish"]        = _ep3("Fish",         _p3Hardcoded) ?? "";
-    phase3["phase3_mb_seafood"]     = _ep3("Seafood",      _p3Hardcoded) ?? "";
-    phase3["phase3_mb_meat"]        = _ep3("Meat",         _p3Hardcoded) ?? "";
-    phase3["phase3_mb_cheese"]      = _ep3("Cheese",       _p3Hardcoded) ?? "";
-    phase3["phase3_mb_legumes"]     = _ep3("Legumes",      _p3Hardcoded) ?? "";
-    phase3["phase3_mb_vegetables"]  = _ep3("Vegetables",   _p3Hardcoded) ?? "";
-    phase3["phase3_mb_veg_lettuce"] = _ep3("Veg./Lettuce", _p3Hardcoded) ?? "";
-    phase3["phase3_mb_sprouts"]     = _ep3("Sprouts",      _p3Hardcoded) ?? "";
-    phase3["phase3_mb_fat_oil"]     = _ep3("Fat / Oil",    _p3Hardcoded) ?? "";
-    console.log("[parse-mb-pdf] phase3 extraction", { found: Object.keys(phase3), missing: debug.phase3_missing });
+    const p3AnchorIdx = fullText.indexOf('$CA_PHASE3$');
+    let p3Section = '';
+    if (p3AnchorIdx !== -1) {
+      const p3Text = fullText.slice(p3AnchorIdx);
+      const extIdx = p3Text.indexOf('Extended personal Food List');
+      const shopIdx = extIdx !== -1 ? p3Text.indexOf('Shopping Helper Phase 3', extIdx) : -1;
+      if (extIdx !== -1 && shopIdx !== -1) {
+        p3Section = p3Text.slice(extIdx, shopIdx);
+      } else if (extIdx !== -1) {
+        p3Section = p3Text.slice(extIdx, extIdx + 1000);
+      }
+    }
+
+    phase3['phase3_mb_fish']        = extractP3Field('Fish', p3Section);
+    phase3['phase3_mb_seafood']     = extractP3Field('Seafood', p3Section);
+    phase3['phase3_mb_meat']        = extractP3Field('Meat', p3Section);
+    phase3['phase3_mb_cheese']      = extractP3Field('Cheese', p3Section);
+    phase3['phase3_mb_legumes']     = extractP3Field('Legumes', p3Section);
+    phase3['phase3_mb_vegetables']  = extractP3Field('Vegetables', p3Section);
+    phase3['phase3_mb_veg_lettuce'] = extractP3Field('Veg./Lettuce', p3Section);
+    phase3['phase3_mb_sprouts']     = extractP3Field('Sprouts', p3Section);
+    phase3['phase3_mb_fat_oil']     = extractP3Field('Fat / Oil', p3Section);
+    console.log("[parse-mb-pdf] phase3 extraction", { found: Object.entries(phase3).filter(([,v])=>v).map(([k])=>k) });
 
 
     let eggs = { eggs_min_per_week: null as number | null, eggs_max_per_week: null as number | null };
