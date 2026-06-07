@@ -903,55 +903,41 @@ Deno.serve(async (req) => {
         }
       }
     }
-    // Phase 3 extraction: pdfminer-style text — heading on own line, blank line, items on next line.
+    // ── Phase 3 extraction ──────────────────────────────────────────────────
     const phase3: Record<string, string> = {};
     debug.phase3_headings = [];
     debug.phase3_missing = [];
-    const escapeRe = (s: string) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
-    const extractP3 = (keyword: string, text: string): string | null => {
-      const re = new RegExp(`\\n${escapeRe(keyword)}\\n\\n([^\\n]+)`);
-      const m = text.match(re);
+    const _extractP3 = (keyword: string, text: string): string | null => {
+      const pattern = new RegExp(`\\n${keyword.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\n\\n([^\\n]+)`);
+      const m = text.match(pattern);
       return m ? m[1].trim() : null;
     };
 
-    const p3AnchorIdx = fullText.search(/\$+CA_PHASE3\$+/i);
-    let p3Section = "";
-    if (p3AnchorIdx !== -1) {
-      const p3Text = fullText.slice(p3AnchorIdx);
-      const extIdx = p3Text.search(/Extended personal Food List/i);
-      const shopIdx = extIdx !== -1 ? p3Text.slice(extIdx).search(/Shopping Helper Phase 3/i) : -1;
-      if (extIdx !== -1 && shopIdx !== -1) {
-        p3Section = p3Text.slice(extIdx, extIdx + shopIdx);
-      } else if (extIdx !== -1) {
-        p3Section = p3Text.slice(extIdx, extIdx + 1000);
+    const _p3AnchorIdx = fullText.indexOf("$CA_PHASE3$");
+    let _p3Section = "";
+    if (_p3AnchorIdx !== -1) {
+      const _p3Text = fullText.slice(_p3AnchorIdx);
+      const _extIdx = _p3Text.indexOf("Extended personal Food List");
+      const _shopIdx = _extIdx !== -1 ? _p3Text.indexOf("Shopping Helper Phase 3", _extIdx) : -1;
+      if (_extIdx !== -1 && _shopIdx !== -1) {
+        _p3Section = _p3Text.slice(_extIdx, _shopIdx);
+      } else if (_extIdx !== -1) {
+        _p3Section = _p3Text.slice(_extIdx, _extIdx + 1000);
       } else {
-        p3Section = p3Text.slice(0, 1000);
+        _p3Section = _p3Text.slice(0, 1000);
       }
     }
 
-    const p3Specs: { field: string; keyword: string }[] = [
-      { field: "phase3_mb_fish",        keyword: "Fish" },
-      { field: "phase3_mb_seafood",     keyword: "Seafood" },
-      { field: "phase3_mb_meat",        keyword: "Meat" },
-      { field: "phase3_mb_cheese",      keyword: "Cheese" },
-      { field: "phase3_mb_legumes",     keyword: "Legumes" },
-      { field: "phase3_mb_vegetables",  keyword: "Vegetables" },
-      { field: "phase3_mb_veg_lettuce", keyword: "Veg./Lettuce" },
-      { field: "phase3_mb_sprouts",     keyword: "Sprouts" },
-      { field: "phase3_mb_fat_oil",     keyword: "Fat / Oil" },
-    ];
-    for (const spec of p3Specs) {
-      const v = extractP3(spec.keyword, p3Section);
-      if (v) {
-        phase3[spec.field] = stripFooter(v).trim();
-        (debug.phase3_headings as { field: string; heading: string }[]).push({ field: spec.field, heading: spec.keyword });
-      } else {
-        (debug.phase3_missing as string[]).push(spec.field);
-      }
-    }
+    phase3["phase3_mb_fish"]        = _extractP3("Fish",        _p3Section);
+    phase3["phase3_mb_seafood"]     = _extractP3("Seafood",     _p3Section);
+    phase3["phase3_mb_meat"]        = _extractP3("Meat",        _p3Section);
+    phase3["phase3_mb_cheese"]      = _extractP3("Cheese",      _p3Section);
+    phase3["phase3_mb_legumes"]     = _extractP3("Legumes",     _p3Section);
+    phase3["phase3_mb_vegetables"]  = _extractP3("Vegetables",  _p3Section);
+    phase3["phase3_mb_veg_lettuce"] = _extractP3("Veg./Lettuce", _p3Section);
+    phase3["phase3_mb_sprouts"]     = _extractP3("Sprouts",     _p3Section);
+    phase3["phase3_mb_fat_oil"]     = _extractP3("Fat / Oil",   _p3Section);
     console.log("[parse-mb-pdf] phase3 extraction", { found: Object.keys(phase3), missing: debug.phase3_missing });
-    phase3["phase3_mb_fish"] = "DIAGNOSTIC_EEL";
-    console.log("[parse-mb-pdf] DIAGNOSTIC override applied to phase3_mb_fish");
 
 
     let eggs = { eggs_min_per_week: null as number | null, eggs_max_per_week: null as number | null };
