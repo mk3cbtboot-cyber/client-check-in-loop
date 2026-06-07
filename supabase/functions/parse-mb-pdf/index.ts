@@ -924,16 +924,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    const _p3Idx = fullText.indexOf('$CA_PHASE3$');
-    const _hasExt = fullText.includes('Extended personal Food List');
-    const _extIdx = fullText.indexOf('Extended personal Food List');
+    const _eIdx = fullText.indexOf('Extended personal Food List');
+    const _shopFound = fullText.includes('Shopping Helper Phase 3');
+    const _fishFound = fullText.includes('\nFish\n\n');
 
     phase3['phase3_mb_fish'] = JSON.stringify({
-      anchorFound: _p3Idx > -1,
-      extListFound: _hasExt,
-      extListIdx: _extIdx,
-      after300: _p3Idx > -1 ? fullText.slice(_p3Idx, _p3Idx + 300) : 'no anchor',
-      extContext: _hasExt ? fullText.slice(_extIdx, _extIdx + 200) : 'no ext list'
+      shopFound: _shopFound,
+      fishFound: _fishFound,
+      ext50: fullText.slice(_eIdx, _eIdx + 50),
+      ext200: fullText.slice(_eIdx + 50, _eIdx + 250)
     });
     phase3['phase3_mb_seafood']     = extractP3Field('Seafood', p3Section);
     phase3['phase3_mb_meat']        = extractP3Field('Meat', p3Section);
