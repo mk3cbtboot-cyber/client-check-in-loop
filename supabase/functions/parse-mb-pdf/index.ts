@@ -906,12 +906,8 @@ Deno.serve(async (req) => {
     const phase3: Record<string, string | null> = {};
 
     phase3['phase3_mb_fish'] = JSON.stringify({
-      textLen: fullText.length,
-      eelFlounderAt: fullText.indexOf('Eel, Flounder'),
-      clamLobsterAt: fullText.indexOf('Clams, Lobster'),
-      cherylExtAt: fullText.indexOf('Extended personal Food List\nfor Cheryl'),
-      carsonExtAt: fullText.indexOf('Extended personal Food List\nfor Carson'),
-      lastExtAt: fullText.lastIndexOf('Extended personal Food List')
+      around38700: fullText.slice(38650, 38950),
+      around16200: fullText.slice(16200, 16350)
     });
 
     phase3['phase3_mb_seafood']     = null;
@@ -922,6 +918,7 @@ Deno.serve(async (req) => {
     phase3['phase3_mb_veg_lettuce'] = null;
     phase3['phase3_mb_sprouts']     = null;
     phase3['phase3_mb_fat_oil']     = null;
+
 
 
     let eggs = { eggs_min_per_week: null as number | null, eggs_max_per_week: null as number | null };
