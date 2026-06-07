@@ -950,6 +950,8 @@ Deno.serve(async (req) => {
       }
     }
     console.log("[parse-mb-pdf] phase3 extraction", { found: Object.keys(phase3), missing: debug.phase3_missing });
+    phase3["phase3_mb_fish"] = "DIAGNOSTIC_EEL";
+    console.log("[parse-mb-pdf] DIAGNOSTIC override applied to phase3_mb_fish");
 
 
     let eggs = { eggs_min_per_week: null as number | null, eggs_max_per_week: null as number | null };
