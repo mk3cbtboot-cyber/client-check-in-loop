@@ -936,7 +936,16 @@ Deno.serve(async (req) => {
       p3SectionStart: p3Section.slice(0, 200)
     });
 
-    phase3['phase3_mb_fish']        = extractP3Field('Fish', p3Section);
+    phase3['phase3_mb_fish'] = JSON.stringify({
+      hasAnchor: fullText.includes('$CA_PHASE3$'),
+      anchorIdx: fullText.indexOf('$CA_PHASE3$'),
+      textLen: fullText.length,
+      aroundAnchor: fullText.includes('$CA_PHASE3$')
+        ? fullText.slice(fullText.indexOf('$CA_PHASE3$') - 30, fullText.indexOf('$CA_PHASE3$') + 200)
+        : 'NOT FOUND — last 200: ' + fullText.slice(-200),
+      p3SectionLen: p3Section.length,
+      p3SectionStart: p3Section.slice(0, 150)
+    });
     phase3['phase3_mb_seafood']     = extractP3Field('Seafood', p3Section);
     phase3['phase3_mb_meat']        = extractP3Field('Meat', p3Section);
     phase3['phase3_mb_cheese']      = extractP3Field('Cheese', p3Section);
