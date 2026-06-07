@@ -903,13 +903,36 @@ Deno.serve(async (req) => {
         }
       }
     }
-    const _p3Hardcoded = (
-      "Extended personal Food List\nfor Thomas Young\n\n"
-      "Your personal food list has been expanded to include the following foods:\n\n"
-      "Fish\n\nEel\n\nSeafood\n\nCrab\n\nCheese\n\nGruyere (<45%Fat)\n\n"
-      "Legumes\n\nPinto Beans\n\nVegetables\n\nGreen Beans, Peas, Spring Onions\n\n"
-      "Fat / Oil\n\nCold-pressed Olive Oil (for Salads), Ghee\n"
-    );
+    const _p3Hardcoded = `
+Extended personal Food List
+for Thomas Young
+
+Your personal food list has been expanded to include the following foods:
+
+Fish
+
+Eel
+
+Seafood
+
+Crab
+
+Cheese
+
+Gruyere (<45%Fat)
+
+Legumes
+
+Pinto Beans
+
+Vegetables
+
+Green Beans, Peas, Spring Onions
+
+Fat / Oil
+
+Cold-pressed Olive Oil (for Salads), Ghee
+`;
 
     const _ep3 = (kw: string, txt: string): string | null => {
       const m = txt.match(new RegExp("\\n" + kw.replace(/[-/\\^$*+?.()|[\\]{}]/g, "\\$&") + "\\n\\n([^\\n]+)"));
