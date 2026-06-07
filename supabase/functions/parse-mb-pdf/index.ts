@@ -903,45 +903,54 @@ Deno.serve(async (req) => {
         }
       }
     }
-    // Phase 3 extraction: pdfminer.six outputs each category as
-    //   \nCategoryName\n\nItem text on one line\n\n
-    // Search between "Extended personal Food List" and "Shopping Helper Phase 3";
-    // fall back to full phase3Section (which is sliced from $$CA_PHASE3$$).
+    // Phase 3 extraction: pdfminer-style text — heading on own line, blank line, items on next line.
     const phase3: Record<string, string> = {};
     debug.phase3_headings = [];
     debug.phase3_missing = [];
-    if (phase3Section) {
-      let searchText = phase3Section;
-      const startIdx = phase3Section.search(/Extended personal Food List/i);
-      const endIdx = phase3Section.search(/Shopping Helper Phase 3/i);
-      if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-        searchText = phase3Section.slice(startIdx, endIdx);
-      } else if (startIdx !== -1) {
-        searchText = phase3Section.slice(startIdx);
-      }
+    const escapeRe = (s: string) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+    const extractP3 = (keyword: string, text: string): string | null => {
+      const re = new RegExp(`\\n${escapeRe(keyword)}\\n\\n([^\\n]+)`);
+      const m = text.match(re);
+      return m ? m[1].trim() : null;
+    };
 
-      const phase3Patterns: { field: string; re: RegExp }[] = [
-        { field: "phase3_mb_fish",        re: /\nFish\n\n([^\n]+)/ },
-        { field: "phase3_mb_seafood",     re: /\nSeafood\n\n([^\n]+)/ },
-        { field: "phase3_mb_meat",        re: /\nMeat\n\n([^\n]+)/ },
-        { field: "phase3_mb_cheese",      re: /\nCheese\n\n([^\n]+)/ },
-        { field: "phase3_mb_legumes",     re: /\nLegumes\n\n([^\n]+)/ },
-        { field: "phase3_mb_vegetables",  re: /\nVegetables\n\n([^\n]+)/ },
-        { field: "phase3_mb_veg_lettuce", re: /\nVeg\.\/Lettuce\n\n([^\n]+)/ },
-        { field: "phase3_mb_sprouts",     re: /\nSprouts\n\n([^\n]+)/ },
-        { field: "phase3_mb_fat_oil",     re: /\nFat \/ Oil\n\n([^\n]+)/ },
-      ];
-      for (const spec of phase3Patterns) {
-        const m = searchText.match(spec.re);
-        if (m) {
-          phase3[spec.field] = stripFooter(m[1]).trim();
-          (debug.phase3_headings as { field: string; heading: string; index: number }[]).push({ field: spec.field, heading: spec.re.source, index: m.index ?? -1 });
-        } else {
-          (debug.phase3_missing as string[]).push(spec.field);
-        }
+    const p3AnchorIdx = fullText.search(/\$+CA_PHASE3\$+/i);
+    let p3Section = "";
+    if (p3AnchorIdx !== -1) {
+      const p3Text = fullText.slice(p3AnchorIdx);
+      const extIdx = p3Text.search(/Extended personal Food List/i);
+      const shopIdx = extIdx !== -1 ? p3Text.slice(extIdx).search(/Shopping Helper Phase 3/i) : -1;
+      if (extIdx !== -1 && shopIdx !== -1) {
+        p3Section = p3Text.slice(extIdx, extIdx + shopIdx);
+      } else if (extIdx !== -1) {
+        p3Section = p3Text.slice(extIdx, extIdx + 1000);
+      } else {
+        p3Section = p3Text.slice(0, 1000);
       }
-      console.log("[parse-mb-pdf] phase3 extraction", { found: Object.keys(phase3), missing: debug.phase3_missing });
     }
+
+    const p3Specs: { field: string; keyword: string }[] = [
+      { field: "phase3_mb_fish",        keyword: "Fish" },
+      { field: "phase3_mb_seafood",     keyword: "Seafood" },
+      { field: "phase3_mb_meat",        keyword: "Meat" },
+      { field: "phase3_mb_cheese",      keyword: "Cheese" },
+      { field: "phase3_mb_legumes",     keyword: "Legumes" },
+      { field: "phase3_mb_vegetables",  keyword: "Vegetables" },
+      { field: "phase3_mb_veg_lettuce", keyword: "Veg./Lettuce" },
+      { field: "phase3_mb_sprouts",     keyword: "Sprouts" },
+      { field: "phase3_mb_fat_oil",     keyword: "Fat / Oil" },
+    ];
+    for (const spec of p3Specs) {
+      const v = extractP3(spec.keyword, p3Section);
+      if (v) {
+        phase3[spec.field] = stripFooter(v).trim();
+        (debug.phase3_headings as { field: string; heading: string }[]).push({ field: spec.field, heading: spec.keyword });
+      } else {
+        (debug.phase3_missing as string[]).push(spec.field);
+      }
+    }
+    console.log("[parse-mb-pdf] phase3 extraction", { found: Object.keys(phase3), missing: debug.phase3_missing });
+
 
     let eggs = { eggs_min_per_week: null as number | null, eggs_max_per_week: null as number | null };
     let water: number | null = null;
