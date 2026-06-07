@@ -924,27 +924,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    phase3['phase3_debug'] = JSON.stringify({
-      hasAnchor: fullText.includes('$CA_PHASE3$'),
-      anchorIdx: fullText.indexOf('$CA_PHASE3$'),
-      textLength: fullText.length,
-      last500: fullText.slice(-500),
-      aroundAnchor: fullText.includes('$CA_PHASE3$')
-        ? fullText.slice(fullText.indexOf('$CA_PHASE3$') - 50, fullText.indexOf('$CA_PHASE3$') + 300)
-        : 'not found',
-      p3SectionLength: p3Section.length,
-      p3SectionStart: p3Section.slice(0, 200)
-    });
+    const _p3Idx = fullText.indexOf('$CA_PHASE3$');
+    const _hasExt = fullText.includes('Extended personal Food List');
+    const _extIdx = fullText.indexOf('Extended personal Food List');
 
     phase3['phase3_mb_fish'] = JSON.stringify({
-      hasAnchor: fullText.includes('$CA_PHASE3$'),
-      anchorIdx: fullText.indexOf('$CA_PHASE3$'),
-      textLen: fullText.length,
-      aroundAnchor: fullText.includes('$CA_PHASE3$')
-        ? fullText.slice(fullText.indexOf('$CA_PHASE3$') - 30, fullText.indexOf('$CA_PHASE3$') + 200)
-        : 'NOT FOUND — last 200: ' + fullText.slice(-200),
-      p3SectionLen: p3Section.length,
-      p3SectionStart: p3Section.slice(0, 150)
+      anchorFound: _p3Idx > -1,
+      extListFound: _hasExt,
+      extListIdx: _extIdx,
+      after300: _p3Idx > -1 ? fullText.slice(_p3Idx, _p3Idx + 300) : 'no anchor',
+      extContext: _hasExt ? fullText.slice(_extIdx, _extIdx + 200) : 'no ext list'
     });
     phase3['phase3_mb_seafood']     = extractP3Field('Seafood', p3Section);
     phase3['phase3_mb_meat']        = extractP3Field('Meat', p3Section);
