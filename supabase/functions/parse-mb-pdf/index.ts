@@ -905,35 +905,31 @@ Deno.serve(async (req) => {
     }
     const phase3: Record<string, string | null> = {};
 
-    const extractP3Field = (keyword: string, text: string): string | null => {
-      const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const m = text.match(new RegExp('\\n' + escaped + ' ([^\\n]+)'));
-      return m ? m[1].trim() : null;
-    };
+    const _p3AnchorIdx2 = fullText.indexOf('$CA_PHASE3$');
+    const _eIdx2 = fullText.indexOf('Extended personal Food List');
+    const _shopIdx2 = fullText.indexOf('Shopping Helper Phase 3');
 
-    const _p3AnchorIdx = fullText.indexOf('$CA_PHASE3$');
-    let _p3Section = '';
-    if (_p3AnchorIdx !== -1) {
-      const _p3Text = fullText.slice(_p3AnchorIdx);
-      const _extIdx = _p3Text.indexOf('Extended personal Food List');
-      const _shopIdx = _extIdx !== -1 ? _p3Text.indexOf('Shopping Helper Phase 3', _extIdx) : -1;
-      if (_extIdx !== -1 && _shopIdx !== -1) {
-        _p3Section = _p3Text.slice(_extIdx, _shopIdx);
-      } else if (_extIdx !== -1) {
-        _p3Section = _p3Text.slice(_extIdx, _extIdx + 1000);
-      }
+    let _p3Section2 = '';
+    if (_p3AnchorIdx2 !== -1 && _eIdx2 !== -1 && _shopIdx2 > _eIdx2) {
+      _p3Section2 = fullText.slice(_eIdx2, _shopIdx2);
     }
 
-    phase3['phase3_mb_fish']        = extractP3Field('Fish',        _p3Section);
-    phase3['phase3_mb_seafood']     = extractP3Field('Seafood',     _p3Section);
-    phase3['phase3_mb_meat']        = extractP3Field('Meat',        _p3Section);
-    phase3['phase3_mb_cheese']      = extractP3Field('Cheese',      _p3Section);
-    phase3['phase3_mb_legumes']     = extractP3Field('Legumes',     _p3Section);
-    phase3['phase3_mb_vegetables']  = extractP3Field('Vegetables',  _p3Section);
-    phase3['phase3_mb_veg_lettuce'] = extractP3Field('Veg./Lettuce', _p3Section);
-    phase3['phase3_mb_sprouts']     = extractP3Field('Sprouts',     _p3Section);
-    phase3['phase3_mb_fat_oil']     = extractP3Field('Fat / Oil',   _p3Section);
-    console.log("[parse-mb-pdf] phase3 extraction", { found: Object.entries(phase3).filter(([,v])=>v).map(([k])=>k) });
+    phase3['phase3_mb_fish'] = JSON.stringify({
+      anchorAt: _p3AnchorIdx2,
+      extAt: _eIdx2,
+      shopAt: _shopIdx2,
+      sectionLen: _p3Section2.length,
+      sectionStart: _p3Section2.slice(0, 200)
+    });
+
+    phase3['phase3_mb_seafood']     = null;
+    phase3['phase3_mb_meat']        = null;
+    phase3['phase3_mb_cheese']      = null;
+    phase3['phase3_mb_legumes']     = null;
+    phase3['phase3_mb_vegetables']  = null;
+    phase3['phase3_mb_veg_lettuce'] = null;
+    phase3['phase3_mb_sprouts']     = null;
+    phase3['phase3_mb_fat_oil']     = null;
 
 
     let eggs = { eggs_min_per_week: null as number | null, eggs_max_per_week: null as number | null };
