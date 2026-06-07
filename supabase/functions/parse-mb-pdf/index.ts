@@ -903,56 +903,44 @@ Deno.serve(async (req) => {
         }
       }
     }
-    const phase3DebugLog = { headings: [] as { field: string; heading: string; index: number }[], missing: [] as string[], fatOilLines: [] as string[] };
-    const phase3: Record<string, string> = phase3Section
-      ? parsePhase3SectionByKeyword(phase3Section, stripFooter, phase3DebugLog)
-      : {};
-    debug.phase3_headings = phase3DebugLog.headings;
-    debug.phase3_missing = phase3DebugLog.missing;
-    debug.phase3_fat_oil_lines = phase3DebugLog.fatOilLines;
-    console.log("[parse-mb-pdf] phase3 headings", phase3DebugLog);
-
-    // Override Sprouts with stricter parser (stops at instructional note).
+    // Phase 3 extraction: pdfminer.six outputs each category as
+    //   \nCategoryName\n\nItem text on one line\n\n
+    // Search between "Extended personal Food List" and "Shopping Helper Phase 3";
+    // fall back to full phase3Section (which is sliced from $$CA_PHASE3$$).
+    const phase3: Record<string, string> = {};
+    debug.phase3_headings = [];
+    debug.phase3_missing = [];
     if (phase3Section) {
-      const sprouts = parseSproutsField(phase3Section, stripFooter);
-      if (sprouts !== null) phase3["phase3_mb_sprouts"] = sprouts;
-    }
+      let searchText = phase3Section;
+      const startIdx = phase3Section.search(/Extended personal Food List/i);
+      const endIdx = phase3Section.search(/Shopping Helper Phase 3/i);
+      if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+        searchText = phase3Section.slice(startIdx, endIdx);
+      } else if (startIdx !== -1) {
+        searchText = phase3Section.slice(startIdx);
+      }
 
-    // Fallback: single-line scan for Phase 3 categories whose multi-line extraction
-    // returned nothing. Handles PDFs where heading + items appear on the same line.
-    if (phase3Section) {
-      const phase3FallbackSpecs: { field: string; re: RegExp }[] = [
-        { field: "phase3_mb_fish",        re: /^[ \t]*Fish[ \t]+(.+)$/im },
-        { field: "phase3_mb_seafood",     re: /^[ \t]*(?:Seafood|Shellfish)[ \t]+(.+)$/im },
-        { field: "phase3_mb_meat",        re: /^[ \t]*Meat[ \t]+(.+)$/im },
-        { field: "phase3_mb_cheese",      re: /^[ \t]*Cheese[ \t]+(.+)$/im },
-        { field: "phase3_mb_legumes",     re: /^[ \t]*(?:Legumes|Beans)[ \t]+(.+)$/im },
-        { field: "phase3_mb_vegetables",  re: /^[ \t]*Vegetables?[ \t]+(.+)$/im },
-        { field: "phase3_mb_veg_lettuce", re: /^[ \t]*Veg\.?\s*\/?\s*Lettuce[ \t]+(.+)$/im },
-        { field: "phase3_mb_sprouts",     re: /^[ \t]*Sprouts?[ \t]+(.+)$/im },
-        { field: "phase3_mb_fat_oil",     re: /^[ \t]*Fat\s*\/?\s*Oil[ \t]+(.+)$/im },
+      const phase3Patterns: { field: string; re: RegExp }[] = [
+        { field: "phase3_mb_fish",        re: /\nFish\n\n([^\n]+)/ },
+        { field: "phase3_mb_seafood",     re: /\nSeafood\n\n([^\n]+)/ },
+        { field: "phase3_mb_meat",        re: /\nMeat\n\n([^\n]+)/ },
+        { field: "phase3_mb_cheese",      re: /\nCheese\n\n([^\n]+)/ },
+        { field: "phase3_mb_legumes",     re: /\nLegumes\n\n([^\n]+)/ },
+        { field: "phase3_mb_vegetables",  re: /\nVegetables\n\n([^\n]+)/ },
+        { field: "phase3_mb_veg_lettuce", re: /\nVeg\.\/Lettuce\n\n([^\n]+)/ },
+        { field: "phase3_mb_sprouts",     re: /\nSprouts\n\n([^\n]+)/ },
+        { field: "phase3_mb_fat_oil",     re: /\nFat \/ Oil\n\n([^\n]+)/ },
       ];
-      for (const spec of phase3FallbackSpecs) {
-        if (phase3[spec.field] && phase3[spec.field].trim()) continue;
-        const m = phase3Section.match(spec.re);
-        if (!m) continue;
-        const raw = stripFooter(m[1]).replace(/^\s*[:\-–]?\s*/, "");
-        const items = raw
-          .split(/[,;]+/)
-          .map((s) => s.replace(/\s+/g, " ").trim())
-          .filter(Boolean)
-          .filter((s) => {
-            if (s.length < 2 || s.length > 60) return false;
-            if (!/[A-Za-z]/.test(s)) return false;
-            if (/Personal Food List|Extended personal|Shopping Helper|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:|Phase\s*3/i.test(s)) return false;
-            if (s.split(/\s+/).length > 6) return false;
-            return true;
-          });
-        if (items.length) {
-          phase3[spec.field] = Array.from(new Set(items)).join(", ");
-          console.log("[parse-mb-pdf] phase3 single-line fallback", spec.field, items);
+      for (const spec of phase3Patterns) {
+        const m = searchText.match(spec.re);
+        if (m) {
+          phase3[spec.field] = stripFooter(m[1]).trim();
+          (debug.phase3_headings as { field: string; heading: string; index: number }[]).push({ field: spec.field, heading: spec.re.source, index: m.index ?? -1 });
+        } else {
+          (debug.phase3_missing as string[]).push(spec.field);
         }
       }
+      console.log("[parse-mb-pdf] phase3 extraction", { found: Object.keys(phase3), missing: debug.phase3_missing });
     }
 
     let eggs = { eggs_min_per_week: null as number | null, eggs_max_per_week: null as number | null };
