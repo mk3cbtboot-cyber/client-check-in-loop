@@ -911,17 +911,16 @@ Deno.serve(async (req) => {
       return m ? m[1].trim() : null;
     };
 
-    const _p3AnchorIdx = fullText.lastIndexOf('$CA_PHASE3$');
+    const _lastExtIdx = fullText.lastIndexOf('Extended personal Food List');
+    const _lastShopIdx = _lastExtIdx !== -1 
+      ? fullText.indexOf('Shopping Helper Phase 3', _lastExtIdx)
+      : -1;
+
     let _p3Section = '';
-    if (_p3AnchorIdx !== -1) {
-      const _p3Text = fullText.slice(_p3AnchorIdx);
-      const _extIdx = _p3Text.indexOf('Extended personal Food List');
-      const _shopIdx = _extIdx !== -1 ? _p3Text.indexOf('Shopping Helper Phase 3', _extIdx) : -1;
-      if (_extIdx !== -1 && _shopIdx !== -1) {
-        _p3Section = _p3Text.slice(_extIdx, _shopIdx);
-      } else if (_extIdx !== -1) {
-        _p3Section = _p3Text.slice(_extIdx, _extIdx + 1000);
-      }
+    if (_lastExtIdx !== -1 && _lastShopIdx !== -1) {
+      _p3Section = fullText.slice(_lastExtIdx, _lastShopIdx);
+    } else if (_lastExtIdx !== -1) {
+      _p3Section = fullText.slice(_lastExtIdx, _lastExtIdx + 1000);
     }
 
     phase3['phase3_mb_fish']        = extractP3Field('Fish',        _p3Section);
