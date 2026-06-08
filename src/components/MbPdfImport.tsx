@@ -102,21 +102,34 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
       return;
     }
     setBusy(true);
+    // Capture clientId at the moment of upload so a prop change mid-flight cannot
+    // cause us to parse against a different client's path.
+    const uploadClientId = clientId;
+    // Always reset any previously stored path from earlier uploads before starting.
+    setStoragePath(null);
     try {
-      const path = `clients/${clientId}/${Date.now()}.pdf`;
+      // Fresh, unique path for THIS upload only. Include a random suffix so two
+      // uploads within the same millisecond cannot collide.
+      const uniquePath = `clients/${uploadClientId}/${Date.now()}-${crypto.randomUUID()}.pdf`;
       setReviewError(null);
-      const up = await supabase.storage.from("mb-pdfs").upload(path, file, {
+      const up = await supabase.storage.from("mb-pdfs").upload(uniquePath, file, {
         contentType: "application/pdf",
         upsert: false,
       });
       if (up.error) {
-        const detail = [`Step: storage upload`, `Path: ${path}`, `Error: ${up.error.message}`].join("\n");
+        const detail = [`Step: storage upload`, `Path: ${uniquePath}`, `Error: ${up.error.message}`].join("\n");
         setReviewError(detail);
         setReviewOpen(true);
         throw new Error(detail);
       }
+      // Use the canonical path returned by storage, not the constructed string.
+      // This guarantees the parse function downloads exactly the bytes we just uploaded.
+      const path = up.data?.path ?? uniquePath;
+      if (path !== uniquePath) {
+        console.warn("[MbPdfImport] storage returned different path", { requested: uniquePath, returned: path });
+      }
       const { data, error } = await supabase.functions.invoke("parse-mb-pdf", {
-        body: { clientId, storagePath: path },
+        body: { clientId: uploadClientId, storagePath: path },
       });
       if (error) {
         const detail = [`Step: edge function invocation`, `Function: parse-mb-pdf`, `Error: ${error.message}`].join("\n");
