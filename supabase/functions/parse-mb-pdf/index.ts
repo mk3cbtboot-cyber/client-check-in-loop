@@ -900,6 +900,44 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Fallback: extract Pumpkin Seeds from Phase 2 protein section if the main parser missed it.
+    // Mirrors the Sunflower Seeds fallback above.
+    if (phase2ProteinSection && !phase2Proteins["food_pumpkin_seeds"]) {
+      const protLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES).filter((l) => !/pumpkin/i.test(l));
+      const pumpMatch = phase2ProteinSection.match(/pumpkin[^\n]*?(?:seeds?)?[:\s-]*/i);
+      const pumpkinHeadingFound = !!pumpMatch;
+      if (pumpMatch && pumpMatch.index !== undefined) {
+        const start = pumpMatch.index + pumpMatch[0].length;
+        const rest = phase2ProteinSection.slice(start);
+        const stopRe = new RegExp(
+          `\\b(?:${protLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|")}|Personal Food List|Additional Information|Extended personal|Shopping Helper)\\b`,
+          "i",
+        );
+        const stopMatch = rest.match(stopRe);
+        let chunk = stopMatch && stopMatch.index !== undefined ? rest.slice(0, stopMatch.index) : rest;
+        chunk = stripFooter(chunk);
+        const items = chunk
+          .split(/[,;\n]+/)
+          .map((s) => s.replace(/\s+/g, " ").trim())
+          .filter(Boolean)
+          .filter((s) => {
+            if (s.length < 2 || s.length > 60) return false;
+            if (/Personal Food List|Additional Information|Extended personal|Shopping Helper|Page\s*\d|©|Metabolic Balance/i.test(s)) return false;
+            if (!/[A-Za-z]/.test(s)) return false;
+            if (s.split(/\s+/).length > 5) return false;
+            return true;
+          });
+        if (items.length) {
+          phase2Proteins["food_pumpkin_seeds"] = Array.from(new Set(items)).join(", ");
+        } else if (pumpkinHeadingFound) {
+          phase2Proteins["food_pumpkin_seeds"] = "Pumpkin Seeds";
+        }
+        console.log("[parse-mb-pdf] pumpkin seeds fallback", { headingFound: pumpkinHeadingFound, found: items.length, items });
+      } else {
+        console.log("[parse-mb-pdf] pumpkin seeds heading not found in phase2 protein section — leaving empty");
+      }
+    }
+
     const phase2Carbs = phase2CarbSection ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES, stripFooter) : {};
 
     // Fallback: same-line Starch extraction (e.g. "Starch Oatmeal" on a single line
