@@ -82,6 +82,7 @@ interface Client {
   meal_streak: number | null;
   avocado_count_week: number | null;
   egg_count_week: number | null;
+  eggs_max_per_week: number | null;
   created_at: string;
   practitioner_notes: string;
   medical_conditions: string;
