@@ -590,7 +590,9 @@ function parseMealTable(
 
   const mealChunks = region.split(/\b5\s*h(?:rs?)?\b/i).map((c) => c.trim()).filter(Boolean);
   debug.meal_chunks = mealChunks;
+  const _mealLabels = ['BREAKFAST RAW:', 'LUNCH RAW:', 'DINNER RAW:'];
   for (let mi = 0; mi < Math.min(3, mealChunks.length); mi++) {
+    console.log(_mealLabels[mi], mealChunks[mi]);
     const hasFruit = /\bFruit\b/i.test(mealChunks[mi]);
     const hasBread = /\bBread\b/i.test(mealChunks[mi]);
     for (let i = 0; i < 3; i++) {
