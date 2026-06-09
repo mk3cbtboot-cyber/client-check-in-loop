@@ -588,17 +588,35 @@ function parseMealTable(
     }
   }
 
-  const mealChunks = region.split(/\b5\s*h(?:rs?)?\b/i).map((c) => c.trim()).filter(Boolean);
-  debug.meal_chunks = mealChunks;
-  const _mealLabels = ['BREAKFAST RAW:', 'LUNCH RAW:', 'DINNER RAW:'];
-  for (let mi = 0; mi < Math.min(3, mealChunks.length); mi++) {
-    console.log(_mealLabels[mi], mealChunks[mi]);
-    const hasFruit = /\bFruit\b/i.test(mealChunks[mi]);
-    const hasBread = /\bBread\b/i.test(mealChunks[mi]);
+  const mealLabelRe = /\b(Breakfast|Lunch|Dinner)\b/gi;
+  const mealBoundaries: { meal: MealKey; start: number }[] = [];
+  for (const m of region.matchAll(mealLabelRe)) {
+    const key = m[1].toLowerCase() as MealKey;
+    if (!mealBoundaries.some((b) => b.meal === key)) {
+      mealBoundaries.push({ meal: key, start: m.index ?? 0 });
+    }
+  }
+  const mealChunksByKey: Record<MealKey, string> = { breakfast: "", lunch: "", dinner: "" };
+  for (let bi = 0; bi < mealBoundaries.length; bi++) {
+    const start = mealBoundaries[bi].start;
+    const end = mealBoundaries[bi + 1]?.start ?? region.length;
+    mealChunksByKey[mealBoundaries[bi].meal] = region.slice(start, end);
+  }
+  debug.meal_chunks = mealChunksByKey;
+  const _mealLabels: Record<MealKey, string> = {
+    breakfast: 'BREAKFAST RAW:',
+    lunch: 'LUNCH RAW:',
+    dinner: 'DINNER RAW:',
+  };
+  for (const mk of mealKeys) {
+    const chunk = mealChunksByKey[mk];
+    console.log(_mealLabels[mk], chunk);
+    const hasFruit = /\bFruit\b/i.test(chunk);
+    const hasBread = /\bBread\b/i.test(chunk);
     for (let i = 0; i < 3; i++) {
-      if (options[mealKeys[mi]][i].protein_category) {
-        options[mealKeys[mi]][i].has_fruit = hasFruit;
-        options[mealKeys[mi]][i].has_bread = hasBread;
+      if (options[mk][i].protein_category) {
+        options[mk][i].has_fruit = hasFruit;
+        options[mk][i].has_bread = hasBread;
       }
     }
   }
