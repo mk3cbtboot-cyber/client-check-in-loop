@@ -1217,11 +1217,6 @@ export default function Dashboard() {
                             const isCustom = p2Mode === "practitioner_custom";
                             return (
                               <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-                                
-                                <div className="flex gap-1">
-                                  <Button type="button" size="sm" variant={p2Mode === "mb_standard" ? "default" : "outline"} onClick={() => setPhase2StrictMode(client.id, "mb_standard")}>MB Standard</Button>
-                                  <Button type="button" size="sm" variant={p2Mode === "practitioner_custom" ? "default" : "outline"} onClick={() => setPhase2StrictMode(client.id, "practitioner_custom")}>MB Custom</Button>
-                                </div>
                                 {isCustom && client.phase2_strict_started_at && (
                                   <span className="ml-2">
                                     Strict period: <span className="font-medium text-foreground">14 days</span>
@@ -1622,10 +1617,6 @@ export default function Dashboard() {
                             <div className="space-y-3">
                               <div className="flex items-center justify-between flex-wrap gap-2">
                                 <p className="text-sm font-medium">{heading}</p>
-                                <div className="flex gap-1">
-                                  <Button type="button" size="sm" variant={mode === "mb_standard" ? "default" : "outline"} onClick={() => setPhase3Mode(client.id, "mb_standard")}>MB Standard</Button>
-                                  <Button type="button" size="sm" variant={mode === "practitioner_custom" ? "default" : "outline"} onClick={() => setPhase3Mode(client.id, "practitioner_custom")}>MB Custom</Button>
-                                </div>
                               </div>
                               <p className="text-xs text-muted-foreground">Enter a comma-separated list per category. Saved when you click outside the field.</p>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
