@@ -1133,7 +1133,7 @@ export default function Dashboard() {
                       { label: "Water Today", value: `${waterToday.toFixed(1)} L` },
                       ...(isOwnPractice ? [] : [
                         { label: "Avocado / Week", value: `${client.avocado_count_week ?? 0}` },
-                        { label: "Eggs / Week", value: `${client.egg_count_week ?? 0} / 5` },
+                        { label: "Eggs / Week", value: `${client.egg_count_week ?? 0} / ${client.eggs_max_per_week ?? 5}` },
                       ]),
                       { label: "Last Logged", value: lastLogged },
                     ];
