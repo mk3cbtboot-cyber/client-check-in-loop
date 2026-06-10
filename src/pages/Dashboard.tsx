@@ -479,7 +479,7 @@ export default function Dashboard() {
   const deletePhase2Section = (clientId: string, title: string) => {
     const c = clients.find((cl) => cl.id === clientId);
     if (!c) return;
-    const cats = categoriesForPhase(c.phase2_food_list, c.phase).filter((cat) => cat.title !== title);
+    const cats = categoriesForPhase(c.phase2_food_list, c.phase, c.phase3_mb_fat_oil).filter((cat) => cat.title !== title);
     void savePhase2FoodList(clientId, cats);
     toast.success(`Removed “${title}”`);
   };
