@@ -93,6 +93,7 @@ Deno.serve(async (req) => {
         avocado_count_week: c.avocado_count_week, egg_count_week: c.egg_count_week,
         water_today_litres: Number(c.water_today_litres), meal_streak: c.meal_streak,
         water_streak: waterStreak,
+        mb_pdf_path: c.mb_pdf_path ?? null,
         phase3_additional_foods: c.phase3_additional_foods ?? "",
         phase3_meat: c.phase3_meat ?? "",
         phase3_fish: c.phase3_fish ?? "",
