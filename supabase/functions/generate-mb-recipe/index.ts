@@ -57,6 +57,14 @@ INGREDIENT RULES (non-negotiable, apply to ALL three variations):
 - Phase rules for THIS client: ${oilAllowed ? (oil && oil !== "none" ? `the client HAS CONFIRMED ${oil} for this meal (up to 1 tablespoon / 15ml). Treat the oil as a CONFIRMED, REQUIRED ingredient — not optional. Include it in the RECIPE list as "Oil: ${oil} — up to 1 tablespoon (15ml)". Add a clear METHOD step using DIRECT, IMPERATIVE language stating the exact amount. DO NOT use conditional language like "if using", "if you choose to", "optionally", "you can", or "you may" anywhere in connection with the oil.` : "the client has chosen NOT to include oil for this meal. Do NOT mention oil anywhere — not in the recipe, not in the method, not in the notes. Use water, broth, or dry-pan techniques only.") : "absolutely NO oil of any kind. Do not add oil. Use water, broth, or dry-pan techniques only."}
 - Always prepare the protein first.
 
+SEASONING RULES (apply to ALL three variations — recipes MUST taste good):
+- Every recipe MUST include appropriate seasonings, fresh or dried herbs, and spices that complement the protein and vegetables. Bland recipes are not acceptable.
+- Add seasonings to the RECIPE ingredients list with specific quantities (e.g. "Sea salt — 1/4 tsp", "Freshly ground black pepper — 1/8 tsp", "Fresh parsley — 1 tbsp chopped", "Sweet paprika — 1/2 tsp", "Dried thyme — 1/2 tsp", "Fresh lemon juice — 1 tsp", "Garlic — 1 clove minced", "Fresh ginger — 1 tsp grated").
+- Add explicit METHOD steps describing when and how to apply each seasoning (e.g. season the protein before cooking, add aromatics at the right moment, finish with fresh herbs).
+- Vary the herb/spice profile across the three variations so each tastes distinct (e.g. Mediterranean, North African, Asian-inspired) while still respecting MB rules.
+- MB-COMPLIANT ONLY. Allowed: sea salt, black/white pepper, fresh and dried herbs (parsley, basil, thyme, oregano, rosemary, dill, mint, coriander/cilantro, chives, sage, bay leaf), spices (paprika, cumin, coriander seed, turmeric, cinnamon, nutmeg, cardamom, caraway, fennel seed, mustard powder, chili flakes, cayenne), fresh garlic, fresh ginger, fresh chili, lemon/lime juice and zest, apple cider vinegar, white wine vinegar.
+- STRICTLY FORBIDDEN: sugar, honey, maple syrup, agave or any sweetener; soy sauce, tamari, fish sauce, oyster sauce, Worcestershire, ketchup, mustard pastes, mayonnaise, stock cubes, bouillon powder, ready-made spice blends with additives, balsamic vinegar, wine, or any processed/bottled sauce or marinade. Do not mention these anywhere.
+
 METHOD RULES (write for someone who has never turned on a stove):
 - Number each step. Keep each step to one clear action.
 - Include exact temperatures in BOTH °C and °F.
