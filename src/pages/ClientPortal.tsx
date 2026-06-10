@@ -91,6 +91,7 @@ export default function ClientPortal() {
   const slotKey = meal && option ? `${meal}:${option.label}` : "";
   const regenCount = slotKey ? (regenCounts[slotKey] ?? 0) : 0;
   const regenLimitReached = regenCount >= 3;
+  const [lastIngredients, setLastIngredients] = useState<Array<{ label: string; qty: string }>>([]);
 
   // Check-in state
   const [feeling, setFeeling] = useState<number>(3);
