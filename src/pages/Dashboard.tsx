@@ -1501,7 +1501,7 @@ export default function Dashboard() {
                         {client.system_mode === "own_practice" ? (
                           <p className="text-sm text-muted-foreground">Meal plan tools are MB-specific. Switch this client to MB to manage extended food lists.</p>
                         ) : (client.phase === "phase2_strict" || client.phase === "phase2_extended") ? (() => {
-                          const cats = categoriesForPhase(client.phase2_food_list, client.phase);
+                          const cats = categoriesForPhase(client.phase2_food_list, client.phase, client.phase3_mb_fat_oil);
                           const isCustomised = Array.isArray(client.phase2_food_list);
                           const isExtended = client.phase === "phase2_extended";
                           const heading = isExtended
