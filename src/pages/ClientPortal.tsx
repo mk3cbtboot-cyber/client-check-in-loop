@@ -252,7 +252,7 @@ export default function ClientPortal() {
     setMeal(m);
     setPicks({});
     setOil("none");
-    setRecipe(null);
+    setRecipeOptions([]); setConfirmedRecipe(null);
   };
 
   const OIL_OPTIONS = [
