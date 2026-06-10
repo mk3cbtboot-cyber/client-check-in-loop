@@ -599,7 +599,7 @@ export default function ClientPortal() {
               )}
               <div className="grid grid-cols-3 gap-2">
                 {(["breakfast","lunch","dinner"] as MealType[]).map((m) => (
-                  <Button key={m} variant={meal === m ? "default" : "outline"} onClick={() => { setMeal(m); setOption(null); setRecipe(null); }}>
+                  <Button key={m} variant={meal === m ? "default" : "outline"} onClick={() => { setMeal(m); setOption(null); setRecipeOptions([]); setConfirmedRecipe(null); }}>
                     {m[0].toUpperCase() + m.slice(1)}
                   </Button>
                 ))}
