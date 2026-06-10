@@ -17,17 +17,17 @@ import {
 } from "@/lib/office-hours";
 
 
-const DEFAULT_PHASE2_OILS = [
-  "Cold-Pressed Olive Oil",
-  "Cold-Pressed Flaxseed Oil",
-  "Cold-Pressed Coconut Oil",
-  "Avocado Oil",
-];
+function parseParsedOils(raw: string | null | undefined): string[] {
+  return (raw ?? "").split(",").map((x) => x.trim()).filter((x) => x.length > 0);
+}
 
-function categoriesForPhase(raw: unknown, phase: string): FoodCategory[] {
+function categoriesForPhase(raw: unknown, phase: string, parsedOilsRaw: string | null | undefined): FoodCategory[] {
   const base = resolvePhase2Categories(raw);
   if (phase === "phase2_extended" && !base.some((c) => /oil/i.test(c.title))) {
-    return [...base, { title: "Oils (Cold-Pressed)", items: DEFAULT_PHASE2_OILS }];
+    const parsedOils = parseParsedOils(parsedOilsRaw);
+    if (parsedOils.length > 0) {
+      return [...base, { title: "Oils (Cold-Pressed)", items: parsedOils }];
+    }
   }
   return base;
 }
@@ -479,7 +479,7 @@ export default function Dashboard() {
   const deletePhase2Section = (clientId: string, title: string) => {
     const c = clients.find((cl) => cl.id === clientId);
     if (!c) return;
-    const cats = categoriesForPhase(c.phase2_food_list, c.phase).filter((cat) => cat.title !== title);
+    const cats = categoriesForPhase(c.phase2_food_list, c.phase, c.phase3_mb_fat_oil).filter((cat) => cat.title !== title);
     void savePhase2FoodList(clientId, cats);
     toast.success(`Removed “${title}”`);
   };
@@ -487,7 +487,7 @@ export default function Dashboard() {
   const deletePhase2Item = (clientId: string, title: string, item: string) => {
     const c = clients.find((cl) => cl.id === clientId);
     if (!c) return;
-    const cats = categoriesForPhase(c.phase2_food_list, c.phase).map((cat) =>
+    const cats = categoriesForPhase(c.phase2_food_list, c.phase, c.phase3_mb_fat_oil).map((cat) =>
       cat.title === title ? { ...cat, items: cat.items.filter((i) => i !== item) } : cat,
     );
     void savePhase2FoodList(clientId, cats);
@@ -1501,7 +1501,7 @@ export default function Dashboard() {
                         {client.system_mode === "own_practice" ? (
                           <p className="text-sm text-muted-foreground">Meal plan tools are MB-specific. Switch this client to MB to manage extended food lists.</p>
                         ) : (client.phase === "phase2_strict" || client.phase === "phase2_extended") ? (() => {
-                          const cats = categoriesForPhase(client.phase2_food_list, client.phase);
+                          const cats = categoriesForPhase(client.phase2_food_list, client.phase, client.phase3_mb_fat_oil);
                           const isCustomised = Array.isArray(client.phase2_food_list);
                           const isExtended = client.phase === "phase2_extended";
                           const heading = isExtended
