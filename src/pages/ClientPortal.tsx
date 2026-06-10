@@ -30,6 +30,7 @@ interface ClientState {
   water_today_litres: number;
   meal_streak: number;
   water_streak: number;
+  mb_pdf_path: string | null;
   phase3_additional_foods: string;
   phase3_meat: string;
   phase3_fish: string;
