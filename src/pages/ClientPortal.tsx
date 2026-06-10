@@ -82,7 +82,16 @@ export default function ClientPortal() {
   const [oil, setOil] = useState<string>("none");
   
   const [generating, setGenerating] = useState(false);
-  const [recipe, setRecipe] = useState<{ recipe_title: string; recipe: string[]; method: string[]; notes: string[] } | null>(null);
+  type RecipeOption = { recipe_title: string; recipe: string[]; method: string[]; notes: string[] };
+  const [recipeOptions, setRecipeOptions] = useState<RecipeOption[]>([]);
+  const [confirmedRecipe, setConfirmedRecipe] = useState<RecipeOption | null>(null);
+  const [loggingIdx, setLoggingIdx] = useState<number | null>(null);
+  // Per-slot regeneration counter, keyed by `${meal}:${option.label}`. Max 3 regenerations.
+  const [regenCounts, setRegenCounts] = useState<Record<string, number>>({});
+  const slotKey = meal && option ? `${meal}:${option.label}` : "";
+  const regenCount = slotKey ? (regenCounts[slotKey] ?? 0) : 0;
+  const regenLimitReached = regenCount >= 3;
+  const [lastIngredients, setLastIngredients] = useState<Array<{ label: string; qty: string }>>([]);
 
   // Check-in state
   const [feeling, setFeeling] = useState<number>(3);
@@ -243,7 +252,7 @@ export default function ClientPortal() {
     setMeal(m);
     setPicks({});
     setOil("none");
-    setRecipe(null);
+    setRecipeOptions([]); setConfirmedRecipe(null);
   };
 
   const OIL_OPTIONS = [
@@ -388,16 +397,25 @@ export default function ClientPortal() {
       ...(picks["starch_extra"] ? [{ label: `Starches: ${picks["starch_extra"]}`, qty: "as advised" }] : []),
       ...(picks["legumes_extra"] ? [{ label: `Legumes: ${picks["legumes_extra"]}`, qty: "as advised" }] : []),
     ];
+    const isRegen = recipeOptions.length > 0 || confirmedRecipe !== null;
+    if (isRegen && regenLimitReached) {
+      toast.error("Regeneration limit reached for this meal option.");
+      return;
+    }
     setGenerating(true);
-    setRecipe(null);
+    setRecipeOptions([]);
+    setConfirmedRecipe(null);
     try {
       const { data, error } = await supabase.functions.invoke("generate-mb-recipe", {
         body: { token, meal_type: meal, option_label: option.label, ingredients, oil: oilAllowed(client!.phase) ? oil : "none" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setRecipe(data);
-      await refresh();
+      const opts: RecipeOption[] = Array.isArray(data?.options) ? data.options : [];
+      if (opts.length === 0) throw new Error("No recipes returned");
+      setRecipeOptions(opts);
+      setLastIngredients(ingredients);
+      if (isRegen) setRegenCounts((r) => ({ ...r, [slotKey]: (r[slotKey] ?? 0) + 1 }));
     } catch (e: any) {
       toast.error(e.message ?? "Failed to generate");
     } finally {
@@ -581,7 +599,7 @@ export default function ClientPortal() {
               )}
               <div className="grid grid-cols-3 gap-2">
                 {(["breakfast","lunch","dinner"] as MealType[]).map((m) => (
-                  <Button key={m} variant={meal === m ? "default" : "outline"} onClick={() => { setMeal(m); setOption(null); setRecipe(null); }}>
+                  <Button key={m} variant={meal === m ? "default" : "outline"} onClick={() => { setMeal(m); setOption(null); setRecipeOptions([]); setConfirmedRecipe(null); }}>
                     {m[0].toUpperCase() + m.slice(1)}
                   </Button>
                 ))}
@@ -667,8 +685,8 @@ export default function ClientPortal() {
                     </div>
                   )}
 
-                  <Button onClick={generate} disabled={generating} className="w-full">
-                    {generating ? "Generating recipe…" : "Generate Recipe"}
+                  <Button onClick={generate} disabled={generating || confirmedRecipe !== null} className="w-full">
+                    {generating ? "Generating recipes…" : recipeOptions.length > 0 || confirmedRecipe ? "Generate Recipes" : "Generate Recipes"}
                   </Button>
                 </Card>
                 );
@@ -676,29 +694,96 @@ export default function ClientPortal() {
             </>
           )}
 
-          {recipe && (
-            <Card className="p-4">
-              <p className="font-medium mb-3">{recipe.recipe_title}</p>
-              <Tabs defaultValue="recipe">
-                <TabsList>
-                  <TabsTrigger value="recipe">Recipe</TabsTrigger>
-                  <TabsTrigger value="method">Method</TabsTrigger>
-                  <TabsTrigger value="notes">Notes</TabsTrigger>
-                </TabsList>
-                <TabsContent value="recipe" className="pt-3">
-                  <ul className="list-disc list-inside text-sm space-y-1">{recipe.recipe.map((r, i) => <li key={i}>{r}</li>)}</ul>
-                </TabsContent>
-                <TabsContent value="method" className="pt-3">
-                  <div className="text-sm space-y-2">{recipe.method.map((s, i) => <p key={i}>{s}</p>)}</div>
-                </TabsContent>
-                <TabsContent value="notes" className="pt-3">
-                  <ul className="list-disc list-inside text-sm space-y-1">{recipe.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
-                </TabsContent>
-              </Tabs>
-            </Card>
+          {confirmedRecipe && (() => {
+            const r = confirmedRecipe;
+            return (
+              <Card className="p-4 border-primary">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-medium">{r.recipe_title}</p>
+                  <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">Logged</span>
+                </div>
+                <Tabs defaultValue="recipe">
+                  <TabsList>
+                    <TabsTrigger value="recipe">Recipe</TabsTrigger>
+                    <TabsTrigger value="method">Method</TabsTrigger>
+                    <TabsTrigger value="notes">Notes</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="recipe" className="pt-3">
+                    <ul className="list-disc list-inside text-sm space-y-1">{r.recipe.map((x, i) => <li key={i}>{x}</li>)}</ul>
+                  </TabsContent>
+                  <TabsContent value="method" className="pt-3">
+                    <div className="text-sm space-y-2">{r.method.map((s, i) => <p key={i}>{s}</p>)}</div>
+                  </TabsContent>
+                  <TabsContent value="notes" className="pt-3">
+                    <ul className="list-disc list-inside text-sm space-y-1">{r.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+                  </TabsContent>
+                </Tabs>
+              </Card>
+            );
+          })()}
+
+          {!confirmedRecipe && recipeOptions.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">{recipeOptions.length} recipe options — swipe to choose</p>
+                <Button size="sm" variant="outline" onClick={generate} disabled={generating || regenLimitReached}>
+                  {regenLimitReached ? "No regenerations left" : `Generate new options (${3 - regenCount} left)`}
+                </Button>
+              </div>
+              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4">
+                {recipeOptions.map((r, idx) => (
+                  <Card key={idx} className="p-4 shrink-0 w-[85%] sm:w-[420px] snap-start">
+                    <p className="font-medium mb-3">Option {idx + 1}: {r.recipe_title}</p>
+                    <Tabs defaultValue="recipe">
+                      <TabsList>
+                        <TabsTrigger value="recipe">Recipe</TabsTrigger>
+                        <TabsTrigger value="method">Method</TabsTrigger>
+                        <TabsTrigger value="notes">Notes</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="recipe" className="pt-3">
+                        <ul className="list-disc list-inside text-sm space-y-1">{r.recipe.map((x, i) => <li key={i}>{x}</li>)}</ul>
+                      </TabsContent>
+                      <TabsContent value="method" className="pt-3">
+                        <div className="text-sm space-y-2">{r.method.map((s, i) => <p key={i}>{s}</p>)}</div>
+                      </TabsContent>
+                      <TabsContent value="notes" className="pt-3">
+                        <ul className="list-disc list-inside text-sm space-y-1">{r.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+                      </TabsContent>
+                    </Tabs>
+                    <Button
+                      className="w-full mt-3"
+                      disabled={loggingIdx !== null}
+                      onClick={async () => {
+                        if (!meal || !option) return;
+                        setLoggingIdx(idx);
+                        try {
+                          const { data, error } = await supabase.functions.invoke("log-mb-meal", {
+                            body: { token, meal_type: meal, option_label: option.label, ingredients: lastIngredients, recipe: r },
+                          });
+                          if (error) throw error;
+                          if (data?.error) throw new Error(data.error);
+                          setConfirmedRecipe(r);
+                          setRecipeOptions([]);
+                          toast.success("Meal logged");
+                          await refresh();
+                        } catch (e: any) {
+                          toast.error(e.message ?? "Failed to log meal");
+                        } finally {
+                          setLoggingIdx(null);
+                        }
+                      }}
+                    >
+                      {loggingIdx === idx ? "Logging…" : "I Ate This"}
+                    </Button>
+                  </Card>
+                ))}
+              </div>
+            </div>
           )}
         </section>
       )}
+
+
 
       {tab === "checkin" && (
         <section className="max-w-md mx-auto p-4">

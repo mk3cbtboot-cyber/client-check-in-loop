@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     if (!parsed.success) {
       return new Response(JSON.stringify({ error: "Invalid input" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const { token, meal_type, option_label, ingredients, phase_variant, oil } = parsed.data;
+    const { token, meal_type, option_label, ingredients, oil } = parsed.data;
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: c } = await admin.from("clients").select("*").eq("magic_token", token).maybeSingle();
@@ -31,13 +31,6 @@ Deno.serve(async (req) => {
     if (c.phase === "phase1") {
       return new Response(JSON.stringify({ error: "The recipe builder is not available during Phase 1." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-
-    // Count avocado / egg usage from this meal
-    const avocadoUses = ingredients.filter((i) => /avocado/i.test(i.label)).length;
-    if ((c.avocado_count_week ?? 0) + avocadoUses > 3) {
-      return new Response(JSON.stringify({ error: "Avocado limit (3/week) reached." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const eggsAdded = meal_type === "lunch" && /Eggs/i.test(option_label) ? 2 : 0;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -54,29 +47,25 @@ Deno.serve(async (req) => {
 
     const systemPrompt = `You are a Metabolic Balance recipe assistant writing for COMPLETE BEGINNERS who have never cooked from scratch before.
 
-INGREDIENT RULES (non-negotiable):
+You must return THREE DISTINCT recipe variations using the same provided ingredients. Each variation should differ meaningfully — different cooking methods, flavour profiles, or preparation styles — while still respecting every rule below.
+
+INGREDIENT RULES (non-negotiable, apply to ALL three variations):
 - Use EVERY ingredient in the provided list. Do not omit, substitute, or merge any item.
 - Use the EXACT quantity specified for each ingredient — verbatim, no rounding, no scaling.
 - If two vegetables are listed (Vegetable 1 AND Vegetable 2), BOTH must appear in the RECIPE list with their own gram amounts AND each must have at least one dedicated preparation step in the METHOD.
 - The Metabolic Balance protocol is a nutritional prescription — every gram is calculated for this client's macro/micronutrient needs.
-- Phase rules for THIS client: ${oilAllowed ? (oil && oil !== "none" ? `the client HAS CONFIRMED ${oil} for this meal (up to 1 tablespoon / 15ml). Treat the oil as a CONFIRMED, REQUIRED ingredient — not optional. Include it in the RECIPE list as "Oil: ${oil} — up to 1 tablespoon (15ml)". Add a clear METHOD step using DIRECT, IMPERATIVE language stating the exact amount, e.g. "Add 1/2 tablespoon of ${oil} to the pan" or "Drizzle 1 tablespoon of ${oil} over the finished dish". DO NOT use conditional language like "if using", "if you choose to", "optionally", "you can", or "you may" anywhere in connection with the oil. State the action plainly.` : "the client has chosen NOT to include oil for this meal. Do NOT mention oil anywhere — not in the recipe, not in the method, not in the notes. Use water, broth, or dry-pan techniques only.") : "absolutely NO oil of any kind. Do not add oil. Use water, broth, or dry-pan techniques only."}
+- Phase rules for THIS client: ${oilAllowed ? (oil && oil !== "none" ? `the client HAS CONFIRMED ${oil} for this meal (up to 1 tablespoon / 15ml). Treat the oil as a CONFIRMED, REQUIRED ingredient — not optional. Include it in the RECIPE list as "Oil: ${oil} — up to 1 tablespoon (15ml)". Add a clear METHOD step using DIRECT, IMPERATIVE language stating the exact amount. DO NOT use conditional language like "if using", "if you choose to", "optionally", "you can", or "you may" anywhere in connection with the oil.` : "the client has chosen NOT to include oil for this meal. Do NOT mention oil anywhere — not in the recipe, not in the method, not in the notes. Use water, broth, or dry-pan techniques only.") : "absolutely NO oil of any kind. Do not add oil. Use water, broth, or dry-pan techniques only."}
 - Always prepare the protein first.
 
 METHOD RULES (write for someone who has never turned on a stove):
 - Number each step. Keep each step to one clear action.
-- Include exact temperatures in BOTH °C and °F (e.g. "medium heat, about 180°C / 350°F").
-- Include exact timings (e.g. "cook for 4 minutes").
-- Include visual cues (colour, texture: "until golden brown and the edges look crisp").
-- Include smell cues where relevant ("you'll smell a nutty, toasted aroma when it's ready").
-- Specify the equipment needed (e.g. "non-stick frying pan", "sharp knife and chopping board", "small saucepan with lid", "digital kitchen scale", "wooden spoon").
-- Tell them HOW to prep (e.g. "wash the spinach under cold running water, then shake off excess water", "slice the carrots into thin coins about the thickness of a £1 coin / quarter").
-- Call out common beginner mistakes to avoid ("do not overcrowd the pan or the chicken will steam instead of brown", "do not flip the fish too early — wait until it releases easily from the pan").
-- Mention safety basics where relevant (washing hands after raw chicken, checking fish flakes easily with a fork, etc.).
+- Include exact temperatures in BOTH °C and °F.
+- Include exact timings, visual cues, smell cues, equipment, prep instructions, beginner mistakes to avoid, and safety basics where relevant.
 - If two vegetables are used, give each its own clearly labelled prep + cook step.
 
-OUTPUT: Return ONLY by calling the provided tool with RECIPE (every ingredient with exact quantity), METHOD (numbered beginner-friendly steps as described above), NOTES (3-5 MB compliance reminders).`;
+OUTPUT: Call the provided tool with an array of EXACTLY THREE distinct options. Each option has RECIPE (every ingredient with exact quantity), METHOD (numbered beginner-friendly steps), NOTES (3-5 MB compliance reminders).`;
 
-    const userPrompt = `Client phase: ${phaseDescriptor}\nMeal: ${meal_type} — ${option_label}\nIngredients (use exactly):\n${ingredientList}`;
+    const userPrompt = `Client phase: ${phaseDescriptor}\nMeal: ${meal_type} — ${option_label}\nIngredients (use exactly):\n${ingredientList}\n\nReturn three distinct recipe variations.`;
 
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -90,22 +79,34 @@ OUTPUT: Return ONLY by calling the provided tool with RECIPE (every ingredient w
         tools: [{
           type: "function",
           function: {
-            name: "return_mb_recipe",
-            description: "Return MB recipe with three sections.",
+            name: "return_mb_recipes",
+            description: "Return three distinct MB recipe variations.",
             parameters: {
               type: "object",
               properties: {
-                recipe_title: { type: "string" },
-                recipe: { type: "array", items: { type: "string" }, description: "Ingredient lines with exact quantities" },
-                method: { type: "array", items: { type: "string" }, description: "Numbered cooking steps in order" },
-                notes: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 },
+                options: {
+                  type: "array",
+                  minItems: 3,
+                  maxItems: 3,
+                  items: {
+                    type: "object",
+                    properties: {
+                      recipe_title: { type: "string" },
+                      recipe: { type: "array", items: { type: "string" } },
+                      method: { type: "array", items: { type: "string" } },
+                      notes: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 },
+                    },
+                    required: ["recipe_title", "recipe", "method", "notes"],
+                    additionalProperties: false,
+                  },
+                },
               },
-              required: ["recipe_title", "recipe", "method", "notes"],
+              required: ["options"],
               additionalProperties: false,
             },
           },
         }],
-        tool_choice: { type: "function", function: { name: "return_mb_recipe" } },
+        tool_choice: { type: "function", function: { name: "return_mb_recipes" } },
       }),
     });
 
@@ -119,27 +120,10 @@ OUTPUT: Return ONLY by calling the provided tool with RECIPE (every ingredient w
     const data = await aiResp.json();
     const tc = data.choices?.[0]?.message?.tool_calls?.[0];
     const args = tc ? JSON.parse(tc.function.arguments) : null;
-    if (!args) throw new Error("No recipe returned");
+    if (!args?.options || !Array.isArray(args.options) || args.options.length < 1) throw new Error("No recipes returned");
 
-    // Persist generated meal so dashboards can show last-logged
-    await admin.from("recipes").insert({
-      client_id: c.id,
-      name: args.recipe_title || option_label,
-      meal_type,
-      ingredients: args.recipe ?? [],
-      instructions: args.method ?? [],
-      prep_time: "",
-      servings: "1",
-    });
-
-    // Update counters + meal streak
-    await admin.from("clients").update({
-      avocado_count_week: (c.avocado_count_week ?? 0) + avocadoUses,
-      egg_count_week: (c.egg_count_week ?? 0) + eggsAdded,
-      meal_streak: (c.meal_streak ?? 0) + 1,
-    }).eq("id", c.id);
-
-    return new Response(JSON.stringify({ ok: true, ...args }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Return options without persisting — the client confirms via "I Ate This" which calls log-mb-meal.
+    return new Response(JSON.stringify({ ok: true, options: args.options.slice(0, 3) }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("generate-mb-recipe error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
