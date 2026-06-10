@@ -17,17 +17,17 @@ import {
 } from "@/lib/office-hours";
 
 
-const DEFAULT_PHASE2_OILS = [
-  "Cold-Pressed Olive Oil",
-  "Cold-Pressed Flaxseed Oil",
-  "Cold-Pressed Coconut Oil",
-  "Avocado Oil",
-];
+function parseParsedOils(raw: string | null | undefined): string[] {
+  return (raw ?? "").split(",").map((x) => x.trim()).filter((x) => x.length > 0);
+}
 
-function categoriesForPhase(raw: unknown, phase: string): FoodCategory[] {
+function categoriesForPhase(raw: unknown, phase: string, parsedOilsRaw: string | null | undefined): FoodCategory[] {
   const base = resolvePhase2Categories(raw);
   if (phase === "phase2_extended" && !base.some((c) => /oil/i.test(c.title))) {
-    return [...base, { title: "Oils (Cold-Pressed)", items: DEFAULT_PHASE2_OILS }];
+    const parsedOils = parseParsedOils(parsedOilsRaw);
+    if (parsedOils.length > 0) {
+      return [...base, { title: "Oils (Cold-Pressed)", items: parsedOils }];
+    }
   }
   return base;
 }
