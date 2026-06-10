@@ -396,16 +396,25 @@ export default function ClientPortal() {
       ...(picks["starch_extra"] ? [{ label: `Starches: ${picks["starch_extra"]}`, qty: "as advised" }] : []),
       ...(picks["legumes_extra"] ? [{ label: `Legumes: ${picks["legumes_extra"]}`, qty: "as advised" }] : []),
     ];
+    const isRegen = recipeOptions.length > 0 || confirmedRecipe !== null;
+    if (isRegen && regenLimitReached) {
+      toast.error("Regeneration limit reached for this meal option.");
+      return;
+    }
     setGenerating(true);
-    setRecipe(null);
+    setRecipeOptions([]);
+    setConfirmedRecipe(null);
     try {
       const { data, error } = await supabase.functions.invoke("generate-mb-recipe", {
         body: { token, meal_type: meal, option_label: option.label, ingredients, oil: oilAllowed(client!.phase) ? oil : "none" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setRecipe(data);
-      await refresh();
+      const opts: RecipeOption[] = Array.isArray(data?.options) ? data.options : [];
+      if (opts.length === 0) throw new Error("No recipes returned");
+      setRecipeOptions(opts);
+      setLastIngredients(ingredients);
+      if (isRegen) setRegenCounts((r) => ({ ...r, [slotKey]: (r[slotKey] ?? 0) + 1 }));
     } catch (e: any) {
       toast.error(e.message ?? "Failed to generate");
     } finally {
