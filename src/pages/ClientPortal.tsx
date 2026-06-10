@@ -685,8 +685,8 @@ export default function ClientPortal() {
                     </div>
                   )}
 
-                  <Button onClick={generate} disabled={generating} className="w-full">
-                    {generating ? "Generating recipe…" : "Generate Recipe"}
+                  <Button onClick={generate} disabled={generating || confirmedRecipe !== null} className="w-full">
+                    {generating ? "Generating recipes…" : recipeOptions.length > 0 || confirmedRecipe ? "Generate Recipes" : "Generate Recipes"}
                   </Button>
                 </Card>
                 );
@@ -694,29 +694,96 @@ export default function ClientPortal() {
             </>
           )}
 
-          {recipe && (
-            <Card className="p-4">
-              <p className="font-medium mb-3">{recipe.recipe_title}</p>
-              <Tabs defaultValue="recipe">
-                <TabsList>
-                  <TabsTrigger value="recipe">Recipe</TabsTrigger>
-                  <TabsTrigger value="method">Method</TabsTrigger>
-                  <TabsTrigger value="notes">Notes</TabsTrigger>
-                </TabsList>
-                <TabsContent value="recipe" className="pt-3">
-                  <ul className="list-disc list-inside text-sm space-y-1">{recipe.recipe.map((r, i) => <li key={i}>{r}</li>)}</ul>
-                </TabsContent>
-                <TabsContent value="method" className="pt-3">
-                  <div className="text-sm space-y-2">{recipe.method.map((s, i) => <p key={i}>{s}</p>)}</div>
-                </TabsContent>
-                <TabsContent value="notes" className="pt-3">
-                  <ul className="list-disc list-inside text-sm space-y-1">{recipe.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
-                </TabsContent>
-              </Tabs>
-            </Card>
+          {confirmedRecipe && (() => {
+            const r = confirmedRecipe;
+            return (
+              <Card className="p-4 border-primary">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-medium">{r.recipe_title}</p>
+                  <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">Logged</span>
+                </div>
+                <Tabs defaultValue="recipe">
+                  <TabsList>
+                    <TabsTrigger value="recipe">Recipe</TabsTrigger>
+                    <TabsTrigger value="method">Method</TabsTrigger>
+                    <TabsTrigger value="notes">Notes</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="recipe" className="pt-3">
+                    <ul className="list-disc list-inside text-sm space-y-1">{r.recipe.map((x, i) => <li key={i}>{x}</li>)}</ul>
+                  </TabsContent>
+                  <TabsContent value="method" className="pt-3">
+                    <div className="text-sm space-y-2">{r.method.map((s, i) => <p key={i}>{s}</p>)}</div>
+                  </TabsContent>
+                  <TabsContent value="notes" className="pt-3">
+                    <ul className="list-disc list-inside text-sm space-y-1">{r.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+                  </TabsContent>
+                </Tabs>
+              </Card>
+            );
+          })()}
+
+          {!confirmedRecipe && recipeOptions.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">{recipeOptions.length} recipe options — swipe to choose</p>
+                <Button size="sm" variant="outline" onClick={generate} disabled={generating || regenLimitReached}>
+                  {regenLimitReached ? "No regenerations left" : `Generate new options (${3 - regenCount} left)`}
+                </Button>
+              </div>
+              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4">
+                {recipeOptions.map((r, idx) => (
+                  <Card key={idx} className="p-4 shrink-0 w-[85%] sm:w-[420px] snap-start">
+                    <p className="font-medium mb-3">Option {idx + 1}: {r.recipe_title}</p>
+                    <Tabs defaultValue="recipe">
+                      <TabsList>
+                        <TabsTrigger value="recipe">Recipe</TabsTrigger>
+                        <TabsTrigger value="method">Method</TabsTrigger>
+                        <TabsTrigger value="notes">Notes</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="recipe" className="pt-3">
+                        <ul className="list-disc list-inside text-sm space-y-1">{r.recipe.map((x, i) => <li key={i}>{x}</li>)}</ul>
+                      </TabsContent>
+                      <TabsContent value="method" className="pt-3">
+                        <div className="text-sm space-y-2">{r.method.map((s, i) => <p key={i}>{s}</p>)}</div>
+                      </TabsContent>
+                      <TabsContent value="notes" className="pt-3">
+                        <ul className="list-disc list-inside text-sm space-y-1">{r.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+                      </TabsContent>
+                    </Tabs>
+                    <Button
+                      className="w-full mt-3"
+                      disabled={loggingIdx !== null}
+                      onClick={async () => {
+                        if (!meal || !option) return;
+                        setLoggingIdx(idx);
+                        try {
+                          const { data, error } = await supabase.functions.invoke("log-mb-meal", {
+                            body: { token, meal_type: meal, option_label: option.label, ingredients: lastIngredients, recipe: r },
+                          });
+                          if (error) throw error;
+                          if (data?.error) throw new Error(data.error);
+                          setConfirmedRecipe(r);
+                          setRecipeOptions([]);
+                          toast.success("Meal logged");
+                          await refresh();
+                        } catch (e: any) {
+                          toast.error(e.message ?? "Failed to log meal");
+                        } finally {
+                          setLoggingIdx(null);
+                        }
+                      }}
+                    >
+                      {loggingIdx === idx ? "Logging…" : "I Ate This"}
+                    </Button>
+                  </Card>
+                ))}
+              </div>
+            </div>
           )}
         </section>
       )}
+
+
 
       {tab === "checkin" && (
         <section className="max-w-md mx-auto p-4">
