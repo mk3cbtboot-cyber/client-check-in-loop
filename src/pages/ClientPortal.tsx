@@ -86,11 +86,11 @@ export default function ClientPortal() {
   const [recipeOptions, setRecipeOptions] = useState<RecipeOption[]>([]);
   const [confirmedRecipe, setConfirmedRecipe] = useState<RecipeOption | null>(null);
   const [loggingIdx, setLoggingIdx] = useState<number | null>(null);
-  // Per-slot regeneration counter, keyed by `${meal}:${option.label}`. Max 3 regenerations.
+  // Per-slot regeneration counter, keyed by `${meal}:${option.label}`. Max 1 regeneration.
   const [regenCounts, setRegenCounts] = useState<Record<string, number>>({});
   const slotKey = meal && option ? `${meal}:${option.label}` : "";
   const regenCount = slotKey ? (regenCounts[slotKey] ?? 0) : 0;
-  const regenLimitReached = regenCount >= 3;
+  const regenLimitReached = regenCount >= 1;
   const [lastIngredients, setLastIngredients] = useState<Array<{ label: string; qty: string }>>([]);
 
   // Check-in state
