@@ -512,7 +512,16 @@ export default function ClientPortal() {
   const waterTarget = 2.5;
 
   // My Plan categories — uses practitioner-customised list when set, otherwise defaults.
-  const planCategories = resolvePhase2Categories(client.phase2_food_list);
+  const planCategories = (() => {
+    const base = resolvePhase2Categories(client.phase2_food_list);
+    if (client.phase === "phase2_extended" && !base.some((c) => /oil/i.test(c.title))) {
+      const parsedOils = (client.phase3_mb_fat_oil ?? "").split(",").map((x) => x.trim()).filter((x) => x.length > 0);
+      if (parsedOils.length > 0) {
+        return [...base, { title: "Oils (Cold-Pressed)", items: parsedOils }];
+      }
+    }
+    return base;
+  })();
 
   return (
     <main className="min-h-screen bg-background pb-24">
