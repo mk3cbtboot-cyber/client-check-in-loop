@@ -269,7 +269,13 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: true });
 
     // Attach a notice to client messages that were deferred AND the practitioner is still unavailable.
-    const out = (messages ?? []).map((m: any) => {
+    const out = (messages ?? []).filter((m: any) => {
+      // Practitioner-facing AI summaries should not appear in the client's thread.
+      if (m.sender === "ai" && typeof m.body === "string" && m.body.includes("[AI-answered — for practitioner review]")) {
+        return false;
+      }
+      return true;
+    }).map((m: any) => {
       if (m.sender === "client" && m.deferred && !availability.available) {
         return { ...m, notice };
       }
