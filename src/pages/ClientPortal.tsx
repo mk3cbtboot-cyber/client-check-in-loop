@@ -192,7 +192,10 @@ export default function ClientPortal() {
     }
   };
   useEffect(() => {
-    if (tab === "messages") void loadMessages();
+    if (tab !== "messages" || !token) return;
+    void loadMessages();
+    const id = window.setInterval(() => void loadMessages(), 5000);
+    return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, token]);
 
