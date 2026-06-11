@@ -541,13 +541,21 @@ export default function ClientPortal() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <Card className="p-4">
               <p className="text-xs uppercase text-muted-foreground">Avocado</p>
-              <p className="text-2xl font-semibold">{client.avocado_count_week}/3</p>
-              <p className="text-xs text-muted-foreground">{avocadoLeft} remaining this week</p>
+              <p className="text-2xl font-semibold">
+                {client.mb_pdf_path ? `${client.avocado_count_week}/3` : `${client.avocado_count_week}`}
+              </p>
+              {client.mb_pdf_path && (
+                <p className="text-xs text-muted-foreground">{avocadoLeft} remaining this week</p>
+              )}
             </Card>
             <Card className="p-4">
               <p className="text-xs uppercase text-muted-foreground">Eggs</p>
-              <p className="text-2xl font-semibold">{client.egg_count_week}/5</p>
-              <p className="text-xs text-muted-foreground">{eggsLeft} remaining this week</p>
+              <p className="text-2xl font-semibold">
+                {client.mb_pdf_path ? `${client.egg_count_week}/5` : `${client.egg_count_week}`}
+              </p>
+              {client.mb_pdf_path && (
+                <p className="text-xs text-muted-foreground">{eggsLeft} remaining this week</p>
+              )}
             </Card>
             <Card className="p-4">
               <p className="text-xs uppercase text-muted-foreground">Water Today</p>
