@@ -204,8 +204,65 @@ Deno.serve(async (req) => {
             ? practProf.display_name.trim()
             : "your practitioner";
 
-          const planJson = JSON.stringify(full ?? {}, null, 2);
-          const systemPrompt = "You are the AI assistant for a Metabolic Balance nutrition practitioner. Answer the client's question using only the information from their personal meal plan data provided. Be specific with food names and quantities. Keep the answer brief and friendly. If the answer cannot be determined from the plan data provided, say: '" + AI_FALLBACK + "'";
+          // Build a readable, structured plan summary for the LLM rather than dumping raw JSON.
+          const f: any = full ?? {};
+          const phase = String(f.phase ?? "").toLowerCase();
+          const isP3 = phase.includes("3");
+          const list = (v: unknown) => {
+            if (Array.isArray(v)) return v.filter(Boolean).join(", ");
+            if (typeof v === "string") return v.trim();
+            return "";
+          };
+          const meal = (label: string, cat: any, pg: any, vg: any) =>
+            `- ${label}: protein category = ${cat || "(not set)"}, protein = ${pg ?? "?"} g, vegetables = ${vg ?? "?"} g`;
+
+          const proteinCats = isP3
+            ? {
+                Fish: f.phase3_mb_fish, Seafood: f.phase3_mb_seafood, Meat: f.phase3_mb_meat,
+                Cheese: f.phase3_mb_cheese, Legumes: f.phase3_mb_legumes,
+              }
+            : {
+                Fish: f.food_fish, Seafood: f.food_seafood, "Milk products": f.food_milk_products,
+                Yogurt: f.food_yogurt, Nuts: f.food_nuts, Meat: f.food_meat, Poultry: f.food_poultry,
+                Cheese: f.food_cheese, Legumes: f.food_legumes,
+                "Pumpkin seeds": f.food_pumpkin_seeds, "Sunflower seeds": f.food_sunflower_seeds,
+              };
+          const carbCats = isP3
+            ? { Vegetables: f.phase3_mb_vegetables, "Veg / lettuce": f.phase3_mb_veg_lettuce, Sprouts: f.phase3_mb_sprouts, "Fat / oil": f.phase3_mb_fat_oil }
+            : { Vegetables: f.food_vegetables, "Veg / lettuce": f.food_veg_lettuce, Starch: f.food_starch, Bread: f.food_bread, Fruit: f.food_fruit };
+
+          const fmtCats = (obj: Record<string, unknown>) =>
+            Object.entries(obj)
+              .map(([k, v]) => `  • ${k}: ${list(v) || "(none listed)"}`)
+              .join("\n");
+
+          const planSummary = [
+            `Client name: ${f.name ?? "(unknown)"}`,
+            `Phase: ${f.phase ?? "(unknown)"}`,
+            "",
+            "Meal plan (per meal):",
+            meal("Breakfast", f.breakfast_protein_category, f.breakfast_protein_grams, f.breakfast_veg_grams),
+            meal("Lunch",     f.lunch_protein_category,     f.lunch_protein_grams,     f.lunch_veg_grams),
+            meal("Dinner",    f.dinner_protein_category,    f.dinner_protein_grams,    f.dinner_veg_grams),
+            "",
+            "Allowed PROTEIN foods (grouped by category — the client may eat any item listed in their assigned category for that meal):",
+            fmtCats(proteinCats),
+            "",
+            "Allowed CARBOHYDRATE / VEGETABLE foods:",
+            fmtCats(carbCats),
+            "",
+            `Eggs: min ${f.eggs_min_per_week ?? "?"} / max ${f.eggs_max_per_week ?? "?"} per week`,
+            `Water target: ${f.water_target_litres ?? "?"} litres/day`,
+            f.weekly_food_limits ? `Weekly food limits: ${JSON.stringify(f.weekly_food_limits)}` : "",
+          ].filter(Boolean).join("\n");
+
+          const systemPrompt = [
+            "You are the AI assistant for a Metabolic Balance nutrition practitioner, answering the client's question about their personal plan.",
+            "Use ONLY the plan data provided below. Treat every food listed under a category as ALLOWED for that client when that category is assigned to a meal.",
+            "Substitution rule: if the client asks whether they can swap one food for another (e.g. 'chicken thighs instead of chicken breast'), check whether the requested food appears in the same category (e.g. Poultry, Fish, Meat) as the food they're replacing. If yes, answer YES and remind them to keep the same gram amount shown for that meal. If no, answer NO and suggest items from the correct category that ARE on their list.",
+            "Be specific: name the foods and quantities from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
+            `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
+          ].join(" ");
 
           const lovableKey = Deno.env.get("LOVABLE_API_KEY");
           console.log("ai_interceptor: lovableKey present?", !!lovableKey);
@@ -222,7 +279,7 @@ Deno.serve(async (req) => {
                 model: "google/gemini-2.5-flash",
                 messages: [
                   { role: "system", content: systemPrompt },
-                  { role: "user", content: `Client's personal plan data:\n${planJson}\n\nClient's question:\n${body}` },
+                  { role: "user", content: `CLIENT PLAN DATA:\n${planSummary}\n\nCLIENT QUESTION:\n${body}` },
                 ],
               }),
             });
