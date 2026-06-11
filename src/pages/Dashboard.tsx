@@ -52,6 +52,7 @@ interface Client {
   name: string;
   email: string;
   magic_token: string;
+  mb_pdf_path: string | null;
   phase: Phase;
   phase3_additional_foods: string;
   phase3_meat: string;
@@ -1136,8 +1137,8 @@ export default function Dashboard() {
                       { label: "Water Streak", value: `${waterStreak}d` },
                       { label: "Water Today", value: `${waterToday.toFixed(1)} L` },
                       ...(isOwnPractice ? [] : [
-                        { label: "Avocado / Week", value: `${client.avocado_count_week ?? 0}` },
-                        { label: "Eggs / Week", value: `${client.egg_count_week ?? 0} / ${client.eggs_max_per_week ?? 5}` },
+                        { label: "Avocado / Week", value: client.mb_pdf_path ? `${client.avocado_count_week ?? 0}` : "0" },
+                        { label: "Eggs / Week", value: client.mb_pdf_path ? `${client.egg_count_week ?? 0} / ${client.eggs_max_per_week ?? "—"}` : "0" },
                       ]),
                       { label: "Last Logged", value: lastLogged },
                     ];
