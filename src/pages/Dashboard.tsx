@@ -1509,6 +1509,16 @@ export default function Dashboard() {
                           const cats = categoriesForPhase(client.phase2_food_list, client.phase, client.phase3_mb_fat_oil);
                           const isCustomised = Array.isArray(client.phase2_food_list);
                           const isExtended = client.phase === "phase2_extended";
+                          if (!isCustomised && cats.length === 0) {
+                            return (
+                              <div className="rounded-md border p-6 text-center space-y-2">
+                                <p className="text-sm font-medium">No meal plan uploaded yet</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Upload this client's MB PDF to populate their Phase 2 personal food list.
+                                </p>
+                              </div>
+                            );
+                          }
                           const heading = isExtended
                             ? "Phase 2 Extended — Personal Food List"
                             : "Phase 2 Strict — Personal Food List";
