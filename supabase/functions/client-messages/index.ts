@@ -156,15 +156,7 @@ Deno.serve(async (req) => {
         deferred: !availability.available,
       });
 
-      // AI interceptor: only fire if this starts a new thread AND looks like a question.
-      const { data: priorPractitioner } = await admin
-        .from("messages")
-        .select("id")
-        .eq("client_id", c.id)
-        .eq("sender", "practitioner")
-        .limit(1);
-      const isNewThread = !priorPractitioner || priorPractitioner.length === 0;
-
+      // AI interceptor: fires on every inbound client message that looks like a plan question.
       const lower = body.toLowerCase();
       const phrases = [
         "can i", "am i allowed", "what is", "what's", "how much", "how many",
@@ -174,10 +166,79 @@ Deno.serve(async (req) => {
       ];
       const hasQuestion = body.includes("?") || phrases.some((p) => lower.includes(p));
 
-      if (isNewThread && hasQuestion) {
-        await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: AI_PLACEHOLDER });
+      if (hasQuestion) {
+        try {
+          // Fetch full parsed plan data + client/practitioner names.
+          const { data: full } = await admin
+            .from("clients")
+            .select([
+              "name", "phase",
+              "breakfast_protein_category", "breakfast_protein_grams", "breakfast_veg_grams",
+              "lunch_protein_category", "lunch_protein_grams", "lunch_veg_grams",
+              "dinner_protein_category", "dinner_protein_grams", "dinner_veg_grams",
+              "food_fish", "food_seafood", "food_milk_products", "food_yogurt", "food_nuts",
+              "food_meat", "food_poultry", "food_cheese", "food_legumes",
+              "food_pumpkin_seeds", "food_sunflower_seeds",
+              "food_vegetables", "food_veg_lettuce", "food_starch", "food_bread", "food_fruit",
+              "phase2_food_list",
+              "phase3_mb_fish", "phase3_mb_seafood", "phase3_mb_meat", "phase3_mb_cheese",
+              "phase3_mb_legumes", "phase3_mb_vegetables", "phase3_mb_veg_lettuce",
+              "phase3_mb_sprouts", "phase3_mb_fat_oil",
+              "eggs_min_per_week", "eggs_max_per_week",
+              "water_target_litres", "weekly_food_limits",
+            ].join(", "))
+            .eq("id", c.id)
+            .maybeSingle();
+
+          const { data: practProf } = await admin
+            .from("profiles")
+            .select("email")
+            .eq("id", c.practitioner_id)
+            .maybeSingle();
+          const practName = (practProf?.email ?? "your practitioner").split("@")[0]
+            .replace(/[._-]+/g, " ")
+            .replace(/\b\w/g, (s) => s.toUpperCase());
+
+          const planJson = JSON.stringify(full ?? {}, null, 2);
+          const systemPrompt = "You are the AI assistant for a Metabolic Balance nutrition practitioner. Answer the client's question using only the information from their personal meal plan data provided. Be specific with food names and quantities. Keep the answer brief and friendly. If the answer cannot be determined from the plan data provided, say: '" + AI_FALLBACK + "'";
+
+          const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+          let aiAnswer = AI_FALLBACK;
+          if (lovableKey) {
+            const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${lovableKey}`,
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [
+                  { role: "system", content: systemPrompt },
+                  { role: "user", content: `Client's personal plan data:\n${planJson}\n\nClient's question:\n${body}` },
+                ],
+              }),
+            });
+            if (aiRes.ok) {
+              const j = await aiRes.json();
+              const text = j?.choices?.[0]?.message?.content;
+              if (typeof text === "string" && text.trim()) aiAnswer = text.trim();
+            }
+          }
+
+          const assistantLabel = `${practName}'s AI Assistant`;
+          const clientFacing = `${assistantLabel}: ${aiAnswer}\n\nI've also passed your question on to ${practName} in case they'd like to add anything.`;
+          await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: clientFacing });
+
+          // Practitioner-facing summary so they know this was AI-answered.
+          const practFacing = `[AI-answered — for practitioner review]\nClient asked: ${body}\n\nAI replied: ${aiAnswer}`;
+          await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: practFacing });
+        } catch (_e) {
+          // Swallow AI errors; the client message is already saved for the practitioner.
+        }
       }
     }
+
 
     // For list (and after send), mark client as having read up to now.
     await admin
