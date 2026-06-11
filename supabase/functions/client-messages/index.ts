@@ -268,7 +268,14 @@ Deno.serve(async (req) => {
           console.log("ai_interceptor: lovableKey present?", !!lovableKey);
           let aiAnswer = AI_FALLBACK;
           if (lovableKey) {
-            console.log("ai_interceptor: before AI gateway fetch");
+          console.log("ai_interceptor: before AI gateway fetch");
+            console.log("ai_interceptor: gateway_request_body", JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: `CLIENT PLAN DATA:\n${planSummary}\n\nCLIENT QUESTION:\n${body}` },
+              ],
+            }));
             const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: {
