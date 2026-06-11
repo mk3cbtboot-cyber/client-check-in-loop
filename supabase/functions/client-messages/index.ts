@@ -6,8 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const AI_PLACEHOLDER =
-  "Hi, I'm Cheryl's AI assistant. I'll check your plan for the answer. Once the plan search is ready, I'll point you to the exact section. If your question needs Cheryl's personal attention it will be passed through to her directly.";
+const AI_FALLBACK =
+  "That's a great question for your practitioner — I've passed it on to them.";
+
 
 const Body = z.object({
   token: z.string().min(10).max(200),
