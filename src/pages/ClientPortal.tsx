@@ -43,9 +43,12 @@ interface ClientState {
   phase3_mode: "mb_standard" | "practitioner_custom";
   phase3_mb_fish: string;
   phase3_mb_seafood: string;
+  phase3_mb_meat: string;
   phase3_mb_cheese: string;
   phase3_mb_legumes: string;
   phase3_mb_vegetables: string;
+  phase3_mb_veg_lettuce: string;
+  phase3_mb_sprouts: string;
   phase3_mb_fat_oil: string;
   show_8_rules: boolean;
   weight_unit: "kg" | "lbs";
@@ -1066,72 +1069,55 @@ export default function ClientPortal() {
                 </p>
               </Card>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                {planCategories.map((cat) => (
-                  <Card key={cat.title} className="p-4">
-                    <p className="font-medium mb-2">{cat.title}</p>
-                    <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                      {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
-                    </ul>
-                  </Card>
-                ))}
-              </div>
-              {client.phase === "phase3" && (() => {
-                const isMb = client.phase3_mode === "mb_standard";
-                const groups: { label: string; field: keyof ClientState }[] = isMb ? [
-                  { label: "Fish", field: "phase3_mb_fish" },
-                  { label: "Seafood", field: "phase3_mb_seafood" },
-                  { label: "Cheese", field: "phase3_mb_cheese" },
-                  { label: "Legumes", field: "phase3_mb_legumes" },
-                  { label: "Vegetables", field: "phase3_mb_vegetables" },
-                ] : [
-                  { label: "Meat", field: "phase3_meat" },
-                  { label: "Fish", field: "phase3_fish" },
-                  { label: "Vegetables", field: "phase3_vegetables" },
-                  { label: "Fruit", field: "phase3_fruit" },
-                  { label: "Starches", field: "phase3_starches" },
-                  { label: "Bread", field: "phase3_bread" },
-                  { label: "Dairy", field: "phase3_dairy" },
-                  { label: "Other", field: "phase3_other" },
+              {client.phase === "phase3" ? (() => {
+                const groups: { title: string; field: keyof ClientState }[] = [
+                  { title: "Fish", field: "phase3_mb_fish" },
+                  { title: "Seafood", field: "phase3_mb_seafood" },
+                  { title: "Meat", field: "phase3_mb_meat" },
+                  { title: "Cheese", field: "phase3_mb_cheese" },
+                  { title: "Legumes", field: "phase3_mb_legumes" },
+                  { title: "Vegetables", field: "phase3_mb_vegetables" },
+                  { title: "Veg / Lettuce", field: "phase3_mb_veg_lettuce" },
+                  { title: "Sprouts", field: "phase3_mb_sprouts" },
+                  { title: "Oils (Cold-Pressed)", field: "phase3_mb_fat_oil" },
                 ];
-                const title = isMb ? "Your Extended Personal Food List" : "Your Additional Foods";
                 const populated = groups
-                  .map((g) => ({
-                    ...g,
-                    items: parseList(client[g.field] as string),
-                  }))
+                  .map((g) => ({ title: g.title, items: parseList(client[g.field] as string) }))
                   .filter((g) => g.items.length > 0);
-                // Oils is its own section for MB Standard — pulled exclusively from phase3_mb_fat_oil.
-                const oilItems = isMb ? parseList(client.phase3_mb_fat_oil) : [];
-                const hasAnything = populated.length > 0 || oilItems.length > 0;
+                if (populated.length === 0) {
+                  return (
+                    <Card className="p-6 text-center space-y-2">
+                      <p className="font-medium">No meal plan uploaded yet</p>
+                      <p className="text-sm text-muted-foreground">
+                        Your practitioner will upload your personalised Metabolic Balance plan here.
+                      </p>
+                    </Card>
+                  );
+                }
                 return (
-                  <Card className="p-6 space-y-3">
-                    <p className="font-medium">{title}</p>
-                    {!hasAnything ? (
-                      <p className="text-sm text-muted-foreground">{isMb ? "No extended foods have been added yet. Ask your practitioner to update your plan." : "Your practitioner will add your additional foods here once your Phase 3 consultation is complete."}</p>
-                    ) : (
-                      <>
-                        <p className="text-sm text-muted-foreground">{isMb ? "Your MB Standard Phase 3 foods, by category." : "The additional foods Cheryl has added for you, by category."}</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {populated.map((g) => (
-                            <div key={g.field} className="space-y-1">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground">{g.label}</p>
-                              <p className="text-sm text-foreground">{g.items.join(", ")}</p>
-                            </div>
-                          ))}
-                        </div>
-                        {isMb && oilItems.length > 0 && (
-                          <div className="pt-3 border-t space-y-1">
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Oils (Cold-Pressed)</p>
-                            <p className="text-sm text-foreground">{oilItems.join(", ")}</p>
-                            <p className="text-xs text-muted-foreground">Add up to 3 tablespoons per day — ideally 1 tablespoon per meal.</p>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </Card>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {populated.map((cat) => (
+                      <Card key={cat.title} className="p-4">
+                        <p className="font-medium mb-2">{cat.title}</p>
+                        <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                          {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                        </ul>
+                      </Card>
+                    ))}
+                  </div>
                 );
-              })()}
+              })() : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {planCategories.map((cat) => (
+                    <Card key={cat.title} className="p-4">
+                      <p className="font-medium mb-2">{cat.title}</p>
+                      <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                        {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                      </ul>
+                    </Card>
+                  ))}
+                </div>
+              )}
 
               <p className="text-xs text-muted-foreground text-center pt-2">
                 Quantities and exact selections are managed by your nutritionist. Use the Home tab to build today's meal.
