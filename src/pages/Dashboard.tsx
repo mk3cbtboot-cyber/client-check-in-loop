@@ -1188,7 +1188,9 @@ export default function Dashboard() {
                                   <SelectTrigger className="h-8 w-[280px]"><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     {PHASE_OPTIONS.map((p) => (
-                                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                                      <SelectItem key={p.value} value={p.value}>
+                                        {p.value === "phase2_extended" ? "Phase 2 Extended" : p.label}
+                                      </SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>
