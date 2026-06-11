@@ -168,8 +168,10 @@ Deno.serve(async (req) => {
 
       if (hasQuestion) {
         try {
+          console.log("ai_interceptor: start", { client_id: c.id, body_preview: body.slice(0, 80) });
           // Fetch full parsed plan data + client/practitioner names.
-          const { data: full } = await admin
+          console.log("ai_interceptor: before fetch client plan data");
+          const { data: full, error: fullErr } = await admin
             .from("clients")
             .select([
               "name", "phase",
@@ -189,12 +191,15 @@ Deno.serve(async (req) => {
             ].join(", "))
             .eq("id", c.id)
             .maybeSingle();
+          console.log("ai_interceptor: after fetch client plan data", { has_full: !!full, fullErr });
 
-          const { data: practProf } = await admin
+          console.log("ai_interceptor: before fetch practitioner profile");
+          const { data: practProf, error: practErr } = await admin
             .from("profiles")
             .select("email")
             .eq("id", c.practitioner_id)
             .maybeSingle();
+          console.log("ai_interceptor: after fetch practitioner profile", { has_practProf: !!practProf, practErr });
           const practName = (practProf?.email ?? "your practitioner").split("@")[0]
             .replace(/[._-]+/g, " ")
             .replace(/\b\w/g, (s) => s.toUpperCase());
@@ -203,8 +208,10 @@ Deno.serve(async (req) => {
           const systemPrompt = "You are the AI assistant for a Metabolic Balance nutrition practitioner. Answer the client's question using only the information from their personal meal plan data provided. Be specific with food names and quantities. Keep the answer brief and friendly. If the answer cannot be determined from the plan data provided, say: '" + AI_FALLBACK + "'";
 
           const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+          console.log("ai_interceptor: lovableKey present?", !!lovableKey);
           let aiAnswer = AI_FALLBACK;
           if (lovableKey) {
+            console.log("ai_interceptor: before AI gateway fetch");
             const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: {
@@ -219,22 +226,31 @@ Deno.serve(async (req) => {
                 ],
               }),
             });
+            console.log("ai_interceptor: after AI gateway fetch", { status: aiRes.status, ok: aiRes.ok });
             if (aiRes.ok) {
+              console.log("ai_interceptor: before parse AI response json");
               const j = await aiRes.json();
+              console.log("ai_interceptor: after parse AI response json", { has_choice: !!j?.choices?.[0]?.message?.content });
               const text = j?.choices?.[0]?.message?.content;
               if (typeof text === "string" && text.trim()) aiAnswer = text.trim();
+            } else {
+              console.log("ai_interceptor: AI gateway non-ok body", await aiRes.text());
             }
           }
 
           const assistantLabel = `${practName}'s AI Assistant`;
           const clientFacing = `${assistantLabel}: ${aiAnswer}\n\nI've also passed your question on to ${practName} in case they'd like to add anything.`;
-          await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: clientFacing });
+          console.log("ai_interceptor: before insert client-facing message");
+          const { error: insErr1 } = await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: clientFacing });
+          console.log("ai_interceptor: after insert client-facing message", { insErr1 });
 
           // Practitioner-facing summary so they know this was AI-answered.
           const practFacing = `[AI-answered — for practitioner review]\nClient asked: ${body}\n\nAI replied: ${aiAnswer}`;
-          await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: practFacing });
-        } catch (_e) {
-          // Swallow AI errors; the client message is already saved for the practitioner.
+          console.log("ai_interceptor: before insert practitioner-facing message");
+          const { error: insErr2 } = await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: practFacing });
+          console.log("ai_interceptor: after insert practitioner-facing message", { insErr2 });
+        } catch (e) {
+          console.error("ai_interceptor_failed", e);
         }
       }
     }
