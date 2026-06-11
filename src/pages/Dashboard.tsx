@@ -52,6 +52,7 @@ interface Client {
   name: string;
   email: string;
   magic_token: string;
+  mb_pdf_path: string | null;
   phase: Phase;
   phase3_additional_foods: string;
   phase3_meat: string;
