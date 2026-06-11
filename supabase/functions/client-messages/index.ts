@@ -196,13 +196,13 @@ Deno.serve(async (req) => {
           console.log("ai_interceptor: before fetch practitioner profile");
           const { data: practProf, error: practErr } = await admin
             .from("profiles")
-            .select("email")
+            .select("email, display_name")
             .eq("id", c.practitioner_id)
             .maybeSingle();
           console.log("ai_interceptor: after fetch practitioner profile", { has_practProf: !!practProf, practErr });
-          const practName = (practProf?.email ?? "your practitioner").split("@")[0]
-            .replace(/[._-]+/g, " ")
-            .replace(/\b\w/g, (s) => s.toUpperCase());
+          const practName = (practProf?.display_name && practProf.display_name.trim())
+            ? practProf.display_name.trim()
+            : "your practitioner";
 
           const planJson = JSON.stringify(full ?? {}, null, 2);
           const systemPrompt = "You are the AI assistant for a Metabolic Balance nutrition practitioner. Answer the client's question using only the information from their personal meal plan data provided. Be specific with food names and quantities. Keep the answer brief and friendly. If the answer cannot be determined from the plan data provided, say: '" + AI_FALLBACK + "'";
