@@ -1613,28 +1613,53 @@ export default function Dashboard() {
                             </div>
                           );
                         })() : client.phase === "phase3" ? (() => {
-                          const mode = client.phase3_mode === "mb_standard" ? "mb_standard" : "practitioner_custom";
-                          const fields = mode === "mb_standard" ? PHASE3_MB_FIELDS : PHASE3_FIELDS;
-                          const heading = mode === "mb_standard"
-                            ? "Extended Personal Food List (MB Standard)"
-                            : "Extended Food List (MB Custom)";
+                          const parsedGroups: { title: string; field: keyof Client }[] = [
+                            { title: "Fish", field: "phase3_mb_fish" },
+                            { title: "Seafood", field: "phase3_mb_seafood" },
+                            { title: "Meat", field: "phase3_mb_meat" },
+                            { title: "Cheese", field: "phase3_mb_cheese" },
+                            { title: "Legumes", field: "phase3_mb_legumes" },
+                            { title: "Vegetables", field: "phase3_mb_vegetables" },
+                            { title: "Veg / Lettuce", field: "phase3_mb_veg_lettuce" },
+                            { title: "Sprouts", field: "phase3_mb_sprouts" },
+                            { title: "Oils (Cold-Pressed)", field: "phase3_mb_fat_oil" },
+                          ];
+                          const populated = parsedGroups
+                            .map((g) => ({
+                              title: g.title,
+                              items: ((client[g.field] as string) ?? "")
+                                .split(",")
+                                .map((s) => s.trim())
+                                .filter(Boolean),
+                            }))
+                            .filter((g) => g.items.length > 0);
+                          if (populated.length === 0) {
+                            return (
+                              <div className="rounded-md border p-6 text-center space-y-2">
+                                <p className="text-sm font-medium">No meal plan uploaded yet</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Upload this client's MB PDF to populate their Phase 3 extended food list.
+                                </p>
+                              </div>
+                            );
+                          }
                           return (
                             <div className="space-y-3">
-                              <div className="flex items-center justify-between flex-wrap gap-2">
-                                <p className="text-sm font-medium">{heading}</p>
+                              <div>
+                                <p className="text-sm font-medium">Phase 3 — Extended Personal Food List</p>
+                                <p className="text-xs text-muted-foreground">Parsed from this client's MB PDF.</p>
                               </div>
-                              <p className="text-xs text-muted-foreground">Enter a comma-separated list per category. Saved when you click outside the field.</p>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {fields.map((f) => (
-                                  <div key={f.key} className="space-y-1">
-                                    <Label htmlFor={`${f.key}-${client.id}`} className="text-xs">{f.label}</Label>
-                                    <Input
-                                      id={`${f.key}-${client.id}`}
-                                      placeholder="e.g. Ribeye Steak, Lamb Chop"
-                                      value={(client[f.key as keyof Client] as string) ?? ""}
-                                      onChange={(e) => setPhase3Field(client.id, f.key, e.target.value)}
-                                      onBlur={(e) => savePhase3Field(client.id, f.key, e.target.value)}
-                                    />
+                              <div className="space-y-3">
+                                {populated.map((cat) => (
+                                  <div key={cat.title} className="border rounded-md p-3 space-y-2">
+                                    <p className="text-sm font-medium">{cat.title}</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {cat.items.map((item) => (
+                                        <span key={item} className="inline-flex items-center rounded-full bg-secondary text-secondary-foreground text-xs px-2.5 py-1">
+                                          {item}
+                                        </span>
+                                      ))}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
