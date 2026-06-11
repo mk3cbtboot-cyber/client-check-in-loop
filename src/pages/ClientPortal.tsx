@@ -43,9 +43,12 @@ interface ClientState {
   phase3_mode: "mb_standard" | "practitioner_custom";
   phase3_mb_fish: string;
   phase3_mb_seafood: string;
+  phase3_mb_meat: string;
   phase3_mb_cheese: string;
   phase3_mb_legumes: string;
   phase3_mb_vegetables: string;
+  phase3_mb_veg_lettuce: string;
+  phase3_mb_sprouts: string;
   phase3_mb_fat_oil: string;
   show_8_rules: boolean;
   weight_unit: "kg" | "lbs";
