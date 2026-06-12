@@ -428,6 +428,12 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
             <Lock className="h-3.5 w-3.5" /> Plan confirmed — locked for the week.
           </div>
         )}
+        {eggsBudgeted && (
+          <p className={`mt-3 text-xs ${plannedEggs > (eggsMaxPerWeek ?? 0) ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
+            🥚 {plannedEggs} of {eggsMaxPerWeek} eggs planned this week
+            {plannedEggs > (eggsMaxPerWeek ?? 0) && " — over your allowance"}
+          </p>
+        )}
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
