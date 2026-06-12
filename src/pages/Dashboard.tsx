@@ -367,12 +367,21 @@ export default function Dashboard() {
 
   const load = async () => {
     const { data: sessionData } = await supabase.auth.getSession();
-    const practitionerEmail = sessionData.session?.user.email?.toLowerCase() ?? "";
-    const { data: allRows } = await supabase
+    if (!sessionData.session) {
+      // No session yet (e.g. token refreshing). Don't wipe existing client list.
+      return;
+    }
+    const practitionerEmail = sessionData.session.user.email?.toLowerCase() ?? "";
+    const { data: allRows, error } = await supabase
       .from("clients")
       .select("*")
       .order("created_at", { ascending: false });
-    const clientRows = (allRows ?? []).filter(
+    if (error || allRows == null) {
+      // Transient failure / RLS race — keep previous client list rather than blanking it.
+      console.warn("Dashboard load(): clients fetch failed, preserving current list", error);
+      return;
+    }
+    const clientRows = allRows.filter(
       (c) => (c.email ?? "").toLowerCase() !== practitionerEmail,
     );
     setClients(clientRows as Client[]);
