@@ -270,14 +270,20 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
     const patch: Partial<WeeklyPlan> = {};
     const key = picker.slot === "primary" ? `${m}_selections` : `${m}_selections_alt`;
     (patch as any)[key] = next;
-    // when primary selection changes, recompute limit & primary_days
+    // when primary selection changes, recompute limit & primary_days — but preserve egg-split.
     if (picker.slot === "primary") {
       const opt = selectedOption(m, "primary");
       const lc = checkMealLimits(opt, next, weeklyFoodLimits ?? null);
-      (patch as any)[`${m}_primary_days`] = lc.limited ? lc.maxDays : 7;
-      if (!lc.limited) {
-        (patch as any)[`${m}_meal_id_alt`] = null;
-        (patch as any)[`${m}_selections_alt`] = {};
+      const storedDays = primaryDaysFor(m);
+      const isEggSplit = !!opt && eggsPerServingFor(opt) > 0 && storedDays < 7 && !lc.limited;
+      if (isEggSplit) {
+        // keep stored split & alt assignment from the egg dialog
+      } else {
+        (patch as any)[`${m}_primary_days`] = lc.limited ? lc.maxDays : 7;
+        if (!lc.limited) {
+          (patch as any)[`${m}_meal_id_alt`] = null;
+          (patch as any)[`${m}_selections_alt`] = {};
+        }
       }
     }
     await persist(patch);
