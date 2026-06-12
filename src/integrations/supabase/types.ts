@@ -561,69 +561,96 @@ export type Database = {
       }
       weekly_meal_plans: {
         Row: {
+          breakfast_locked_recipe: Json | null
+          breakfast_locked_recipe_alt: Json | null
           breakfast_meal_id: number | null
           breakfast_meal_id_alt: number | null
           breakfast_primary_days: number
+          breakfast_primary_log_count: number
           breakfast_selections: Json
           breakfast_selections_alt: Json
           client_id: string
           confirmed_at: string | null
           created_at: string
+          dinner_locked_recipe: Json | null
+          dinner_locked_recipe_alt: Json | null
           dinner_meal_id: number | null
           dinner_meal_id_alt: number | null
           dinner_primary_days: number
+          dinner_primary_log_count: number
           dinner_selections: Json
           dinner_selections_alt: Json
           id: string
+          lunch_locked_recipe: Json | null
+          lunch_locked_recipe_alt: Json | null
           lunch_meal_id: number | null
           lunch_meal_id_alt: number | null
           lunch_primary_days: number
+          lunch_primary_log_count: number
           lunch_selections: Json
           lunch_selections_alt: Json
           updated_at: string
           week_start_date: string
         }
         Insert: {
+          breakfast_locked_recipe?: Json | null
+          breakfast_locked_recipe_alt?: Json | null
           breakfast_meal_id?: number | null
           breakfast_meal_id_alt?: number | null
           breakfast_primary_days?: number
+          breakfast_primary_log_count?: number
           breakfast_selections?: Json
           breakfast_selections_alt?: Json
           client_id: string
           confirmed_at?: string | null
           created_at?: string
+          dinner_locked_recipe?: Json | null
+          dinner_locked_recipe_alt?: Json | null
           dinner_meal_id?: number | null
           dinner_meal_id_alt?: number | null
           dinner_primary_days?: number
+          dinner_primary_log_count?: number
           dinner_selections?: Json
           dinner_selections_alt?: Json
           id?: string
+          lunch_locked_recipe?: Json | null
+          lunch_locked_recipe_alt?: Json | null
           lunch_meal_id?: number | null
           lunch_meal_id_alt?: number | null
           lunch_primary_days?: number
+          lunch_primary_log_count?: number
           lunch_selections?: Json
           lunch_selections_alt?: Json
           updated_at?: string
           week_start_date: string
         }
         Update: {
+          breakfast_locked_recipe?: Json | null
+          breakfast_locked_recipe_alt?: Json | null
           breakfast_meal_id?: number | null
           breakfast_meal_id_alt?: number | null
           breakfast_primary_days?: number
+          breakfast_primary_log_count?: number
           breakfast_selections?: Json
           breakfast_selections_alt?: Json
           client_id?: string
           confirmed_at?: string | null
           created_at?: string
+          dinner_locked_recipe?: Json | null
+          dinner_locked_recipe_alt?: Json | null
           dinner_meal_id?: number | null
           dinner_meal_id_alt?: number | null
           dinner_primary_days?: number
+          dinner_primary_log_count?: number
           dinner_selections?: Json
           dinner_selections_alt?: Json
           id?: string
+          lunch_locked_recipe?: Json | null
+          lunch_locked_recipe_alt?: Json | null
           lunch_meal_id?: number | null
           lunch_meal_id_alt?: number | null
           lunch_primary_days?: number
+          lunch_primary_log_count?: number
           lunch_selections?: Json
           lunch_selections_alt?: Json
           updated_at?: string
