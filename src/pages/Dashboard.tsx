@@ -155,6 +155,8 @@ export default function Dashboard() {
   const [outOfOffice, setOutOfOffice] = useState(false);
   const [oooMessage, setOooMessage] = useState("");
   const [oooReturnDate, setOooReturnDate] = useState<string>("");
+  const [displayName, setDisplayName] = useState("");
+  const [savingDisplayName, setSavingDisplayName] = useState(false);
   const [savingHours, setSavingHours] = useState(false);
   const [nowTick, setNowTick] = useState(0);
   useEffect(() => {
