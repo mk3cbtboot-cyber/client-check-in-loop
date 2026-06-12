@@ -200,9 +200,17 @@ Deno.serve(async (req) => {
             .eq("id", c.practitioner_id)
             .maybeSingle();
           console.log("ai_interceptor: after fetch practitioner profile", { has_practProf: !!practProf, practErr });
+          const firstNameFromEmail = (email: string | null | undefined): string | null => {
+            if (!email || typeof email !== "string") return null;
+            const local = email.split("@")[0] ?? "";
+            const letters = local.replace(/[^A-Za-z]/g, "");
+            if (!letters) return null;
+            return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
+          };
           const practName = (practProf?.display_name && practProf.display_name.trim())
             ? practProf.display_name.trim()
-            : "your practitioner";
+            : (firstNameFromEmail(practProf?.email) ?? "your practitioner");
+
 
           // Build a readable, structured plan summary for the LLM rather than dumping raw JSON.
           const f: any = full ?? {};
