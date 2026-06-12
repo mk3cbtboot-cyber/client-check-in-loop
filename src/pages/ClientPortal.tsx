@@ -556,7 +556,7 @@ export default function ClientPortal() {
             <Card className="p-4">
               <p className="text-xs uppercase text-muted-foreground">Eggs</p>
               <p className="text-2xl font-semibold">
-                {client.mb_pdf_path ? `${client.egg_count_week}/5` : `${client.egg_count_week}`}
+                {client.mb_pdf_path ? `${client.egg_count_week}/${eggsMax}` : `${client.egg_count_week}`}
               </p>
               {client.mb_pdf_path && (
                 <p className="text-xs text-muted-foreground">{eggsLeft} remaining this week</p>
