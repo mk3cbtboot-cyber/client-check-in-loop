@@ -471,6 +471,32 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availability.available]);
 
+  // Realtime: external changes to the clients table (new invites, edits, archives,
+  // restores) propagate without manual refresh.
+  useEffect(() => {
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (cancelled || !data.session) return;
+      const userId = data.session.user.id;
+      channel = supabase
+        .channel(`dashboard-clients-${userId}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "clients", filter: `practitioner_id=eq.${userId}` },
+          () => { void load(); },
+        )
+        .subscribe();
+    })();
+    return () => {
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, []);
+
+
+
 
   const addClient = async (e: React.FormEvent) => {
     e.preventDefault();
