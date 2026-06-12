@@ -226,15 +226,11 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
     }
   };
 
-  const chooseOption = async (m: MealType, slot: "primary" | "alt", optId: number) => {
-    if (confirmed) return;
-    const current = mealIdFor(m, slot);
-    const toggling = current === optId;
+  const applyChoose = async (m: MealType, slot: "primary" | "alt", optId: number, toggling: boolean) => {
     const next: Partial<WeeklyPlan> = {};
     if (slot === "primary") {
       next[`${m}_meal_id` as const] = toggling ? null : (optId as any);
       next[`${m}_selections` as const] = {} as any;
-      // resetting primary clears alt too
       next[`${m}_meal_id_alt` as const] = null as any;
       next[`${m}_selections_alt` as const] = {} as any;
       next[`${m}_primary_days` as const] = 7 as any;
@@ -243,6 +239,29 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
       next[`${m}_selections_alt` as const] = {} as any;
     }
     await persist(next);
+  };
+
+  const chooseOption = async (m: MealType, slot: "primary" | "alt", optId: number) => {
+    if (confirmed) return;
+    const current = mealIdFor(m, slot);
+    const toggling = current === optId;
+
+    // Egg budget guard — warn before assigning if total would exceed the weekly limit.
+    if (!toggling && eggsBudgeted) {
+      const base = MB_OPTIONS[m].find((o) => o.id === optId) ?? null;
+      const incomingEggs = eggsPerServingFor(base ? withOil(base, oilAllowed) : null);
+      if (incomingEggs > 0) {
+        const others = plannedEggsExcluding({ meal: m, slot });
+        const daysForIncoming = slot === "primary" ? 7 : Math.max(0, 7 - primaryDaysFor(m));
+        const projected = others + incomingEggs * daysForIncoming;
+        if (projected > (eggsMaxPerWeek ?? 0)) {
+          setEggConfirm({ meal: m, slot, optId, eggsInMeal: incomingEggs * daysForIncoming, eggsPlanned: others });
+          return;
+        }
+      }
+    }
+
+    await applyChoose(m, slot, optId, toggling);
   };
 
   const openPicker = (slot: "primary" | "alt", m: MealType, c: { key: string; label: string; sources: (keyof typeof MB_FOODS)[] }) => {
