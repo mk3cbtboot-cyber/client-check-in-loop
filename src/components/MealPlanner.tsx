@@ -181,14 +181,16 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   const isMealComplete = (m: MealType): boolean => {
     const primaryOpt = selectedOption(m, "primary");
     if (!isOptionComplete(primaryOpt, sel(m, "primary"))) return false;
+    const storedDays = primaryDaysFor(m);
+    const isEggSplit = !!primaryOpt && eggsPerServingFor(primaryOpt) > 0 && storedDays < 7;
     const lc = limitCheck(m);
-    if (!lc.limited) return true;
-    // require ack for every limited reason
-    if (!lc.reasons.every((r) => isAcknowledged(r.food))) return false;
+    if (!lc.limited && !isEggSplit) return true;
+    if (lc.limited && !lc.reasons.every((r) => isAcknowledged(r.food))) return false;
     const altOpt = selectedOption(m, "alt");
     if (!altOpt) return false;
     const altLc = checkMealLimits(altOpt, sel(m, "alt"), weeklyFoodLimits ?? null);
-    if (altLc.maxDays < 7 - lc.maxDays) return false;
+    const primaryDays = isEggSplit ? storedDays : lc.maxDays;
+    if (altLc.maxDays < 7 - primaryDays) return false;
     return isOptionComplete(altOpt, sel(m, "alt"));
   };
 
