@@ -693,10 +693,31 @@ export default function Dashboard() {
               <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader><DialogTitle>Settings</DialogTitle></DialogHeader>
                 <Tabs defaultValue="practice">
-                  <TabsList className="w-full grid grid-cols-2">
+                  <TabsList className="w-full grid grid-cols-3">
                     <TabsTrigger value="practice">Practice type</TabsTrigger>
+                    <TabsTrigger value="profile">Profile</TabsTrigger>
                     <TabsTrigger value="availability">Availability</TabsTrigger>
                   </TabsList>
+
+                  <TabsContent value="profile" className="space-y-3 pt-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="dispname">Display name</Label>
+                      <Input
+                        id="dispname"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="e.g. Cheryl"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        This is the name clients see (e.g. in messages from your AI assistant). If left blank, your first name will be used.
+                      </p>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button onClick={saveDisplayName} disabled={savingDisplayName}>
+                        {savingDisplayName ? "Saving…" : "Save display name"}
+                      </Button>
+                    </div>
+                  </TabsContent>
 
                   <TabsContent value="practice" className="space-y-2 pt-3">
                     {TIERS.map((t) => {
