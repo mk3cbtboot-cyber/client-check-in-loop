@@ -1151,6 +1151,7 @@ export default function ClientPortal() {
               token={token!}
               filteredSources={filteredSources}
               weeklyFoodLimits={client.weekly_food_limits ?? {}}
+              eggsMaxPerWeek={client.eggs_max_per_week ?? null}
               onPlanChanged={(p) => setWeeklyPlan(p)}
               oilAllowed={oilAllowed(client.phase)}
             />
