@@ -118,11 +118,45 @@ Deno.serve(async (req) => {
       meal_streak: (c.meal_streak ?? 0) + 1,
     }).eq("id", c.id);
 
+    // Lock the recipe to this week's plan slot, and bump the primary log counter.
+    let updatedPlan: any = null;
+    if (variant) {
+      const monday = mondayOf(new Date()).toISOString().slice(0, 10);
+      const { data: planRow } = await admin
+        .from("weekly_meal_plans")
+        .select("*")
+        .eq("client_id", c.id)
+        .eq("week_start_date", monday)
+        .maybeSingle();
+      if (planRow) {
+        const suffix = variant === "alt" ? "_alt" : "";
+        const recipeCol = `${meal_type}_locked_recipe${suffix}`;
+        const countCol = `${meal_type}_primary_log_count`;
+        const patch: Record<string, unknown> = {};
+        if (planRow[recipeCol] == null) patch[recipeCol] = recipe;
+        if (variant === "primary") {
+          patch[countCol] = (Number(planRow[countCol]) || 0) + 1;
+        }
+        if (Object.keys(patch).length) {
+          const { data: saved } = await admin
+            .from("weekly_meal_plans")
+            .update(patch)
+            .eq("id", planRow.id)
+            .select()
+            .single();
+          updatedPlan = saved;
+        } else {
+          updatedPlan = planRow;
+        }
+      }
+    }
+
     return new Response(JSON.stringify({
       ok: true,
       eggs_in_meal: eggsInMeal,
       eggs_used_this_week: eggsUsedThisWeek + eggsInMeal,
       eggs_max_per_week: eggsMax,
+      plan: updatedPlan,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("log-mb-meal error:", e);
