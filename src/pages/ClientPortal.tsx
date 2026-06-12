@@ -618,212 +618,101 @@ export default function ClientPortal() {
             </Card>
           ) : (
             <>
-              {weekConfirmed && (
-                <Card className="p-3 border-primary/40 bg-primary/5">
-                  <p className="text-xs text-primary">
-                    Your weekly meal plan is set — recipe options are limited to the foods you selected for this week.
-                  </p>
-                </Card>
-              )}
+              <Card className="p-3 border-primary/40 bg-primary/5">
+                <p className="text-xs text-primary">
+                  Your weekly meal plan is set — recipe options are limited to the foods you selected for this week.
+                </p>
+              </Card>
               <div className="grid grid-cols-3 gap-2">
                 {(["breakfast","lunch","dinner"] as MealType[]).map((m) => (
-                  <Button key={m} variant={meal === m ? "default" : "outline"} onClick={() => { setMeal(m); setOption(null); setRecipeOptions([]); setConfirmedRecipe(null); }}>
+                  <Button key={m} variant={meal === m ? "default" : "outline"} onClick={() => setMeal(m)}>
                     {m[0].toUpperCase() + m.slice(1)}
                   </Button>
                 ))}
               </div>
 
-              {meal && (
-                <Card className="p-4 space-y-3">
-                  <p className="text-sm font-medium">Choose a {meal} option</p>
-                  <div className="grid gap-2 md:grid-cols-3">
-                    {optionsForMeal(meal).map((o) => (
-                      <Button key={o.id} variant={option?.id === o.id ? "default" : "outline"} className="h-auto py-3 text-left whitespace-normal" onClick={() => pickOption(meal, o)}>
-                        <span className="text-xs">Option {o.id} — {o.label}</span>
-                      </Button>
-                    ))}
-                  </div>
-                </Card>
-              )}
+              {meal && (() => {
+                const wp = weeklyPlan as any;
+                const primaryId = wp[`${meal}_meal_id`] as number | null;
+                const altId = wp[`${meal}_meal_id_alt`] as number | null;
+                const primaryDays = Number(wp[`${meal}_primary_days`] ?? 7);
+                const primaryLogCount = Number(wp[`${meal}_primary_log_count`] ?? 0);
+                const isSplit = altId != null && primaryDays < 7;
+                const hidePrimary = isSplit && primaryLogCount >= primaryDays;
+                const primaryOption = primaryId != null ? MB_OPTIONS[meal].find((o) => o.id === primaryId) ?? null : null;
+                const altOption = altId != null ? MB_OPTIONS[meal].find((o) => o.id === altId) ?? null : null;
+                const primaryLocked: any = wp[`${meal}_locked_recipe`] ?? null;
+                const altLocked: any = wp[`${meal}_locked_recipe_alt`] ?? null;
+                const primarySelections = (wp[`${meal}_selections`] as Record<string, string>) ?? {};
+                const altSelections = (wp[`${meal}_selections_alt`] as Record<string, string>) ?? {};
 
-              {option && meal && (() => {
                 const isP3Plus = client.phase === "phase3" || client.phase === "phase4";
                 const isCustomMode = client.phase3_mode !== "mb_standard";
-                const starchExtras = (isP3Plus && isCustomMode) ? parseList(client.phase3_starches) : [];
-                const hasStarchAlready = option.components.some((c) => c.sources.includes("starch"));
-                const legumesExtras = isP3Plus ? parseList(isCustomMode ? "" : client.phase3_mb_legumes) : [];
-                const hasLegumesAlready = option.components.some((c) => c.sources.includes("legumes"));
-                const extraComponents = [
-                  ...((starchExtras.length > 0 && !hasStarchAlready)
-                    ? [{ key: "starch_extra", label: "Starches (optional)", qty: "as advised", sources: ["starch"] as (keyof typeof MB_FOODS)[], optional: true }]
-                    : []),
-                  ...((legumesExtras.length > 0 && !hasLegumesAlready)
-                    ? [{ key: "legumes_extra", label: "Legumes (optional)", qty: "as advised", sources: ["legumes"] as (keyof typeof MB_FOODS)[], optional: true }]
-                    : []),
-                ];
-                const allComponents = [...option.components, ...extraComponents];
+                const buildExtras = (opt: OptionDef) => {
+                  const starchExtras = (isP3Plus && isCustomMode) ? parseList(client.phase3_starches) : [];
+                  const hasStarchAlready = opt.components.some((c) => c.sources.includes("starch"));
+                  const legumesExtras = isP3Plus ? parseList(isCustomMode ? "" : client.phase3_mb_legumes) : [];
+                  const hasLegumesAlready = opt.components.some((c) => c.sources.includes("legumes"));
+                  return [
+                    ...((starchExtras.length > 0 && !hasStarchAlready)
+                      ? [{ key: "starch_extra", label: "Starches (optional)", qty: "as advised", sources: ["starch"] as (keyof typeof MB_FOODS)[], optional: true }]
+                      : []),
+                    ...((legumesExtras.length > 0 && !hasLegumesAlready)
+                      ? [{ key: "legumes_extra", label: "Legumes (optional)", qty: "as advised", sources: ["legumes"] as (keyof typeof MB_FOODS)[], optional: true }]
+                      : []),
+                  ];
+                };
+
+                const refetchAll = async () => {
+                  const { data } = await supabase.functions.invoke("weekly-meal-plan", { body: { token, action: "get" } });
+                  setWeeklyPlan(data?.plan ?? null);
+                  await refresh();
+                };
+
                 return (
-                <Card className="p-4 space-y-4">
-                  <p className="font-medium">{option.label}</p>
-                  {option.fixed?.map((f, i) => (
-                    <p key={i} className="text-sm text-muted-foreground">Fixed: <span className="font-medium text-foreground">{f.label} — {f.qty}</span></p>
-                  ))}
-                  {allComponents.map((comp) => {
-                    const items = restrictedItems(comp.sources, comp.key);
-                    const showAvocadoNote = comp.sources.includes("vegetables") && (client.avocado_count_week >= 3);
-                    const showOilBefore = oilAllowed(client.phase) && comp.key === "fruit";
-                    return (
-                      <div key={comp.key} className="space-y-3">
-                        {showOilBefore && (
-                          <div className="space-y-1">
-                            <Label>Oil (optional)</Label>
-                            <Select value={oil} onValueChange={setOil}>
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {OIL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                            <p className="text-xs text-muted-foreground">Up to 1 tbsp (15ml) per meal · max 3 tbsp total per day.</p>
-                          </div>
-                        )}
-                        <div className="space-y-1">
-                          <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {comp.qty}</span>}</Label>
-                          <Select value={picks[comp.key] ?? ""} onValueChange={(v) => setPicks((p) => ({ ...p, [comp.key]: v }))}>
-                            <SelectTrigger><SelectValue placeholder={comp.optional ? "Optional" : "Select…"} /></SelectTrigger>
-                            <SelectContent>
-                              {items.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                          {showAvocadoNote && <p className="text-xs text-muted-foreground">Avocado limit reached this week.</p>}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {oilAllowed(client.phase) && !option.components.some((c) => c.key === "fruit") && (
-                    <div className="space-y-1">
-                      <Label>Oil (optional)</Label>
-                      <Select value={oil} onValueChange={setOil}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {OIL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">Up to 1 tbsp (15ml) per meal · max 3 tbsp total per day.</p>
-                    </div>
-                  )}
-
-                  <Button onClick={generate} disabled={generating || confirmedRecipe !== null} className="w-full">
-                    {generating ? "Generating recipes…" : recipeOptions.length > 0 || confirmedRecipe ? "Generate Recipes" : "Generate Recipes"}
-                  </Button>
-                </Card>
+                  <div className="space-y-4">
+                    {!hidePrimary && primaryOption && (
+                      <MealRecipeSection
+                        key={`${meal}-primary`}
+                        token={token!}
+                        meal={meal}
+                        variant="primary"
+                        optionDef={primaryOption}
+                        phase={client.phase}
+                        avocadoCountWeek={client.avocado_count_week}
+                        lockedRecipe={primaryLocked}
+                        lockedSelections={primarySelections}
+                        sectionTitle={isSplit ? `Egg meal (${primaryLogCount}/${primaryDays} this week)` : undefined}
+                        extraComponents={buildExtras(primaryOption)}
+                        filteredSources={filteredSources}
+                        onLogged={refetchAll}
+                      />
+                    )}
+                    {isSplit && altOption && (
+                      <MealRecipeSection
+                        key={`${meal}-alt`}
+                        token={token!}
+                        meal={meal}
+                        variant="alt"
+                        optionDef={altOption}
+                        phase={client.phase}
+                        avocadoCountWeek={client.avocado_count_week}
+                        lockedRecipe={altLocked}
+                        lockedSelections={altSelections}
+                        sectionTitle="Backup meal"
+                        extraComponents={buildExtras(altOption)}
+                        filteredSources={filteredSources}
+                        onLogged={refetchAll}
+                      />
+                    )}
+                  </div>
                 );
               })()}
             </>
           )}
-
-          {confirmedRecipe && (() => {
-            const r = confirmedRecipe;
-            return (
-              <Card className="p-4 border-primary">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="font-medium">{r.recipe_title}</p>
-                  <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">Logged</span>
-                </div>
-                <Tabs defaultValue="recipe">
-                  <TabsList>
-                    <TabsTrigger value="recipe">Recipe</TabsTrigger>
-                    <TabsTrigger value="method">Method</TabsTrigger>
-                    <TabsTrigger value="notes">Notes</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="recipe" className="pt-3">
-                    <ul className="list-disc list-inside text-sm space-y-1">{r.recipe.map((x, i) => <li key={i}>{x}</li>)}</ul>
-                  </TabsContent>
-                  <TabsContent value="method" className="pt-3">
-                    <div className="text-sm space-y-2">{r.method.map((s, i) => <p key={i}>{s}</p>)}</div>
-                  </TabsContent>
-                  <TabsContent value="notes" className="pt-3">
-                    <ul className="list-disc list-inside text-sm space-y-1">{r.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
-                  </TabsContent>
-                </Tabs>
-              </Card>
-            );
-          })()}
-
-          {!confirmedRecipe && recipeOptions.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{recipeOptions.length} recipe options — swipe to choose</p>
-                <Button size="sm" variant="outline" onClick={generate} disabled={generating || regenLimitReached}>
-                  {regenLimitReached ? "No regenerations left" : `Generate new options (${3 - regenCount} left)`}
-                </Button>
-              </div>
-              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4">
-                {recipeOptions.map((r, idx) => (
-                  <Card key={idx} className="p-4 shrink-0 w-[85%] sm:w-[420px] snap-start">
-                    <p className="font-medium mb-3">Option {idx + 1}: {r.recipe_title}</p>
-                    <Tabs defaultValue="recipe">
-                      <TabsList>
-                        <TabsTrigger value="recipe">Recipe</TabsTrigger>
-                        <TabsTrigger value="method">Method</TabsTrigger>
-                        <TabsTrigger value="notes">Notes</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="recipe" className="pt-3">
-                        <ul className="list-disc list-inside text-sm space-y-1">{r.recipe.map((x, i) => <li key={i}>{x}</li>)}</ul>
-                      </TabsContent>
-                      <TabsContent value="method" className="pt-3">
-                        <div className="text-sm space-y-2">{r.method.map((s, i) => <p key={i}>{s}</p>)}</div>
-                      </TabsContent>
-                      <TabsContent value="notes" className="pt-3">
-                        <ul className="list-disc list-inside text-sm space-y-1">{r.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
-                      </TabsContent>
-                    </Tabs>
-                    <Button
-                      className="w-full mt-3"
-                      disabled={loggingIdx !== null}
-                      onClick={async () => {
-                        if (!meal || !option) return;
-                        setLoggingIdx(idx);
-                        try {
-                          const { data, error } = await supabase.functions.invoke("log-mb-meal", {
-                            body: { token, meal_type: meal, option_label: option.label, ingredients: lastIngredients, recipe: r },
-                          });
-                          if (error) throw error;
-                          if (data?.error) throw new Error(data.error);
-                          if (data?.requires_confirmation && data.reason === "eggs_over_limit") {
-                            setEggLogConfirm({
-                              idx,
-                              recipe: r,
-                              eggsInMeal: Number(data.eggs_in_meal) || 0,
-                              eggsUsed: Number(data.eggs_used_this_week) || 0,
-                              eggsMax: Number(data.eggs_max_per_week) || 0,
-                            });
-                            return;
-                          }
-                          setConfirmedRecipe(r);
-                          setRecipeOptions([]);
-                          if (data?.eggs_max_per_week) {
-                            toast.success(`Meal logged · ${data.eggs_used_this_week} of ${data.eggs_max_per_week} eggs used this week`);
-                          } else {
-                            toast.success("Meal logged");
-                          }
-                          await refresh();
-                        } catch (e: any) {
-                          toast.error(e.message ?? "Failed to log meal");
-                        } finally {
-                          setLoggingIdx(null);
-                        }
-                      }}
-                    >
-                      {loggingIdx === idx ? "Logging…" : "I Ate This"}
-                    </Button>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
         </section>
       )}
+
 
 
 
