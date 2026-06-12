@@ -306,6 +306,9 @@ export default function Dashboard() {
     setSavingDisplayName(false);
     if (error) return toast.error("Could not save display name");
     toast.success("Display name saved");
+  };
+
+
 
   const saveAvailability = async () => {
     const { data } = await supabase.auth.getSession();
