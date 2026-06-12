@@ -239,18 +239,15 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
     const current = mealIdFor(m, slot);
     const toggling = current === optId;
 
-    // Egg budget guard — warn before assigning if total would exceed the weekly limit.
-    if (!toggling && eggsBudgeted) {
+    // Egg flow — when picking a primary egg-containing meal that would exceed the weekly budget
+    // across all 7 days, open the blocking dialog so the client picks a non-egg backup meal.
+    if (slot === "primary" && !toggling && eggsBudgeted) {
       const base = MB_OPTIONS[m].find((o) => o.id === optId) ?? null;
-      const incomingEggs = eggsPerServingFor(base ? withOil(base, oilAllowed) : null);
-      if (incomingEggs > 0) {
-        const others = plannedEggsExcluding({ meal: m, slot });
-        const daysForIncoming = slot === "primary" ? 7 : Math.max(0, 7 - primaryDaysFor(m));
-        const projected = others + incomingEggs * daysForIncoming;
-        if (projected > (eggsMaxPerWeek ?? 0)) {
-          setEggConfirm({ meal: m, slot, optId, eggsInMeal: incomingEggs * daysForIncoming, eggsPlanned: others });
-          return;
-        }
+      const recipeEggs = eggsPerServingFor(base ? withOil(base, oilAllowed) : null);
+      if (recipeEggs > 0 && recipeEggs * 7 > (eggsMaxPerWeek ?? 0)) {
+        const maxDays = Math.max(0, Math.min(7, Math.floor((eggsMaxPerWeek ?? 0) / recipeEggs)));
+        setEggConfirm({ meal: m, optId, recipeEggs, maxDays, backupId: null });
+        return;
       }
     }
 
