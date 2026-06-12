@@ -295,6 +295,18 @@ export default function Dashboard() {
     toast.success("Practice type updated");
   };
 
+  const saveDisplayName = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) return;
+    setSavingDisplayName(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ display_name: displayName.trim() || null } as never)
+      .eq("id", data.session.user.id);
+    setSavingDisplayName(false);
+    if (error) return toast.error("Could not save display name");
+    toast.success("Display name saved");
+
   const saveAvailability = async () => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) return;
