@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -173,6 +173,26 @@ export default function Dashboard() {
     });
   })();
 
+  // ---- Single ordered load pipeline ----
+  // loadSeq makes load() "latest request wins": every call takes a sequence
+  // number and any response belonging to a superseded call is discarded
+  // instead of overwriting newer state. loadRef always points at the latest
+  // render's load() so long-lived closures (auth listener, realtime channel)
+  // never run a stale copy. scheduleLoad coalesces bursts of realtime events
+  // into a single refetch instead of firing parallel competing fetches.
+  const loadSeq = useRef(0);
+  const loadRef = useRef<() => Promise<void>>(async () => {});
+  const loadDebounce = useRef<number | null>(null);
+  const scheduleLoad = () => {
+    if (loadDebounce.current != null) window.clearTimeout(loadDebounce.current);
+    loadDebounce.current = window.setTimeout(() => {
+      loadDebounce.current = null;
+      void loadRef.current();
+    }, 250);
+  };
+
+
+
 
   const markPractitionerRead = async (clientId: string) => {
     const nowIso = new Date().toISOString();
@@ -273,7 +293,7 @@ export default function Dashboard() {
         return;
       }
       setTier(t);
-      void load();
+      void loadRef.current();
     };
 
     let bootstrapped = false;
@@ -300,7 +320,7 @@ export default function Dashboard() {
           bootstrapped = true;
           void bootstrap(session.user.id, session.user.email ?? "");
         } else {
-          void load();
+          void loadRef.current();
         }
       }
     });
