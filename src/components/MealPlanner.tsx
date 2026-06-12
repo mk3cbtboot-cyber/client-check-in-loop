@@ -652,8 +652,6 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
         <AlertDialogContent
           className="max-w-md"
           onEscapeKeyDown={(e) => e.preventDefault()}
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onInteractOutside={(e) => e.preventDefault()}
         >
           <AlertDialogHeader>
             <AlertDialogTitle>Pick a backup meal</AlertDialogTitle>
