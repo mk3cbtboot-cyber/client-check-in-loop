@@ -155,6 +155,8 @@ export default function Dashboard() {
   const [outOfOffice, setOutOfOffice] = useState(false);
   const [oooMessage, setOooMessage] = useState("");
   const [oooReturnDate, setOooReturnDate] = useState<string>("");
+  const [displayName, setDisplayName] = useState("");
+  const [savingDisplayName, setSavingDisplayName] = useState(false);
   const [savingHours, setSavingHours] = useState(false);
   const [nowTick, setNowTick] = useState(0);
   useEffect(() => {
@@ -258,7 +260,7 @@ export default function Dashboard() {
       setUserEmail(data.session.user.email ?? "");
       const { data: profile } = await supabase
         .from("profiles")
-        .select("practitioner_tier, office_hours, out_of_office, ooo_message, ooo_return_date, timezone")
+        .select("practitioner_tier, office_hours, out_of_office, ooo_message, ooo_return_date, timezone, display_name")
         .eq("id", userId)
         .maybeSingle();
       const browserTz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
@@ -266,6 +268,7 @@ export default function Dashboard() {
       setOutOfOffice(!!(profile as any)?.out_of_office);
       setOooMessage(((profile as any)?.ooo_message ?? "") as string);
       setOooReturnDate(((profile as any)?.ooo_return_date ?? "") as string);
+      setDisplayName(((profile as any)?.display_name ?? "") as string);
 
       const t = (profile?.practitioner_tier ?? null) as PractitionerTier | null;
       if (!t) {
@@ -291,6 +294,21 @@ export default function Dashboard() {
     setSettingsOpen(false);
     toast.success("Practice type updated");
   };
+
+  const saveDisplayName = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) return;
+    setSavingDisplayName(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ display_name: displayName.trim() || null } as never)
+      .eq("id", data.session.user.id);
+    setSavingDisplayName(false);
+    if (error) return toast.error("Could not save display name");
+    toast.success("Display name saved");
+  };
+
+
 
   const saveAvailability = async () => {
     const { data } = await supabase.auth.getSession();
@@ -675,10 +693,31 @@ export default function Dashboard() {
               <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader><DialogTitle>Settings</DialogTitle></DialogHeader>
                 <Tabs defaultValue="practice">
-                  <TabsList className="w-full grid grid-cols-2">
+                  <TabsList className="w-full grid grid-cols-3">
                     <TabsTrigger value="practice">Practice type</TabsTrigger>
+                    <TabsTrigger value="profile">Profile</TabsTrigger>
                     <TabsTrigger value="availability">Availability</TabsTrigger>
                   </TabsList>
+
+                  <TabsContent value="profile" className="space-y-3 pt-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="dispname">Display name</Label>
+                      <Input
+                        id="dispname"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="e.g. Cheryl"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        This is the name clients see (e.g. in messages from your AI assistant). If left blank, your first name will be used.
+                      </p>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button onClick={saveDisplayName} disabled={savingDisplayName}>
+                        {savingDisplayName ? "Saving…" : "Save display name"}
+                      </Button>
+                    </div>
+                  </TabsContent>
 
                   <TabsContent value="practice" className="space-y-2 pt-3">
                     {TIERS.map((t) => {
