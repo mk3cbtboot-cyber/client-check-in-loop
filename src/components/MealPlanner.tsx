@@ -84,7 +84,7 @@ function categoryForSources(sources: (keyof typeof MB_FOODS)[]): string {
   return "Other";
 }
 
-export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, onPlanChanged, oilAllowed = false }: Props) {
+export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, eggsMaxPerWeek = null, onPlanChanged, oilAllowed = false }: Props) {
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<WeeklyPlan | null>(null);
   const [weekStart, setWeekStart] = useState<string>("");
@@ -93,6 +93,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [acks, setAcks] = useState<Array<{ food_name: string }>>([]);
+  const [eggConfirm, setEggConfirm] = useState<{ meal: MealType; slot: "primary" | "alt"; optId: number; eggsInMeal: number; eggsPlanned: number } | null>(null);
 
   const normalizeFood = (s: string) => s.trim().toLowerCase();
   const isAcknowledged = (food: string) => acks.some((a) => normalizeFood(a.food_name) === normalizeFood(food));
