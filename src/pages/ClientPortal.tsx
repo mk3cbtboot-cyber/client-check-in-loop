@@ -58,6 +58,7 @@ interface ClientState {
   phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
   weekly_food_limits: Record<string, number>;
+  eggs_max_per_week: number | null;
   system_mode: "mb" | "own_practice";
   gender: "female" | "male" | "unspecified" | null;
 }
