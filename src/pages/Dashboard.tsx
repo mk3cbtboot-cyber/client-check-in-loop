@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -173,6 +173,26 @@ export default function Dashboard() {
     });
   })();
 
+  // ---- Single ordered load pipeline ----
+  // loadSeq makes load() "latest request wins": every call takes a sequence
+  // number and any response belonging to a superseded call is discarded
+  // instead of overwriting newer state. loadRef always points at the latest
+  // render's load() so long-lived closures (auth listener, realtime channel)
+  // never run a stale copy. scheduleLoad coalesces bursts of realtime events
+  // into a single refetch instead of firing parallel competing fetches.
+  const loadSeq = useRef(0);
+  const loadRef = useRef<() => Promise<void>>(async () => {});
+  const loadDebounce = useRef<number | null>(null);
+  const scheduleLoad = () => {
+    if (loadDebounce.current != null) window.clearTimeout(loadDebounce.current);
+    loadDebounce.current = window.setTimeout(() => {
+      loadDebounce.current = null;
+      void loadRef.current();
+    }, 250);
+  };
+
+
+
 
   const markPractitionerRead = async (clientId: string) => {
     const nowIso = new Date().toISOString();
@@ -273,7 +293,7 @@ export default function Dashboard() {
         return;
       }
       setTier(t);
-      void load();
+      void loadRef.current();
     };
 
     let bootstrapped = false;
@@ -300,7 +320,7 @@ export default function Dashboard() {
           bootstrapped = true;
           void bootstrap(session.user.id, session.user.email ?? "");
         } else {
-          void load();
+          void loadRef.current();
         }
       }
     });
@@ -366,7 +386,16 @@ export default function Dashboard() {
 
 
   const load = async () => {
+    // Latest-request-wins: take a sequence number and bail out at every commit
+    // point if a newer load() has started since. This prevents an older,
+    // slower response (e.g. one issued just before a token refresh or a
+    // mutation) from landing last and overwriting newer state with a stale
+    // snapshot of the client list.
+    const seq = ++loadSeq.current;
+    const isCurrent = () => seq === loadSeq.current;
+
     const { data: sessionData } = await supabase.auth.getSession();
+    if (!isCurrent()) return;
     if (!sessionData.session) {
       // No session yet (e.g. token refreshing). Don't wipe existing client list.
       return;
@@ -376,6 +405,7 @@ export default function Dashboard() {
       .from("clients")
       .select("*")
       .order("created_at", { ascending: false });
+    if (!isCurrent()) return;
     if (error || allRows == null) {
       // Transient failure / RLS race — keep previous client list rather than blanking it.
       console.warn("Dashboard load(): clients fetch failed, preserving current list", error);
@@ -399,6 +429,7 @@ export default function Dashboard() {
         supabase.from("weekly_limit_acknowledgements").select("client_id, food_name, limit_value, acknowledged_at").in("client_id", ids).eq("week_start_date", monday),
         supabase.from("daily_water_logs").select("client_id, log_date, litres").in("client_id", ids).order("log_date", { ascending: false }).limit(400),
       ]);
+      if (!isCurrent()) return;
       const grouped: Record<string, CheckIn[]> = {};
       (checkRows ?? []).forEach((ci) => { (grouped[ci.client_id] ||= []).push(ci); });
       setCheckIns(grouped);
@@ -427,6 +458,7 @@ export default function Dashboard() {
         .eq("sender", "client")
         .order("created_at", { ascending: false });
       const { data: msgRows } = await msgQuery;
+      if (!isCurrent()) return;
       const currentlyAvailable = checkAvailability({
         office_hours: officeHours, out_of_office: outOfOffice,
         ooo_return_date: oooReturnDate || null, timezone: officeHours.tz,
@@ -439,6 +471,9 @@ export default function Dashboard() {
       setLastClientMessageAt(latest);
     }
   };
+  // Keep the ref pointing at the latest render's load so long-lived closures
+  // (auth listener, realtime channels) never invoke a stale copy.
+  loadRef.current = load;
 
 
   // Realtime: new client messages bump the unread indicator
@@ -467,7 +502,7 @@ export default function Dashboard() {
   // When the practitioner becomes available again (office hours resume or OOO toggled off),
   // re-load message snapshot so any previously deferred client messages surface as unread.
   useEffect(() => {
-    if (availability.available && clients.length > 0) void load();
+    if (availability.available && clients.length > 0) void loadRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availability.available]);
 
@@ -485,12 +520,18 @@ export default function Dashboard() {
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "clients", filter: `practitioner_id=eq.${userId}` },
-          () => { void load(); },
+          // Coalesce bursts of realtime events (e.g. portal counters updating)
+          // into one debounced refetch instead of N parallel competing fetches.
+          () => scheduleLoad(),
         )
         .subscribe();
     })();
     return () => {
       cancelled = true;
+      if (loadDebounce.current != null) {
+        window.clearTimeout(loadDebounce.current);
+        loadDebounce.current = null;
+      }
       if (channel) void supabase.removeChannel(channel);
     };
   }, []);
