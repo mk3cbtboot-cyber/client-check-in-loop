@@ -38,6 +38,7 @@ interface Props {
   token: string;
   filteredSources: (sources: (keyof typeof MB_FOODS)[]) => string[];
   weeklyFoodLimits?: FoodLimits | null;
+  eggsMaxPerWeek?: number | null;
   onPlanChanged?: (plan: WeeklyPlan | null) => void;
   oilAllowed?: boolean;
 }
