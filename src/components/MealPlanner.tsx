@@ -32,6 +32,15 @@ interface WeeklyPlan {
   breakfast_primary_days: number;
   lunch_primary_days: number;
   dinner_primary_days: number;
+  breakfast_locked_recipe?: any;
+  lunch_locked_recipe?: any;
+  dinner_locked_recipe?: any;
+  breakfast_locked_recipe_alt?: any;
+  lunch_locked_recipe_alt?: any;
+  dinner_locked_recipe_alt?: any;
+  breakfast_primary_log_count?: number;
+  lunch_primary_log_count?: number;
+  dinner_primary_log_count?: number;
   confirmed_at: string | null;
 }
 
