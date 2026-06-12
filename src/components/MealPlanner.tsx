@@ -94,7 +94,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [acks, setAcks] = useState<Array<{ food_name: string }>>([]);
-  const [eggConfirm, setEggConfirm] = useState<{ meal: MealType; slot: "primary" | "alt"; optId: number; eggsInMeal: number; eggsPlanned: number } | null>(null);
+  const [eggConfirm, setEggConfirm] = useState<{ meal: MealType; optId: number; recipeEggs: number; maxDays: number; backupId: number | null } | null>(null);
 
   const normalizeFood = (s: string) => s.trim().toLowerCase();
   const isAcknowledged = (food: string) => acks.some((a) => normalizeFood(a.food_name) === normalizeFood(food));
