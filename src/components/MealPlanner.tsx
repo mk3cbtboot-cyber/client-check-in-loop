@@ -431,9 +431,12 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
           const options = MB_OPTIONS[m];
           const primaryOpt = selectedOption(m, "primary");
           const lc = limitCheck(m);
-          const primaryDays = lc.limited ? lc.maxDays : 7;
+          const storedDays = primaryDaysFor(m);
+          const isEggSplit = !!primaryOpt && eggsPerServingFor(primaryOpt) > 0 && storedDays < 7 && !lc.limited;
+          const primaryDays = isEggSplit ? storedDays : (lc.limited ? lc.maxDays : 7);
           const altDays = 7 - primaryDays;
           const altOpt = selectedOption(m, "alt");
+          const showAltList = (lc.limited && primaryOpt && lc.reasons.every((r) => isAcknowledged(r.food))) || isEggSplit;
           const complete = isMealComplete(m);
 
           const renderOptionCard = (slot: "primary" | "alt", opt: OptionDef, days: number, dayLabel: string) => {
@@ -490,8 +493,19 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
             );
           };
 
-          // Pick which options to show in alt list — exclude the primary so user picks an actual alternative
-          const altOptions = options.filter((o) => o.id !== primaryOpt?.id);
+          // Alt options — for egg split, restrict to egg-free alternatives.
+          const altOptions = isEggSplit
+            ? options.filter((o) => o.id !== primaryOpt?.id && eggsPerServingFor(withOil(o, oilAllowed)) === 0)
+            : options.filter((o) => o.id !== primaryOpt?.id);
+
+          // Slot-level split summary, e.g. "Eggs + Veg (Mon–Tue) · Legumes + Veg (Wed–Sun)"
+          const splitSummary = (() => {
+            if (!primaryOpt || primaryDays >= 7) return null;
+            const primaryRange = daySplitLabel(0, primaryDays - 1);
+            const altRange = daySplitLabel(primaryDays, 6);
+            const altLabel = altOpt ? altOpt.label : "(pick an alternate)";
+            return `${primaryOpt.label} (${primaryRange}) · ${altLabel} (${altRange})`;
+          })();
 
           return (
             <div key={m} className="space-y-2">
@@ -503,6 +517,11 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
                   </span>
                 )}
               </div>
+              {splitSummary && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium capitalize text-foreground">{m}:</span> {splitSummary}
+                </p>
+              )}
 
               {lc.limited && primaryOpt && !confirmed && (() => {
                 const r = lc.reasons[0];
@@ -536,18 +555,19 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
               <div className="space-y-2">
                 {options.map((opt) =>
                   renderOptionCard("primary", withOil(opt, oilAllowed), primaryDays,
-                    primaryOpt?.id === opt.id && lc.limited
+                    primaryOpt?.id === opt.id && primaryDays < 7
                       ? `${daySplitLabel(0, primaryDays - 1)} · ${primaryDays}d`
                       : "Selected"),
                 )}
               </div>
 
 
-              {lc.limited && primaryOpt && lc.reasons.every((r) => isAcknowledged(r.food)) && (
+              {showAltList && (
                 <div className="space-y-2 pt-1">
                   <p className="text-xs font-medium text-muted-foreground">
                     Alternate {m} — covers {altDays} {altDays === 1 ? "day" : "days"}
                     {altDays > 0 && <> ({daySplitLabel(primaryDays, 6)})</>}
+                    {isEggSplit && <> · egg-free options only</>}
                   </p>
                   {altOptions.map((opt) =>
                     renderOptionCard("alt", withOil(opt, oilAllowed), altDays,
