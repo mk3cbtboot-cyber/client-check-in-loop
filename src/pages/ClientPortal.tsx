@@ -97,6 +97,7 @@ export default function ClientPortal() {
   const regenCount = slotKey ? (regenCounts[slotKey] ?? 0) : 0;
   const regenLimitReached = regenCount >= 1;
   const [lastIngredients, setLastIngredients] = useState<Array<{ label: string; qty: string }>>([]);
+  const [eggLogConfirm, setEggLogConfirm] = useState<{ idx: number; recipe: RecipeOption; eggsInMeal: number; eggsUsed: number; eggsMax: number } | null>(null);
 
   // Check-in state
   const [feeling, setFeeling] = useState<number>(3);
