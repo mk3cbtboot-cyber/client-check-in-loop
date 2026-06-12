@@ -789,9 +789,23 @@ export default function ClientPortal() {
                           });
                           if (error) throw error;
                           if (data?.error) throw new Error(data.error);
+                          if (data?.requires_confirmation && data.reason === "eggs_over_limit") {
+                            setEggLogConfirm({
+                              idx,
+                              recipe: r,
+                              eggsInMeal: Number(data.eggs_in_meal) || 0,
+                              eggsUsed: Number(data.eggs_used_this_week) || 0,
+                              eggsMax: Number(data.eggs_max_per_week) || 0,
+                            });
+                            return;
+                          }
                           setConfirmedRecipe(r);
                           setRecipeOptions([]);
-                          toast.success("Meal logged");
+                          if (data?.eggs_max_per_week) {
+                            toast.success(`Meal logged · ${data.eggs_used_this_week} of ${data.eggs_max_per_week} eggs used this week`);
+                          } else {
+                            toast.success("Meal logged");
+                          }
                           await refresh();
                         } catch (e: any) {
                           toast.error(e.message ?? "Failed to log meal");
