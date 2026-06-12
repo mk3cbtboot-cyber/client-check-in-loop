@@ -150,6 +150,36 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
 
   const limitCheck = (m: MealType) => checkMealLimits(selectedOption(m, "primary"), sel(m, "primary"), weeklyFoodLimits ?? null);
 
+  // ---- Egg planning ----
+  const eggsPerServingFor = (opt: OptionDef | null): number => {
+    if (!opt) return 0;
+    let n = 0;
+    for (const f of opt.fixed ?? []) {
+      if (!/egg/i.test(f.label)) continue;
+      const m = f.qty.match(/(\d+)/);
+      n += m ? parseInt(m[1], 10) : 1;
+    }
+    return n;
+  };
+  const plannedEggsExcluding = (excl?: { meal: MealType; slot: "primary" | "alt" }): number => {
+    let total = 0;
+    for (const m of MEALS) {
+      const primaryOpt = selectedOption(m, "primary");
+      const lc = checkMealLimits(primaryOpt, sel(m, "primary"), weeklyFoodLimits ?? null);
+      const primaryDays = lc.limited ? lc.maxDays : 7;
+      const altDays = 7 - primaryDays;
+      if (!(excl && excl.meal === m && excl.slot === "primary")) {
+        total += eggsPerServingFor(primaryOpt) * primaryDays;
+      }
+      if (!(excl && excl.meal === m && excl.slot === "alt")) {
+        total += eggsPerServingFor(selectedOption(m, "alt")) * altDays;
+      }
+    }
+    return total;
+  };
+  const plannedEggs = plannedEggsExcluding();
+  const eggsBudgeted = eggsMaxPerWeek != null && eggsMaxPerWeek > 0;
+
   const isOptionComplete = (opt: OptionDef | null, s: SelectionMap): boolean => {
     if (!opt) return false;
     return opt.components.filter((c) => !c.optional).every((c) => !!s[c.key]);
