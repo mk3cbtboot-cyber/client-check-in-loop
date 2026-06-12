@@ -239,30 +239,27 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        navigate("/auth", { replace: true });
-        return;
-      }
-      const userId = data.session.user.id;
+    let cancelled = false;
+    const bootstrap = async (userId: string, email: string) => {
       const { data: roleRow } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
         .maybeSingle();
+      if (cancelled) return;
       if (roleRow?.role && roleRow.role !== "practitioner") {
         toast.error("This account is a client account, not a practitioner.");
         await supabase.auth.signOut();
         navigate("/auth", { replace: true });
         return;
       }
-      setUserEmail(data.session.user.email ?? "");
+      setUserEmail(email);
       const { data: profile } = await supabase
         .from("profiles")
         .select("practitioner_tier, office_hours, out_of_office, ooo_message, ooo_return_date, timezone, display_name")
         .eq("id", userId)
         .maybeSingle();
+      if (cancelled) return;
       const browserTz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
       setOfficeHours(normalizeOfficeHours((profile as any)?.office_hours, (profile as any)?.timezone || browserTz));
       setOutOfOffice(!!(profile as any)?.out_of_office);
@@ -276,8 +273,42 @@ export default function Dashboard() {
         return;
       }
       setTier(t);
-      load();
+      void load();
+    };
+
+    let bootstrapped = false;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (!data.session) {
+        navigate("/auth", { replace: true });
+        return;
+      }
+      bootstrapped = true;
+      await bootstrap(data.session.user.id, data.session.user.email ?? "");
     })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if (event === "SIGNED_OUT" || !session) {
+        navigate("/auth", { replace: true });
+        return;
+      }
+      if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
+        // After a refresh or sign-in, re-fetch clients so RLS sees the new token.
+        if (!bootstrapped) {
+          bootstrapped = true;
+          void bootstrap(session.user.id, session.user.email ?? "");
+        } else {
+          void load();
+        }
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const saveTier = async (next: PractitionerTier) => {
