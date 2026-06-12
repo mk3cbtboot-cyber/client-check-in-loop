@@ -18,6 +18,7 @@ const Body = z.object({
     notes: z.array(z.string()),
   }),
   force: z.boolean().optional(),
+  variant: z.enum(["primary", "alt"]).optional(),
 });
 
 function eggsFromString(s: string): number {
