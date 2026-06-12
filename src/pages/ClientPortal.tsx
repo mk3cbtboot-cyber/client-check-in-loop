@@ -515,7 +515,8 @@ export default function ClientPortal() {
   );
 
   const avocadoLeft = Math.max(0, 3 - client.avocado_count_week);
-  const eggsLeft = Math.max(0, 5 - client.egg_count_week);
+  const eggsMax = client.eggs_max_per_week ?? 5;
+  const eggsLeft = Math.max(0, eggsMax - client.egg_count_week);
   const waterTarget = 2.5;
 
   // My Plan categories — uses practitioner-customised list when set, otherwise defaults.
