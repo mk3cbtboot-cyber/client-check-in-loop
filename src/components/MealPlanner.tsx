@@ -648,35 +648,72 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!eggConfirm} onOpenChange={(o) => !o && setEggConfirm(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Egg allowance reached</DialogTitle>
-          </DialogHeader>
+      <AlertDialog open={!!eggConfirm}>
+        <AlertDialogContent
+          className="max-w-md"
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pick a backup meal</AlertDialogTitle>
+            {eggConfirm && (() => {
+              const remaining = 7 - eggConfirm.maxDays;
+              return (
+                <AlertDialogDescription>
+                  This meal contains <span className="font-medium text-foreground">{eggConfirm.recipeEggs} eggs</span>.
+                  With your <span className="font-medium text-foreground">{eggsMaxPerWeek}-egg</span> weekly allowance,
+                  you can have it <span className="font-medium text-foreground">{eggConfirm.maxDays} {eggConfirm.maxDays === 1 ? "day" : "days"}</span> this week.
+                  You need to pick a different meal for the other <span className="font-medium text-foreground">{remaining} {remaining === 1 ? "day" : "days"}</span>.
+                </AlertDialogDescription>
+              );
+            })()}
+          </AlertDialogHeader>
           {eggConfirm && (
-            <p className="text-sm text-muted-foreground">
-              This meal uses <span className="font-medium text-foreground">{eggConfirm.eggsInMeal} eggs</span> across the days it covers.
-              You've already planned <span className="font-medium text-foreground">{eggConfirm.eggsPlanned}</span> of your{" "}
-              <span className="font-medium text-foreground">{eggsMaxPerWeek}-egg</span> weekly allowance.
-              You'll need a different meal for the remaining days — tap Regenerate to get egg-free options for this slot.
-            </p>
+            <div className="max-h-[40vh] overflow-y-auto space-y-2 py-2">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Backup options (egg-free)</p>
+              {MB_OPTIONS[eggConfirm.meal]
+                .filter((o) => o.id !== eggConfirm.optId && eggsPerServingFor(withOil(o, oilAllowed)) === 0)
+                .map((o) => {
+                  const selected = eggConfirm.backupId === o.id;
+                  return (
+                    <Button
+                      key={o.id}
+                      variant={selected ? "default" : "outline"}
+                      className="w-full justify-start h-auto py-2 whitespace-normal text-left"
+                      onClick={() => setEggConfirm({ ...eggConfirm, backupId: o.id })}
+                    >
+                      <span className="text-xs">{eggConfirm.meal[0].toUpperCase() + eggConfirm.meal.slice(1)} {o.id} — {o.label}</span>
+                    </Button>
+                  );
+                })}
+              {MB_OPTIONS[eggConfirm.meal].filter((o) => o.id !== eggConfirm.optId && eggsPerServingFor(withOil(o, oilAllowed)) === 0).length === 0 && (
+                <p className="text-xs text-muted-foreground">No egg-free alternatives available for this meal slot.</p>
+              )}
+            </div>
           )}
-          <DialogFooter className="gap-2">
+          <AlertDialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setEggConfirm(null)}>Cancel</Button>
             <Button
+              disabled={!eggConfirm?.backupId}
               onClick={async () => {
-                if (!eggConfirm) return;
-                const { meal, slot, optId } = eggConfirm;
-                const current = mealIdFor(meal, slot);
+                if (!eggConfirm || !eggConfirm.backupId) return;
+                const { meal, optId, maxDays, backupId } = eggConfirm;
                 setEggConfirm(null);
-                await applyChoose(meal, slot, optId, current === optId);
+                const patch: Partial<WeeklyPlan> = {};
+                (patch as any)[`${meal}_meal_id`] = optId;
+                (patch as any)[`${meal}_selections`] = {};
+                (patch as any)[`${meal}_meal_id_alt`] = backupId;
+                (patch as any)[`${meal}_selections_alt`] = {};
+                (patch as any)[`${meal}_primary_days`] = maxDays;
+                await persist(patch);
               }}
             >
-              Use anyway
+              Confirm
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
