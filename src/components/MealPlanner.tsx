@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { Check, Share2, ShoppingBag, Lock, AlertTriangle } from "lucide-react";
@@ -93,7 +94,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [acks, setAcks] = useState<Array<{ food_name: string }>>([]);
-  const [eggConfirm, setEggConfirm] = useState<{ meal: MealType; slot: "primary" | "alt"; optId: number; eggsInMeal: number; eggsPlanned: number } | null>(null);
+  const [eggConfirm, setEggConfirm] = useState<{ meal: MealType; optId: number; recipeEggs: number; maxDays: number; backupId: number | null } | null>(null);
 
   const normalizeFood = (s: string) => s.trim().toLowerCase();
   const isAcknowledged = (food: string) => acks.some((a) => normalizeFood(a.food_name) === normalizeFood(food));
@@ -161,23 +162,15 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
     }
     return n;
   };
-  const plannedEggsExcluding = (excl?: { meal: MealType; slot: "primary" | "alt" }): number => {
+  // Count eggs per the selected recipe templates (per-serving), not multiplied by days.
+  const plannedEggs = (() => {
     let total = 0;
     for (const m of MEALS) {
-      const primaryOpt = selectedOption(m, "primary");
-      const lc = checkMealLimits(primaryOpt, sel(m, "primary"), weeklyFoodLimits ?? null);
-      const primaryDays = lc.limited ? lc.maxDays : 7;
-      const altDays = 7 - primaryDays;
-      if (!(excl && excl.meal === m && excl.slot === "primary")) {
-        total += eggsPerServingFor(primaryOpt) * primaryDays;
-      }
-      if (!(excl && excl.meal === m && excl.slot === "alt")) {
-        total += eggsPerServingFor(selectedOption(m, "alt")) * altDays;
-      }
+      total += eggsPerServingFor(selectedOption(m, "primary"));
+      total += eggsPerServingFor(selectedOption(m, "alt"));
     }
     return total;
-  };
-  const plannedEggs = plannedEggsExcluding();
+  })();
   const eggsBudgeted = eggsMaxPerWeek != null && eggsMaxPerWeek > 0;
 
   const isOptionComplete = (opt: OptionDef | null, s: SelectionMap): boolean => {
@@ -188,14 +181,16 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   const isMealComplete = (m: MealType): boolean => {
     const primaryOpt = selectedOption(m, "primary");
     if (!isOptionComplete(primaryOpt, sel(m, "primary"))) return false;
+    const storedDays = primaryDaysFor(m);
+    const isEggSplit = !!primaryOpt && eggsPerServingFor(primaryOpt) > 0 && storedDays < 7;
     const lc = limitCheck(m);
-    if (!lc.limited) return true;
-    // require ack for every limited reason
-    if (!lc.reasons.every((r) => isAcknowledged(r.food))) return false;
+    if (!lc.limited && !isEggSplit) return true;
+    if (lc.limited && !lc.reasons.every((r) => isAcknowledged(r.food))) return false;
     const altOpt = selectedOption(m, "alt");
     if (!altOpt) return false;
     const altLc = checkMealLimits(altOpt, sel(m, "alt"), weeklyFoodLimits ?? null);
-    if (altLc.maxDays < 7 - lc.maxDays) return false;
+    const primaryDays = isEggSplit ? storedDays : lc.maxDays;
+    if (altLc.maxDays < 7 - primaryDays) return false;
     return isOptionComplete(altOpt, sel(m, "alt"));
   };
 
@@ -246,18 +241,15 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
     const current = mealIdFor(m, slot);
     const toggling = current === optId;
 
-    // Egg budget guard — warn before assigning if total would exceed the weekly limit.
-    if (!toggling && eggsBudgeted) {
+    // Egg flow — when picking a primary egg-containing meal that would exceed the weekly budget
+    // across all 7 days, open the blocking dialog so the client picks a non-egg backup meal.
+    if (slot === "primary" && !toggling && eggsBudgeted) {
       const base = MB_OPTIONS[m].find((o) => o.id === optId) ?? null;
-      const incomingEggs = eggsPerServingFor(base ? withOil(base, oilAllowed) : null);
-      if (incomingEggs > 0) {
-        const others = plannedEggsExcluding({ meal: m, slot });
-        const daysForIncoming = slot === "primary" ? 7 : Math.max(0, 7 - primaryDaysFor(m));
-        const projected = others + incomingEggs * daysForIncoming;
-        if (projected > (eggsMaxPerWeek ?? 0)) {
-          setEggConfirm({ meal: m, slot, optId, eggsInMeal: incomingEggs * daysForIncoming, eggsPlanned: others });
-          return;
-        }
+      const recipeEggs = eggsPerServingFor(base ? withOil(base, oilAllowed) : null);
+      if (recipeEggs > 0 && recipeEggs * 7 > (eggsMaxPerWeek ?? 0)) {
+        const maxDays = Math.max(0, Math.min(7, Math.floor((eggsMaxPerWeek ?? 0) / recipeEggs)));
+        setEggConfirm({ meal: m, optId, recipeEggs, maxDays, backupId: null });
+        return;
       }
     }
 
@@ -278,14 +270,20 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
     const patch: Partial<WeeklyPlan> = {};
     const key = picker.slot === "primary" ? `${m}_selections` : `${m}_selections_alt`;
     (patch as any)[key] = next;
-    // when primary selection changes, recompute limit & primary_days
+    // when primary selection changes, recompute limit & primary_days — but preserve egg-split.
     if (picker.slot === "primary") {
       const opt = selectedOption(m, "primary");
       const lc = checkMealLimits(opt, next, weeklyFoodLimits ?? null);
-      (patch as any)[`${m}_primary_days`] = lc.limited ? lc.maxDays : 7;
-      if (!lc.limited) {
-        (patch as any)[`${m}_meal_id_alt`] = null;
-        (patch as any)[`${m}_selections_alt`] = {};
+      const storedDays = primaryDaysFor(m);
+      const isEggSplit = !!opt && eggsPerServingFor(opt) > 0 && storedDays < 7 && !lc.limited;
+      if (isEggSplit) {
+        // keep stored split & alt assignment from the egg dialog
+      } else {
+        (patch as any)[`${m}_primary_days`] = lc.limited ? lc.maxDays : 7;
+        if (!lc.limited) {
+          (patch as any)[`${m}_meal_id_alt`] = null;
+          (patch as any)[`${m}_selections_alt`] = {};
+        }
       }
     }
     await persist(patch);
@@ -441,9 +439,12 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
           const options = MB_OPTIONS[m];
           const primaryOpt = selectedOption(m, "primary");
           const lc = limitCheck(m);
-          const primaryDays = lc.limited ? lc.maxDays : 7;
+          const storedDays = primaryDaysFor(m);
+          const isEggSplit = !!primaryOpt && eggsPerServingFor(primaryOpt) > 0 && storedDays < 7 && !lc.limited;
+          const primaryDays = isEggSplit ? storedDays : (lc.limited ? lc.maxDays : 7);
           const altDays = 7 - primaryDays;
           const altOpt = selectedOption(m, "alt");
+          const showAltList = (lc.limited && primaryOpt && lc.reasons.every((r) => isAcknowledged(r.food))) || isEggSplit;
           const complete = isMealComplete(m);
 
           const renderOptionCard = (slot: "primary" | "alt", opt: OptionDef, days: number, dayLabel: string) => {
@@ -500,8 +501,19 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
             );
           };
 
-          // Pick which options to show in alt list — exclude the primary so user picks an actual alternative
-          const altOptions = options.filter((o) => o.id !== primaryOpt?.id);
+          // Alt options — for egg split, restrict to egg-free alternatives.
+          const altOptions = isEggSplit
+            ? options.filter((o) => o.id !== primaryOpt?.id && eggsPerServingFor(withOil(o, oilAllowed)) === 0)
+            : options.filter((o) => o.id !== primaryOpt?.id);
+
+          // Slot-level split summary, e.g. "Eggs + Veg (Mon–Tue) · Legumes + Veg (Wed–Sun)"
+          const splitSummary = (() => {
+            if (!primaryOpt || primaryDays >= 7) return null;
+            const primaryRange = daySplitLabel(0, primaryDays - 1);
+            const altRange = daySplitLabel(primaryDays, 6);
+            const altLabel = altOpt ? altOpt.label : "(pick an alternate)";
+            return `${primaryOpt.label} (${primaryRange}) · ${altLabel} (${altRange})`;
+          })();
 
           return (
             <div key={m} className="space-y-2">
@@ -513,6 +525,11 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
                   </span>
                 )}
               </div>
+              {splitSummary && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium capitalize text-foreground">{m}:</span> {splitSummary}
+                </p>
+              )}
 
               {lc.limited && primaryOpt && !confirmed && (() => {
                 const r = lc.reasons[0];
@@ -546,18 +563,19 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
               <div className="space-y-2">
                 {options.map((opt) =>
                   renderOptionCard("primary", withOil(opt, oilAllowed), primaryDays,
-                    primaryOpt?.id === opt.id && lc.limited
+                    primaryOpt?.id === opt.id && primaryDays < 7
                       ? `${daySplitLabel(0, primaryDays - 1)} · ${primaryDays}d`
                       : "Selected"),
                 )}
               </div>
 
 
-              {lc.limited && primaryOpt && lc.reasons.every((r) => isAcknowledged(r.food)) && (
+              {showAltList && (
                 <div className="space-y-2 pt-1">
                   <p className="text-xs font-medium text-muted-foreground">
                     Alternate {m} — covers {altDays} {altDays === 1 ? "day" : "days"}
                     {altDays > 0 && <> ({daySplitLabel(primaryDays, 6)})</>}
+                    {isEggSplit && <> · egg-free options only</>}
                   </p>
                   {altOptions.map((opt) =>
                     renderOptionCard("alt", withOil(opt, oilAllowed), altDays,
@@ -658,35 +676,70 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!eggConfirm} onOpenChange={(o) => !o && setEggConfirm(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Egg allowance reached</DialogTitle>
-          </DialogHeader>
+      <AlertDialog open={!!eggConfirm}>
+        <AlertDialogContent
+          className="max-w-md"
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pick a backup meal</AlertDialogTitle>
+            {eggConfirm && (() => {
+              const remaining = 7 - eggConfirm.maxDays;
+              return (
+                <AlertDialogDescription>
+                  This meal contains <span className="font-medium text-foreground">{eggConfirm.recipeEggs} eggs</span>.
+                  With your <span className="font-medium text-foreground">{eggsMaxPerWeek}-egg</span> weekly allowance,
+                  you can have it <span className="font-medium text-foreground">{eggConfirm.maxDays} {eggConfirm.maxDays === 1 ? "day" : "days"}</span> this week.
+                  You need to pick a different meal for the other <span className="font-medium text-foreground">{remaining} {remaining === 1 ? "day" : "days"}</span>.
+                </AlertDialogDescription>
+              );
+            })()}
+          </AlertDialogHeader>
           {eggConfirm && (
-            <p className="text-sm text-muted-foreground">
-              This meal uses <span className="font-medium text-foreground">{eggConfirm.eggsInMeal} eggs</span> across the days it covers.
-              You've already planned <span className="font-medium text-foreground">{eggConfirm.eggsPlanned}</span> of your{" "}
-              <span className="font-medium text-foreground">{eggsMaxPerWeek}-egg</span> weekly allowance.
-              You'll need a different meal for the remaining days — tap Regenerate to get egg-free options for this slot.
-            </p>
+            <div className="max-h-[40vh] overflow-y-auto space-y-2 py-2">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Backup options (egg-free)</p>
+              {MB_OPTIONS[eggConfirm.meal]
+                .filter((o) => o.id !== eggConfirm.optId && eggsPerServingFor(withOil(o, oilAllowed)) === 0)
+                .map((o) => {
+                  const selected = eggConfirm.backupId === o.id;
+                  return (
+                    <Button
+                      key={o.id}
+                      variant={selected ? "default" : "outline"}
+                      className="w-full justify-start h-auto py-2 whitespace-normal text-left"
+                      onClick={() => setEggConfirm({ ...eggConfirm, backupId: o.id })}
+                    >
+                      <span className="text-xs">{eggConfirm.meal[0].toUpperCase() + eggConfirm.meal.slice(1)} {o.id} — {o.label}</span>
+                    </Button>
+                  );
+                })}
+              {MB_OPTIONS[eggConfirm.meal].filter((o) => o.id !== eggConfirm.optId && eggsPerServingFor(withOil(o, oilAllowed)) === 0).length === 0 && (
+                <p className="text-xs text-muted-foreground">No egg-free alternatives available for this meal slot.</p>
+              )}
+            </div>
           )}
-          <DialogFooter className="gap-2">
+          <AlertDialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setEggConfirm(null)}>Cancel</Button>
             <Button
+              disabled={!eggConfirm?.backupId}
               onClick={async () => {
-                if (!eggConfirm) return;
-                const { meal, slot, optId } = eggConfirm;
-                const current = mealIdFor(meal, slot);
+                if (!eggConfirm || !eggConfirm.backupId) return;
+                const { meal, optId, maxDays, backupId } = eggConfirm;
                 setEggConfirm(null);
-                await applyChoose(meal, slot, optId, current === optId);
+                const patch: Partial<WeeklyPlan> = {};
+                (patch as any)[`${meal}_meal_id`] = optId;
+                (patch as any)[`${meal}_selections`] = {};
+                (patch as any)[`${meal}_meal_id_alt`] = backupId;
+                (patch as any)[`${meal}_selections_alt`] = {};
+                (patch as any)[`${meal}_primary_days`] = maxDays;
+                await persist(patch);
               }}
             >
-              Use anyway
+              Confirm
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
