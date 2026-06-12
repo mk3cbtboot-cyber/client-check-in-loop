@@ -1164,7 +1164,7 @@ export default function ClientPortal() {
             <p className="text-xs text-muted-foreground">Chat with Cheryl. Replies usually arrive within a day or two.</p>
           </div>
           <ChatThread
-            messages={messages.filter((m) => !(typeof m.body === "string" && m.body.trimStart().startsWith("[AI-answered")))}
+            messages={messages.filter((m) => !(typeof m.body === "string" && m.body.includes("[AI-answered")))}
             viewerRole="client"
             onSend={sendMessage}
             sending={sendingMessage}
