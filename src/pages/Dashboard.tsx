@@ -528,6 +528,10 @@ export default function Dashboard() {
     })();
     return () => {
       cancelled = true;
+      if (loadDebounce.current != null) {
+        window.clearTimeout(loadDebounce.current);
+        loadDebounce.current = null;
+      }
       if (channel) void supabase.removeChannel(channel);
     };
   }, []);
