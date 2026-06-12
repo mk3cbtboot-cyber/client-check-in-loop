@@ -1229,7 +1229,48 @@ export default function ClientPortal() {
         </div>
       </nav>
 
-
+      <Dialog open={!!eggLogConfirm} onOpenChange={(o) => !o && setEggLogConfirm(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Over your weekly egg limit</DialogTitle>
+          </DialogHeader>
+          {eggLogConfirm && (
+            <p className="text-sm text-muted-foreground">
+              Adding this meal ({eggLogConfirm.eggsInMeal} eggs) would take you over your
+              {" "}<span className="font-medium text-foreground">{eggLogConfirm.eggsMax}-egg</span> weekly limit
+              ({eggLogConfirm.eggsUsed} used so far). Consider a different option — tap Regenerate for alternatives.
+            </p>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEggLogConfirm(null)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                if (!eggLogConfirm || !meal || !option) return;
+                const c = eggLogConfirm;
+                setEggLogConfirm(null);
+                setLoggingIdx(c.idx);
+                try {
+                  const { data, error } = await supabase.functions.invoke("log-mb-meal", {
+                    body: { token, meal_type: meal, option_label: option.label, ingredients: lastIngredients, recipe: c.recipe, force: true },
+                  });
+                  if (error) throw error;
+                  if (data?.error) throw new Error(data.error);
+                  setConfirmedRecipe(c.recipe);
+                  setRecipeOptions([]);
+                  toast.success(`Meal logged · ${data?.eggs_used_this_week ?? "?"} of ${data?.eggs_max_per_week ?? "?"} eggs used this week`);
+                  await refresh();
+                } catch (e: any) {
+                  toast.error(e.message ?? "Failed to log meal");
+                } finally {
+                  setLoggingIdx(null);
+                }
+              }}
+            >
+              Log anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
