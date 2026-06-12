@@ -162,23 +162,15 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
     }
     return n;
   };
-  const plannedEggsExcluding = (excl?: { meal: MealType; slot: "primary" | "alt" }): number => {
+  // Count eggs per the selected recipe templates (per-serving), not multiplied by days.
+  const plannedEggs = (() => {
     let total = 0;
     for (const m of MEALS) {
-      const primaryOpt = selectedOption(m, "primary");
-      const lc = checkMealLimits(primaryOpt, sel(m, "primary"), weeklyFoodLimits ?? null);
-      const primaryDays = lc.limited ? lc.maxDays : 7;
-      const altDays = 7 - primaryDays;
-      if (!(excl && excl.meal === m && excl.slot === "primary")) {
-        total += eggsPerServingFor(primaryOpt) * primaryDays;
-      }
-      if (!(excl && excl.meal === m && excl.slot === "alt")) {
-        total += eggsPerServingFor(selectedOption(m, "alt")) * altDays;
-      }
+      total += eggsPerServingFor(selectedOption(m, "primary"));
+      total += eggsPerServingFor(selectedOption(m, "alt"));
     }
     return total;
-  };
-  const plannedEggs = plannedEggsExcluding();
+  })();
   const eggsBudgeted = eggsMaxPerWeek != null && eggsMaxPerWeek > 0;
 
   const isOptionComplete = (opt: OptionDef | null, s: SelectionMap): boolean => {
