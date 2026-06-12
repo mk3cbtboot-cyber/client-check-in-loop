@@ -657,6 +657,36 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!eggConfirm} onOpenChange={(o) => !o && setEggConfirm(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Egg allowance reached</DialogTitle>
+          </DialogHeader>
+          {eggConfirm && (
+            <p className="text-sm text-muted-foreground">
+              This meal uses <span className="font-medium text-foreground">{eggConfirm.eggsInMeal} eggs</span> across the days it covers.
+              You've already planned <span className="font-medium text-foreground">{eggConfirm.eggsPlanned}</span> of your{" "}
+              <span className="font-medium text-foreground">{eggsMaxPerWeek}-egg</span> weekly allowance.
+              You'll need a different meal for the remaining days — tap Regenerate to get egg-free options for this slot.
+            </p>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEggConfirm(null)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                if (!eggConfirm) return;
+                const { meal, slot, optId } = eggConfirm;
+                const current = mealIdFor(meal, slot);
+                setEggConfirm(null);
+                await applyChoose(meal, slot, optId, current === optId);
+              }}
+            >
+              Use anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
