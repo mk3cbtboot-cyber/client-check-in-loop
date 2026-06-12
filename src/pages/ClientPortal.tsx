@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Home, ClipboardCheck, BookOpen, CalendarDays, MessageCircle } from "lucide-react";
 import ChatThread, { type ChatMessage } from "@/components/ChatThread";
@@ -58,6 +59,7 @@ interface ClientState {
   phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
   weekly_food_limits: Record<string, number>;
+  eggs_max_per_week: number | null;
   system_mode: "mb" | "own_practice";
   gender: "female" | "male" | "unspecified" | null;
 }
@@ -96,6 +98,7 @@ export default function ClientPortal() {
   const regenCount = slotKey ? (regenCounts[slotKey] ?? 0) : 0;
   const regenLimitReached = regenCount >= 1;
   const [lastIngredients, setLastIngredients] = useState<Array<{ label: string; qty: string }>>([]);
+  const [eggLogConfirm, setEggLogConfirm] = useState<{ idx: number; recipe: RecipeOption; eggsInMeal: number; eggsUsed: number; eggsMax: number } | null>(null);
 
   // Check-in state
   const [feeling, setFeeling] = useState<number>(3);
@@ -514,7 +517,8 @@ export default function ClientPortal() {
   );
 
   const avocadoLeft = Math.max(0, 3 - client.avocado_count_week);
-  const eggsLeft = Math.max(0, 5 - client.egg_count_week);
+  const eggsMax = client.eggs_max_per_week ?? 5;
+  const eggsLeft = Math.max(0, eggsMax - client.egg_count_week);
   const waterTarget = 2.5;
 
   // My Plan categories — uses practitioner-customised list when set, otherwise defaults.
@@ -554,7 +558,7 @@ export default function ClientPortal() {
             <Card className="p-4">
               <p className="text-xs uppercase text-muted-foreground">Eggs</p>
               <p className="text-2xl font-semibold">
-                {client.mb_pdf_path ? `${client.egg_count_week}/5` : `${client.egg_count_week}`}
+                {client.mb_pdf_path ? `${client.egg_count_week}/${eggsMax}` : `${client.egg_count_week}`}
               </p>
               {client.mb_pdf_path && (
                 <p className="text-xs text-muted-foreground">{eggsLeft} remaining this week</p>
@@ -786,9 +790,23 @@ export default function ClientPortal() {
                           });
                           if (error) throw error;
                           if (data?.error) throw new Error(data.error);
+                          if (data?.requires_confirmation && data.reason === "eggs_over_limit") {
+                            setEggLogConfirm({
+                              idx,
+                              recipe: r,
+                              eggsInMeal: Number(data.eggs_in_meal) || 0,
+                              eggsUsed: Number(data.eggs_used_this_week) || 0,
+                              eggsMax: Number(data.eggs_max_per_week) || 0,
+                            });
+                            return;
+                          }
                           setConfirmedRecipe(r);
                           setRecipeOptions([]);
-                          toast.success("Meal logged");
+                          if (data?.eggs_max_per_week) {
+                            toast.success(`Meal logged · ${data.eggs_used_this_week} of ${data.eggs_max_per_week} eggs used this week`);
+                          } else {
+                            toast.success("Meal logged");
+                          }
                           await refresh();
                         } catch (e: any) {
                           toast.error(e.message ?? "Failed to log meal");
@@ -1149,6 +1167,7 @@ export default function ClientPortal() {
               token={token!}
               filteredSources={filteredSources}
               weeklyFoodLimits={client.weekly_food_limits ?? {}}
+              eggsMaxPerWeek={client.eggs_max_per_week ?? null}
               onPlanChanged={(p) => setWeeklyPlan(p)}
               oilAllowed={oilAllowed(client.phase)}
             />
@@ -1210,7 +1229,48 @@ export default function ClientPortal() {
         </div>
       </nav>
 
-
+      <Dialog open={!!eggLogConfirm} onOpenChange={(o) => !o && setEggLogConfirm(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Over your weekly egg limit</DialogTitle>
+          </DialogHeader>
+          {eggLogConfirm && (
+            <p className="text-sm text-muted-foreground">
+              Adding this meal ({eggLogConfirm.eggsInMeal} eggs) would take you over your
+              {" "}<span className="font-medium text-foreground">{eggLogConfirm.eggsMax}-egg</span> weekly limit
+              ({eggLogConfirm.eggsUsed} used so far). Consider a different option — tap Regenerate for alternatives.
+            </p>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEggLogConfirm(null)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                if (!eggLogConfirm || !meal || !option) return;
+                const c = eggLogConfirm;
+                setEggLogConfirm(null);
+                setLoggingIdx(c.idx);
+                try {
+                  const { data, error } = await supabase.functions.invoke("log-mb-meal", {
+                    body: { token, meal_type: meal, option_label: option.label, ingredients: lastIngredients, recipe: c.recipe, force: true },
+                  });
+                  if (error) throw error;
+                  if (data?.error) throw new Error(data.error);
+                  setConfirmedRecipe(c.recipe);
+                  setRecipeOptions([]);
+                  toast.success(`Meal logged · ${data?.eggs_used_this_week ?? "?"} of ${data?.eggs_max_per_week ?? "?"} eggs used this week`);
+                  await refresh();
+                } catch (e: any) {
+                  toast.error(e.message ?? "Failed to log meal");
+                } finally {
+                  setLoggingIdx(null);
+                }
+              }}
+            >
+              Log anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

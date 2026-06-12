@@ -1,0 +1,1 @@
+ALTER TABLE public.recipes ADD COLUMN IF NOT EXISTS egg_count integer NOT NULL DEFAULT 0;

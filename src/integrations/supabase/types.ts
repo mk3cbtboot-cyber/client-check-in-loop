@@ -465,6 +465,7 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string
+          egg_count: number
           id: string
           ingredients: Json
           instructions: Json
@@ -476,6 +477,7 @@ export type Database = {
         Insert: {
           client_id: string
           created_at?: string
+          egg_count?: number
           id?: string
           ingredients?: Json
           instructions?: Json
@@ -487,6 +489,7 @@ export type Database = {
         Update: {
           client_id?: string
           created_at?: string
+          egg_count?: number
           id?: string
           ingredients?: Json
           instructions?: Json

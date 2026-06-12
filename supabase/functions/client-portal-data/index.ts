@@ -121,6 +121,7 @@ Deno.serve(async (req) => {
         phase2_strict_mode: c.phase2_strict_mode === "practitioner_custom" ? "practitioner_custom" : "mb_standard",
         phase2_food_list: c.phase2_food_list ?? null,
         weekly_food_limits: c.weekly_food_limits ?? {},
+        eggs_max_per_week: c.eggs_max_per_week != null ? Number(c.eggs_max_per_week) : null,
         latest_weight_kg: latestCheckIn?.weight_kg != null ? Number(latestCheckIn.weight_kg) : null,
         system_mode: c.system_mode === "own_practice" ? "own_practice" : "mb",
         gender: normalizeGender(c.gender),
