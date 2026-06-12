@@ -260,7 +260,7 @@ export default function Dashboard() {
       setUserEmail(data.session.user.email ?? "");
       const { data: profile } = await supabase
         .from("profiles")
-        .select("practitioner_tier, office_hours, out_of_office, ooo_message, ooo_return_date, timezone")
+        .select("practitioner_tier, office_hours, out_of_office, ooo_message, ooo_return_date, timezone, display_name")
         .eq("id", userId)
         .maybeSingle();
       const browserTz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
@@ -268,6 +268,7 @@ export default function Dashboard() {
       setOutOfOffice(!!(profile as any)?.out_of_office);
       setOooMessage(((profile as any)?.ooo_message ?? "") as string);
       setOooReturnDate(((profile as any)?.ooo_return_date ?? "") as string);
+      setDisplayName(((profile as any)?.display_name ?? "") as string);
 
       const t = (profile?.practitioner_tier ?? null) as PractitionerTier | null;
       if (!t) {
