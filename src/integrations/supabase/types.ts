@@ -104,6 +104,7 @@ export type Database = {
         Row: {
           archived_at: string | null
           avocado_count_week: number
+          batch_cooking_mode: string
           breakfast_protein_category: string | null
           breakfast_protein_grams: number | null
           breakfast_veg_grams: number | null
@@ -187,6 +188,7 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           avocado_count_week?: number
+          batch_cooking_mode?: string
           breakfast_protein_category?: string | null
           breakfast_protein_grams?: number | null
           breakfast_veg_grams?: number | null
@@ -270,6 +272,7 @@ export type Database = {
         Update: {
           archived_at?: string | null
           avocado_count_week?: number
+          batch_cooking_mode?: string
           breakfast_protein_category?: string | null
           breakfast_protein_grams?: number | null
           breakfast_veg_grams?: number | null

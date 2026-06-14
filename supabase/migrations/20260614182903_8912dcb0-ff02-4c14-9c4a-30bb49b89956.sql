@@ -1,0 +1,1 @@
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS batch_cooking_mode TEXT NOT NULL DEFAULT '3-day' CHECK (batch_cooking_mode IN ('3-day','off'));
