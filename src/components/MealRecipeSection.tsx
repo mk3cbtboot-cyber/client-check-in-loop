@@ -25,6 +25,7 @@ interface Props {
   extraComponents: { key: string; label: string; qty: string; sources: (keyof typeof MB_FOODS)[]; optional?: boolean }[];
   filteredSources: (sources: (keyof typeof MB_FOODS)[]) => string[];
   onLogged: () => Promise<void> | void;
+  blockGeneration?: { reason: string } | null;
 }
 
 const OIL_OPTIONS = [
