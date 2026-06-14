@@ -626,6 +626,17 @@ export default function Dashboard() {
     } : c)));
   };
 
+  const setBatchCookingMode = async (clientId: string, mode: "3-day" | "off") => {
+    const prev = clients.find((c) => c.id === clientId)?.batch_cooking_mode ?? "3-day";
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, batch_cooking_mode: mode } : c)));
+    const { error } = await supabase.from("clients").update({ batch_cooking_mode: mode } as never).eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, batch_cooking_mode: prev } : c)));
+      return toast.error("Could not update batch cooking");
+    }
+    toast.success("Batch cooking updated");
+  };
+
   // ----- Phase 2 Strict food list editing -----
   const savePhase2FoodList = async (clientId: string, cats: FoodCategory[] | null) => {
     const prev = clients.find((c) => c.id === clientId)?.phase2_food_list;
