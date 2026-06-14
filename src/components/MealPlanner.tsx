@@ -252,12 +252,13 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
     const toggling = current === optId;
 
     // Egg flow — when picking a primary egg-containing meal that would exceed the weekly budget
-    // across all 7 days, open the blocking dialog so the client picks a non-egg backup meal.
+    // across all days in the period, open the blocking dialog so the client picks a non-egg backup meal.
     if (slot === "primary" && !toggling && eggsBudgeted) {
       const base = MB_OPTIONS[m].find((o) => o.id === optId) ?? null;
       const recipeEggs = eggsPerServingFor(base ? withOil(base, oilAllowed) : null);
-      if (recipeEggs > 0 && recipeEggs * 7 > (eggsMaxPerWeek ?? 0)) {
-        const maxDays = Math.max(0, Math.min(7, Math.floor((eggsMaxPerWeek ?? 0) / recipeEggs)));
+      const period = batchCookingMode === "3-day" ? 3 : 7;
+      if (recipeEggs > 0 && recipeEggs * period > (eggsMaxPerWeek ?? 0)) {
+        const maxDays = Math.max(0, Math.min(period, Math.floor((eggsMaxPerWeek ?? 0) / recipeEggs)));
         setEggConfirm({ meal: m, optId, recipeEggs, maxDays, backupId: null });
         return;
       }
