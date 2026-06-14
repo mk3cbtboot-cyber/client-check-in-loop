@@ -326,7 +326,10 @@ export default function MealRecipeSection({
           </div>
         )}
 
-        <Button onClick={generate} disabled={generating} className="w-full">
+        {blockGeneration && (
+          <p className="text-xs text-destructive">{blockGeneration.reason}</p>
+        )}
+        <Button onClick={generate} disabled={generating || !!blockGeneration} className="w-full">
           {generating ? "Generating recipes…" : "Generate Recipes"}
         </Button>
       </Card>
