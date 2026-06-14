@@ -125,6 +125,7 @@ Deno.serve(async (req) => {
         latest_weight_kg: latestCheckIn?.weight_kg != null ? Number(latestCheckIn.weight_kg) : null,
         system_mode: c.system_mode === "own_practice" ? "own_practice" : "mb",
         gender: normalizeGender(c.gender),
+        batch_cooking_mode: c.batch_cooking_mode === "off" ? "off" : "3-day",
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
