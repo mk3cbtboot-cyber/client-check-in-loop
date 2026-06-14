@@ -119,19 +119,23 @@ Deno.serve(async (req) => {
     }).eq("id", c.id);
 
     // Lock the recipe to this week's plan slot, and bump the primary log counter.
+    // If no plan row exists for this week (e.g. legacy client, or first lock-in),
+    // create one so the lock is persisted and read back correctly on return visits.
     let updatedPlan: any = null;
     if (variant) {
       const monday = mondayOf(new Date()).toISOString().slice(0, 10);
+      const suffix = variant === "alt" ? "_alt" : "";
+      const recipeCol = `${meal_type}_locked_recipe${suffix}`;
+      const countCol = `${meal_type}_primary_log_count`;
+
       const { data: planRow } = await admin
         .from("weekly_meal_plans")
         .select("*")
         .eq("client_id", c.id)
         .eq("week_start_date", monday)
         .maybeSingle();
+
       if (planRow) {
-        const suffix = variant === "alt" ? "_alt" : "";
-        const recipeCol = `${meal_type}_locked_recipe${suffix}`;
-        const countCol = `${meal_type}_primary_log_count`;
         const patch: Record<string, unknown> = {};
         if (planRow[recipeCol] == null) patch[recipeCol] = recipe;
         if (variant === "primary") {
@@ -148,6 +152,19 @@ Deno.serve(async (req) => {
         } else {
           updatedPlan = planRow;
         }
+      } else {
+        const insertRow: Record<string, unknown> = {
+          client_id: c.id,
+          week_start_date: monday,
+          [recipeCol]: recipe,
+        };
+        if (variant === "primary") insertRow[countCol] = 1;
+        const { data: created } = await admin
+          .from("weekly_meal_plans")
+          .upsert(insertRow, { onConflict: "client_id,week_start_date" })
+          .select()
+          .single();
+        updatedPlan = created;
       }
     }
 
