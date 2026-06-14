@@ -1392,6 +1392,19 @@ export default function Dashboard() {
                                 </Select>
                               </div>
                             )}
+                            <div className="flex items-center gap-2">
+                              <Label className="text-xs">Batch cooking</Label>
+                              <Select
+                                value={client.batch_cooking_mode ?? "3-day"}
+                                onValueChange={(v) => setBatchCookingMode(client.id, v as "3-day" | "off")}
+                              >
+                                <SelectTrigger className="h-8 w-[120px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="3-day">3-day</SelectItem>
+                                  <SelectItem value="off">Off</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                             <Button variant="outline" size="sm"
                               onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
                               Copy portal link
