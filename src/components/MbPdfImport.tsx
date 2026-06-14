@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, UploadCloud, AlertTriangle } from "lucide-react";
+import { Loader2, UploadCloud, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 type MealOption = {
   protein_category: string | null;
@@ -72,9 +72,10 @@ const MEALS = [
 interface Props {
   clientId: string;
   onSaved?: () => void;
+  hasUpload?: boolean;
 }
 
-export function MbPdfImport({ clientId, onSaved }: Props) {
+export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -261,7 +262,12 @@ export function MbPdfImport({ clientId, onSaved }: Props) {
       <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={handleFile} />
       <Button type="button" size="sm" variant="outline" onClick={startUpload} disabled={busy}>
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-        Upload MB PDF
+        {hasUpload ? "Re-upload MB PDF" : "Upload MB PDF"}
+        {hasUpload && !busy && (
+          <span className="inline-flex items-center gap-1 ml-1 text-emerald-600 dark:text-emerald-400" aria-label="MB PDF on file">
+            <CheckCircle2 className="h-3.5 w-3.5" fill="currentColor" stroke="white" />
+          </span>
+        )}
       </Button>
 
       <Dialog open={reviewOpen} onOpenChange={(o) => { if (!o) reset(); }}>
