@@ -564,6 +564,8 @@ export type Database = {
       }
       weekly_meal_plans: {
         Row: {
+          breakfast_batch_start_date: string | null
+          breakfast_batch_start_date_alt: string | null
           breakfast_locked_recipe: Json | null
           breakfast_locked_recipe_alt: Json | null
           breakfast_meal_id: number | null
@@ -575,6 +577,8 @@ export type Database = {
           client_id: string
           confirmed_at: string | null
           created_at: string
+          dinner_batch_start_date: string | null
+          dinner_batch_start_date_alt: string | null
           dinner_locked_recipe: Json | null
           dinner_locked_recipe_alt: Json | null
           dinner_meal_id: number | null
@@ -584,6 +588,8 @@ export type Database = {
           dinner_selections: Json
           dinner_selections_alt: Json
           id: string
+          lunch_batch_start_date: string | null
+          lunch_batch_start_date_alt: string | null
           lunch_locked_recipe: Json | null
           lunch_locked_recipe_alt: Json | null
           lunch_meal_id: number | null
@@ -596,6 +602,8 @@ export type Database = {
           week_start_date: string
         }
         Insert: {
+          breakfast_batch_start_date?: string | null
+          breakfast_batch_start_date_alt?: string | null
           breakfast_locked_recipe?: Json | null
           breakfast_locked_recipe_alt?: Json | null
           breakfast_meal_id?: number | null
@@ -607,6 +615,8 @@ export type Database = {
           client_id: string
           confirmed_at?: string | null
           created_at?: string
+          dinner_batch_start_date?: string | null
+          dinner_batch_start_date_alt?: string | null
           dinner_locked_recipe?: Json | null
           dinner_locked_recipe_alt?: Json | null
           dinner_meal_id?: number | null
@@ -616,6 +626,8 @@ export type Database = {
           dinner_selections?: Json
           dinner_selections_alt?: Json
           id?: string
+          lunch_batch_start_date?: string | null
+          lunch_batch_start_date_alt?: string | null
           lunch_locked_recipe?: Json | null
           lunch_locked_recipe_alt?: Json | null
           lunch_meal_id?: number | null
@@ -628,6 +640,8 @@ export type Database = {
           week_start_date: string
         }
         Update: {
+          breakfast_batch_start_date?: string | null
+          breakfast_batch_start_date_alt?: string | null
           breakfast_locked_recipe?: Json | null
           breakfast_locked_recipe_alt?: Json | null
           breakfast_meal_id?: number | null
@@ -639,6 +653,8 @@ export type Database = {
           client_id?: string
           confirmed_at?: string | null
           created_at?: string
+          dinner_batch_start_date?: string | null
+          dinner_batch_start_date_alt?: string | null
           dinner_locked_recipe?: Json | null
           dinner_locked_recipe_alt?: Json | null
           dinner_meal_id?: number | null
@@ -648,6 +664,8 @@ export type Database = {
           dinner_selections?: Json
           dinner_selections_alt?: Json
           id?: string
+          lunch_batch_start_date?: string | null
+          lunch_batch_start_date_alt?: string | null
           lunch_locked_recipe?: Json | null
           lunch_locked_recipe_alt?: Json | null
           lunch_meal_id?: number | null
