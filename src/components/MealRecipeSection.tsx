@@ -52,6 +52,7 @@ export default function MealRecipeSection({
   const [eggConfirm, setEggConfirm] = useState<{ idx: number; recipe: LockedRecipe; eggsInMeal: number; eggsUsed: number; eggsMax: number } | null>(null);
   const [loggingLocked, setLoggingLocked] = useState(false);
   const [eggConfirmLocked, setEggConfirmLocked] = useState<{ eggsInMeal: number; eggsUsed: number; eggsMax: number } | null>(null);
+  const [fullScreenIdx, setFullScreenIdx] = useState<number | null>(null);
   const regenLimitReached = regenCount >= 1;
   const oilAllow = oilAllowedFn(phase);
 
