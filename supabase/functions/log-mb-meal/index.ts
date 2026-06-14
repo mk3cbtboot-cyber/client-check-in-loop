@@ -118,14 +118,20 @@ Deno.serve(async (req) => {
       meal_streak: (c.meal_streak ?? 0) + 1,
     }).eq("id", c.id);
 
-    // Lock the recipe to this week's plan slot, and bump the primary log counter.
-    // If no plan row exists for this week (e.g. legacy client, or first lock-in),
-    // create one so the lock is persisted and read back correctly on return visits.
+    // Lock the recipe to this slot for the batch cooking window, and bump the primary log counter.
+    // Batch cooking mode controls locking:
+    //  - '3-day'  : lock recipe for 3 days from batch_start_date. After expiry, next lock overwrites.
+    //  - 'off'    : never lock; just log the meal.
+    // The weekly_meal_plans row is still keyed by week_start_date (used for egg limits / planner).
     let updatedPlan: any = null;
-    if (variant) {
-      const monday = mondayOf(new Date()).toISOString().slice(0, 10);
+    const batchMode = (c.batch_cooking_mode ?? "3-day") as "3-day" | "off";
+    if (variant && batchMode !== "off") {
+      const today = new Date();
+      const todayIso = today.toISOString().slice(0, 10);
+      const monday = mondayOf(today).toISOString().slice(0, 10);
       const suffix = variant === "alt" ? "_alt" : "";
       const recipeCol = `${meal_type}_locked_recipe${suffix}`;
+      const batchCol = `${meal_type}_batch_start_date${suffix}`;
       const countCol = `${meal_type}_primary_log_count`;
 
       const { data: planRow } = await admin
@@ -135,9 +141,21 @@ Deno.serve(async (req) => {
         .eq("week_start_date", monday)
         .maybeSingle();
 
+      const batchActive = (start: string | null | undefined): boolean => {
+        if (!start) return false;
+        const s = new Date(start + "T00:00:00Z").getTime();
+        const t = new Date(todayIso + "T00:00:00Z").getTime();
+        const days = Math.floor((t - s) / 86_400_000);
+        return days >= 0 && days < 3;
+      };
+
       if (planRow) {
         const patch: Record<string, unknown> = {};
-        if (planRow[recipeCol] == null) patch[recipeCol] = recipe;
+        const hasActiveLock = planRow[recipeCol] != null && batchActive(planRow[batchCol]);
+        if (!hasActiveLock) {
+          patch[recipeCol] = recipe;
+          patch[batchCol] = todayIso;
+        }
         if (variant === "primary") {
           patch[countCol] = (Number(planRow[countCol]) || 0) + 1;
         }
@@ -157,6 +175,7 @@ Deno.serve(async (req) => {
           client_id: c.id,
           week_start_date: monday,
           [recipeCol]: recipe,
+          [batchCol]: todayIso,
         };
         if (variant === "primary") insertRow[countCol] = 1;
         const { data: created } = await admin
@@ -167,6 +186,7 @@ Deno.serve(async (req) => {
         updatedPlan = created;
       }
     }
+
 
     return new Response(JSON.stringify({
       ok: true,

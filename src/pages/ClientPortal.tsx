@@ -642,10 +642,24 @@ export default function ClientPortal() {
                 const hidePrimary = isSplit && primaryLogCount >= primaryDays;
                 const primaryOption = primaryId != null ? MB_OPTIONS[meal].find((o) => o.id === primaryId) ?? null : null;
                 const altOption = altId != null ? MB_OPTIONS[meal].find((o) => o.id === altId) ?? null : null;
-                const primaryLocked: any = wp[`${meal}_locked_recipe`] ?? null;
-                const altLocked: any = wp[`${meal}_locked_recipe_alt`] ?? null;
+                const batchMode = ((client as any).batch_cooking_mode ?? "3-day") as "3-day" | "off";
+                const batchActive = (start: string | null | undefined): boolean => {
+                  if (!start) return false;
+                  const s = new Date(start + "T00:00:00Z").getTime();
+                  const todayIso = new Date().toISOString().slice(0, 10);
+                  const t = new Date(todayIso + "T00:00:00Z").getTime();
+                  const days = Math.floor((t - s) / 86_400_000);
+                  return days >= 0 && days < 3;
+                };
+                const primaryBatchStart = wp[`${meal}_batch_start_date`] as string | null;
+                const altBatchStart = wp[`${meal}_batch_start_date_alt`] as string | null;
+                const rawPrimaryLocked: any = wp[`${meal}_locked_recipe`] ?? null;
+                const rawAltLocked: any = wp[`${meal}_locked_recipe_alt`] ?? null;
+                const primaryLocked: any = batchMode === "off" ? null : (batchActive(primaryBatchStart) ? rawPrimaryLocked : null);
+                const altLocked: any = batchMode === "off" ? null : (batchActive(altBatchStart) ? rawAltLocked : null);
                 const primarySelections = (wp[`${meal}_selections`] as Record<string, string>) ?? {};
                 const altSelections = (wp[`${meal}_selections_alt`] as Record<string, string>) ?? {};
+
 
                 const isP3Plus = client.phase === "phase3" || client.phase === "phase4";
                 const isCustomMode = client.phase3_mode !== "mb_standard";
