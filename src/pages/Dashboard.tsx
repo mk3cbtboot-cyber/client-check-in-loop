@@ -117,6 +117,7 @@ interface Client {
   phase2_food_list: unknown;
   weekly_food_limits: Record<string, number>;
   system_mode: "mb" | "own_practice";
+  batch_cooking_mode: "3-day" | "off";
   meal_streak: number | null;
   avocado_count_week: number | null;
   egg_count_week: number | null;
@@ -623,6 +624,17 @@ export default function Dashboard() {
       phase,
       phase2_strict_started_at: (updates.phase2_strict_started_at as string) ?? c.phase2_strict_started_at,
     } : c)));
+  };
+
+  const setBatchCookingMode = async (clientId: string, mode: "3-day" | "off") => {
+    const prev = clients.find((c) => c.id === clientId)?.batch_cooking_mode ?? "3-day";
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, batch_cooking_mode: mode } : c)));
+    const { error } = await supabase.from("clients").update({ batch_cooking_mode: mode } as never).eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, batch_cooking_mode: prev } : c)));
+      return toast.error("Could not update batch cooking");
+    }
+    toast.success("Batch cooking updated");
   };
 
   // ----- Phase 2 Strict food list editing -----
@@ -1380,6 +1392,19 @@ export default function Dashboard() {
                                 </Select>
                               </div>
                             )}
+                            <div className="flex items-center gap-2">
+                              <Label className="text-xs">Batch cooking</Label>
+                              <Select
+                                value={client.batch_cooking_mode ?? "3-day"}
+                                onValueChange={(v) => setBatchCookingMode(client.id, v as "3-day" | "off")}
+                              >
+                                <SelectTrigger className="h-8 w-[120px]"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="3-day">3-day</SelectItem>
+                                  <SelectItem value="off">Off</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                             <Button variant="outline" size="sm"
                               onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
                               Copy portal link
