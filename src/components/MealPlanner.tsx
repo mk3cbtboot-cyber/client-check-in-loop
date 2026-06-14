@@ -699,12 +699,14 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
           <AlertDialogHeader>
             <AlertDialogTitle>Pick a backup meal</AlertDialogTitle>
             {eggConfirm && (() => {
-              const remaining = 7 - eggConfirm.maxDays;
+              const period = batchCookingMode === "3-day" ? 3 : 7;
+              const remaining = period - eggConfirm.maxDays;
+              const periodLabel = batchCookingMode === "3-day" ? "batch" : "week";
               return (
                 <AlertDialogDescription>
                   This meal contains <span className="font-medium text-foreground">{eggConfirm.recipeEggs} eggs</span>.
                   With your <span className="font-medium text-foreground">{eggsMaxPerWeek}-egg</span> weekly allowance,
-                  you can have it <span className="font-medium text-foreground">{eggConfirm.maxDays} {eggConfirm.maxDays === 1 ? "day" : "days"}</span> this week.
+                  you can have it <span className="font-medium text-foreground">{eggConfirm.maxDays} {eggConfirm.maxDays === 1 ? "day" : "days"}</span> this {periodLabel}.
                   You need to pick a different meal for the other <span className="font-medium text-foreground">{remaining} {remaining === 1 ? "day" : "days"}</span>.
                 </AlertDialogDescription>
               );
