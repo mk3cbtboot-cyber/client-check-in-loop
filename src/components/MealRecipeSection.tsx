@@ -402,6 +402,51 @@ export default function MealRecipeSection({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {fullScreenIdx !== null && recipeOptions[fullScreenIdx] && (() => {
+        const r = recipeOptions[fullScreenIdx];
+        return (
+          <div className="fixed inset-0 z-50 bg-background flex flex-col">
+            <div className="flex items-center gap-3 p-4 border-b">
+              <Button variant="ghost" size="icon" onClick={() => setFullScreenIdx(null)} aria-label="Back">
+                <ArrowLeft />
+              </Button>
+              <p className="font-semibold text-base truncate">{r.recipe_title}</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-28">
+              <section>
+                <h3 className="text-sm uppercase text-muted-foreground mb-2">Ingredients</h3>
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  {r.recipe.map((x, i) => <li key={i}>{x}</li>)}
+                </ul>
+              </section>
+              <section>
+                <h3 className="text-sm uppercase text-muted-foreground mb-2">Method</h3>
+                <div className="text-sm space-y-2">
+                  {r.method.map((s, i) => <p key={i}>{s}</p>)}
+                </div>
+              </section>
+              {r.notes?.length > 0 && (
+                <section>
+                  <h3 className="text-sm uppercase text-muted-foreground mb-2">Notes</h3>
+                  <ul className="list-disc list-inside text-sm space-y-1">
+                    {r.notes.map((n, i) => <li key={i}>{n}</li>)}
+                  </ul>
+                </section>
+              )}
+            </div>
+            <div className="fixed bottom-0 left-0 right-0 p-4 border-t bg-background">
+              <Button
+                className="w-full"
+                disabled={loggingIdx !== null}
+                onClick={() => handleLogFromOptions(fullScreenIdx, r, false)}
+              >
+                {loggingIdx === fullScreenIdx ? "Logging…" : "I Ate This"}
+              </Button>
+            </div>
+          </div>
+        );
+      })()}
     </>
   );
 }
