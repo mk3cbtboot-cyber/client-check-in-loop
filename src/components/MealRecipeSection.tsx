@@ -40,7 +40,7 @@ const OIL_OPTIONS = [
 
 export default function MealRecipeSection({
   token, meal, variant, optionDef, phase, avocadoCountWeek,
-  lockedRecipe, lockedSelections, sectionTitle, extraComponents, filteredSources, onLogged, blockGeneration,
+  lockedRecipe, lockedSelections, sectionTitle, extraComponents, filteredSources, onLogged, blockGeneration, fullScreenOnSelect,
 }: Props) {
   const [picks, setPicks] = useState<Record<string, string>>({});
   const [oil, setOil] = useState<string>("none");
