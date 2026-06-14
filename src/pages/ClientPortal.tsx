@@ -725,6 +725,7 @@ export default function ClientPortal() {
                                 extraComponents={buildExtras(opt)}
                                 filteredSources={filteredSources}
                                 onLogged={refetchAll}
+                                fullScreenOnSelect
                               />
                             )}
                           </div>
