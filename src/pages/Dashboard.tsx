@@ -21,8 +21,42 @@ function parseParsedOils(raw: string | null | undefined): string[] {
   return (raw ?? "").split(",").map((x) => x.trim()).filter((x) => x.length > 0);
 }
 
-function categoriesForPhase(raw: unknown, phase: string, parsedOilsRaw: string | null | undefined): FoodCategory[] {
-  const base = resolvePhase2Categories(raw);
+// Phase 2 food groups as parsed from the MB PDF into individual columns.
+const PHASE2_PARSED_GROUPS: { title: string; field: string }[] = [
+  { title: "Fish", field: "food_fish" },
+  { title: "Seafood", field: "food_seafood" },
+  { title: "Milk Products", field: "food_milk_products" },
+  { title: "Yogurt", field: "food_yogurt" },
+  { title: "Nuts", field: "food_nuts" },
+  { title: "Meat", field: "food_meat" },
+  { title: "Poultry", field: "food_poultry" },
+  { title: "Cheese", field: "food_cheese" },
+  { title: "Legumes", field: "food_legumes" },
+  { title: "Pumpkin Seeds", field: "food_pumpkin_seeds" },
+  { title: "Sunflower Seeds", field: "food_sunflower_seeds" },
+  { title: "Vegetables", field: "food_vegetables" },
+  { title: "Veg./Lettuce", field: "food_veg_lettuce" },
+  { title: "Starch", field: "food_starch" },
+  { title: "Bread", field: "food_bread" },
+  { title: "Fruit", field: "food_fruit" },
+];
+
+function categoriesFromParsedFields(client: Record<string, unknown>): FoodCategory[] {
+  return PHASE2_PARSED_GROUPS
+    .map((g) => ({
+      title: g.title,
+      items: ((client[g.field] as string) ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+    }))
+    .filter((g) => g.items.length > 0);
+}
+
+function categoriesForPhase(raw: unknown, phase: string, parsedOilsRaw: string | null | undefined, client?: Record<string, unknown>): FoodCategory[] {
+  let base = resolvePhase2Categories(raw);
+  // Fallback: if the practitioner hasn't customised the list yet but the PDF
+  // has been parsed into per-food columns, build the categories from those.
+  if (base.length === 0 && client) {
+    base = categoriesFromParsedFields(client);
+  }
   if (phase === "phase2_extended" && !base.some((c) => /oil/i.test(c.title))) {
     const parsedOils = parseParsedOils(parsedOilsRaw);
     if (parsedOils.length > 0) {
