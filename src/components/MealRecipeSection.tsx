@@ -408,33 +408,35 @@ export default function MealRecipeSection({
         const r = recipeOptions[fullScreenIdx];
         return (
           <div className="fixed inset-0 z-50 bg-background flex flex-col">
-            <div className="flex items-center gap-3 p-4 border-b">
+            <div className="flex items-center gap-3 p-4 border-b shrink-0">
               <Button variant="ghost" size="icon" onClick={() => setFullScreenIdx(null)} aria-label="Back">
                 <ArrowLeft />
               </Button>
               <p className="font-semibold text-base truncate">{r.recipe_title}</p>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-28">
-              <section>
-                <h3 className="text-sm uppercase text-muted-foreground mb-2">Ingredients</h3>
-                <ul className="list-disc list-inside text-sm space-y-1">
-                  {r.recipe.map((x, i) => <li key={i}>{x}</li>)}
-                </ul>
-              </section>
-              <section>
-                <h3 className="text-sm uppercase text-muted-foreground mb-2">Method</h3>
-                <div className="text-sm space-y-2">
-                  {r.method.map((s, i) => <p key={i}>{s}</p>)}
-                </div>
-              </section>
-              {r.notes?.length > 0 && (
-                <section>
-                  <h3 className="text-sm uppercase text-muted-foreground mb-2">Notes</h3>
+            <div className="flex-1 overflow-y-auto p-4 pb-28">
+              <Tabs defaultValue="recipe">
+                <TabsList className="w-full">
+                  <TabsTrigger value="recipe" className="flex-1">Recipe</TabsTrigger>
+                  <TabsTrigger value="method" className="flex-1">Method</TabsTrigger>
+                  <TabsTrigger value="notes" className="flex-1">Notes</TabsTrigger>
+                </TabsList>
+                <TabsContent value="recipe" className="pt-3">
+                  <ul className="list-disc list-inside text-sm space-y-1">
+                    {r.recipe.map((x, i) => <li key={i}>{x}</li>)}
+                  </ul>
+                </TabsContent>
+                <TabsContent value="method" className="pt-3">
+                  <div className="text-sm space-y-2">
+                    {r.method.map((s, i) => <p key={i}>{s}</p>)}
+                  </div>
+                </TabsContent>
+                <TabsContent value="notes" className="pt-3">
                   <ul className="list-disc list-inside text-sm space-y-1">
                     {r.notes.map((n, i) => <li key={i}>{n}</li>)}
                   </ul>
-                </section>
-              )}
+                </TabsContent>
+              </Tabs>
             </div>
             <div className="fixed bottom-0 left-0 right-0 p-4 border-t bg-background">
               <Button
