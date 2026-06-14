@@ -363,7 +363,7 @@ export default function MealRecipeSection({
                   </TabsContent>
                 </Tabs>
                 <Button className="w-full mt-3" disabled={loggingIdx !== null} onClick={() => handleLogFromOptions(idx, r, false)}>
-                  {loggingIdx === idx ? "Logging…" : "I Ate This"}
+                  {loggingIdx === idx ? "Selecting…" : "Select this recipe"}
                 </Button>
               </Card>
             ))}
