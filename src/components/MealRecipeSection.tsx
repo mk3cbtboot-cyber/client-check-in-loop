@@ -101,6 +101,10 @@ export default function MealRecipeSection({
   };
 
   const generate = async () => {
+    if (blockGeneration) {
+      toast.error(blockGeneration.reason);
+      return;
+    }
     for (const c of optionDef.components) {
       if (!c.optional && !picks[c.key]) return toast.error(`Choose: ${c.label}`);
     }
