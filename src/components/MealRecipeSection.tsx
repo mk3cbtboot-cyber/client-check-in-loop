@@ -365,7 +365,14 @@ export default function MealRecipeSection({
                     <ul className="list-disc list-inside text-sm space-y-1">{r.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
                   </TabsContent>
                 </Tabs>
-                <Button className="w-full mt-3" disabled={loggingIdx !== null} onClick={() => handleLogFromOptions(idx, r, false)}>
+                <Button
+                  className="w-full mt-3"
+                  disabled={loggingIdx !== null}
+                  onClick={() => {
+                    if (fullScreenOnSelect) setFullScreenIdx(idx);
+                    else handleLogFromOptions(idx, r, false);
+                  }}
+                >
                   {loggingIdx === idx ? "Selecting…" : "Select this recipe"}
                 </Button>
               </Card>
