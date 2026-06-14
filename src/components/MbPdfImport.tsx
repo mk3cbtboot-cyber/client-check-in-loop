@@ -262,7 +262,12 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={handleFile} />
       <Button type="button" size="sm" variant="outline" onClick={startUpload} disabled={busy}>
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-        Upload MB PDF
+        {hasUpload ? "Re-upload MB PDF" : "Upload MB PDF"}
+        {hasUpload && !busy && (
+          <span className="inline-flex items-center gap-1 ml-1 text-emerald-600 dark:text-emerald-400" aria-label="MB PDF on file">
+            <CheckCircle2 className="h-3.5 w-3.5" fill="currentColor" stroke="white" />
+          </span>
+        )}
       </Button>
 
       <Dialog open={reviewOpen} onOpenChange={(o) => { if (!o) reset(); }}>
