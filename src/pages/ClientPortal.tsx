@@ -63,6 +63,7 @@ interface ClientState {
   eggs_max_per_week: number | null;
   system_mode: "mb" | "own_practice";
   gender: "female" | "male" | "unspecified" | null;
+  batch_cooking_mode: "3-day" | "off";
 }
 
 type TabKey = "home" | "checkin" | "plan" | "planner" | "messages";
@@ -1083,6 +1084,7 @@ export default function ClientPortal() {
               eggsMaxPerWeek={client.eggs_max_per_week ?? null}
               onPlanChanged={(p) => setWeeklyPlan(p)}
               oilAllowed={oilAllowed(client.phase)}
+              batchCookingMode={client.batch_cooking_mode ?? "3-day"}
             />
 
           )}

@@ -51,6 +51,7 @@ interface Props {
   eggsMaxPerWeek?: number | null;
   onPlanChanged?: (plan: WeeklyPlan | null) => void;
   oilAllowed?: boolean;
+  batchCookingMode?: "3-day" | "off";
 }
 
 const MEALS: MealType[] = ["breakfast", "lunch", "dinner"];
@@ -94,7 +95,7 @@ function categoryForSources(sources: (keyof typeof MB_FOODS)[]): string {
   return "Other";
 }
 
-export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, eggsMaxPerWeek = null, onPlanChanged, oilAllowed = false }: Props) {
+export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, eggsMaxPerWeek = null, onPlanChanged, oilAllowed = false, batchCookingMode = "3-day" }: Props) {
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<WeeklyPlan | null>(null);
   const [weekStart, setWeekStart] = useState<string>("");
@@ -425,11 +426,15 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   return (
     <section className="space-y-4">
       <Card className="p-4">
-        <h2 className="text-lg font-semibold">This Week's Meal Plan</h2>
+        <h2 className="text-lg font-semibold">{batchCookingMode === "3-day" ? "This Week's Meal Plan" : "Your Meal Plan"}</h2>
         <p className="text-sm text-muted-foreground">
-          Select one option from each meal below. Your choices will be used for the week and loaded into your Recipe Generator.
+          {batchCookingMode === "3-day"
+            ? "Select one option from each meal below. Your choices will be used for the next 3 days and loaded into your Recipe Generator."
+            : "Select one option from each meal below. Your choices will be used to generate a fresh recipe each time you cook."}
         </p>
-        {weekStart && <p className="text-xs text-muted-foreground mt-1">Week of {weekStart} · resets every Monday</p>}
+        {batchCookingMode === "3-day" && weekStart && (
+          <p className="text-xs text-muted-foreground mt-1">Week of {weekStart} · resets every 3 days</p>
+        )}
         {confirmed && (
           <div className="mt-3 flex items-center gap-2 text-xs text-primary">
             <Lock className="h-3.5 w-3.5" /> Plan confirmed — locked for the week.
@@ -618,7 +623,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
             </>
           ) : (
             <Button onClick={confirm} disabled={!allComplete || busy}>
-              {busy ? "Saving…" : "Confirm My Week"}
+              {busy ? "Saving…" : batchCookingMode === "3-day" ? "Confirm My Week" : "Confirm My Meals"}
             </Button>
           )}
         </div>
