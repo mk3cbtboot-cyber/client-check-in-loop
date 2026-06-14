@@ -25,6 +25,7 @@ interface Props {
   extraComponents: { key: string; label: string; qty: string; sources: (keyof typeof MB_FOODS)[]; optional?: boolean }[];
   filteredSources: (sources: (keyof typeof MB_FOODS)[]) => string[];
   onLogged: () => Promise<void> | void;
+  blockGeneration?: { reason: string } | null;
 }
 
 const OIL_OPTIONS = [
@@ -38,7 +39,7 @@ const OIL_OPTIONS = [
 
 export default function MealRecipeSection({
   token, meal, variant, optionDef, phase, avocadoCountWeek,
-  lockedRecipe, lockedSelections, sectionTitle, extraComponents, filteredSources, onLogged,
+  lockedRecipe, lockedSelections, sectionTitle, extraComponents, filteredSources, onLogged, blockGeneration,
 }: Props) {
   const [picks, setPicks] = useState<Record<string, string>>({});
   const [oil, setOil] = useState<string>("none");
@@ -100,6 +101,10 @@ export default function MealRecipeSection({
   };
 
   const generate = async () => {
+    if (blockGeneration) {
+      toast.error(blockGeneration.reason);
+      return;
+    }
     for (const c of optionDef.components) {
       if (!c.optional && !picks[c.key]) return toast.error(`Choose: ${c.label}`);
     }
@@ -321,7 +326,10 @@ export default function MealRecipeSection({
           </div>
         )}
 
-        <Button onClick={generate} disabled={generating} className="w-full">
+        {blockGeneration && (
+          <p className="text-xs text-destructive">{blockGeneration.reason}</p>
+        )}
+        <Button onClick={generate} disabled={generating || !!blockGeneration} className="w-full">
           {generating ? "Generating recipes…" : "Generate Recipes"}
         </Button>
       </Card>

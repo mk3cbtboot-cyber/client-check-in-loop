@@ -672,23 +672,32 @@ export default function ClientPortal() {
 
                 return (
                   <div className="space-y-4">
-                    {!hidePrimary && primaryOption && (
-                      <MealRecipeSection
-                        key={`${meal}-primary`}
-                        token={token!}
-                        meal={meal}
-                        variant="primary"
-                        optionDef={primaryOption}
-                        phase={client.phase}
-                        avocadoCountWeek={client.avocado_count_week}
-                        lockedRecipe={primaryLocked}
-                        lockedSelections={primarySelections}
-                        sectionTitle={isSplit ? `Egg meal (${primaryLogCount}/${primaryDays} this week)` : undefined}
-                        extraComponents={buildExtras(primaryOption)}
-                        filteredSources={filteredSources}
-                        onLogged={refetchAll}
-                      />
-                    )}
+                    {!hidePrimary && primaryOption && (() => {
+                      const eggsMax = client.eggs_max_per_week ?? null;
+                      const eggsUsed = client.egg_count_week ?? 0;
+                      const eggsExhausted = isSplit && eggsMax != null && eggsMax > 0 && eggsUsed >= eggsMax;
+                      const block = eggsExhausted
+                        ? { reason: `You've used ${eggsUsed} of ${eggsMax} eggs this week — the egg meal is unavailable until next week.` }
+                        : null;
+                      return (
+                        <MealRecipeSection
+                          key={`${meal}-primary`}
+                          token={token!}
+                          meal={meal}
+                          variant="primary"
+                          optionDef={primaryOption}
+                          phase={client.phase}
+                          avocadoCountWeek={client.avocado_count_week}
+                          lockedRecipe={primaryLocked}
+                          lockedSelections={primarySelections}
+                          sectionTitle={isSplit ? `Egg meal (${primaryLogCount}/${primaryDays} this week)` : undefined}
+                          extraComponents={buildExtras(primaryOption)}
+                          filteredSources={filteredSources}
+                          onLogged={refetchAll}
+                          blockGeneration={block}
+                        />
+                      );
+                    })()}
                     {isSplit && altOption && (
                       <MealRecipeSection
                         key={`${meal}-alt`}
