@@ -14,6 +14,9 @@ export default function PractitionerMessages({ clientId, clientName, onRead }: P
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const isPractitionerAiSummary = (m: ChatMessage) =>
+    m.sender === "ai" && typeof m.body === "string" && m.body.startsWith("[AI-answered — for practitioner review]");
+
   const load = async () => {
     const { data, error } = await supabase
       .from("messages")
@@ -21,10 +24,11 @@ export default function PractitionerMessages({ clientId, clientName, onRead }: P
       .eq("client_id", clientId)
       .order("created_at", { ascending: true });
     if (!error && data) {
+      const filtered = (data as ChatMessage[]).filter((m) => !isPractitionerAiSummary(m));
       // Dedupe by id in case a realtime INSERT landed before the initial fetch.
       setMessages((prev) => {
         const seen = new Map<string, ChatMessage>();
-        for (const m of data as ChatMessage[]) seen.set(m.id, m);
+        for (const m of filtered) seen.set(m.id, m);
         for (const m of prev) if (!seen.has(m.id)) seen.set(m.id, m);
         return Array.from(seen.values()).sort((a, b) => a.created_at.localeCompare(b.created_at));
       });
@@ -42,6 +46,7 @@ export default function PractitionerMessages({ clientId, clientName, onRead }: P
         { event: "INSERT", schema: "public", table: "messages", filter: `client_id=eq.${clientId}` },
         (payload) => {
           const row = payload.new as ChatMessage;
+          if (isPractitionerAiSummary(row)) return;
           setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
           if (row.sender === "client") onRead?.();
         },
