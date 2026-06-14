@@ -63,6 +63,7 @@ interface ClientState {
   eggs_max_per_week: number | null;
   system_mode: "mb" | "own_practice";
   gender: "female" | "male" | "unspecified" | null;
+  batch_cooking_mode: "3-day" | "off";
 }
 
 type TabKey = "home" | "checkin" | "plan" | "planner" | "messages";
