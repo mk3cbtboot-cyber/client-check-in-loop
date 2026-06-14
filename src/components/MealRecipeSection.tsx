@@ -26,6 +26,7 @@ interface Props {
   filteredSources: (sources: (keyof typeof MB_FOODS)[]) => string[];
   onLogged: () => Promise<void> | void;
   blockGeneration?: { reason: string } | null;
+  fullScreenOnSelect?: boolean;
 }
 
 const OIL_OPTIONS = [
