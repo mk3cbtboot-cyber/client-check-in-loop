@@ -72,9 +72,10 @@ const MEALS = [
 interface Props {
   clientId: string;
   onSaved?: () => void;
+  hasUpload?: boolean;
 }
 
-export function MbPdfImport({ clientId, onSaved }: Props) {
+export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
