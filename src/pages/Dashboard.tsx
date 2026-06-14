@@ -1385,7 +1385,7 @@ export default function Dashboard() {
                               Copy portal link
                             </Button>
                             {client.system_mode !== "own_practice" && (
-                              <MbPdfImport clientId={client.id} onSaved={load} />
+                              <MbPdfImport clientId={client.id} onSaved={load} hasUpload={!!client.mb_pdf_path} />
                             )}
                           </div>
                           {client.system_mode !== "own_practice" && client.phase2_strict_mode === "practitioner_custom" && (
