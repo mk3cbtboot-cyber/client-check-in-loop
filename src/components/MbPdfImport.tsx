@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, UploadCloud, AlertTriangle } from "lucide-react";
+import { Loader2, UploadCloud, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 type MealOption = {
   protein_category: string | null;
