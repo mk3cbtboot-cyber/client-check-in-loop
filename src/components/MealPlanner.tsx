@@ -252,12 +252,13 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
     const toggling = current === optId;
 
     // Egg flow — when picking a primary egg-containing meal that would exceed the weekly budget
-    // across all 7 days, open the blocking dialog so the client picks a non-egg backup meal.
+    // across all days in the period, open the blocking dialog so the client picks a non-egg backup meal.
     if (slot === "primary" && !toggling && eggsBudgeted) {
       const base = MB_OPTIONS[m].find((o) => o.id === optId) ?? null;
       const recipeEggs = eggsPerServingFor(base ? withOil(base, oilAllowed) : null);
-      if (recipeEggs > 0 && recipeEggs * 7 > (eggsMaxPerWeek ?? 0)) {
-        const maxDays = Math.max(0, Math.min(7, Math.floor((eggsMaxPerWeek ?? 0) / recipeEggs)));
+      const period = batchCookingMode === "3-day" ? 3 : 7;
+      if (recipeEggs > 0 && recipeEggs * period > (eggsMaxPerWeek ?? 0)) {
+        const maxDays = Math.max(0, Math.min(period, Math.floor((eggsMaxPerWeek ?? 0) / recipeEggs)));
         setEggConfirm({ meal: m, optId, recipeEggs, maxDays, backupId: null });
         return;
       }
@@ -698,12 +699,14 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
           <AlertDialogHeader>
             <AlertDialogTitle>Pick a backup meal</AlertDialogTitle>
             {eggConfirm && (() => {
-              const remaining = 7 - eggConfirm.maxDays;
+              const period = batchCookingMode === "3-day" ? 3 : 7;
+              const remaining = period - eggConfirm.maxDays;
+              const periodLabel = batchCookingMode === "3-day" ? "batch" : "week";
               return (
                 <AlertDialogDescription>
                   This meal contains <span className="font-medium text-foreground">{eggConfirm.recipeEggs} eggs</span>.
                   With your <span className="font-medium text-foreground">{eggsMaxPerWeek}-egg</span> weekly allowance,
-                  you can have it <span className="font-medium text-foreground">{eggConfirm.maxDays} {eggConfirm.maxDays === 1 ? "day" : "days"}</span> this week.
+                  you can have it <span className="font-medium text-foreground">{eggConfirm.maxDays} {eggConfirm.maxDays === 1 ? "day" : "days"}</span> this {periodLabel}.
                   You need to pick a different meal for the other <span className="font-medium text-foreground">{remaining} {remaining === 1 ? "day" : "days"}</span>.
                 </AlertDialogDescription>
               );
