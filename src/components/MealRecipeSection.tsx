@@ -166,6 +166,7 @@ export default function MealRecipeSection({
       toast.success("Meal logged");
       await onLogged();
       setRecipeOptions([]);
+      setFullScreenIdx(null);
     } catch (e: any) {
       toast.error(e.message ?? "Failed to log meal");
     } finally {
