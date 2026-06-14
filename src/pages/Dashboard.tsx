@@ -117,6 +117,7 @@ interface Client {
   phase2_food_list: unknown;
   weekly_food_limits: Record<string, number>;
   system_mode: "mb" | "own_practice";
+  batch_cooking_mode: "3-day" | "off";
   meal_streak: number | null;
   avocado_count_week: number | null;
   egg_count_week: number | null;
