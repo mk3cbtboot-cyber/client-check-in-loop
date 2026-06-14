@@ -51,6 +51,7 @@ interface Props {
   eggsMaxPerWeek?: number | null;
   onPlanChanged?: (plan: WeeklyPlan | null) => void;
   oilAllowed?: boolean;
+  batchCookingMode?: "3-day" | "off";
 }
 
 const MEALS: MealType[] = ["breakfast", "lunch", "dinner"];

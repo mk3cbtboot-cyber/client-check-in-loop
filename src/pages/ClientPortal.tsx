@@ -1084,6 +1084,7 @@ export default function ClientPortal() {
               eggsMaxPerWeek={client.eggs_max_per_week ?? null}
               onPlanChanged={(p) => setWeeklyPlan(p)}
               oilAllowed={oilAllowed(client.phase)}
+              batchCookingMode={client.batch_cooking_mode ?? "3-day"}
             />
 
           )}
