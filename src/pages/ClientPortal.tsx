@@ -88,6 +88,10 @@ export default function ClientPortal() {
   const [option, setOption] = useState<OptionDef | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
   const [oil, setOil] = useState<string>("none");
+  // For batch_cooking_mode === "off": which option id is expanded per meal tab.
+  const [expandedOptionId, setExpandedOptionId] = useState<Record<MealType, number | null>>({
+    breakfast: null, lunch: null, dinner: null,
+  });
   
   const [generating, setGenerating] = useState(false);
   type RecipeOption = { recipe_title: string; recipe: string[]; method: string[]; notes: string[] };
