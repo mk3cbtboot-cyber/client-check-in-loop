@@ -689,6 +689,49 @@ export default function ClientPortal() {
                   await refresh();
                 };
 
+                if (batchMode === "off") {
+                  const allOptions = MB_OPTIONS[meal];
+                  const expandedId = expandedOptionId[meal];
+                  return (
+                    <div className="space-y-3">
+                      {allOptions.map((opt) => {
+                        const isExpanded = expandedId === opt.id;
+                        return (
+                          <div key={opt.id} className="space-y-2">
+                            <Card
+                              className={`p-4 cursor-pointer transition-colors ${isExpanded ? "border-primary bg-primary/5" : "hover:bg-accent/50"}`}
+                              onClick={() =>
+                                setExpandedOptionId((prev) => ({
+                                  ...prev,
+                                  [meal]: isExpanded ? null : opt.id,
+                                }))
+                              }
+                            >
+                              <p className="font-medium">{opt.label}</p>
+                            </Card>
+                            {isExpanded && (
+                              <MealRecipeSection
+                                key={`${meal}-off-${opt.id}`}
+                                token={token!}
+                                meal={meal}
+                                variant="primary"
+                                optionDef={opt}
+                                phase={client.phase}
+                                avocadoCountWeek={client.avocado_count_week}
+                                lockedRecipe={null}
+                                lockedSelections={{}}
+                                extraComponents={buildExtras(opt)}
+                                filteredSources={filteredSources}
+                                onLogged={refetchAll}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+
                 return (
                   <div className="space-y-4">
                     {!hidePrimary && primaryOption && (() => {
