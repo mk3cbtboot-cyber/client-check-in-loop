@@ -623,7 +623,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
             </>
           ) : (
             <Button onClick={confirm} disabled={!allComplete || busy}>
-              {busy ? "Saving…" : "Confirm My Week"}
+              {busy ? "Saving…" : batchCookingMode === "3-day" ? "Confirm My Week" : "Confirm My Meals"}
             </Button>
           )}
         </div>
