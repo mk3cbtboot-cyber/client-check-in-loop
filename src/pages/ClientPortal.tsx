@@ -88,6 +88,10 @@ export default function ClientPortal() {
   const [option, setOption] = useState<OptionDef | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
   const [oil, setOil] = useState<string>("none");
+  // For batch_cooking_mode === "off": which option id is expanded per meal tab.
+  const [expandedOptionId, setExpandedOptionId] = useState<Record<MealType, number | null>>({
+    breakfast: null, lunch: null, dinner: null,
+  });
   
   const [generating, setGenerating] = useState(false);
   type RecipeOption = { recipe_title: string; recipe: string[]; method: string[]; notes: string[] };
@@ -684,6 +688,49 @@ export default function ClientPortal() {
                   setWeeklyPlan(data?.plan ?? null);
                   await refresh();
                 };
+
+                if (batchMode === "off") {
+                  const allOptions = MB_OPTIONS[meal];
+                  const expandedId = expandedOptionId[meal];
+                  return (
+                    <div className="space-y-3">
+                      {allOptions.map((opt) => {
+                        const isExpanded = expandedId === opt.id;
+                        return (
+                          <div key={opt.id} className="space-y-2">
+                            <Card
+                              className={`p-4 cursor-pointer transition-colors ${isExpanded ? "border-primary bg-primary/5" : "hover:bg-accent/50"}`}
+                              onClick={() =>
+                                setExpandedOptionId((prev) => ({
+                                  ...prev,
+                                  [meal]: isExpanded ? null : opt.id,
+                                }))
+                              }
+                            >
+                              <p className="font-medium">{opt.label}</p>
+                            </Card>
+                            {isExpanded && (
+                              <MealRecipeSection
+                                key={`${meal}-off-${opt.id}`}
+                                token={token!}
+                                meal={meal}
+                                variant="primary"
+                                optionDef={opt}
+                                phase={client.phase}
+                                avocadoCountWeek={client.avocado_count_week}
+                                lockedRecipe={null}
+                                lockedSelections={{}}
+                                extraComponents={buildExtras(opt)}
+                                filteredSources={filteredSources}
+                                onLogged={refetchAll}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
 
                 return (
                   <div className="space-y-4">
