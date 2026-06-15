@@ -563,7 +563,7 @@ export default function ClientPortal() {
             <Card className="p-4">
               <p className="text-xs uppercase text-muted-foreground">Avocado</p>
               <p className="text-2xl font-semibold">
-                {client.mb_pdf_path ? `${client.avocado_count_week}/3` : `${client.avocado_count_week}`}
+                {client.mb_pdf_path ? `${client.avocado_count_week}/${avocadoMaxWeek}` : `${client.avocado_count_week}`}
               </p>
               {client.mb_pdf_path && (
                 <p className="text-xs text-muted-foreground">{avocadoLeft} remaining this week</p>
