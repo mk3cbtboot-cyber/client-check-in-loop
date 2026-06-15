@@ -327,16 +327,24 @@ export default function ClientPortal() {
   };
 
 
+  const avocadoMaxWeek = (() => {
+    const limits = client?.weekly_food_limits ?? {};
+    for (const [k, v] of Object.entries(limits)) {
+      if (/avocado/i.test(k) && Number(v) > 0) return Number(v);
+    }
+    return 3;
+  })();
+
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
     const items = [...sources.flatMap((s) => MB_FOODS[s]), ...phase3ExtrasForSources(sources)];
     const seen = new Set<string>();
     return items.filter((i) => {
       if (seen.has(i)) return false;
       seen.add(i);
-      if (/^Avocado/i.test(i) && (client?.avocado_count_week ?? 0) >= 3) return false;
       return true;
     });
   };
+
 
   // Weekly-plan lock: if the client has confirmed a weekly plan, restrict recipe
   // builder picks to the foods they actually selected for that meal+component.
