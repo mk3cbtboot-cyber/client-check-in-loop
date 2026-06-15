@@ -728,6 +728,7 @@ export default function ClientPortal() {
                                 optionDef={opt}
                                 phase={client.phase}
                                 avocadoCountWeek={client.avocado_count_week}
+                                avocadoMaxWeek={avocadoMaxWeek}
                                 lockedRecipe={null}
                                 lockedSelections={{}}
                                 extraComponents={buildExtras(opt)}
@@ -761,6 +762,7 @@ export default function ClientPortal() {
                           optionDef={primaryOption}
                           phase={client.phase}
                           avocadoCountWeek={client.avocado_count_week}
+                                avocadoMaxWeek={avocadoMaxWeek}
                           lockedRecipe={primaryLocked}
                           lockedSelections={primarySelections}
                           sectionTitle={isSplit ? `Egg meal (${primaryLogCount}/${primaryDays} this week)` : undefined}
@@ -780,6 +782,7 @@ export default function ClientPortal() {
                         optionDef={altOption}
                         phase={client.phase}
                         avocadoCountWeek={client.avocado_count_week}
+                                avocadoMaxWeek={avocadoMaxWeek}
                         lockedRecipe={altLocked}
                         lockedSelections={altSelections}
                         sectionTitle="Backup meal"
