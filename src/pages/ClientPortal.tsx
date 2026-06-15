@@ -327,16 +327,24 @@ export default function ClientPortal() {
   };
 
 
+  const avocadoMaxWeek = (() => {
+    const limits = client?.weekly_food_limits ?? {};
+    for (const [k, v] of Object.entries(limits)) {
+      if (/avocado/i.test(k) && Number(v) > 0) return Number(v);
+    }
+    return 3;
+  })();
+
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
     const items = [...sources.flatMap((s) => MB_FOODS[s]), ...phase3ExtrasForSources(sources)];
     const seen = new Set<string>();
     return items.filter((i) => {
       if (seen.has(i)) return false;
       seen.add(i);
-      if (/^Avocado/i.test(i) && (client?.avocado_count_week ?? 0) >= 3) return false;
       return true;
     });
   };
+
 
   // Weekly-plan lock: if the client has confirmed a weekly plan, restrict recipe
   // builder picks to the foods they actually selected for that meal+component.
@@ -522,7 +530,7 @@ export default function ClientPortal() {
     </main>
   );
 
-  const avocadoLeft = Math.max(0, 3 - client.avocado_count_week);
+  const avocadoLeft = Math.max(0, avocadoMaxWeek - client.avocado_count_week);
   const eggsMax = client.eggs_max_per_week ?? 5;
   const eggsLeft = Math.max(0, eggsMax - client.egg_count_week);
   const waterTarget = 2.5;
@@ -555,7 +563,7 @@ export default function ClientPortal() {
             <Card className="p-4">
               <p className="text-xs uppercase text-muted-foreground">Avocado</p>
               <p className="text-2xl font-semibold">
-                {client.mb_pdf_path ? `${client.avocado_count_week}/3` : `${client.avocado_count_week}`}
+                {client.mb_pdf_path ? `${client.avocado_count_week}/${avocadoMaxWeek}` : `${client.avocado_count_week}`}
               </p>
               {client.mb_pdf_path && (
                 <p className="text-xs text-muted-foreground">{avocadoLeft} remaining this week</p>
@@ -720,6 +728,7 @@ export default function ClientPortal() {
                                 optionDef={opt}
                                 phase={client.phase}
                                 avocadoCountWeek={client.avocado_count_week}
+                                avocadoMaxWeek={avocadoMaxWeek}
                                 lockedRecipe={null}
                                 lockedSelections={{}}
                                 extraComponents={buildExtras(opt)}
@@ -753,6 +762,7 @@ export default function ClientPortal() {
                           optionDef={primaryOption}
                           phase={client.phase}
                           avocadoCountWeek={client.avocado_count_week}
+                                avocadoMaxWeek={avocadoMaxWeek}
                           lockedRecipe={primaryLocked}
                           lockedSelections={primarySelections}
                           sectionTitle={isSplit ? `Egg meal (${primaryLogCount}/${primaryDays} this week)` : undefined}
@@ -772,6 +782,7 @@ export default function ClientPortal() {
                         optionDef={altOption}
                         phase={client.phase}
                         avocadoCountWeek={client.avocado_count_week}
+                                avocadoMaxWeek={avocadoMaxWeek}
                         lockedRecipe={altLocked}
                         lockedSelections={altSelections}
                         sectionTitle="Backup meal"

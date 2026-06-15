@@ -20,6 +20,8 @@ interface Props {
   optionDef: OptionDef;
   phase: Phase;
   avocadoCountWeek: number;
+  avocadoMaxWeek: number;
+
   lockedRecipe: LockedRecipe | null;
   lockedSelections: Record<string, string>;
   sectionTitle?: string;
@@ -40,9 +42,10 @@ const OIL_OPTIONS = [
 ];
 
 export default function MealRecipeSection({
-  token, meal, variant, optionDef, phase, avocadoCountWeek,
+  token, meal, variant, optionDef, phase, avocadoCountWeek, avocadoMaxWeek,
   lockedRecipe, lockedSelections, sectionTitle, extraComponents, filteredSources, onLogged, blockGeneration, fullScreenOnSelect,
 }: Props) {
+
   const [picks, setPicks] = useState<Record<string, string>>({});
   const [oil, setOil] = useState<string>("none");
   const [generating, setGenerating] = useState(false);
@@ -287,7 +290,8 @@ export default function MealRecipeSection({
         ))}
         {allComponents.map((comp) => {
           const items = restrictedItems(comp.sources, comp.key);
-          const showAvocadoNote = comp.sources.includes("vegetables") && avocadoCountWeek >= 3;
+          const avocadoExhausted = avocadoCountWeek >= avocadoMaxWeek;
+          const showAvocadoNote = comp.sources.includes("vegetables") && avocadoExhausted;
           const showOilBefore = oilAllow && comp.key === "fruit";
           return (
             <div key={comp.key} className="space-y-3">
@@ -305,10 +309,27 @@ export default function MealRecipeSection({
               )}
               <div className="space-y-1">
                 <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {comp.qty}</span>}</Label>
-                <Select value={picks[comp.key] ?? ""} onValueChange={(v) => setPicks((p) => ({ ...p, [comp.key]: v }))}>
+                <Select
+                  value={picks[comp.key] ?? ""}
+                  onValueChange={(v) => {
+                    if (/avocado/i.test(v) && avocadoExhausted) {
+                      toast.error("You've reached your avocado limit for this week. Please choose a different option.");
+                      return;
+                    }
+                    setPicks((p) => ({ ...p, [comp.key]: v }));
+                  }}
+                >
                   <SelectTrigger><SelectValue placeholder={comp.optional ? "Optional" : "Select…"} /></SelectTrigger>
                   <SelectContent>
-                    {items.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                    {items.map((i) => {
+                      const isAvocado = /avocado/i.test(i);
+                      const disabled = isAvocado && avocadoExhausted;
+                      return (
+                        <SelectItem key={i} value={i} disabled={disabled} className={disabled ? "opacity-50" : undefined}>
+                          {i}{disabled ? " (limit reached)" : ""}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 {showAvocadoNote && <p className="text-xs text-muted-foreground">Avocado limit reached this week.</p>}
@@ -316,6 +337,7 @@ export default function MealRecipeSection({
             </div>
           );
         })}
+
 
         {oilAllow && !optionDef.components.some((c) => c.key === "fruit") && (
           <div className="space-y-1">
