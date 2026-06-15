@@ -20,6 +20,8 @@ interface Props {
   optionDef: OptionDef;
   phase: Phase;
   avocadoCountWeek: number;
+  avocadoMaxWeek: number;
+
   lockedRecipe: LockedRecipe | null;
   lockedSelections: Record<string, string>;
   sectionTitle?: string;
