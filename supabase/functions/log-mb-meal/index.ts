@@ -65,11 +65,19 @@ Deno.serve(async (req) => {
     const { data: c } = await admin.from("clients").select("*").eq("magic_token", token).maybeSingle();
     if (!c) return new Response(JSON.stringify({ error: "Invalid link" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    // Counter logic, mirrors the original generate flow.
-    const avocadoUses = ingredients.filter((i) => /avocado/i.test(i.label)).length;
-    if ((c.avocado_count_week ?? 0) + avocadoUses > 3) {
-      return new Response(JSON.stringify({ error: "Avocado limit (3/week) reached." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Avocado: count this meal as +1 if any selected ingredient is avocado,
+    // and enforce the practitioner's weekly limit from weekly_food_limits (fallback 3).
+    const hasAvocado = ingredients.some((i) => /avocado/i.test(i.label));
+    const avocadoUses = hasAvocado ? 1 : 0;
+    const wfl = (c.weekly_food_limits ?? {}) as Record<string, number>;
+    let avocadoMax = 3;
+    for (const [k, v] of Object.entries(wfl)) {
+      if (/avocado/i.test(k) && Number(v) > 0) { avocadoMax = Number(v); break; }
     }
+    if ((c.avocado_count_week ?? 0) + avocadoUses > avocadoMax) {
+      return new Response(JSON.stringify({ error: "You've reached your avocado limit for this week. Please choose a different option." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
 
     // Egg counting — parse the actual recipe and enforce against the client's MB plan limit.
     const eggsInMeal = countEggsInRecipe(recipe.recipe ?? [], ingredients);
