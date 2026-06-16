@@ -655,7 +655,7 @@ export default function ClientPortal() {
               </div>
 
               {meal && (() => {
-                const wp = weeklyPlan as any;
+                const wp = (weeklyPlan as any) ?? {};
                 const primaryId = wp[`${meal}_meal_id`] as number | null;
                 const altId = wp[`${meal}_meal_id_alt`] as number | null;
                 const primaryDays = Number(wp[`${meal}_primary_days`] ?? 7);
