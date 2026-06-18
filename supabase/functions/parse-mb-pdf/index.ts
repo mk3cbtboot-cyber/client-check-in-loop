@@ -1024,9 +1024,11 @@ Deno.serve(async (req) => {
 
     let eggs = { eggs_min_per_week: null as number | null, eggs_max_per_week: null as number | null };
     let water: number | null = null;
+    let foodLimits: Record<string, number> = {};
     if (additionalInfoSection) {
       eggs = parseEggs(additionalInfoSection);
       water = parseWater(additionalInfoSection);
+      foodLimits = parseFoodLimits(additionalInfoSection);
     }
 
     const clientNameTrimmed = (clientRow.name ?? "").trim();
