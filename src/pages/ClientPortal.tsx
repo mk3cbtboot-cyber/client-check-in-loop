@@ -28,8 +28,8 @@ interface ClientState {
   id: string;
   name: string;
   phase: Phase;
-  avocado_count_week: number;
-  egg_count_week: number;
+  food_limits: Record<string, number>;
+  food_limit_counts: Record<string, number>;
   water_today_litres: number;
   meal_streak: number;
   water_streak: number;
