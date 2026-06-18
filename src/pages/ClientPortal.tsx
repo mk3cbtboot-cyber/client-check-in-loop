@@ -11,8 +11,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Home, ClipboardCheck, BookOpen, CalendarDays, MessageCircle } from "lucide-react";
+import { Home, ClipboardCheck, BookOpen, CalendarDays, MessageCircle, Info } from "lucide-react";
 import ChatThread, { type ChatMessage } from "@/components/ChatThread";
+import ClientWelcome from "@/components/ClientWelcome";
 
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
@@ -64,6 +65,7 @@ interface ClientState {
   system_mode: "mb" | "own_practice";
   gender: "female" | "male" | "unspecified" | null;
   batch_cooking_mode: "3-day" | "off";
+  welcome_seen: boolean;
 }
 
 type TabKey = "home" | "checkin" | "plan" | "planner" | "messages";
@@ -82,6 +84,7 @@ export default function ClientPortal() {
   const [loading, setLoading] = useState(true);
   const [archived, setArchived] = useState(false);
   const [client, setClient] = useState<ClientState | null>(null);
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
 
   // Home/recipe builder state
   const [meal, setMeal] = useState<MealType | null>(null);
@@ -150,6 +153,7 @@ export default function ClientPortal() {
       setWeightUnit(data.client.weight_unit || "kg");
       setLengthUnit(data.client.length_unit || "cm");
       setLatestWeightKg(data.client.latest_weight_kg ?? null);
+      if (data.client.welcome_seen === false) setWelcomeOpen(true);
     } else if (data?.archived) {
       setArchived(true);
     }
@@ -262,6 +266,15 @@ export default function ClientPortal() {
     setClient((c) => (c ? { ...c, length_unit: unit } : c));
     await supabase.functions.invoke("update-client-prefs", { body: { token, length_unit: unit } });
   };
+
+  const dismissWelcome = async () => {
+    setWelcomeOpen(false);
+    setClient((c) => (c ? { ...c, welcome_seen: true } : c));
+    if (token) {
+      await supabase.functions.invoke("update-client-prefs", { body: { token, welcome_seen: true } });
+    }
+  };
+
 
   const pickOption = (m: MealType, o: OptionDef) => {
     setOption(o);
@@ -549,12 +562,24 @@ export default function ClientPortal() {
 
   return (
     <main className="min-h-screen bg-background pb-24">
+      <ClientWelcome open={welcomeOpen} clientName={client.name} onDismiss={dismissWelcome} />
       <header className="border-b">
-        <div className="max-w-5xl mx-auto p-4">
-          <h1 className="text-xl font-semibold">Hi {client.name}</h1>
-          <p className="text-xs text-muted-foreground">Metabolic Balance · {phaseShort(client.phase)}</p>
+        <div className="max-w-5xl mx-auto p-4 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold">Hi {client.name}</h1>
+            <p className="text-xs text-muted-foreground">Metabolic Balance · {phaseShort(client.phase)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setWelcomeOpen(true)}
+            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+            aria-label="Show welcome"
+          >
+            <Info className="h-3.5 w-3.5" /> Show welcome
+          </button>
         </div>
       </header>
+
 
       {tab === "home" && (
         <section className="max-w-5xl mx-auto p-4 space-y-6">

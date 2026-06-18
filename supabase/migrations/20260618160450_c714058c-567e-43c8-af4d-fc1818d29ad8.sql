@@ -1,0 +1,1 @@
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS welcome_seen boolean NOT NULL DEFAULT false;
