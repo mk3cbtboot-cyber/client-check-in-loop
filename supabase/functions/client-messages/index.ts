@@ -229,7 +229,9 @@ Deno.serve(async (req) => {
           // Build a readable, structured plan summary for the LLM rather than dumping raw JSON.
           const f: any = full ?? {};
           const phase = String(f.phase ?? "").toLowerCase();
-          const isP3 = phase.includes("3");
+          const isPhase4 = phase === "phase4";
+          // Phase 4 uses the Phase 3 plan/foods (with oils) as its baseline.
+          const isP3 = phase.includes("3") || isPhase4;
           const list = (v: unknown) => {
             if (Array.isArray(v)) return v.filter(Boolean).join(", ");
             if (typeof v === "string") return v.trim();
@@ -396,7 +398,9 @@ Deno.serve(async (req) => {
             "If a food category has multiple options (e.g., poultry = chicken breast or turkey breast), list the options and the single portion that applies to that slot. The portion is the same regardless of which option the client chooses.",
             "If the food is not in the client's plan at all, say so plainly: \"That food is not in your meal plan.\"",
             "Be specific: name the foods and quantities from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
-            `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
+            isPhase4
+              ? "This client is in Phase 4 — Maintenance. Use their Phase 3 plan (including oils) as the food reference. Treat meals are allowed up to 3 per week. The 8 Metabolic Balance Rules continue to apply. If the client's plan contains explicit Phase 4 instructions, follow those. Otherwise apply the general maintenance principle: the client has completed the program and should continue applying everything they learned — keep guidance supportive and consistent with their Phase 3 foundation."
+              : `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
           ].join(" ");
 
           const lovableKey = Deno.env.get("LOVABLE_API_KEY");
@@ -438,16 +442,21 @@ Deno.serve(async (req) => {
           }
 
           const assistantLabel = `${practName}'s AI Assistant`;
-          const clientFacing = `${assistantLabel}: ${aiAnswer}\n\nI've also passed your question on to ${practName} in case they'd like to add anything.`;
+          const clientFacing = isPhase4
+            ? `${assistantLabel}: ${aiAnswer}`
+            : `${assistantLabel}: ${aiAnswer}\n\nI've also passed your question on to ${practName} in case they'd like to add anything.`;
           console.log("ai_interceptor: before insert client-facing message");
           const { error: insErr1 } = await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: clientFacing });
           console.log("ai_interceptor: after insert client-facing message", { insErr1 });
 
           // Practitioner-facing summary so they know this was AI-answered.
-          const practFacing = `[AI-answered — for practitioner review]\nClient asked: ${body}\n\nAI replied: ${aiAnswer}`;
-          console.log("ai_interceptor: before insert practitioner-facing message");
-          const { error: insErr2 } = await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: practFacing });
-          console.log("ai_interceptor: after insert practitioner-facing message", { insErr2 });
+          // Skipped entirely for Phase 4 — messages are not forwarded to the practitioner.
+          if (!isPhase4) {
+            const practFacing = `[AI-answered — for practitioner review]\nClient asked: ${body}\n\nAI replied: ${aiAnswer}`;
+            console.log("ai_interceptor: before insert practitioner-facing message");
+            const { error: insErr2 } = await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: practFacing });
+            console.log("ai_interceptor: after insert practitioner-facing message", { insErr2 });
+          }
         } catch (e) {
           console.error("ai_interceptor_failed", e);
         }

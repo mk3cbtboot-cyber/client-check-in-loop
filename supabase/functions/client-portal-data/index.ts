@@ -36,6 +36,23 @@ Deno.serve(async (req) => {
     if (!c) return new Response(JSON.stringify({ valid: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     if (c.archived_at) return new Response(JSON.stringify({ valid: false, archived: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    // Practitioner first name for portal display
+    let practitionerFirstName = "your practitioner";
+    if (c.practitioner_id) {
+      const { data: prof } = await admin
+        .from("profiles")
+        .select("email, display_name")
+        .eq("id", c.practitioner_id)
+        .maybeSingle();
+      const fromName = (prof?.display_name ?? "").trim().split(/\s+/)[0];
+      const fromEmail = (() => {
+        const local = (prof?.email ?? "").split("@")[0] ?? "";
+        const letters = local.replace(/[^A-Za-z]/g, "");
+        return letters ? letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase() : "";
+      })();
+      practitionerFirstName = fromName || fromEmail || practitionerFirstName;
+    }
+
     const updates: Record<string, unknown> = {};
     const monday = mondayOf(new Date());
     if (c.week_reset_date !== monday) {
@@ -125,6 +142,7 @@ Deno.serve(async (req) => {
         gender: normalizeGender(c.gender),
         batch_cooking_mode: c.batch_cooking_mode === "off" ? "off" : "3-day",
         welcome_seen: c.welcome_seen === true,
+        practitioner_first_name: practitionerFirstName,
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
