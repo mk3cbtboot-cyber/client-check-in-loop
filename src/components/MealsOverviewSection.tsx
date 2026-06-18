@@ -226,62 +226,77 @@ export default function MealsOverviewSection({ recipes }: { recipes: MealSummary
         </div>
       )}
 
-      <div className="pt-2">
-        <div className="flex items-center justify-between">
+      <div className="pt-2 border rounded-md overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/50 transition-colors"
+        >
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Meal Log</p>
-          {hoveredDate && !hoveredHasMeals && (
-            <p className="text-[10px] text-muted-foreground">
-              No meals logged on {dayLabel(hoveredDate)}
-            </p>
-          )}
-        </div>
-        {groups.length === 0 ? (
-          <p className="text-xs text-muted-foreground pt-2">No meals logged yet.</p>
-        ) : (
-          <div
-            ref={listRef}
-            className="h-64 mt-2 rounded-md border overflow-y-auto p-2 space-y-3"
-          >
-            {groups.map(([k, items]) => {
-                const isHighlighted = hoveredDate === k;
-                return (
-                  <div
-                    key={k}
-                    ref={(el) => {
-                      dateRefs.current[k] = el;
-                    }}
-                    className={`rounded-md border transition-colors ${
-                      isHighlighted ? "border-primary bg-primary/5" : "border-transparent"
-                    }`}
-                  >
-                    <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
-                      {format(new Date(k), "EEEE, MMM d")}
+          <ChevronDown
+            className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
+          />
+        </button>
+
+        {expanded && (
+          <div className="px-3 pb-3">
+            <div className="flex items-center justify-between">
+              <span className="sr-only">Meal Log</span>
+              {hoveredDate && !hoveredHasMeals && (
+                <p className="text-[10px] text-muted-foreground">
+                  No meals logged on {dayLabel(hoveredDate)}
+                </p>
+              )}
+            </div>
+            {groups.length === 0 ? (
+              <p className="text-xs text-muted-foreground pt-2">No meals logged yet.</p>
+            ) : (
+              <div
+                ref={listRef}
+                className="h-64 mt-2 rounded-md border overflow-y-auto p-2 space-y-3"
+              >
+                {groups.map(([k, items]) => {
+                  const isHighlighted = hoveredDate === k;
+                  return (
+                    <div
+                      key={k}
+                      ref={(el) => {
+                        dateRefs.current[k] = el;
+                      }}
+                      className={`rounded-md border transition-colors ${
+                        isHighlighted ? "border-primary bg-primary/5" : "border-transparent"
+                      }`}
+                    >
+                      <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
+                        {format(new Date(k), "EEEE, MMM d")}
+                      </div>
+                      <ul className="divide-y">
+                        {items.map((m) => (
+                          <li key={m.id}>
+                            <button
+                              type="button"
+                              onClick={() => setOpenId(m.id)}
+                              className="w-full text-left px-2 py-2 hover:bg-muted/50 transition-colors flex items-center justify-between gap-2"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-sm truncate">
+                                  <span className="font-medium">{capitalize(m.meal_type) || "Meal"}</span>
+                                  {" — "}
+                                  <span>{m.name}</span>
+                                </p>
+                              </div>
+                              <span className="text-xs text-muted-foreground shrink-0">
+                                {format(new Date(m.created_at), "p")}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <ul className="divide-y">
-                      {items.map((m) => (
-                        <li key={m.id}>
-                          <button
-                            type="button"
-                            onClick={() => setOpenId(m.id)}
-                            className="w-full text-left px-2 py-2 hover:bg-muted/50 transition-colors flex items-center justify-between gap-2"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-sm truncate">
-                                <span className="font-medium">{capitalize(m.meal_type) || "Meal"}</span>
-                                {" — "}
-                                <span>{m.name}</span>
-                              </p>
-                            </div>
-                            <span className="text-xs text-muted-foreground shrink-0">
-                              {format(new Date(m.created_at), "p")}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
