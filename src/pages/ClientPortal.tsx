@@ -84,6 +84,7 @@ export default function ClientPortal() {
   const [loading, setLoading] = useState(true);
   const [archived, setArchived] = useState(false);
   const [client, setClient] = useState<ClientState | null>(null);
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
 
   // Home/recipe builder state
   const [meal, setMeal] = useState<MealType | null>(null);
