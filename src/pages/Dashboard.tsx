@@ -80,6 +80,7 @@ import ClientTrendGraphs from "@/components/ClientTrendGraphs";
 import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
 import PractitionerMessages from "@/components/PractitionerMessages";
 import MealsOverviewSection from "@/components/MealsOverviewSection";
+import AppointmentDialog, { type Appointment } from "@/components/AppointmentDialog";
 
 
 interface Client {
@@ -173,6 +174,10 @@ export default function Dashboard() {
   const [heightCm, setHeightCm] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [practitionerId, setPractitionerId] = useState<string>("");
+  const [appointments, setAppointments] = useState<Record<string, Appointment | null>>({});
+  const [apptDialogClientId, setApptDialogClientId] = useState<string | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [tier, setTier] = useState<PractitionerTier | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [savingTier, setSavingTier] = useState(false);
