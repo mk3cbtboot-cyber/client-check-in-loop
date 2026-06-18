@@ -232,9 +232,11 @@ export default function MealsOverviewSection({ recipes }: { recipes: MealSummary
         {groups.length === 0 ? (
           <p className="text-xs text-muted-foreground pt-2">No meals logged yet.</p>
         ) : (
-          <ScrollArea className="h-64 mt-2 rounded-md border" viewportRef={listRef as any}>
-            <div ref={listRef} className="p-2 space-y-3">
-              {groups.map(([k, items]) => {
+          <div
+            ref={listRef}
+            className="h-64 mt-2 rounded-md border overflow-y-auto p-2 space-y-3"
+          >
+            {groups.map(([k, items]) => {
                 const isHighlighted = hoveredDate === k;
                 return (
                   <div
@@ -274,8 +276,7 @@ export default function MealsOverviewSection({ recipes }: { recipes: MealSummary
                   </div>
                 );
               })}
-            </div>
-          </ScrollArea>
+          </div>
         )}
       </div>
 
