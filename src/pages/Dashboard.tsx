@@ -1384,8 +1384,25 @@ export default function Dashboard() {
                         : null;
                       return `${mt ? `${mt} — ` : ""}${lastRecipe.name} — ${when}`;
                     })();
+                    const upcomingAppt = appointments[client.id] ?? null;
                     return (
                   <div className="border-t pt-3 space-y-4" onClick={(e) => e.stopPropagation()}>
+                    {upcomingAppt && (
+                      <button
+                        type="button"
+                        onClick={() => { setEditingAppointment(upcomingAppt); setApptDialogClientId(client.id); }}
+                        className="w-full text-left rounded-md border border-primary/40 bg-primary/5 p-3 hover:bg-primary/10 transition-colors"
+                      >
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Next appointment</p>
+                        <p className="text-sm font-medium">
+                          {format(new Date(upcomingAppt.scheduled_at), "EEE MMM d")}
+                          {" · "}
+                          {upcomingAppt.title}
+                          {" · "}
+                          {format(new Date(upcomingAppt.scheduled_at), "h:mm a")}
+                        </p>
+                      </button>
+                    )}
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {stats.map((s) => (
                         <div key={s.label} className="rounded-md border p-2">
@@ -1394,6 +1411,7 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
+
 
                     <Tabs defaultValue="overview" className="w-full">
                       <TabsList className="grid w-full grid-cols-5">
