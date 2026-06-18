@@ -170,6 +170,7 @@ export default function Dashboard() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [gender, setGender] = useState<"female" | "male" | "unspecified" | "">("");
+  const [heightCm, setHeightCm] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [tier, setTier] = useState<PractitionerTier | null>(null);
