@@ -1585,7 +1585,7 @@ export default function Dashboard() {
                           return (
                             <>
                               {renderGraph("Water Intake (L)", waterData, "litres", "L", WATER_TARGET)}
-                              {renderGraph("Meals Logged", mealsData, "meals", "meals", MEAL_TARGET, MEAL_TARGET)}
+                              <MealsOverviewSection recipes={recipesList} />
                             </>
                           );
                         })()}
