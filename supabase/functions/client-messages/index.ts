@@ -442,16 +442,21 @@ Deno.serve(async (req) => {
           }
 
           const assistantLabel = `${practName}'s AI Assistant`;
-          const clientFacing = `${assistantLabel}: ${aiAnswer}\n\nI've also passed your question on to ${practName} in case they'd like to add anything.`;
+          const clientFacing = isPhase4
+            ? `${assistantLabel}: ${aiAnswer}`
+            : `${assistantLabel}: ${aiAnswer}\n\nI've also passed your question on to ${practName} in case they'd like to add anything.`;
           console.log("ai_interceptor: before insert client-facing message");
           const { error: insErr1 } = await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: clientFacing });
           console.log("ai_interceptor: after insert client-facing message", { insErr1 });
 
           // Practitioner-facing summary so they know this was AI-answered.
-          const practFacing = `[AI-answered — for practitioner review]\nClient asked: ${body}\n\nAI replied: ${aiAnswer}`;
-          console.log("ai_interceptor: before insert practitioner-facing message");
-          const { error: insErr2 } = await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: practFacing });
-          console.log("ai_interceptor: after insert practitioner-facing message", { insErr2 });
+          // Skipped entirely for Phase 4 — messages are not forwarded to the practitioner.
+          if (!isPhase4) {
+            const practFacing = `[AI-answered — for practitioner review]\nClient asked: ${body}\n\nAI replied: ${aiAnswer}`;
+            console.log("ai_interceptor: before insert practitioner-facing message");
+            const { error: insErr2 } = await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: practFacing });
+            console.log("ai_interceptor: after insert practitioner-facing message", { insErr2 });
+          }
         } catch (e) {
           console.error("ai_interceptor_failed", e);
         }
