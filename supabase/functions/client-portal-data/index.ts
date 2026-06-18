@@ -40,8 +40,7 @@ Deno.serve(async (req) => {
     const monday = mondayOf(new Date());
     if (c.week_reset_date !== monday) {
       updates.week_reset_date = monday;
-      updates.avocado_count_week = 0;
-      updates.egg_count_week = 0;
+      updates.food_limit_counts = {};
     }
     const td = today();
     if (c.water_date !== td) {
