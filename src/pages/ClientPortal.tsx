@@ -751,8 +751,8 @@ export default function ClientPortal() {
                                 variant="primary"
                                 optionDef={opt}
                                 phase={client.phase}
-                                avocadoCountWeek={client.avocado_count_week}
-                                avocadoMaxWeek={avocadoMaxWeek}
+                                foodLimits={foodLimits}
+                                foodLimitCounts={foodLimitCounts}
                                 lockedRecipe={null}
                                 lockedSelections={{}}
                                 extraComponents={buildExtras(opt)}
