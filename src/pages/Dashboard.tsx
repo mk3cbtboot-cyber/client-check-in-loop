@@ -483,15 +483,66 @@ export default function Dashboard() {
       });
       setWaterStreaks(ws);
 
-      // Next upcoming appointment per client (one per client).
-      const nowIso = new Date().toISOString();
+      // All non-attended appointments per client (used to surface upcoming + missed).
       const { data: apptRows } = await supabase
         .from("appointments")
         .select("*")
         .in("client_id", ids)
-        .gte("scheduled_at", nowIso)
+        .neq("status", "attended")
         .order("scheduled_at", { ascending: true });
       if (!isCurrent()) return;
+
+      const nowMs = Date.now();
+      const DAY_MS = 24 * 60 * 60 * 1000;
+
+      // Auto-flag missed (status='scheduled' AND >24h past scheduled_at)
+      const toFlagMissed = (apptRows ?? []).filter((a: any) =>
+        (a.status ?? "scheduled") === "scheduled" &&
+        new Date(a.scheduled_at).getTime() + DAY_MS < nowMs
+      );
+      for (const a of toFlagMissed) {
+        const flaggedAt = new Date().toISOString();
+        await supabase
+          .from("appointments")
+          .update({ status: "missed", missed_flagged_at: flaggedAt } as never)
+          .eq("id", a.id);
+        a.status = "missed";
+        a.missed_flagged_at = flaggedAt;
+      }
+
+      // Auto-archive clients whose missed appointment has been unactioned for 7+ days.
+      const archiveDueToMissed = new Set<string>();
+      (apptRows ?? []).forEach((a: any) => {
+        if (a.status === "missed" && a.missed_flagged_at) {
+          if (new Date(a.missed_flagged_at).getTime() + 7 * DAY_MS < nowMs) {
+            archiveDueToMissed.add(a.client_id);
+          }
+        }
+      });
+      // Auto-archive clients 12+ months past phase4_start_date with no action.
+      const archiveDueToExpiry = new Set<string>();
+      (clientRows ?? []).forEach((c: any) => {
+        if (c.archived_at) return;
+        if (c.phase !== "phase4" || !c.phase4_start_date) return;
+        const start = new Date(c.phase4_start_date as string);
+        const expiry = new Date(start);
+        expiry.setMonth(expiry.getMonth() + 12);
+        if (expiry.getTime() < nowMs) archiveDueToExpiry.add(c.id);
+      });
+      const toArchive = new Set<string>([...archiveDueToMissed, ...archiveDueToExpiry]);
+      if (toArchive.size > 0) {
+        const archivedAt = new Date().toISOString();
+        await supabase
+          .from("clients")
+          .update({ archived_at: archivedAt } as never)
+          .in("id", Array.from(toArchive))
+          .is("archived_at", null);
+        (clientRows ?? []).forEach((c: any) => {
+          if (toArchive.has(c.id) && !c.archived_at) c.archived_at = archivedAt;
+        });
+      }
+
+      // Earliest non-attended appointment per client (may be a missed one in the past).
       const appts: Record<string, Appointment | null> = {};
       ids.forEach((id) => { appts[id] = null; });
       (apptRows ?? []).forEach((a: any) => {
