@@ -558,7 +558,17 @@ export default function Dashboard() {
           // into one debounced refetch instead of N parallel competing fetches.
           () => scheduleLoad(),
         )
-        .subscribe();
+        .subscribe((status) => {
+          // Once the realtime channel is live, fire one authoritative refetch.
+          // This guarantees the same trigger that eventually self-corrects the
+          // client list (a clients-table event) runs on first mount, instead of
+          // waiting minutes for an organic UPDATE. Without this, an initial
+          // load() that races the JWT / loadSeq can be discarded with no
+          // follow-up until something else happens to update a client row.
+          if (status === "SUBSCRIBED" && !cancelled) {
+            void loadRef.current();
+          }
+        });
     })();
     return () => {
       cancelled = true;
