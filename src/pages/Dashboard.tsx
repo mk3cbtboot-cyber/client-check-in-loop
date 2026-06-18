@@ -314,6 +314,7 @@ export default function Dashboard() {
         return;
       }
       setUserEmail(email);
+      setPractitionerId(userId);
       const { data: profile } = await supabase
         .from("profiles")
         .select("practitioner_tier, office_hours, out_of_office, ooo_message, ooo_return_date, timezone, display_name")
