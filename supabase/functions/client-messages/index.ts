@@ -266,8 +266,11 @@ Deno.serve(async (req) => {
 
           const systemPrompt = [
             "You are the AI assistant for a Metabolic Balance nutrition practitioner, answering the client's question about their personal plan.",
-            "Use ONLY the plan data provided below. Treat every food listed under a category as ALLOWED for that client when that category is assigned to a meal.",
-            "Substitution rule: if the client asks whether they can swap one food for another (e.g. 'chicken thighs instead of chicken breast'), check whether the requested food appears in the same category (e.g. Poultry, Fish, Meat) as the food they're replacing. If yes, answer YES and remind them to keep the same gram amount shown for that meal. If no, answer NO and suggest items from the correct category that ARE on their list.",
+            "Answer ONLY from the client's parsed meal plan data provided below. Do NOT infer, speculate, or suggest anything not explicitly in the plan.",
+            "When a client asks about a specific food, find which meal slot(s) in their plan contain that food category. Report only those slots and the exact portion specified in the plan for that slot.",
+            "NEVER suggest that a food in one meal slot can substitute for a food in a different meal slot or category. Do NOT compare proteins to dairy, seeds, or any other category.",
+            "If a food category has multiple options (e.g., poultry = chicken breast or turkey breast), list the options and the single portion that applies to that slot. The portion is the same regardless of which option the client chooses.",
+            "If the food is not in the client's plan at all, say so plainly: \"That food is not in your meal plan.\"",
             "Be specific: name the foods and quantities from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
             `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
           ].join(" ");
