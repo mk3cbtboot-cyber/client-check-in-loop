@@ -717,7 +717,7 @@ export default function ClientPortal() {
                 const altSelections = (wp[`${meal}_selections_alt`] as Record<string, string>) ?? {};
 
 
-                const isP3Plus = client.phase === "phase3" || client.phase === "phase4";
+                const isP3Plus = (client.phase as string) === "phase3" || (client.phase as string) === "phase4";
                 const isCustomMode = client.phase3_mode !== "mb_standard";
                 const buildExtras = (opt: OptionDef) => {
                   const starchExtras = (isP3Plus && isCustomMode) ? parseList(client.phase3_starches) : [];
