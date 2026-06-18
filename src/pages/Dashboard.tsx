@@ -59,10 +59,6 @@ function categoriesForPhase(raw: unknown, phase: string, parsedOilsRaw: string |
   }
   return base;
 }
-
-function _unused_categoriesForPhase_tail() {
-  return base;
-}
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PHASE_OPTIONS, type Phase } from "@/lib/phases";
