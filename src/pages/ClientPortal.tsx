@@ -773,10 +773,9 @@ export default function ClientPortal() {
                     {!hidePrimary && primaryOption && (() => {
                       const eggsMaxInner = Number(foodLimits.eggs ?? 0) || null;
                       const eggsUsed = Number(foodLimitCounts.eggs ?? 0);
-                      const _eggsMax = eggsMaxInner;
-                      const eggsExhausted = isSplit && eggsMax != null && eggsMax > 0 && eggsUsed >= eggsMax;
+                      const eggsExhausted = isSplit && eggsMaxInner != null && eggsMaxInner > 0 && eggsUsed >= eggsMaxInner;
                       const block = eggsExhausted
-                        ? { reason: `You've used ${eggsUsed} of ${eggsMax} eggs this week — the egg meal is unavailable until next week.` }
+                        ? { reason: `You've used ${eggsUsed} of ${eggsMaxInner} eggs this week — the egg meal is unavailable until next week.` }
                         : null;
                       return (
                         <MealRecipeSection
@@ -786,8 +785,8 @@ export default function ClientPortal() {
                           variant="primary"
                           optionDef={primaryOption}
                           phase={client.phase}
-                          avocadoCountWeek={client.avocado_count_week}
-                                avocadoMaxWeek={avocadoMaxWeek}
+                          foodLimits={foodLimits}
+                          foodLimitCounts={foodLimitCounts}
                           lockedRecipe={primaryLocked}
                           lockedSelections={primarySelections}
                           sectionTitle={isSplit ? `Egg meal (${primaryLogCount}/${primaryDays} this week)` : undefined}
