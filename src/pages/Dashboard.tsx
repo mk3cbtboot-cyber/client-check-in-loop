@@ -688,6 +688,26 @@ export default function Dashboard() {
     await load();
   };
 
+  const markAppointmentAttended = async (apptId: string, clientId: string) => {
+    const nowIso = new Date().toISOString();
+    const { error } = await supabase
+      .from("appointments")
+      .update({ status: "attended", attended_at: nowIso, missed_flagged_at: null } as never)
+      .eq("id", apptId);
+    if (error) return toast.error("Could not mark as attended");
+    toast.success("Appointment marked as attended");
+    // Refresh next non-attended appointment for this client
+    const { data: nextAppt } = await supabase
+      .from("appointments")
+      .select("*")
+      .eq("client_id", clientId)
+      .neq("status", "attended")
+      .order("scheduled_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    setAppointments((prev) => ({ ...prev, [clientId]: (nextAppt as Appointment | null) ?? null }));
+  };
+
   const reactivateClient = async (clientId: string) => {
     const { error } = await supabase.from("clients").update({ archived_at: null } as never).eq("id", clientId);
     if (error) return toast.error("Could not reactivate client");
