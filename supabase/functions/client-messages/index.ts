@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
           const { data: full, error: fullErr } = await admin
             .from("clients")
             .select([
-              "name", "phase",
+              "name", "phase", "batch_cooking_mode",
               "breakfast_protein_category", "breakfast_protein_grams", "breakfast_veg_grams",
               "lunch_protein_category", "lunch_protein_grams", "lunch_veg_grams",
               "dinner_protein_category", "dinner_protein_grams", "dinner_veg_grams",
@@ -192,6 +192,20 @@ Deno.serve(async (req) => {
             .eq("id", c.id)
             .maybeSingle();
           console.log("ai_interceptor: after fetch client plan data", { has_full: !!full, fullErr });
+
+          // Fetch this week's meal planner selections (if any).
+          const _mondayOf = (d: Date) => {
+            const dt = new Date(d);
+            const day = (dt.getUTCDay() + 6) % 7;
+            dt.setUTCDate(dt.getUTCDate() - day);
+            return dt.toISOString().slice(0, 10);
+          };
+          const { data: weekPlan } = await admin
+            .from("weekly_meal_plans")
+            .select("breakfast_meal_id, lunch_meal_id, dinner_meal_id, breakfast_selections, lunch_selections, dinner_selections, breakfast_meal_id_alt, lunch_meal_id_alt, dinner_meal_id_alt, breakfast_selections_alt, lunch_selections_alt, dinner_selections_alt, confirmed_at")
+            .eq("client_id", c.id)
+            .eq("week_start_date", _mondayOf(new Date()))
+            .maybeSingle();
 
           console.log("ai_interceptor: before fetch practitioner profile");
           const { data: practProf, error: practErr } = await admin
