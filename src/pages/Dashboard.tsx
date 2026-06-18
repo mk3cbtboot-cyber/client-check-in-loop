@@ -1436,34 +1436,6 @@ export default function Dashboard() {
                           })()}
                         </div>
 
-                        <div className="flex items-end gap-3 flex-wrap">
-                          <div className="space-y-1">
-                            <Label htmlFor={`h-${client.id}`} className="text-xs">Height (cm)</Label>
-                            <Input
-                              id={`h-${client.id}`}
-                              type="number"
-                              step="0.1"
-                              className="h-8 w-32"
-                              value={client.height_cm ?? ""}
-                              onChange={(e) => setHeight(client.id, e.target.value)}
-                              onBlur={(e) => saveHeight(client.id, e.target.value)}
-                              placeholder="e.g. 168"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Gender</Label>
-                            <select
-                              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-                              value={client.gender ?? ""}
-                              onChange={(e) => saveGender(client.id, e.target.value as "female" | "male" | "unspecified")}
-                            >
-                              <option value="" disabled>Select…</option>
-                              <option value="female">Female</option>
-                              <option value="male">Male</option>
-                              <option value="unspecified">Prefer not to say</option>
-                            </select>
-                          </div>
-                        </div>
 
 
 
