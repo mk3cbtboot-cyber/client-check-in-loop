@@ -1094,8 +1094,8 @@ Deno.serve(async (req) => {
     for (const f of unique(phase3Fields)) result[f] = buildField(phase3[f] ?? "", f);
     for (const k of Object.keys(mealLegacy)) result[k] = buildField(mealLegacy[k], k);
     result.eggs_min_per_week = buildField(eggs.eggs_min_per_week, "eggs_min_per_week");
-    result.eggs_max_per_week = buildField(eggs.eggs_max_per_week, "eggs_max_per_week");
     result.water_target_litres = buildField(water, "water_target_litres");
+    result.food_limits = { value: foodLimits, extracted: Object.keys(foodLimits).length > 0 };
 
     const mealOptionsResult: Record<string, MealOption[]> = {
       breakfast: mealOptions.breakfast,
