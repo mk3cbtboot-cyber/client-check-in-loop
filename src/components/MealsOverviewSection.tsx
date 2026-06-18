@@ -90,6 +90,7 @@ function renderInstructions(value: unknown) {
 
 export default function MealsOverviewSection({ recipes }: { recipes: MealSummary[] }) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<RecipeDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -168,12 +169,16 @@ export default function MealsOverviewSection({ recipes }: { recipes: MealSummary
               data={mealsData}
               margin={{ top: 4, right: 8, left: -12, bottom: 0 }}
               onMouseMove={(state: any) => {
+                if (!expanded) return;
                 const lbl = state?.activeLabel;
                 if (typeof lbl === "string") {
                   setHoveredDate(labelToDate[lbl] ?? null);
                 }
               }}
-              onMouseLeave={() => setHoveredDate(null)}
+              onMouseLeave={() => {
+                if (!expanded) return;
+                setHoveredDate(null);
+              }}
             >
               <XAxis
                 dataKey="label"
