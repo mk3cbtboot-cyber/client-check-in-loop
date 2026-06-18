@@ -196,11 +196,12 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       try {
         const { data: existing } = await supabase
           .from("clients")
-          .select("food_limits" as never)
+          .select("food_limits")
           .eq("id", clientId)
           .maybeSingle();
-        if (existing && (existing as { food_limits?: unknown }).food_limits) {
-          existingLimits = (existing as { food_limits: Record<string, number> }).food_limits ?? {};
+        const fl = (existing as { food_limits?: unknown } | null)?.food_limits;
+        if (fl && typeof fl === "object") {
+          existingLimits = fl as Record<string, number>;
         }
       } catch { /* ignore */ }
 
