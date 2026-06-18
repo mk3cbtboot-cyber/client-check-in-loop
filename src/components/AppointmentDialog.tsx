@@ -26,6 +26,9 @@ export interface Appointment {
   title: string;
   scheduled_at: string;
   notes: string | null;
+  status?: "scheduled" | "attended" | "missed" | null;
+  attended_at?: string | null;
+  missed_flagged_at?: string | null;
 }
 
 interface Props {
