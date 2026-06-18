@@ -1275,7 +1275,7 @@ export default function Dashboard() {
                           {" · "}
                           Height: {client.height_cm ? `${client.height_cm}cm` : "not set"}
                           {" · "}
-                          Gender: {client.gender === "unspecified" ? "Prefer not to say" : client.gender ? client.gender.charAt(0).toUpperCase() + client.gender.slice(1) : "not set"}
+                          Biology: {client.gender === "unspecified" ? "Other" : client.gender ? client.gender.charAt(0).toUpperCase() + client.gender.slice(1) : "not set"}
                         </span>
                         {!isDetailView && (
                           <div className="ml-auto inline-flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
