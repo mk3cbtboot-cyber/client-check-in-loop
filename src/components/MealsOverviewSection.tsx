@@ -157,6 +157,18 @@ export default function MealsOverviewSection({ recipes }: { recipes: MealSummary
     ? groups.some(([k]) => k === hoveredDate)
     : false;
 
+  const lastMealText = (() => {
+    const lastRecipe = recipes[0];
+    if (!lastRecipe) return "No meals logged yet";
+    const d = new Date(lastRecipe.created_at);
+    const isToday = d.toDateString() === new Date().toDateString();
+    const when = isToday ? `${format(d, "p")} today` : format(d, "p 'on' MMM d");
+    const mt = lastRecipe.meal_type
+      ? lastRecipe.meal_type.charAt(0).toUpperCase() + lastRecipe.meal_type.slice(1)
+      : null;
+    return `${mt ? `${mt} — ` : ""}${lastRecipe.name} — ${when}`;
+  })();
+
   return (
     <div className="space-y-2">
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Meals Logged</p>
@@ -225,6 +237,10 @@ export default function MealsOverviewSection({ recipes }: { recipes: MealSummary
           </ResponsiveContainer>
         </div>
       )}
+
+      <p className="text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">Last meal:</span> {lastMealText}
+      </p>
 
       <div className="pt-2 border rounded-md overflow-hidden">
         <button

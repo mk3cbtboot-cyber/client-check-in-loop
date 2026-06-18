@@ -1349,7 +1349,7 @@ export default function Dashboard() {
                       { label: "Water Streak", value: `${waterStreak}d` },
                       { label: "Water Today", value: `${waterToday.toFixed(1)} L` },
                       ...foodLimitCards,
-                      { label: "Last Logged", value: lastLogged },
+                      { label: "Last Meal Logged", value: lastLogged },
                     ];
                     const lastMealText = (() => {
                       if (!lastRecipe) return "No meals logged yet";
@@ -1371,9 +1371,6 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">Last meal:</span> {lastMealText}
-                    </p>
 
                     <Tabs defaultValue="overview" className="w-full">
                       <TabsList className="grid w-full grid-cols-5">
