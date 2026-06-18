@@ -19,8 +19,8 @@ interface Props {
   variant: "primary" | "alt";
   optionDef: OptionDef;
   phase: Phase;
-  avocadoCountWeek: number;
-  avocadoMaxWeek: number;
+  foodLimits: Record<string, number>;
+  foodLimitCounts: Record<string, number>;
 
   lockedRecipe: LockedRecipe | null;
   lockedSelections: Record<string, string>;
@@ -42,7 +42,7 @@ const OIL_OPTIONS = [
 ];
 
 export default function MealRecipeSection({
-  token, meal, variant, optionDef, phase, avocadoCountWeek, avocadoMaxWeek,
+  token, meal, variant, optionDef, phase, foodLimits, foodLimitCounts,
   lockedRecipe, lockedSelections, sectionTitle, extraComponents, filteredSources, onLogged, blockGeneration, fullScreenOnSelect,
 }: Props) {
 
