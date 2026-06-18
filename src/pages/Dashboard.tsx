@@ -1224,7 +1224,7 @@ export default function Dashboard() {
                           </>
                         )}
                       </div>
-                      {/* Row 2: toggles | water | streak | details */}
+                      {/* Row 2: toggles | client info | details */}
                       <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                         {tierShowsToggle(tier) && (
                           <div
@@ -1251,9 +1251,13 @@ export default function Dashboard() {
                             </button>
                           </div>
                         )}
-                        <span>Water: <span className="font-medium text-foreground">{lastWaterDisplay(list)}</span></span>
-                        <span>Meal Streak: <span className="font-medium text-foreground">{client.meal_streak ?? 0}d</span></span>
-                        <span>Water Streak: <span className="font-medium text-foreground">{waterStreaks[client.id] ?? 0}d</span></span>
+                        <span className="whitespace-nowrap">
+                          {client.email}
+                          {" · "}
+                          Height: {client.height_cm ? `${client.height_cm}cm` : "not set"}
+                          {" · "}
+                          Gender: {client.gender === "unspecified" ? "Prefer not to say" : client.gender ? client.gender.charAt(0).toUpperCase() + client.gender.slice(1) : "not set"}
+                        </span>
                         {!isDetailView && (
                           <div className="ml-auto inline-flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                             {client.archived_at ? (
