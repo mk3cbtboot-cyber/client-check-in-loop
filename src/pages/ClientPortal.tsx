@@ -805,8 +805,8 @@ export default function ClientPortal() {
                         variant="alt"
                         optionDef={altOption}
                         phase={client.phase}
-                        avocadoCountWeek={client.avocado_count_week}
-                                avocadoMaxWeek={avocadoMaxWeek}
+                        foodLimits={foodLimits}
+                        foodLimitCounts={foodLimitCounts}
                         lockedRecipe={altLocked}
                         lockedSelections={altSelections}
                         sectionTitle="Backup meal"
