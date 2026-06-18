@@ -16,32 +16,41 @@ export type Database = {
     Tables: {
       appointments: {
         Row: {
+          attended_at: string | null
           client_id: string
           created_at: string
           id: string
+          missed_flagged_at: string | null
           notes: string | null
           practitioner_id: string
           scheduled_at: string
+          status: string
           title: string
           updated_at: string
         }
         Insert: {
+          attended_at?: string | null
           client_id: string
           created_at?: string
           id?: string
+          missed_flagged_at?: string | null
           notes?: string | null
           practitioner_id: string
           scheduled_at: string
+          status?: string
           title: string
           updated_at?: string
         }
         Update: {
+          attended_at?: string | null
           client_id?: string
           created_at?: string
           id?: string
+          missed_flagged_at?: string | null
           notes?: string | null
           practitioner_id?: string
           scheduled_at?: string
+          status?: string
           title?: string
           updated_at?: string
         }

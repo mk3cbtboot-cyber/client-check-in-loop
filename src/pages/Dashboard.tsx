@@ -125,6 +125,7 @@ interface Client {
   weight_unit: string;
   archived_at: string | null;
   practitioner_last_read_at: string | null;
+  phase4_start_date: string | null;
 }
 
 interface CheckIn {
@@ -483,15 +484,67 @@ export default function Dashboard() {
       });
       setWaterStreaks(ws);
 
-      // Next upcoming appointment per client (one per client).
-      const nowIso = new Date().toISOString();
+      // All non-attended appointments per client (used to surface upcoming + missed).
       const { data: apptRows } = await supabase
         .from("appointments")
         .select("*")
         .in("client_id", ids)
-        .gte("scheduled_at", nowIso)
+        .neq("status", "attended")
         .order("scheduled_at", { ascending: true });
       if (!isCurrent()) return;
+
+      const nowMs = Date.now();
+      const DAY_MS = 24 * 60 * 60 * 1000;
+
+      // Auto-flag missed (status='scheduled' AND >24h past scheduled_at)
+      const toFlagMissed = (apptRows ?? []).filter((a: any) =>
+        (a.status ?? "scheduled") === "scheduled" &&
+        new Date(a.scheduled_at).getTime() + DAY_MS < nowMs
+      );
+      for (const a of toFlagMissed) {
+        const flaggedAt = new Date().toISOString();
+        await supabase
+          .from("appointments")
+          .update({ status: "missed", missed_flagged_at: flaggedAt } as never)
+          .eq("id", a.id);
+        a.status = "missed";
+        a.missed_flagged_at = flaggedAt;
+      }
+
+      // Auto-archive clients whose missed appointment has been unactioned for 7+ days.
+      const archiveDueToMissed = new Set<string>();
+      (apptRows ?? []).forEach((a: any) => {
+        if (a.status === "missed" && a.missed_flagged_at) {
+          if (new Date(a.missed_flagged_at).getTime() + 7 * DAY_MS < nowMs) {
+            archiveDueToMissed.add(a.client_id);
+          }
+        }
+      });
+      // Auto-archive clients 12+ months past phase4_start_date with no action.
+      const archiveDueToExpiry = new Set<string>();
+      (clientRows ?? []).forEach((c: any) => {
+        if (c.archived_at) return;
+        if (c.phase !== "phase4" || !c.phase4_start_date) return;
+        const start = new Date(c.phase4_start_date as string);
+        const expiry = new Date(start);
+        expiry.setMonth(expiry.getMonth() + 12);
+        if (expiry.getTime() < nowMs) archiveDueToExpiry.add(c.id);
+      });
+      const toArchive = new Set<string>([...archiveDueToMissed, ...archiveDueToExpiry]);
+      if (toArchive.size > 0) {
+        const archivedAt = new Date().toISOString();
+        await supabase
+          .from("clients")
+          .update({ archived_at: archivedAt } as never)
+          .in("id", Array.from(toArchive))
+          .is("archived_at", null);
+        (clientRows ?? []).forEach((c: any) => {
+          if (toArchive.has(c.id) && !c.archived_at) c.archived_at = archivedAt;
+        });
+        setClients(clientRows as Client[]);
+      }
+
+      // Earliest non-attended appointment per client (may be a missed one in the past).
       const appts: Record<string, Appointment | null> = {};
       ids.forEach((id) => { appts[id] = null; });
       (apptRows ?? []).forEach((a: any) => {
@@ -634,6 +687,26 @@ export default function Dashboard() {
     setArchiveConfirmId(null);
     if (isDetailView) navigate("/dashboard");
     await load();
+  };
+
+  const markAppointmentAttended = async (apptId: string, clientId: string) => {
+    const nowIso = new Date().toISOString();
+    const { error } = await supabase
+      .from("appointments")
+      .update({ status: "attended", attended_at: nowIso, missed_flagged_at: null } as never)
+      .eq("id", apptId);
+    if (error) return toast.error("Could not mark as attended");
+    toast.success("Appointment marked as attended");
+    // Refresh next non-attended appointment for this client
+    const { data: nextAppt } = await supabase
+      .from("appointments")
+      .select("*")
+      .eq("client_id", clientId)
+      .neq("status", "attended")
+      .order("scheduled_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    setAppointments((prev) => ({ ...prev, [clientId]: (nextAppt as Appointment | null) ?? null }));
   };
 
   const reactivateClient = async (clientId: string) => {
@@ -1291,6 +1364,16 @@ export default function Dashboard() {
                             New message
                           </span>
                         )}
+                        {appointments[client.id]?.status === "missed" && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold"
+                            aria-label="Missed appointment"
+                            title="Missed appointment"
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-destructive-foreground" />
+                            Missed appointment
+                          </span>
+                        )}
                         {client.archived_at && (
                           <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground text-xs">Archived</span>
                         )}
@@ -1426,22 +1509,73 @@ export default function Dashboard() {
                     const upcomingAppt = appointments[client.id] ?? null;
                     return (
                   <div className="border-t pt-3 space-y-4" onClick={(e) => e.stopPropagation()}>
-                    {upcomingAppt && (
-                      <button
-                        type="button"
-                        onClick={() => { setEditingAppointment(upcomingAppt); setApptDialogClientId(client.id); }}
-                        className="w-full text-left rounded-md border border-primary/40 bg-primary/5 p-3 hover:bg-primary/10 transition-colors"
-                      >
-                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Next appointment</p>
-                        <p className="text-sm font-medium">
-                          {format(new Date(upcomingAppt.scheduled_at), "EEE MMM d")}
-                          {" · "}
-                          {upcomingAppt.title}
-                          {" · "}
-                          {format(new Date(upcomingAppt.scheduled_at), "h:mm a")}
-                        </p>
-                      </button>
-                    )}
+                    {upcomingAppt && (() => {
+                      const isMissed = upcomingAppt.status === "missed";
+                      return (
+                        <div
+                          className={`w-full rounded-md border p-3 ${
+                            isMissed
+                              ? "border-destructive/60 bg-destructive/10"
+                              : "border-primary/40 bg-primary/5"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => { setEditingAppointment(upcomingAppt); setApptDialogClientId(client.id); }}
+                            className="w-full text-left"
+                          >
+                            <div className="flex items-center gap-2">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                {isMissed ? "Missed appointment" : "Next appointment"}
+                              </p>
+                              {isMissed && (
+                                <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">
+                                  Missed
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm font-medium">
+                              {format(new Date(upcomingAppt.scheduled_at), "EEE MMM d")}
+                              {" · "}
+                              {upcomingAppt.title}
+                              {" · "}
+                              {format(new Date(upcomingAppt.scheduled_at), "h:mm a")}
+                            </p>
+                          </button>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {isMissed ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => { setEditingAppointment(upcomingAppt); setApptDialogClientId(client.id); }}
+                                >
+                                  Reschedule
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => archiveClient(client.id)}
+                                >
+                                  Archive client
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => markAppointmentAttended(upcomingAppt.id, client.id)}
+                              >
+                                Mark as attended
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {stats.map((s) => (
                         <div key={s.label} className="rounded-md border p-2">
