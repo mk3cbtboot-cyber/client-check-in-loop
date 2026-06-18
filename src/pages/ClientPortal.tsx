@@ -267,6 +267,15 @@ export default function ClientPortal() {
     await supabase.functions.invoke("update-client-prefs", { body: { token, length_unit: unit } });
   };
 
+  const dismissWelcome = async () => {
+    setWelcomeOpen(false);
+    setClient((c) => (c ? { ...c, welcome_seen: true } : c));
+    if (token) {
+      await supabase.functions.invoke("update-client-prefs", { body: { token, welcome_seen: true } });
+    }
+  };
+
+
   const pickOption = (m: MealType, o: OptionDef) => {
     setOption(o);
     setMeal(m);
