@@ -1115,19 +1115,30 @@ export default function Dashboard() {
                       <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="cgender">Gender</Label>
+                      <Label htmlFor="cgender">Gender (optional)</Label>
                       <select
                         id="cgender"
-                        required
                         className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                         value={gender}
                         onChange={(e) => setGender(e.target.value as "female" | "male" | "unspecified" | "")}
                       >
-                        <option value="" disabled>Select…</option>
+                        <option value="">Not set</option>
                         <option value="male">Male</option>
                         <option value="female">Female</option>
-                        <option value="unspecified">Prefer not to say</option>
+                        <option value="unspecified">Other</option>
                       </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cheight">Height in cm (optional)</Label>
+                      <Input
+                        id="cheight"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        placeholder="e.g. 168"
+                        value={heightCm}
+                        onChange={(e) => setHeightCm(e.target.value)}
+                      />
                     </div>
                     <Button type="submit" className="w-full" disabled={submitting}>
                       {submitting ? "Sending invite…" : "Add & send invite"}
