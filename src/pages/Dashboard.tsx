@@ -1498,22 +1498,73 @@ export default function Dashboard() {
                     const upcomingAppt = appointments[client.id] ?? null;
                     return (
                   <div className="border-t pt-3 space-y-4" onClick={(e) => e.stopPropagation()}>
-                    {upcomingAppt && (
-                      <button
-                        type="button"
-                        onClick={() => { setEditingAppointment(upcomingAppt); setApptDialogClientId(client.id); }}
-                        className="w-full text-left rounded-md border border-primary/40 bg-primary/5 p-3 hover:bg-primary/10 transition-colors"
-                      >
-                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Next appointment</p>
-                        <p className="text-sm font-medium">
-                          {format(new Date(upcomingAppt.scheduled_at), "EEE MMM d")}
-                          {" · "}
-                          {upcomingAppt.title}
-                          {" · "}
-                          {format(new Date(upcomingAppt.scheduled_at), "h:mm a")}
-                        </p>
-                      </button>
-                    )}
+                    {upcomingAppt && (() => {
+                      const isMissed = upcomingAppt.status === "missed";
+                      return (
+                        <div
+                          className={`w-full rounded-md border p-3 ${
+                            isMissed
+                              ? "border-destructive/60 bg-destructive/10"
+                              : "border-primary/40 bg-primary/5"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => { setEditingAppointment(upcomingAppt); setApptDialogClientId(client.id); }}
+                            className="w-full text-left"
+                          >
+                            <div className="flex items-center gap-2">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                {isMissed ? "Missed appointment" : "Next appointment"}
+                              </p>
+                              {isMissed && (
+                                <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-destructive text-destructive-foreground">
+                                  Missed
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm font-medium">
+                              {format(new Date(upcomingAppt.scheduled_at), "EEE MMM d")}
+                              {" · "}
+                              {upcomingAppt.title}
+                              {" · "}
+                              {format(new Date(upcomingAppt.scheduled_at), "h:mm a")}
+                            </p>
+                          </button>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {isMissed ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => { setEditingAppointment(upcomingAppt); setApptDialogClientId(client.id); }}
+                                >
+                                  Reschedule
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => archiveClient(client.id)}
+                                >
+                                  Archive client
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => markAppointmentAttended(upcomingAppt.id, client.id)}
+                              >
+                                Mark as attended
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {stats.map((s) => (
                         <div key={s.label} className="rounded-md border p-2">
