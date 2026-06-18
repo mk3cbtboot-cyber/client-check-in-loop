@@ -36,7 +36,6 @@ function countEggsInRecipe(recipeLines: string[], ingredients: Array<{ label: st
   let total = 0;
   for (const line of recipeLines ?? []) total += eggsFromString(line);
   if (total > 0) return total;
-  // Fallback to MB ingredient list
   for (const it of ingredients ?? []) {
     const s = `${it.qty} ${it.label}`;
     if (/egg/i.test(s)) total += eggsFromString(s);
@@ -52,6 +51,14 @@ function mondayOf(d: Date): Date {
   return dt;
 }
 
+// Generic "does this ingredient match a limited food key?" test.
+// Plural/singular tolerant; matches whole word.
+function ingredientMatchesKey(label: string, key: string): boolean {
+  const stem = key.toLowerCase().replace(/s$/, "");
+  if (!stem) return false;
+  return new RegExp(`\\b${stem}s?\\b`, "i").test(label);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -65,38 +72,41 @@ Deno.serve(async (req) => {
     const { data: c } = await admin.from("clients").select("*").eq("magic_token", token).maybeSingle();
     if (!c) return new Response(JSON.stringify({ error: "Invalid link" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    // Avocado: count this meal as +1 if any selected ingredient is avocado,
-    // and enforce the practitioner's weekly limit from weekly_food_limits (fallback 3).
-    const hasAvocado = ingredients.some((i) => /avocado/i.test(i.label));
-    const avocadoUses = hasAvocado ? 1 : 0;
-    const wfl = (c.weekly_food_limits ?? {}) as Record<string, number>;
-    let avocadoMax = 3;
-    for (const [k, v] of Object.entries(wfl)) {
-      if (/avocado/i.test(k) && Number(v) > 0) { avocadoMax = Number(v); break; }
-    }
-    if ((c.avocado_count_week ?? 0) + avocadoUses > avocadoMax) {
-      return new Response(JSON.stringify({ error: "You've reached your avocado limit for this week. Please choose a different option." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    const foodLimits = (c.food_limits ?? {}) as Record<string, number>;
+    const foodLimitCounts = (c.food_limit_counts ?? {}) as Record<string, number>;
 
-
-    // Egg counting — parse the actual recipe and enforce against the client's MB plan limit.
+    // For each limited food key, count how many times this meal would use it.
+    // Default: +1 per meal if any ingredient label matches the key. Eggs are
+    // counted by the number of eggs in the recipe (parsed from the recipe text).
     const eggsInMeal = countEggsInRecipe(recipe.recipe ?? [], ingredients);
-    const eggsMax = (c.eggs_max_per_week ?? null) as number | null;
+    const usesByKey: Record<string, number> = {};
+    for (const key of Object.keys(foodLimits)) {
+      if (!Number(foodLimits[key])) continue;
+      if (key.toLowerCase() === "eggs" || key.toLowerCase() === "egg") {
+        if (eggsInMeal > 0) usesByKey[key] = eggsInMeal;
+        continue;
+      }
+      const hit = ingredients.some((i) => ingredientMatchesKey(i.label, key));
+      if (hit) usesByKey[key] = 1;
+    }
 
-    // Sum eggs already logged this calendar week (Mon..Sun, UTC).
-    let eggsUsedThisWeek = 0;
+    // Enforce hard limits first (non-egg) — selection should have already
+    // prevented this, but block here defensively.
+    for (const [key, uses] of Object.entries(usesByKey)) {
+      if (key.toLowerCase() === "eggs" || key.toLowerCase() === "egg") continue; // eggs use the confirm flow below
+      const max = Number(foodLimits[key]);
+      const used = Number(foodLimitCounts[key] ?? 0);
+      if (used + uses > max) {
+        return new Response(JSON.stringify({
+          error: `You've reached your weekly limit for ${key}. Please choose a different option.`,
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
+    // Egg confirm flow (kept compatible with existing client UI).
+    const eggsMax = Number(foodLimits.eggs ?? foodLimits.egg ?? 0) || null;
+    let eggsUsedThisWeek = Number(foodLimitCounts.eggs ?? foodLimitCounts.egg ?? 0);
     if (eggsMax != null && eggsMax > 0) {
-      const monday = mondayOf(new Date());
-      const nextMonday = new Date(monday);
-      nextMonday.setUTCDate(nextMonday.getUTCDate() + 7);
-      const { data: weekRows } = await admin
-        .from("recipes")
-        .select("egg_count, created_at")
-        .eq("client_id", c.id)
-        .gte("created_at", monday.toISOString())
-        .lt("created_at", nextMonday.toISOString());
-      eggsUsedThisWeek = (weekRows ?? []).reduce((s: number, r: { egg_count?: number }) => s + (Number(r.egg_count) || 0), 0);
-
       if (!force && eggsInMeal > 0 && eggsUsedThisWeek + eggsInMeal > eggsMax) {
         return new Response(JSON.stringify({
           requires_confirmation: true,
@@ -120,18 +130,19 @@ Deno.serve(async (req) => {
     });
     if (insErr) throw insErr;
 
+    const nextCounts: Record<string, number> = { ...foodLimitCounts };
+    for (const [key, uses] of Object.entries(usesByKey)) {
+      nextCounts[key] = Number(nextCounts[key] ?? 0) + uses;
+    }
+    eggsUsedThisWeek = Number(nextCounts.eggs ?? nextCounts.egg ?? eggsUsedThisWeek);
+
     await admin.from("clients").update({
-      avocado_count_week: (c.avocado_count_week ?? 0) + avocadoUses,
-      egg_count_week: (c.egg_count_week ?? 0) + eggsInMeal,
+      food_limit_counts: nextCounts,
       meal_streak: (c.meal_streak ?? 0) + 1,
     }).eq("id", c.id);
 
     // Lock the recipe to this slot for the batch cooking window, and bump the primary log counter.
-    // Batch cooking mode controls locking:
-    //  - '3-day'  : lock recipe for 3 days from batch_start_date. After expiry, next lock overwrites.
-    //  - 'off'    : never lock; just log the meal.
-    // The weekly_meal_plans row is still keyed by week_start_date (used for egg limits / planner).
-    let updatedPlan: any = null;
+    let updatedPlan: unknown = null;
     const batchMode = (c.batch_cooking_mode ?? "3-day") as "3-day" | "off";
     if (variant && batchMode !== "off") {
       const today = new Date();
@@ -159,13 +170,14 @@ Deno.serve(async (req) => {
 
       if (planRow) {
         const patch: Record<string, unknown> = {};
-        const hasActiveLock = planRow[recipeCol] != null && batchActive(planRow[batchCol]);
+        const planRec = planRow as Record<string, unknown>;
+        const hasActiveLock = planRec[recipeCol] != null && batchActive(planRec[batchCol] as string | null);
         if (!hasActiveLock) {
           patch[recipeCol] = recipe;
           patch[batchCol] = todayIso;
         }
         if (variant === "primary") {
-          patch[countCol] = (Number(planRow[countCol]) || 0) + 1;
+          patch[countCol] = (Number(planRec[countCol]) || 0) + 1;
         }
         if (Object.keys(patch).length) {
           const { data: saved } = await admin
@@ -195,12 +207,12 @@ Deno.serve(async (req) => {
       }
     }
 
-
     return new Response(JSON.stringify({
       ok: true,
       eggs_in_meal: eggsInMeal,
-      eggs_used_this_week: eggsUsedThisWeek + eggsInMeal,
+      eggs_used_this_week: eggsUsedThisWeek,
       eggs_max_per_week: eggsMax,
+      food_limit_counts: nextCounts,
       plan: updatedPlan,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

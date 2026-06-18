@@ -116,13 +116,11 @@ interface Client {
   phase2_strict_started_at: string | null;
   phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
-  weekly_food_limits: Record<string, number>;
+  food_limits: Record<string, number>;
+  food_limit_counts: Record<string, number>;
   system_mode: "mb" | "own_practice";
   batch_cooking_mode: "3-day" | "off";
   meal_streak: number | null;
-  avocado_count_week: number | null;
-  egg_count_week: number | null;
-  eggs_max_per_week: number | null;
   created_at: string;
   practitioner_notes: string;
   medical_conditions: string;
@@ -676,14 +674,14 @@ export default function Dashboard() {
 
   // ----- Weekly food limits -----
   const saveWeeklyFoodLimits = async (clientId: string, limits: Record<string, number>) => {
-    const prev = clients.find((c) => c.id === clientId)?.weekly_food_limits ?? {};
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, weekly_food_limits: limits } : c)));
+    const prev = clients.find((c) => c.id === clientId)?.food_limits ?? {};
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, food_limits: limits } : c)));
     const { error } = await supabase
       .from("clients")
-      .update({ weekly_food_limits: limits as never } as never)
+      .update({ food_limits: limits as never } as never)
       .eq("id", clientId);
     if (error) {
-      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, weekly_food_limits: prev } : c)));
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, food_limits: prev } : c)));
       toast.error("Could not save weekly limits");
     }
   };
@@ -1325,14 +1323,21 @@ export default function Dashboard() {
                       mealStreak += 1;
                       md.setUTCDate(md.getUTCDate() - 1);
                     }
+                    const foodLimits = (client.food_limits ?? {}) as Record<string, number>;
+                    const foodLimitCounts = (client.food_limit_counts ?? {}) as Record<string, number>;
+                    const foodLimitCards = isOwnPractice ? [] : Object.entries(foodLimits)
+                      .filter(([, lim]) => Number(lim) > 0)
+                      .map(([name, lim]) => ({
+                        label: `${name.charAt(0).toUpperCase() + name.slice(1)} / Week`,
+                        value: client.mb_pdf_path
+                          ? `${Number(foodLimitCounts[name] ?? 0)} / ${Number(lim)}`
+                          : `${Number(foodLimitCounts[name] ?? 0)}`,
+                      }));
                     const stats = [
                       { label: "Meal Streak", value: `${mealStreak}d` },
                       { label: "Water Streak", value: `${waterStreak}d` },
                       { label: "Water Today", value: `${waterToday.toFixed(1)} L` },
-                      ...(isOwnPractice ? [] : [
-                        { label: "Avocado / Week", value: client.mb_pdf_path ? `${client.avocado_count_week ?? 0}` : "0" },
-                        { label: "Eggs / Week", value: client.mb_pdf_path ? `${client.egg_count_week ?? 0} / ${client.eggs_max_per_week ?? "—"}` : "0" },
-                      ]),
+                      ...foodLimitCards,
                       { label: "Last Logged", value: lastLogged },
                     ];
                     const lastMealText = (() => {
@@ -1810,7 +1815,7 @@ export default function Dashboard() {
                               )}
                               <div className="border-t pt-3 space-y-3">
                                 <WeeklyLimitsEditor
-                                  value={client.weekly_food_limits ?? {}}
+                                  value={client.food_limits ?? {}}
                                   onSave={(next) => saveWeeklyFoodLimits(client.id, next)}
                                 />
                                 {(weeklyAcks[client.id] ?? []).length > 0 && (

@@ -190,14 +190,34 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
     setBusy(true);
     try {
       const update: Record<string, unknown> = { mb_pdf_path: storagePath };
+      // Fetch existing food_limits so the parser-extracted values merge into them
+      // instead of clobbering practitioner-edited limits.
+      let existingLimits: Record<string, number> = {};
+      try {
+        const { data: existing } = await supabase
+          .from("clients")
+          .select("food_limits")
+          .eq("id", clientId)
+          .maybeSingle();
+        const fl = (existing as { food_limits?: unknown } | null)?.food_limits;
+        if (fl && typeof fl === "object") {
+          existingLimits = fl as Record<string, number>;
+        }
+      } catch { /* ignore */ }
+
       for (const [k, v] of Object.entries(fields)) {
         const val = v.value;
+        if (k === "food_limits") {
+          const parsed = (val && typeof val === "object") ? val as Record<string, number> : {};
+          update.food_limits = { ...existingLimits, ...parsed };
+          continue;
+        }
         // Coerce numeric fields
         const numericKeys = new Set([
           "breakfast_protein_grams", "breakfast_veg_grams",
           "lunch_protein_grams", "lunch_veg_grams",
           "dinner_protein_grams", "dinner_veg_grams",
-          "eggs_min_per_week", "eggs_max_per_week",
+          "eggs_min_per_week",
           "water_target_litres",
         ]);
         if (numericKeys.has(k)) {
@@ -368,7 +388,6 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
                 <h3 className="text-sm font-semibold mb-2">Additional information</h3>
                 <div className="grid grid-cols-3 gap-3">
                   <FieldRow k="eggs_min_per_week" label="Eggs min/week" type="number" />
-                  <FieldRow k="eggs_max_per_week" label="Eggs max/week" type="number" />
                   <FieldRow k="water_target_litres" label="Water (litres/day)" type="number" />
                 </div>
               </section>

@@ -186,8 +186,8 @@ Deno.serve(async (req) => {
               "phase3_mb_fish", "phase3_mb_seafood", "phase3_mb_meat", "phase3_mb_cheese",
               "phase3_mb_legumes", "phase3_mb_vegetables", "phase3_mb_veg_lettuce",
               "phase3_mb_sprouts", "phase3_mb_fat_oil",
-              "eggs_min_per_week", "eggs_max_per_week",
-              "water_target_litres", "weekly_food_limits",
+              "eggs_min_per_week",
+              "water_target_litres", "food_limits", "food_limit_counts",
             ].join(", "))
             .eq("id", c.id)
             .maybeSingle();
@@ -380,10 +380,12 @@ Deno.serve(async (req) => {
             describeSlot("lunch"),
             describeSlot("dinner"),
             "",
-            `Eggs: min ${f.eggs_min_per_week ?? "?"} / max ${f.eggs_max_per_week ?? "?"} per week`,
+            `Eggs minimum per week: ${f.eggs_min_per_week ?? "?"}`,
             `Water target: ${f.water_target_litres ?? "?"} litres/day`,
-            f.weekly_food_limits && Object.keys(f.weekly_food_limits).length
-              ? `Weekly food limits: ${JSON.stringify(f.weekly_food_limits)}` : "",
+            f.food_limits && Object.keys(f.food_limits).length
+              ? `Weekly food limits: ${JSON.stringify(f.food_limits)}` : "",
+            f.food_limit_counts && Object.keys(f.food_limit_counts).length
+              ? `Used this week: ${JSON.stringify(f.food_limit_counts)}` : "",
           ].filter(Boolean).join("\n");
 
           const systemPrompt = [

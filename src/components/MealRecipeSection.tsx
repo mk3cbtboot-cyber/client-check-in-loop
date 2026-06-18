@@ -19,8 +19,8 @@ interface Props {
   variant: "primary" | "alt";
   optionDef: OptionDef;
   phase: Phase;
-  avocadoCountWeek: number;
-  avocadoMaxWeek: number;
+  foodLimits: Record<string, number>;
+  foodLimitCounts: Record<string, number>;
 
   lockedRecipe: LockedRecipe | null;
   lockedSelections: Record<string, string>;
@@ -42,7 +42,7 @@ const OIL_OPTIONS = [
 ];
 
 export default function MealRecipeSection({
-  token, meal, variant, optionDef, phase, avocadoCountWeek, avocadoMaxWeek,
+  token, meal, variant, optionDef, phase, foodLimits, foodLimitCounts,
   lockedRecipe, lockedSelections, sectionTitle, extraComponents, filteredSources, onLogged, blockGeneration, fullScreenOnSelect,
 }: Props) {
 
@@ -278,6 +278,25 @@ export default function MealRecipeSection({
 
   // === Builder view ===
   const allComponents = [...optionDef.components, ...extraComponents];
+
+  // Generic food-limit lookup. Returns the matched limit key (lowercase) if the
+  // ingredient label contains a key from foodLimits AND the client has hit it.
+  const limitedKeyForLabel = (label: string): string | null => {
+    const l = label.toLowerCase();
+    for (const [key, max] of Object.entries(foodLimits)) {
+      const m = Number(max);
+      if (!m || m <= 0) continue;
+      const used = Number(foodLimitCounts[key] ?? 0);
+      if (used < m) continue;
+      // Match by substring on the key (e.g. "avocado", "eggs"). Singular/plural tolerant.
+      const k = key.toLowerCase();
+      const stem = k.endsWith("s") ? k.slice(0, -1) : k;
+      const re = new RegExp(`\\b${stem}s?\\b`, "i");
+      if (re.test(l)) return key;
+    }
+    return null;
+  };
+
   return (
     <>
       <Card className="p-4 space-y-4">
@@ -290,8 +309,6 @@ export default function MealRecipeSection({
         ))}
         {allComponents.map((comp) => {
           const items = restrictedItems(comp.sources, comp.key);
-          const avocadoExhausted = avocadoCountWeek >= avocadoMaxWeek;
-          const showAvocadoNote = comp.sources.includes("vegetables") && avocadoExhausted;
           const showOilBefore = oilAllow && comp.key === "fruit";
           return (
             <div key={comp.key} className="space-y-3">
@@ -312,8 +329,9 @@ export default function MealRecipeSection({
                 <Select
                   value={picks[comp.key] ?? ""}
                   onValueChange={(v) => {
-                    if (/avocado/i.test(v) && avocadoExhausted) {
-                      toast.error("You've reached your avocado limit for this week. Please choose a different option.");
+                    const limitedKey = limitedKeyForLabel(v);
+                    if (limitedKey) {
+                      toast.error(`You've reached your weekly limit for ${limitedKey}. Please choose a different option.`);
                       return;
                     }
                     setPicks((p) => ({ ...p, [comp.key]: v }));
@@ -322,8 +340,8 @@ export default function MealRecipeSection({
                   <SelectTrigger><SelectValue placeholder={comp.optional ? "Optional" : "Select…"} /></SelectTrigger>
                   <SelectContent>
                     {items.map((i) => {
-                      const isAvocado = /avocado/i.test(i);
-                      const disabled = isAvocado && avocadoExhausted;
+                      const limitedKey = limitedKeyForLabel(i);
+                      const disabled = !!limitedKey;
                       return (
                         <SelectItem key={i} value={i} disabled={disabled} className={disabled ? "opacity-50" : undefined}>
                           {i}{disabled ? " (limit reached)" : ""}
@@ -332,7 +350,6 @@ export default function MealRecipeSection({
                     })}
                   </SelectContent>
                 </Select>
-                {showAvocadoNote && <p className="text-xs text-muted-foreground">Avocado limit reached this week.</p>}
               </div>
             </div>
           );

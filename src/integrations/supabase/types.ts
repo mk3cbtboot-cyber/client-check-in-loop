@@ -103,7 +103,6 @@ export type Database = {
       clients: {
         Row: {
           archived_at: string | null
-          avocado_count_week: number
           batch_cooking_mode: string
           breakfast_protein_category: string | null
           breakfast_protein_grams: number | null
@@ -115,8 +114,6 @@ export type Database = {
           dinner_protein_category: string | null
           dinner_protein_grams: number | null
           dinner_veg_grams: number | null
-          egg_count_week: number
-          eggs_max_per_week: number | null
           eggs_min_per_week: number | null
           email: string
           food_bread: string
@@ -124,6 +121,8 @@ export type Database = {
           food_fish: string
           food_fruit: string
           food_legumes: string
+          food_limit_counts: Json
+          food_limits: Json
           food_meat: string
           food_milk_products: string
           food_nuts: string
@@ -182,13 +181,11 @@ export type Database = {
           water_target_litres: number
           water_today_litres: number
           week_reset_date: string
-          weekly_food_limits: Json
           weight_unit: string
           welcome_seen: boolean
         }
         Insert: {
           archived_at?: string | null
-          avocado_count_week?: number
           batch_cooking_mode?: string
           breakfast_protein_category?: string | null
           breakfast_protein_grams?: number | null
@@ -200,8 +197,6 @@ export type Database = {
           dinner_protein_category?: string | null
           dinner_protein_grams?: number | null
           dinner_veg_grams?: number | null
-          egg_count_week?: number
-          eggs_max_per_week?: number | null
           eggs_min_per_week?: number | null
           email: string
           food_bread?: string
@@ -209,6 +204,8 @@ export type Database = {
           food_fish?: string
           food_fruit?: string
           food_legumes?: string
+          food_limit_counts?: Json
+          food_limits?: Json
           food_meat?: string
           food_milk_products?: string
           food_nuts?: string
@@ -267,13 +264,11 @@ export type Database = {
           water_target_litres?: number
           water_today_litres?: number
           week_reset_date?: string
-          weekly_food_limits?: Json
           weight_unit?: string
           welcome_seen?: boolean
         }
         Update: {
           archived_at?: string | null
-          avocado_count_week?: number
           batch_cooking_mode?: string
           breakfast_protein_category?: string | null
           breakfast_protein_grams?: number | null
@@ -285,8 +280,6 @@ export type Database = {
           dinner_protein_category?: string | null
           dinner_protein_grams?: number | null
           dinner_veg_grams?: number | null
-          egg_count_week?: number
-          eggs_max_per_week?: number | null
           eggs_min_per_week?: number | null
           email?: string
           food_bread?: string
@@ -294,6 +287,8 @@ export type Database = {
           food_fish?: string
           food_fruit?: string
           food_legumes?: string
+          food_limit_counts?: Json
+          food_limits?: Json
           food_meat?: string
           food_milk_products?: string
           food_nuts?: string
@@ -352,7 +347,6 @@ export type Database = {
           water_target_litres?: number
           water_today_litres?: number
           week_reset_date?: string
-          weekly_food_limits?: Json
           weight_unit?: string
           welcome_seen?: boolean
         }

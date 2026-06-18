@@ -28,8 +28,8 @@ interface ClientState {
   id: string;
   name: string;
   phase: Phase;
-  avocado_count_week: number;
-  egg_count_week: number;
+  food_limits: Record<string, number>;
+  food_limit_counts: Record<string, number>;
   water_today_litres: number;
   meal_streak: number;
   water_streak: number;
@@ -60,8 +60,6 @@ interface ClientState {
   phase2_strict_started_at: string | null;
   phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
-  weekly_food_limits: Record<string, number>;
-  eggs_max_per_week: number | null;
   system_mode: "mb" | "own_practice";
   gender: "female" | "male" | "unspecified" | null;
   batch_cooking_mode: "3-day" | "off";
@@ -340,13 +338,8 @@ export default function ClientPortal() {
   };
 
 
-  const avocadoMaxWeek = (() => {
-    const limits = client?.weekly_food_limits ?? {};
-    for (const [k, v] of Object.entries(limits)) {
-      if (/avocado/i.test(k) && Number(v) > 0) return Number(v);
-    }
-    return 3;
-  })();
+  const foodLimits = (client?.food_limits ?? {}) as Record<string, number>;
+  const foodLimitCounts = (client?.food_limit_counts ?? {}) as Record<string, number>;
 
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
     const items = [...sources.flatMap((s) => MB_FOODS[s]), ...phase3ExtrasForSources(sources)];
@@ -543,9 +536,7 @@ export default function ClientPortal() {
     </main>
   );
 
-  const avocadoLeft = Math.max(0, avocadoMaxWeek - client.avocado_count_week);
-  const eggsMax = client.eggs_max_per_week ?? 5;
-  const eggsLeft = Math.max(0, eggsMax - client.egg_count_week);
+  // Eggs limit/used now sourced from food_limits / food_limit_counts where needed.
   const waterTarget = 2.5;
 
   // My Plan categories — uses practitioner-customised list when set, otherwise defaults.
@@ -585,24 +576,24 @@ export default function ClientPortal() {
         <section className="max-w-5xl mx-auto p-4 space-y-6">
           {/* Trackers */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Avocado</p>
-              <p className="text-2xl font-semibold">
-                {client.mb_pdf_path ? `${client.avocado_count_week}/${avocadoMaxWeek}` : `${client.avocado_count_week}`}
-              </p>
-              {client.mb_pdf_path && (
-                <p className="text-xs text-muted-foreground">{avocadoLeft} remaining this week</p>
-              )}
-            </Card>
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Eggs</p>
-              <p className="text-2xl font-semibold">
-                {client.mb_pdf_path ? `${client.egg_count_week}/${eggsMax}` : `${client.egg_count_week}`}
-              </p>
-              {client.mb_pdf_path && (
-                <p className="text-xs text-muted-foreground">{eggsLeft} remaining this week</p>
-              )}
-            </Card>
+            {Object.entries(foodLimits)
+              .filter(([, lim]) => Number(lim) > 0)
+              .map(([name, lim]) => {
+                const used = Number(foodLimitCounts[name] ?? 0);
+                const left = Math.max(0, Number(lim) - used);
+                const label = name.charAt(0).toUpperCase() + name.slice(1);
+                return (
+                  <Card key={name} className="p-4">
+                    <p className="text-xs uppercase text-muted-foreground">{label}</p>
+                    <p className="text-2xl font-semibold">
+                      {client.mb_pdf_path ? `${used}/${Number(lim)}` : `${used}`}
+                    </p>
+                    {client.mb_pdf_path && (
+                      <p className="text-xs text-muted-foreground">{left} remaining this week</p>
+                    )}
+                  </Card>
+                );
+              })}
             <Card className="p-4">
               <p className="text-xs uppercase text-muted-foreground">Water Today</p>
               <p className="text-2xl font-semibold">{client.water_today_litres.toFixed(2)}L<span className="text-sm text-muted-foreground"> / {waterTarget}L</span></p>
@@ -759,8 +750,8 @@ export default function ClientPortal() {
                                 variant="primary"
                                 optionDef={opt}
                                 phase={client.phase}
-                                avocadoCountWeek={client.avocado_count_week}
-                                avocadoMaxWeek={avocadoMaxWeek}
+                                foodLimits={foodLimits}
+                                foodLimitCounts={foodLimitCounts}
                                 lockedRecipe={null}
                                 lockedSelections={{}}
                                 extraComponents={buildExtras(opt)}
@@ -779,11 +770,11 @@ export default function ClientPortal() {
                 return (
                   <div className="space-y-4">
                     {!hidePrimary && primaryOption && (() => {
-                      const eggsMax = client.eggs_max_per_week ?? null;
-                      const eggsUsed = client.egg_count_week ?? 0;
-                      const eggsExhausted = isSplit && eggsMax != null && eggsMax > 0 && eggsUsed >= eggsMax;
+                      const eggsMaxInner = Number(foodLimits.eggs ?? 0) || null;
+                      const eggsUsed = Number(foodLimitCounts.eggs ?? 0);
+                      const eggsExhausted = isSplit && eggsMaxInner != null && eggsMaxInner > 0 && eggsUsed >= eggsMaxInner;
                       const block = eggsExhausted
-                        ? { reason: `You've used ${eggsUsed} of ${eggsMax} eggs this week — the egg meal is unavailable until next week.` }
+                        ? { reason: `You've used ${eggsUsed} of ${eggsMaxInner} eggs this week — the egg meal is unavailable until next week.` }
                         : null;
                       return (
                         <MealRecipeSection
@@ -793,8 +784,8 @@ export default function ClientPortal() {
                           variant="primary"
                           optionDef={primaryOption}
                           phase={client.phase}
-                          avocadoCountWeek={client.avocado_count_week}
-                                avocadoMaxWeek={avocadoMaxWeek}
+                          foodLimits={foodLimits}
+                          foodLimitCounts={foodLimitCounts}
                           lockedRecipe={primaryLocked}
                           lockedSelections={primarySelections}
                           sectionTitle={isSplit ? `Egg meal (${primaryLogCount}/${primaryDays} this week)` : undefined}
@@ -813,8 +804,8 @@ export default function ClientPortal() {
                         variant="alt"
                         optionDef={altOption}
                         phase={client.phase}
-                        avocadoCountWeek={client.avocado_count_week}
-                                avocadoMaxWeek={avocadoMaxWeek}
+                        foodLimits={foodLimits}
+                        foodLimitCounts={foodLimitCounts}
                         lockedRecipe={altLocked}
                         lockedSelections={altSelections}
                         sectionTitle="Backup meal"
@@ -1173,8 +1164,8 @@ export default function ClientPortal() {
             <MealPlanner
               token={token!}
               filteredSources={filteredSources}
-              weeklyFoodLimits={client.weekly_food_limits ?? {}}
-              eggsMaxPerWeek={client.eggs_max_per_week ?? null}
+              weeklyFoodLimits={foodLimits}
+              eggsMaxPerWeek={Number(foodLimits.eggs ?? 0) || null}
               onPlanChanged={(p) => setWeeklyPlan(p)}
               oilAllowed={oilAllowed(client.phase)}
               batchCookingMode={client.batch_cooking_mode ?? "3-day"}

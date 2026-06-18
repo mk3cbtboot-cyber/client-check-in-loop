@@ -40,8 +40,7 @@ Deno.serve(async (req) => {
     const monday = mondayOf(new Date());
     if (c.week_reset_date !== monday) {
       updates.week_reset_date = monday;
-      updates.avocado_count_week = 0;
-      updates.egg_count_week = 0;
+      updates.food_limit_counts = {};
     }
     const td = today();
     if (c.water_date !== td) {
@@ -90,7 +89,8 @@ Deno.serve(async (req) => {
       valid: true,
       client: {
         id: c.id, name: c.name, phase: c.phase,
-        avocado_count_week: c.avocado_count_week, egg_count_week: c.egg_count_week,
+        food_limits: c.food_limits ?? {},
+        food_limit_counts: c.food_limit_counts ?? {},
         water_today_litres: Number(c.water_today_litres), meal_streak: c.meal_streak,
         water_streak: waterStreak,
         mb_pdf_path: c.mb_pdf_path ?? null,
@@ -120,8 +120,6 @@ Deno.serve(async (req) => {
         phase2_strict_started_at: c.phase2_strict_started_at ?? null,
         phase2_strict_mode: c.phase2_strict_mode === "practitioner_custom" ? "practitioner_custom" : "mb_standard",
         phase2_food_list: c.phase2_food_list ?? null,
-        weekly_food_limits: c.weekly_food_limits ?? {},
-        eggs_max_per_week: c.eggs_max_per_week != null ? Number(c.eggs_max_per_week) : null,
         latest_weight_kg: latestCheckIn?.weight_kg != null ? Number(latestCheckIn.weight_kg) : null,
         system_mode: c.system_mode === "own_practice" ? "own_practice" : "mb",
         gender: normalizeGender(c.gender),
