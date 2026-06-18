@@ -643,6 +643,38 @@ function parseEggs(text: string): { eggs_min_per_week: number | null; eggs_max_p
   return { eggs_min_per_week: null, eggs_max_per_week: null };
 }
 
+// Generic parser: extract every "N(-M) <food> per week" weekly limit and return
+// a map of normalized food name -> max units. Tolerant of multi-word foods like
+// "free-range eggs" — we keep the last word (the head noun) as the key.
+function parseFoodLimits(text: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  const re = /(\d+)\s*(?:[-–]\s*(\d+))?\s+([A-Za-z][A-Za-z\- ]{1,40}?)\s+per\s*week/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const max = m[2] ? parseInt(m[2], 10) : parseInt(m[1], 10);
+    if (!Number.isFinite(max) || max <= 0 || max > 100) continue;
+    let phrase = m[3].trim().toLowerCase().replace(/\s+/g, " ");
+    // Strip filler words.
+    phrase = phrase.replace(/\b(maximum|max|minimum|min|of|a|the|fresh|whole|raw|organic|free[-\s]?range)\b/g, "").trim();
+    if (!phrase) continue;
+    // Use the last word as the canonical key (e.g. "free range eggs" -> "eggs", "small avocados" -> "avocados").
+    const words = phrase.split(/\s+/).filter(Boolean);
+    let key = words[words.length - 1];
+    if (!key) continue;
+    // Singularize basic plural -> singular if the singular already exists as a different key.
+    // Otherwise keep as-is so "eggs" stays "eggs", "avocados" stays "avocados".
+    // Normalize "egg" -> "eggs" for the common case.
+    if (key === "egg") key = "eggs";
+    if (key === "avocados") key = "avocado";
+    if (key.length < 3) continue;
+    if (!(key in out)) out[key] = max;
+  }
+  // Eggs may also appear as "min N max M eggs" (handled by parseEggs); merge in.
+  const eggs = parseEggs(text);
+  if (eggs.eggs_max_per_week && !("eggs" in out)) out.eggs = eggs.eggs_max_per_week;
+  return out;
+}
+
 function parseWater(text: string): number | null {
   const re = /(\d+(?:[.,]\d+)?(?:\s*[½¼¾])?(?:\s*1\/\d)?)\s*(?:l(?:iters?|itres?)?|L)\b/i;
   const m = text.match(re);
