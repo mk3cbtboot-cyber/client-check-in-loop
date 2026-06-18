@@ -1115,7 +1115,7 @@ export default function Dashboard() {
                       <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="cgender">Gender (optional)</Label>
+                      <Label htmlFor="cgender">Biological Sex (optional)</Label>
                       <select
                         id="cgender"
                         className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
