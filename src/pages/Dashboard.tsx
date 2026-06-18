@@ -125,6 +125,7 @@ interface Client {
   weight_unit: string;
   archived_at: string | null;
   practitioner_last_read_at: string | null;
+  phase4_start_date: string | null;
 }
 
 interface CheckIn {
