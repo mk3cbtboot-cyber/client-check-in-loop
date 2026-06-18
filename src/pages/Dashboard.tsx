@@ -696,28 +696,6 @@ export default function Dashboard() {
     }
   };
 
-
-
-
-  const setHeight = (clientId: string, value: string) => {
-    const num = value === "" ? null : Number(value);
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, height_cm: num } : c)));
-  };
-
-  const saveHeight = async (clientId: string, value: string) => {
-    const num = value === "" ? null : Number(value);
-    const { error } = await supabase.from("clients").update({ height_cm: num }).eq("id", clientId);
-    if (error) return toast.error("Could not save height");
-    toast.success("Height saved");
-  };
-
-  const saveGender = async (clientId: string, value: "female" | "male" | "unspecified") => {
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, gender: value } : c)));
-    const { error } = await supabase.from("clients").update({ gender: value }).eq("id", clientId);
-    if (error) return toast.error("Could not save gender");
-    toast.success("Gender saved");
-  };
-
   const PHASE3_FIELDS = [
     { key: "phase3_meat", label: "Meat" },
     { key: "phase3_fish", label: "Fish" },
@@ -1246,7 +1224,7 @@ export default function Dashboard() {
                           </>
                         )}
                       </div>
-                      {/* Row 2: toggles | water | streak | details */}
+                      {/* Row 2: toggles | client info | details */}
                       <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                         {tierShowsToggle(tier) && (
                           <div
@@ -1273,9 +1251,13 @@ export default function Dashboard() {
                             </button>
                           </div>
                         )}
-                        <span>Water: <span className="font-medium text-foreground">{lastWaterDisplay(list)}</span></span>
-                        <span>Meal Streak: <span className="font-medium text-foreground">{client.meal_streak ?? 0}d</span></span>
-                        <span>Water Streak: <span className="font-medium text-foreground">{waterStreaks[client.id] ?? 0}d</span></span>
+                        <span className="whitespace-nowrap">
+                          {client.email}
+                          {" · "}
+                          Height: {client.height_cm ? `${client.height_cm}cm` : "not set"}
+                          {" · "}
+                          Gender: {client.gender === "unspecified" ? "Prefer not to say" : client.gender ? client.gender.charAt(0).toUpperCase() + client.gender.slice(1) : "not set"}
+                        </span>
                         {!isDetailView && (
                           <div className="ml-auto inline-flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                             {client.archived_at ? (
@@ -1392,7 +1374,6 @@ export default function Dashboard() {
                       <TabsContent value="overview" className="space-y-4 pt-3">
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-3">
-                            <p className="text-sm text-muted-foreground flex-1 min-w-0 truncate">{client.email}</p>
                             {client.system_mode !== "own_practice" && (
                               <div className="flex items-center gap-2">
                                 <Label className="text-xs">Phase</Label>
@@ -1454,34 +1435,6 @@ export default function Dashboard() {
                           })()}
                         </div>
 
-                        <div className="flex items-end gap-3 flex-wrap">
-                          <div className="space-y-1">
-                            <Label htmlFor={`h-${client.id}`} className="text-xs">Height (cm)</Label>
-                            <Input
-                              id={`h-${client.id}`}
-                              type="number"
-                              step="0.1"
-                              className="h-8 w-32"
-                              value={client.height_cm ?? ""}
-                              onChange={(e) => setHeight(client.id, e.target.value)}
-                              onBlur={(e) => saveHeight(client.id, e.target.value)}
-                              placeholder="e.g. 168"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Gender</Label>
-                            <select
-                              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-                              value={client.gender ?? ""}
-                              onChange={(e) => saveGender(client.id, e.target.value as "female" | "male" | "unspecified")}
-                            >
-                              <option value="" disabled>Select…</option>
-                              <option value="female">Female</option>
-                              <option value="male">Male</option>
-                              <option value="unspecified">Prefer not to say</option>
-                            </select>
-                          </div>
-                        </div>
 
 
 
