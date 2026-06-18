@@ -79,6 +79,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceL
 import ClientTrendGraphs from "@/components/ClientTrendGraphs";
 import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
 import PractitionerMessages from "@/components/PractitionerMessages";
+import MealsOverviewSection from "@/components/MealsOverviewSection";
 
 
 interface Client {
@@ -1584,7 +1585,7 @@ export default function Dashboard() {
                           return (
                             <>
                               {renderGraph("Water Intake (L)", waterData, "litres", "L", WATER_TARGET)}
-                              {renderGraph("Meals Logged", mealsData, "meals", "meals", MEAL_TARGET, MEAL_TARGET)}
+                              <MealsOverviewSection recipes={recipesList} />
                             </>
                           );
                         })()}
