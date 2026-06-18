@@ -1374,7 +1374,6 @@ export default function Dashboard() {
                       <TabsContent value="overview" className="space-y-4 pt-3">
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-3">
-                            <p className="text-sm text-muted-foreground flex-1 min-w-0 truncate">{client.email}</p>
                             {client.system_mode !== "own_practice" && (
                               <div className="flex items-center gap-2">
                                 <Label className="text-xs">Phase</Label>
