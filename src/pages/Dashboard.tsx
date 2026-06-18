@@ -586,17 +586,24 @@ export default function Dashboard() {
 
   const addClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!gender) { toast.error("Please select a gender"); return; }
     setSubmitting(true);
     try {
       if (email.trim().toLowerCase() === userEmail.toLowerCase()) {
         throw new Error("You cannot invite yourself as a client");
       }
-      const { data, error } = await supabase.functions.invoke("invite-client", { body: { name, email, gender, system_mode: defaultSystemMode(tier) } });
+      const trimmedHeight = heightCm.trim();
+      const heightNum = trimmedHeight === "" ? null : Number(trimmedHeight);
+      if (heightNum !== null && (!Number.isFinite(heightNum) || heightNum <= 0)) {
+        throw new Error("Please enter a valid height in cm");
+      }
+      const body: Record<string, unknown> = { name, email, system_mode: defaultSystemMode(tier) };
+      if (gender) body.gender = gender;
+      if (heightNum !== null) body.height_cm = heightNum;
+      const { data, error } = await supabase.functions.invoke("invite-client", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Client invited — magic link emailed");
-      setName(""); setEmail(""); setGender(""); setOpen(false);
+      setName(""); setEmail(""); setGender(""); setHeightCm(""); setOpen(false);
       await load();
     } catch (err: any) {
       toast.error(err.message ?? "Failed to invite client");
