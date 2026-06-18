@@ -170,6 +170,7 @@ export default function Dashboard() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [gender, setGender] = useState<"female" | "male" | "unspecified" | "">("");
+  const [heightCm, setHeightCm] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [tier, setTier] = useState<PractitionerTier | null>(null);
@@ -585,17 +586,24 @@ export default function Dashboard() {
 
   const addClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!gender) { toast.error("Please select a gender"); return; }
     setSubmitting(true);
     try {
       if (email.trim().toLowerCase() === userEmail.toLowerCase()) {
         throw new Error("You cannot invite yourself as a client");
       }
-      const { data, error } = await supabase.functions.invoke("invite-client", { body: { name, email, gender, system_mode: defaultSystemMode(tier) } });
+      const trimmedHeight = heightCm.trim();
+      const heightNum = trimmedHeight === "" ? null : Number(trimmedHeight);
+      if (heightNum !== null && (!Number.isFinite(heightNum) || heightNum <= 0)) {
+        throw new Error("Please enter a valid height in cm");
+      }
+      const body: Record<string, unknown> = { name, email, system_mode: defaultSystemMode(tier) };
+      if (gender) body.gender = gender;
+      if (heightNum !== null) body.height_cm = heightNum;
+      const { data, error } = await supabase.functions.invoke("invite-client", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Client invited — magic link emailed");
-      setName(""); setEmail(""); setGender(""); setOpen(false);
+      setName(""); setEmail(""); setGender(""); setHeightCm(""); setOpen(false);
       await load();
     } catch (err: any) {
       toast.error(err.message ?? "Failed to invite client");
@@ -1107,19 +1115,30 @@ export default function Dashboard() {
                       <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="cgender">Gender</Label>
+                      <Label htmlFor="cgender">Gender (optional)</Label>
                       <select
                         id="cgender"
-                        required
                         className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                         value={gender}
                         onChange={(e) => setGender(e.target.value as "female" | "male" | "unspecified" | "")}
                       >
-                        <option value="" disabled>Select…</option>
+                        <option value="">Not set</option>
                         <option value="male">Male</option>
                         <option value="female">Female</option>
-                        <option value="unspecified">Prefer not to say</option>
+                        <option value="unspecified">Other</option>
                       </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cheight">Height in cm (optional)</Label>
+                      <Input
+                        id="cheight"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        placeholder="e.g. 168"
+                        value={heightCm}
+                        onChange={(e) => setHeightCm(e.target.value)}
+                      />
                     </div>
                     <Button type="submit" className="w-full" disabled={submitting}>
                       {submitting ? "Sending invite…" : "Add & send invite"}
