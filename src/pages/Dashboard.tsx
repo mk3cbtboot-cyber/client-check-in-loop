@@ -1371,9 +1371,6 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">Last meal:</span> {lastMealText}
-                    </p>
 
                     <Tabs defaultValue="overview" className="w-full">
                       <TabsList className="grid w-full grid-cols-5">
