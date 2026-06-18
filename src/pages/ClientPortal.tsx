@@ -338,13 +338,8 @@ export default function ClientPortal() {
   };
 
 
-  const avocadoMaxWeek = (() => {
-    const limits = client?.weekly_food_limits ?? {};
-    for (const [k, v] of Object.entries(limits)) {
-      if (/avocado/i.test(k) && Number(v) > 0) return Number(v);
-    }
-    return 3;
-  })();
+  const foodLimits = (client?.food_limits ?? {}) as Record<string, number>;
+  const foodLimitCounts = (client?.food_limit_counts ?? {}) as Record<string, number>;
 
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
     const items = [...sources.flatMap((s) => MB_FOODS[s]), ...phase3ExtrasForSources(sources)];
