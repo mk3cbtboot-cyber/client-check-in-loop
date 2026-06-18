@@ -184,6 +184,7 @@ export type Database = {
           week_reset_date: string
           weekly_food_limits: Json
           weight_unit: string
+          welcome_seen: boolean
         }
         Insert: {
           archived_at?: string | null
@@ -268,6 +269,7 @@ export type Database = {
           week_reset_date?: string
           weekly_food_limits?: Json
           weight_unit?: string
+          welcome_seen?: boolean
         }
         Update: {
           archived_at?: string | null
@@ -352,6 +354,7 @@ export type Database = {
           week_reset_date?: string
           weekly_food_limits?: Json
           weight_unit?: string
+          welcome_seen?: boolean
         }
         Relationships: []
       }
