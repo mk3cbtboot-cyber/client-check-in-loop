@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
           const { data: full, error: fullErr } = await admin
             .from("clients")
             .select([
-              "name", "phase",
+              "name", "phase", "batch_cooking_mode",
               "breakfast_protein_category", "breakfast_protein_grams", "breakfast_veg_grams",
               "lunch_protein_category", "lunch_protein_grams", "lunch_veg_grams",
               "dinner_protein_category", "dinner_protein_grams", "dinner_veg_grams",
@@ -192,6 +192,20 @@ Deno.serve(async (req) => {
             .eq("id", c.id)
             .maybeSingle();
           console.log("ai_interceptor: after fetch client plan data", { has_full: !!full, fullErr });
+
+          // Fetch this week's meal planner selections (if any).
+          const _mondayOf = (d: Date) => {
+            const dt = new Date(d);
+            const day = (dt.getUTCDay() + 6) % 7;
+            dt.setUTCDate(dt.getUTCDate() - day);
+            return dt.toISOString().slice(0, 10);
+          };
+          const { data: weekPlan } = await admin
+            .from("weekly_meal_plans")
+            .select("breakfast_meal_id, lunch_meal_id, dinner_meal_id, breakfast_selections, lunch_selections, dinner_selections, breakfast_meal_id_alt, lunch_meal_id_alt, dinner_meal_id_alt, breakfast_selections_alt, lunch_selections_alt, dinner_selections_alt, confirmed_at")
+            .eq("client_id", c.id)
+            .eq("week_start_date", _mondayOf(new Date()))
+            .maybeSingle();
 
           console.log("ai_interceptor: before fetch practitioner profile");
           const { data: practProf, error: practErr } = await admin
@@ -221,47 +235,155 @@ Deno.serve(async (req) => {
             if (typeof v === "string") return v.trim();
             return "";
           };
-          const meal = (label: string, cat: any, pg: any, vg: any) =>
-            `- ${label}: protein category = ${cat || "(not set)"}, protein = ${pg ?? "?"} g, vegetables = ${vg ?? "?"} g`;
 
-          const proteinCats = isP3
-            ? {
-                Fish: f.phase3_mb_fish, Seafood: f.phase3_mb_seafood, Meat: f.phase3_mb_meat,
-                Cheese: f.phase3_mb_cheese, Legumes: f.phase3_mb_legumes,
+          // Source key -> client food column for the active phase.
+          const sourceFoods = (src: string): string => {
+            const map: Record<string, string> = isP3 ? {
+              fish: list(f.phase3_mb_fish), seafood: list(f.phase3_mb_seafood),
+              meat: list(f.phase3_mb_meat), cheese: list(f.phase3_mb_cheese),
+              legumes: list(f.phase3_mb_legumes),
+              vegetables: list(f.phase3_mb_vegetables), vegLettuce: list(f.phase3_mb_veg_lettuce),
+              poultry: "", yogurt: "", milkProducts: "",
+              fruit: list(f.food_fruit), bread: list(f.food_bread), starch: list(f.food_starch),
+            } : {
+              fish: list(f.food_fish), seafood: list(f.food_seafood),
+              poultry: list(f.food_poultry), meat: list(f.food_meat),
+              cheese: list(f.food_cheese), legumes: list(f.food_legumes),
+              yogurt: list(f.food_yogurt), milkProducts: list(f.food_milk_products),
+              vegetables: list(f.food_vegetables), vegLettuce: list(f.food_veg_lettuce),
+              fruit: list(f.food_fruit), bread: list(f.food_bread), starch: list(f.food_starch),
+            };
+            return map[src] || "";
+          };
+
+          // Embedded MB option catalogue (must stay in sync with src/lib/mb-foods.ts).
+          type Comp = { key: string; label: string; qty: string; sources: string[]; optional?: boolean };
+          type Opt = { id: number; label: string; components: Comp[]; fixed?: { label: string; qty: string }[] };
+          const MB_OPTIONS: Record<"breakfast" | "lunch" | "dinner", Opt[]> = {
+            breakfast: [
+              { id: 1, label: "Yogurt + Fruit", components: [
+                { key: "yogurt", label: "Yogurt", qty: "200g", sources: ["yogurt"] },
+                { key: "fruit", label: "Fruit", qty: "as listed", sources: ["fruit"] },
+              ]},
+              { id: 2, label: "Milk + Oatmeal + Fruit", components: [
+                { key: "milk", label: "Milk", qty: "200ml", sources: ["milkProducts"] },
+                { key: "oats", label: "Oatmeal", qty: "50g", sources: ["starch"] },
+                { key: "fruit", label: "Fruit", qty: "as listed", sources: ["fruit"] },
+              ]},
+              { id: 3, label: "Poultry + Veg/Lettuce + Fruit + Bread", components: [
+                { key: "poultry", label: "Poultry", qty: "85g", sources: ["poultry"] },
+                { key: "veg1", label: "Vegetable", qty: "95g (combined)", sources: ["vegetables","vegLettuce"] },
+                { key: "veg2", label: "Vegetable 2 (optional)", qty: "", sources: ["vegetables","vegLettuce"], optional: true },
+                { key: "fruit", label: "Fruit", qty: "as listed", sources: ["fruit"] },
+                { key: "bread", label: "Bread", qty: "as listed", sources: ["bread"] },
+              ]},
+            ],
+            lunch: [
+              { id: 1, label: "Eggs + Vegetables + Fruit + Bread", fixed: [{ label: "Eggs", qty: "2 eggs" }], components: [
+                { key: "veg1", label: "Vegetables", qty: "140g (combined)", sources: ["vegetables"] },
+                { key: "veg2", label: "Vegetable 2 (optional)", qty: "", sources: ["vegetables"], optional: true },
+                { key: "fruit", label: "Fruit", qty: "as listed", sources: ["fruit"] },
+                { key: "bread", label: "Bread", qty: "as listed", sources: ["bread"] },
+              ]},
+              { id: 2, label: "Legumes + Vegetables + Fruit + Bread", components: [
+                { key: "legumes", label: "Legumes", qty: "75g", sources: ["legumes"] },
+                { key: "veg1", label: "Vegetables", qty: "140g (combined)", sources: ["vegetables"] },
+                { key: "veg2", label: "Vegetable 2 (optional)", qty: "", sources: ["vegetables"], optional: true },
+                { key: "fruit", label: "Fruit", qty: "as listed", sources: ["fruit"] },
+                { key: "bread", label: "Bread", qty: "as listed", sources: ["bread"] },
+              ]},
+              { id: 3, label: "Cheese + Vegetables + Fruit + Bread", components: [
+                { key: "cheese", label: "Cheese", qty: "85g", sources: ["cheese"] },
+                { key: "veg1", label: "Vegetables", qty: "140g (combined)", sources: ["vegetables"] },
+                { key: "veg2", label: "Vegetable 2 (optional)", qty: "", sources: ["vegetables"], optional: true },
+                { key: "fruit", label: "Fruit", qty: "as listed", sources: ["fruit"] },
+                { key: "bread", label: "Bread", qty: "as listed", sources: ["bread"] },
+              ]},
+            ],
+            dinner: [
+              { id: 1, label: "Fish + Veg/Lettuce + Fruit + Bread", components: [
+                { key: "fish", label: "Fish or Seafood", qty: "140g", sources: ["fish","seafood"] },
+                { key: "veg1", label: "Vegetables", qty: "150g (combined)", sources: ["vegetables","vegLettuce"] },
+                { key: "veg2", label: "Vegetable 2 (optional)", qty: "", sources: ["vegetables","vegLettuce"], optional: true },
+                { key: "fruit", label: "Fruit", qty: "as listed", sources: ["fruit"] },
+                { key: "bread", label: "Bread", qty: "as listed", sources: ["bread"] },
+              ]},
+              { id: 2, label: "Poultry + Vegetables + Fruit + Bread", components: [
+                { key: "poultry", label: "Poultry", qty: "140g", sources: ["poultry"] },
+                { key: "veg1", label: "Vegetables", qty: "150g (combined)", sources: ["vegetables"] },
+                { key: "veg2", label: "Vegetable 2 (optional)", qty: "", sources: ["vegetables"], optional: true },
+                { key: "fruit", label: "Fruit", qty: "as listed", sources: ["fruit"] },
+                { key: "bread", label: "Bread", qty: "as listed", sources: ["bread"] },
+              ]},
+              { id: 3, label: "Meat + Vegetables + Fruit + Bread", components: [
+                { key: "meat", label: "Meat", qty: "140g", sources: ["meat"] },
+                { key: "veg1", label: "Vegetables", qty: "150g (combined)", sources: ["vegetables"] },
+                { key: "veg2", label: "Vegetable 2 (optional)", qty: "", sources: ["vegetables"], optional: true },
+                { key: "fruit", label: "Fruit", qty: "as listed", sources: ["fruit"] },
+                { key: "bread", label: "Bread", qty: "as listed", sources: ["bread"] },
+              ]},
+            ],
+          };
+
+          const componentLine = (comp: Comp, selection: any): string => {
+            // Foods available for this component, drawn ONLY from the client's plan.
+            const fromSources = comp.sources
+              .map(sourceFoods)
+              .filter((s) => s.length > 0)
+              .join(", ");
+            const selectedFood = selection && typeof selection[comp.key] === "string" ? selection[comp.key] : "";
+            const foods = selectedFood || fromSources || "(none listed in plan)";
+            const qty = comp.qty ? ` at ${comp.qty}` : "";
+            return `${comp.label}: ${foods}${qty}`;
+          };
+
+          const describeSlot = (slot: "breakfast" | "lunch" | "dinner"): string => {
+            const opts = MB_OPTIONS[slot];
+            const mealId: number | null = (weekPlan as any)?.[`${slot}_meal_id`] ?? null;
+            const selections = (weekPlan as any)?.[`${slot}_selections`] ?? null;
+            const label = slot.charAt(0).toUpperCase() + slot.slice(1);
+
+            if (mealId) {
+              const opt = opts.find((o) => o.id === mealId);
+              if (opt) {
+                const parts: string[] = [];
+                if (opt.fixed) for (const fx of opt.fixed) parts.push(`${fx.label}: ${fx.qty}`);
+                for (const comp of opt.components) {
+                  if (comp.optional && !(selections && selections[comp.key])) continue;
+                  parts.push(componentLine(comp, selections));
+                }
+                return `- ${label}: ${opt.label} — ${parts.join("; ")}`;
               }
-            : {
-                Fish: f.food_fish, Seafood: f.food_seafood, "Milk products": f.food_milk_products,
-                Yogurt: f.food_yogurt, Nuts: f.food_nuts, Meat: f.food_meat, Poultry: f.food_poultry,
-                Cheese: f.food_cheese, Legumes: f.food_legumes,
-                "Pumpkin seeds": f.food_pumpkin_seeds, "Sunflower seeds": f.food_sunflower_seeds,
-              };
-          const carbCats = isP3
-            ? { Vegetables: f.phase3_mb_vegetables, "Veg / lettuce": f.phase3_mb_veg_lettuce, Sprouts: f.phase3_mb_sprouts, "Fat / oil": f.phase3_mb_fat_oil }
-            : { Vegetables: f.food_vegetables, "Veg / lettuce": f.food_veg_lettuce, Starch: f.food_starch, Bread: f.food_bread, Fruit: f.food_fruit };
+            }
 
-          const fmtCats = (obj: Record<string, unknown>) =>
-            Object.entries(obj)
-              .map(([k, v]) => `  • ${k}: ${list(v) || "(none listed)"}`)
-              .join("\n");
+            // Fallback: no meal selected for this slot — list every available option for the slot.
+            const optionLines = opts.map((opt) => {
+              const parts: string[] = [];
+              if (opt.fixed) for (const fx of opt.fixed) parts.push(`${fx.label}: ${fx.qty}`);
+              for (const comp of opt.components) {
+                if (comp.optional) continue;
+                parts.push(componentLine(comp, null));
+              }
+              return `    Option ${opt.id} — ${opt.label}: ${parts.join("; ")}`;
+            }).join("\n");
+            return `- ${label} (no meal selected — available options):\n${optionLines}`;
+          };
 
           const planSummary = [
             `Client name: ${f.name ?? "(unknown)"}`,
             `Phase: ${f.phase ?? "(unknown)"}`,
+            `Batch cooking mode: ${f.batch_cooking_mode ?? "(unknown)"}`,
+            (weekPlan as any)?.confirmed_at ? "Meal planner: confirmed for this week" : "Meal planner: not confirmed",
             "",
-            "Meal plan (per meal):",
-            meal("Breakfast", f.breakfast_protein_category, f.breakfast_protein_grams, f.breakfast_veg_grams),
-            meal("Lunch",     f.lunch_protein_category,     f.lunch_protein_grams,     f.lunch_veg_grams),
-            meal("Dinner",    f.dinner_protein_category,    f.dinner_protein_grams,    f.dinner_veg_grams),
-            "",
-            "Allowed PROTEIN foods (grouped by category — the client may eat any item listed in their assigned category for that meal):",
-            fmtCats(proteinCats),
-            "",
-            "Allowed CARBOHYDRATE / VEGETABLE foods:",
-            fmtCats(carbCats),
+            "MEAL PLAN — each slot below shows ONLY the foods that belong to that slot. Do NOT move foods between slots.",
+            describeSlot("breakfast"),
+            describeSlot("lunch"),
+            describeSlot("dinner"),
             "",
             `Eggs: min ${f.eggs_min_per_week ?? "?"} / max ${f.eggs_max_per_week ?? "?"} per week`,
             `Water target: ${f.water_target_litres ?? "?"} litres/day`,
-            f.weekly_food_limits ? `Weekly food limits: ${JSON.stringify(f.weekly_food_limits)}` : "",
+            f.weekly_food_limits && Object.keys(f.weekly_food_limits).length
+              ? `Weekly food limits: ${JSON.stringify(f.weekly_food_limits)}` : "",
           ].filter(Boolean).join("\n");
 
           const systemPrompt = [
