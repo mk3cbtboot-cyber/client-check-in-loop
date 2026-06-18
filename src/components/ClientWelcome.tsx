@@ -21,7 +21,7 @@ const MB_RULES_LIST = [
 
 const CAPABILITIES = [
   "Generate recipes with step-by-step cooking instructions tailored to your food list",
-  "Track your weekly avocado and egg limits automatically",
+  "Track your weekly food limits automatically",
   "Log your daily water intake towards your 2.5L target",
   "Build a meal streak and stay motivated",
   "Message your practitioner anytime",
