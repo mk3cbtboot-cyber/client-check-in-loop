@@ -536,8 +536,7 @@ export default function ClientPortal() {
     </main>
   );
 
-  const eggsMax = Number(foodLimits.eggs ?? 0) || null;
-  const waterTargetUnused = null;
+  // Eggs limit/used now sourced from food_limits / food_limit_counts where needed.
   const waterTarget = 2.5;
 
   // My Plan categories — uses practitioner-customised list when set, otherwise defaults.
