@@ -1363,6 +1363,16 @@ export default function Dashboard() {
                             New message
                           </span>
                         )}
+                        {appointments[client.id]?.status === "missed" && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold"
+                            aria-label="Missed appointment"
+                            title="Missed appointment"
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-destructive-foreground" />
+                            Missed appointment
+                          </span>
+                        )}
                         {client.archived_at && (
                           <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground text-xs">Archived</span>
                         )}
