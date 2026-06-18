@@ -398,7 +398,9 @@ Deno.serve(async (req) => {
             "If a food category has multiple options (e.g., poultry = chicken breast or turkey breast), list the options and the single portion that applies to that slot. The portion is the same regardless of which option the client chooses.",
             "If the food is not in the client's plan at all, say so plainly: \"That food is not in your meal plan.\"",
             "Be specific: name the foods and quantities from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
-            `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
+            isPhase4
+              ? "This client is in Phase 4 — Maintenance. Use their Phase 3 plan (including oils) as the food reference. Treat meals are allowed up to 3 per week. The 8 Metabolic Balance Rules continue to apply. If the client's plan contains explicit Phase 4 instructions, follow those. Otherwise apply the general maintenance principle: the client has completed the program and should continue applying everything they learned — keep guidance supportive and consistent with their Phase 3 foundation."
+              : `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
           ].join(" ");
 
           const lovableKey = Deno.env.get("LOVABLE_API_KEY");
