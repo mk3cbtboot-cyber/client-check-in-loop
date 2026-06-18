@@ -1323,14 +1323,21 @@ export default function Dashboard() {
                       mealStreak += 1;
                       md.setUTCDate(md.getUTCDate() - 1);
                     }
+                    const foodLimits = (client.food_limits ?? {}) as Record<string, number>;
+                    const foodLimitCounts = (client.food_limit_counts ?? {}) as Record<string, number>;
+                    const foodLimitCards = isOwnPractice ? [] : Object.entries(foodLimits)
+                      .filter(([, lim]) => Number(lim) > 0)
+                      .map(([name, lim]) => ({
+                        label: `${name.charAt(0).toUpperCase() + name.slice(1)} / Week`,
+                        value: client.mb_pdf_path
+                          ? `${Number(foodLimitCounts[name] ?? 0)} / ${Number(lim)}`
+                          : `${Number(foodLimitCounts[name] ?? 0)}`,
+                      }));
                     const stats = [
                       { label: "Meal Streak", value: `${mealStreak}d` },
                       { label: "Water Streak", value: `${waterStreak}d` },
                       { label: "Water Today", value: `${waterToday.toFixed(1)} L` },
-                      ...(isOwnPractice ? [] : [
-                        { label: "Avocado / Week", value: client.mb_pdf_path ? `${client.avocado_count_week ?? 0}` : "0" },
-                        { label: "Eggs / Week", value: client.mb_pdf_path ? `${client.egg_count_week ?? 0} / ${client.eggs_max_per_week ?? "—"}` : "0" },
-                      ]),
+                      ...foodLimitCards,
                       { label: "Last Logged", value: lastLogged },
                     ];
                     const lastMealText = (() => {
