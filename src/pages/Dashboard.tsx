@@ -1815,7 +1815,7 @@ export default function Dashboard() {
                               )}
                               <div className="border-t pt-3 space-y-3">
                                 <WeeklyLimitsEditor
-                                  value={client.weekly_food_limits ?? {}}
+                                  value={client.food_limits ?? {}}
                                   onSave={(next) => saveWeeklyFoodLimits(client.id, next)}
                                 />
                                 {(weeklyAcks[client.id] ?? []).length > 0 && (
