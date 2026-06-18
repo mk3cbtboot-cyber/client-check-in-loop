@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
+import { ChevronDown } from "lucide-react";
 import {
   LineChart,
   Line,
