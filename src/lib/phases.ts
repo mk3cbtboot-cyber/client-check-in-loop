@@ -20,6 +20,6 @@ export const phaseShort = (p: string) =>
   PHASE_OPTIONS.find((o) => o.value === p)?.short ?? p;
 
 export const oilAllowed = (p: string) =>
-  p === "phase2_extended" || p === "phase3" || p === "phase4";
+  p === "phase3" || p === "phase4";
 
 export const recipeBuilderEnabled = (p: string) => p !== "phase1";
