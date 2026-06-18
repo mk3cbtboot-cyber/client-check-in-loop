@@ -229,7 +229,9 @@ Deno.serve(async (req) => {
           // Build a readable, structured plan summary for the LLM rather than dumping raw JSON.
           const f: any = full ?? {};
           const phase = String(f.phase ?? "").toLowerCase();
-          const isP3 = phase.includes("3");
+          const isPhase4 = phase === "phase4";
+          // Phase 4 uses the Phase 3 plan/foods (with oils) as its baseline.
+          const isP3 = phase.includes("3") || isPhase4;
           const list = (v: unknown) => {
             if (Array.isArray(v)) return v.filter(Boolean).join(", ");
             if (typeof v === "string") return v.trim();
