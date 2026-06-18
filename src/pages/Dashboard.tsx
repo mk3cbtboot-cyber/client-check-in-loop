@@ -540,6 +540,7 @@ export default function Dashboard() {
         (clientRows ?? []).forEach((c: any) => {
           if (toArchive.has(c.id) && !c.archived_at) c.archived_at = archivedAt;
         });
+        setClients(clientRows as Client[]);
       }
 
       // Earliest non-attended appointment per client (may be a missed one in the past).
