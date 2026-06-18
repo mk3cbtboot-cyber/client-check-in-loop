@@ -65,6 +65,7 @@ interface ClientState {
   system_mode: "mb" | "own_practice";
   gender: "female" | "male" | "unspecified" | null;
   batch_cooking_mode: "3-day" | "off";
+  welcome_seen: boolean;
 }
 
 type TabKey = "home" | "checkin" | "plan" | "planner" | "messages";
