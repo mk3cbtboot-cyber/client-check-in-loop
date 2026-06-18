@@ -142,6 +142,7 @@ Deno.serve(async (req) => {
         gender: normalizeGender(c.gender),
         batch_cooking_mode: c.batch_cooking_mode === "off" ? "off" : "3-day",
         welcome_seen: c.welcome_seen === true,
+        practitioner_first_name: practitionerFirstName,
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
