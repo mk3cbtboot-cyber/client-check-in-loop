@@ -380,10 +380,12 @@ Deno.serve(async (req) => {
             describeSlot("lunch"),
             describeSlot("dinner"),
             "",
-            `Eggs: min ${f.eggs_min_per_week ?? "?"} / max ${f.eggs_max_per_week ?? "?"} per week`,
+            `Eggs minimum per week: ${f.eggs_min_per_week ?? "?"}`,
             `Water target: ${f.water_target_litres ?? "?"} litres/day`,
-            f.weekly_food_limits && Object.keys(f.weekly_food_limits).length
-              ? `Weekly food limits: ${JSON.stringify(f.weekly_food_limits)}` : "",
+            f.food_limits && Object.keys(f.food_limits).length
+              ? `Weekly food limits: ${JSON.stringify(f.food_limits)}` : "",
+            f.food_limit_counts && Object.keys(f.food_limit_counts).length
+              ? `Used this week: ${JSON.stringify(f.food_limit_counts)}` : "",
           ].filter(Boolean).join("\n");
 
           const systemPrompt = [
