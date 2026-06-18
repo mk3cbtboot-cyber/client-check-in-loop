@@ -1759,7 +1759,7 @@ export default function Dashboard() {
                             ? "Phase 2 Extended — Personal Food List"
                             : "Phase 2 Strict — Personal Food List";
                           const helper = isExtended
-                            ? "Same food list as Phase 2 Strict, plus 3 tablespoons of cold-pressed oil daily. Remove sections or items — changes save instantly."
+                            ? "Same food list as Phase 2 Strict, with treat meals allowed. Remove sections or items — changes save instantly."
                             : "Remove entire sections or individual items. Changes save instantly and appear in the client's My Plan.";
                           return (
                             <div className="space-y-3">
