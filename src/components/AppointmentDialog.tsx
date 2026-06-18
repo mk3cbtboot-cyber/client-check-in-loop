@@ -107,7 +107,10 @@ export default function AppointmentDialog({
             title: title.trim(),
             scheduled_at: scheduled.toISOString(),
             notes: notes.trim() || null,
-          })
+            // Rescheduling clears any missed flag and resets to scheduled
+            status: "scheduled",
+            missed_flagged_at: null,
+          } as never)
           .eq("id", appointment.id);
         if (error) throw error;
         toast.success("Appointment updated");
