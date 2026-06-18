@@ -549,14 +549,7 @@ export default function ClientPortal() {
 
   // My Plan categories — uses practitioner-customised list when set, otherwise defaults.
   const planCategories = (() => {
-    const base = resolvePhase2Categories(client.phase2_food_list);
-    if (client.phase === "phase2_extended" && !base.some((c) => /oil/i.test(c.title))) {
-      const parsedOils = (client.phase3_mb_fat_oil ?? "").split(",").map((x) => x.trim()).filter((x) => x.length > 0);
-      if (parsedOils.length > 0) {
-        return [...base, { title: "Oils (Cold-Pressed)", items: parsedOils }];
-      }
-    }
-    return base;
+    return resolvePhase2Categories(client.phase2_food_list);
   })();
 
   return (
@@ -1097,7 +1090,7 @@ export default function ClientPortal() {
               <Card className="p-6">
                 <p className="text-sm text-muted-foreground">
                   {client.phase === "phase2_strict" && "You are in the Strict Conversion Phase. Follow your personal food list exactly. No oil for the first 14 days. No substitutions."}
-                  {client.phase === "phase2_extended" && "You are in the Extended Phase. Add 3 tablespoons of cold-pressed oil daily — ideally 1 tablespoon per meal. You may enjoy one treat meal per week. Continue following your personal food list."}
+                  {client.phase === "phase2_extended" && "You are in the Extended Phase. You may enjoy one treat meal per week. Continue following your personal food list."}
                   {client.phase === "phase3" && (client.phase3_mode === "mb_standard"
                     ? "You are in the Relaxed Conversion Phase. Your personal food list has been expanded as part of your Metabolic Balance plan. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week."
                     : "You are in the Relaxed Conversion Phase. Your food list has been expanded by your practitioner. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week.")}
