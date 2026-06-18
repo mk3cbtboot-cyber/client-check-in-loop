@@ -238,6 +238,10 @@ export default function MealsOverviewSection({ recipes }: { recipes: MealSummary
         </div>
       )}
 
+      <p className="text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">Last meal:</span> {lastMealText}
+      </p>
+
       <div className="pt-2 border rounded-md overflow-hidden">
         <button
           type="button"
