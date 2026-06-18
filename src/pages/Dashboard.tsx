@@ -1972,6 +1972,17 @@ export default function Dashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {apptDialogClientId && practitionerId && (
+        <AppointmentDialog
+          open={!!apptDialogClientId}
+          onOpenChange={(o) => { if (!o) { setApptDialogClientId(null); setEditingAppointment(null); } }}
+          clientId={apptDialogClientId}
+          practitionerId={practitionerId}
+          appointment={editingAppointment}
+          onSaved={() => { void loadRef.current(); }}
+        />
+      )}
     </main>
   );
 }
