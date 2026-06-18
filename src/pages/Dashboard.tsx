@@ -489,6 +489,23 @@ export default function Dashboard() {
       });
       setWaterStreaks(ws);
 
+      // Next upcoming appointment per client (one per client).
+      const nowIso = new Date().toISOString();
+      const { data: apptRows } = await supabase
+        .from("appointments")
+        .select("*")
+        .in("client_id", ids)
+        .gte("scheduled_at", nowIso)
+        .order("scheduled_at", { ascending: true });
+      if (!isCurrent()) return;
+      const appts: Record<string, Appointment | null> = {};
+      ids.forEach((id) => { appts[id] = null; });
+      (apptRows ?? []).forEach((a: any) => {
+        if (!appts[a.client_id]) appts[a.client_id] = a as Appointment;
+      });
+      setAppointments(appts);
+
+
       // Latest client-sent message per client for unread indicator.
       // Deferred messages (sent while practitioner was off-hours) are excluded
       // until the practitioner is currently available again.
