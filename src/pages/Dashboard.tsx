@@ -1617,6 +1617,16 @@ export default function Dashboard() {
 
 
 
+                        <div className="flex justify-start">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => { setEditingAppointment(appointments[client.id] ?? null); setApptDialogClientId(client.id); }}
+                          >
+                            {appointments[client.id] ? "Edit Next Appointment" : "Book Next Appointment"}
+                          </Button>
+                        </div>
 
                         <div className="space-y-2">
                           <Label htmlFor={`pn-${client.id}`} className="text-sm font-medium">Practitioner Notes</Label>
