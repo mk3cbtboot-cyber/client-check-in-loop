@@ -35,10 +35,10 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const oilAllowed = c.phase === "phase2_extended" || c.phase === "phase3" || c.phase === "phase4";
+    const oilAllowed = c.phase === "phase3" || c.phase === "phase4";
     const phaseDescriptor =
       c.phase === "phase2_strict" ? "Phase 2 Strict — Strict Conversion (NO oil at all, no substitutions)" :
-      c.phase === "phase2_extended" ? "Phase 2 Extended — up to 1 tbsp cold-pressed oil per meal is allowed (optional)" :
+      c.phase === "phase2_extended" ? "Phase 2 Extended — Treat Meals (NO oil at all; one treat meal allowed per week)" :
       c.phase === "phase3" ? "Phase 3 — Relaxed Conversion, up to 1 tbsp cold-pressed oil per meal is allowed (optional)" :
       c.phase === "phase4" ? "Phase 4 — Maintenance, cold-pressed oil allowed in moderation" :
       "Phase 2 Strict (no oil)";
