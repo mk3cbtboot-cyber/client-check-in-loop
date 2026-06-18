@@ -116,13 +116,11 @@ interface Client {
   phase2_strict_started_at: string | null;
   phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
-  weekly_food_limits: Record<string, number>;
+  food_limits: Record<string, number>;
+  food_limit_counts: Record<string, number>;
   system_mode: "mb" | "own_practice";
   batch_cooking_mode: "3-day" | "off";
   meal_streak: number | null;
-  avocado_count_week: number | null;
-  egg_count_week: number | null;
-  eggs_max_per_week: number | null;
   created_at: string;
   practitioner_notes: string;
   medical_conditions: string;
