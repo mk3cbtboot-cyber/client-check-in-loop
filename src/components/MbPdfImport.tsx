@@ -388,7 +388,6 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
                 <h3 className="text-sm font-semibold mb-2">Additional information</h3>
                 <div className="grid grid-cols-3 gap-3">
                   <FieldRow k="eggs_min_per_week" label="Eggs min/week" type="number" />
-                  <FieldRow k="eggs_max_per_week" label="Eggs max/week" type="number" />
                   <FieldRow k="water_target_litres" label="Water (litres/day)" type="number" />
                 </div>
               </section>
