@@ -1193,7 +1193,25 @@ export default function ClientPortal() {
         </section>
       )}
 
-      {tab === "messages" && (
+      {tab === "messages" && client.phase === "phase4" && (
+        <section className="max-w-3xl mx-auto p-4 space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold">Messages</h2>
+          </div>
+          <ChatThread
+            messages={messages.filter((m) => !(typeof m.body === "string" && m.body.includes("[AI-answered")))}
+            viewerRole="client"
+            onSend={sendMessage}
+            sending={sendingMessage}
+            placeholder={`Your plan includes AI-powered support. If you'd like to speak with ${client.practitioner_first_name ?? "your practitioner"} directly, you can book a paid 15 or 30-minute appointment.`}
+            emptyHint={`Your plan includes AI-powered support. If you'd like to speak with ${client.practitioner_first_name ?? "your practitioner"} directly, you can book a paid 15 or 30-minute appointment.`}
+          />
+          <div title="Coming soon">
+            <Button variant="outline" disabled className="w-full">Book a paid appointment</Button>
+          </div>
+        </section>
+      )}
+      {tab === "messages" && client.phase !== "phase4" && (
         <section className="max-w-3xl mx-auto p-4 space-y-3">
           <div>
             <h2 className="text-lg font-semibold">Messages</h2>
