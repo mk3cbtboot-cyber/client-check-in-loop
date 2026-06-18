@@ -771,8 +771,9 @@ export default function ClientPortal() {
                 return (
                   <div className="space-y-4">
                     {!hidePrimary && primaryOption && (() => {
-                      const eggsMax = client.eggs_max_per_week ?? null;
-                      const eggsUsed = client.egg_count_week ?? 0;
+                      const eggsMaxInner = Number(foodLimits.eggs ?? 0) || null;
+                      const eggsUsed = Number(foodLimitCounts.eggs ?? 0);
+                      const _eggsMax = eggsMaxInner;
                       const eggsExhausted = isSplit && eggsMax != null && eggsMax > 0 && eggsUsed >= eggsMax;
                       const block = eggsExhausted
                         ? { reason: `You've used ${eggsUsed} of ${eggsMax} eggs this week — the egg meal is unavailable until next week.` }
