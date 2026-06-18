@@ -211,6 +211,7 @@ export type Database = {
           phase3_other: string
           phase3_starches: string
           phase3_vegetables: string
+          phase4_start_date: string | null
           practitioner_id: string
           practitioner_last_read_at: string | null
           practitioner_notes: string
@@ -294,6 +295,7 @@ export type Database = {
           phase3_other?: string
           phase3_starches?: string
           phase3_vegetables?: string
+          phase4_start_date?: string | null
           practitioner_id: string
           practitioner_last_read_at?: string | null
           practitioner_notes?: string
@@ -377,6 +379,7 @@ export type Database = {
           phase3_other?: string
           phase3_starches?: string
           phase3_vegetables?: string
+          phase4_start_date?: string | null
           practitioner_id?: string
           practitioner_last_read_at?: string | null
           practitioner_notes?: string

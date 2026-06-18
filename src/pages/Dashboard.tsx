@@ -646,17 +646,62 @@ export default function Dashboard() {
 
   const setPhase = async (clientId: string, phase: Phase) => {
     const current = clients.find((c) => c.id === clientId);
-    const updates: { phase: Phase; phase2_strict_started_at?: string } = { phase };
+    const updates: { phase: Phase; phase2_strict_started_at?: string; phase4_start_date?: string } = { phase };
     if (phase === "phase2_strict" && !current?.phase2_strict_started_at) {
       updates.phase2_strict_started_at = new Date().toISOString();
     }
-    const { error } = await supabase.from("clients").update(updates).eq("id", clientId);
+    const enteringPhase4 =
+      phase === "phase4" && !(current as unknown as { phase4_start_date?: string | null })?.phase4_start_date;
+    let phase4StartIso: string | null = null;
+    if (enteringPhase4) {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      updates.phase4_start_date = `${yyyy}-${mm}-${dd}`;
+      phase4StartIso = today.toISOString();
+    }
+    const { error } = await supabase.from("clients").update(updates as never).eq("id", clientId);
     if (error) return toast.error("Could not update phase");
-    toast.success("Phase updated");
+
+    if (enteringPhase4 && phase4StartIso && practitionerId) {
+      const base = new Date(phase4StartIso);
+      const mkDate = (monthsAhead: number) => {
+        const d = new Date(base);
+        d.setMonth(d.getMonth() + monthsAhead);
+        d.setHours(9, 0, 0, 0);
+        return d.toISOString();
+      };
+      const rows = [
+        { client_id: clientId, practitioner_id: practitionerId, title: "3-Month Check-in", scheduled_at: mkDate(3), notes: null },
+        { client_id: clientId, practitioner_id: practitionerId, title: "6-Month Check-in", scheduled_at: mkDate(6), notes: null },
+        { client_id: clientId, practitioner_id: practitionerId, title: "12-Month Check-in", scheduled_at: mkDate(12), notes: null },
+      ];
+      const { error: apptErr } = await supabase.from("appointments").insert(rows as never);
+      if (apptErr) {
+        toast.error("Phase updated, but failed to create Phase 4 check-ins");
+      } else {
+        toast.success("Phase 4 started — 3 check-ins scheduled");
+        // Refresh next upcoming appointment for this client
+        const { data: nextAppt } = await supabase
+          .from("appointments")
+          .select("*")
+          .eq("client_id", clientId)
+          .gte("scheduled_at", new Date().toISOString())
+          .order("scheduled_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        setAppointments((prev) => ({ ...prev, [clientId]: (nextAppt as Appointment | null) ?? prev[clientId] ?? null }));
+      }
+    } else {
+      toast.success("Phase updated");
+    }
+
     setClients((cs) => cs.map((c) => (c.id === clientId ? {
       ...c,
       phase,
       phase2_strict_started_at: (updates.phase2_strict_started_at as string) ?? c.phase2_strict_started_at,
+      ...(updates.phase4_start_date ? { phase4_start_date: updates.phase4_start_date } : {}),
     } : c)));
   };
 
