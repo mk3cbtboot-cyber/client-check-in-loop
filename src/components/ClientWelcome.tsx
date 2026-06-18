@@ -36,15 +36,13 @@ export default function ClientWelcome({ open, clientName, onDismiss }: Props) {
         <DialogHeader>
           <DialogTitle className="text-2xl">Welcome, {firstName}</DialogTitle>
           <DialogDescription className="text-base">
-            Your Metabolic Balance journey starts here.
+            Your Metabolic Balance™ journey starts here.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 text-sm">
           <p>
-            This app has been built around your personal Metabolic Balance meal plan.
-            It will help you build meals that follow your plan exactly, track your
-            progress, and stay on course every day.
+            The old saying that a journey of a thousand miles starts with a single step is never more true than right now. Congratulations {firstName} on taking your first step out of your comfort zone and moving towards gaining control of your health and fitness. This app has been built to help you with implementing your personal Metabolic Balance™ meal plan. It will help you build meals that follow your plan exactly, track your progress, and stay on course every day.
           </p>
 
           <div>
