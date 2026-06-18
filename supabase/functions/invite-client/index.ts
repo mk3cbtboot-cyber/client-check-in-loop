@@ -7,6 +7,7 @@ const BodySchema = z.object({
   email: z.string().trim().email().max(255),
   system_mode: z.enum(["mb", "own_practice"]).optional(),
   gender: z.enum(["male", "female", "unspecified"]).optional(),
+  height_cm: z.number().positive().max(300).optional(),
 });
 
 Deno.serve(async (req) => {
