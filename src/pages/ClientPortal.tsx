@@ -577,24 +577,24 @@ export default function ClientPortal() {
         <section className="max-w-5xl mx-auto p-4 space-y-6">
           {/* Trackers */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Avocado</p>
-              <p className="text-2xl font-semibold">
-                {client.mb_pdf_path ? `${client.avocado_count_week}/${avocadoMaxWeek}` : `${client.avocado_count_week}`}
-              </p>
-              {client.mb_pdf_path && (
-                <p className="text-xs text-muted-foreground">{avocadoLeft} remaining this week</p>
-              )}
-            </Card>
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Eggs</p>
-              <p className="text-2xl font-semibold">
-                {client.mb_pdf_path ? `${client.egg_count_week}/${eggsMax}` : `${client.egg_count_week}`}
-              </p>
-              {client.mb_pdf_path && (
-                <p className="text-xs text-muted-foreground">{eggsLeft} remaining this week</p>
-              )}
-            </Card>
+            {Object.entries(foodLimits)
+              .filter(([, lim]) => Number(lim) > 0)
+              .map(([name, lim]) => {
+                const used = Number(foodLimitCounts[name] ?? 0);
+                const left = Math.max(0, Number(lim) - used);
+                const label = name.charAt(0).toUpperCase() + name.slice(1);
+                return (
+                  <Card key={name} className="p-4">
+                    <p className="text-xs uppercase text-muted-foreground">{label}</p>
+                    <p className="text-2xl font-semibold">
+                      {client.mb_pdf_path ? `${used}/${Number(lim)}` : `${used}`}
+                    </p>
+                    {client.mb_pdf_path && (
+                      <p className="text-xs text-muted-foreground">{left} remaining this week</p>
+                    )}
+                  </Card>
+                );
+              })}
             <Card className="p-4">
               <p className="text-xs uppercase text-muted-foreground">Water Today</p>
               <p className="text-2xl font-semibold">{client.water_today_litres.toFixed(2)}L<span className="text-sm text-muted-foreground"> / {waterTarget}L</span></p>
