@@ -674,14 +674,14 @@ export default function Dashboard() {
 
   // ----- Weekly food limits -----
   const saveWeeklyFoodLimits = async (clientId: string, limits: Record<string, number>) => {
-    const prev = clients.find((c) => c.id === clientId)?.weekly_food_limits ?? {};
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, weekly_food_limits: limits } : c)));
+    const prev = clients.find((c) => c.id === clientId)?.food_limits ?? {};
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, food_limits: limits } : c)));
     const { error } = await supabase
       .from("clients")
-      .update({ weekly_food_limits: limits as never } as never)
+      .update({ food_limits: limits as never } as never)
       .eq("id", clientId);
     if (error) {
-      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, weekly_food_limits: prev } : c)));
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, food_limits: prev } : c)));
       toast.error("Could not save weekly limits");
     }
   };
