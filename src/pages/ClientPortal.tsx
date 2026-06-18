@@ -161,6 +161,14 @@ export default function ClientPortal() {
     refresh().finally(() => setLoading(false));
   }, [token]);
 
+  useEffect(() => {
+    const originalTitle = document.title;
+    document.title = "Metabolic Rx Meal Planner";
+    return () => {
+      document.title = originalTitle;
+    };
+  }, []);
+
   // Always refetch client data (incl. fresh gender) when entering the check-in tab
   useEffect(() => {
     if (tab === "checkin") refresh();
