@@ -696,28 +696,6 @@ export default function Dashboard() {
     }
   };
 
-
-
-
-  const setHeight = (clientId: string, value: string) => {
-    const num = value === "" ? null : Number(value);
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, height_cm: num } : c)));
-  };
-
-  const saveHeight = async (clientId: string, value: string) => {
-    const num = value === "" ? null : Number(value);
-    const { error } = await supabase.from("clients").update({ height_cm: num }).eq("id", clientId);
-    if (error) return toast.error("Could not save height");
-    toast.success("Height saved");
-  };
-
-  const saveGender = async (clientId: string, value: "female" | "male" | "unspecified") => {
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, gender: value } : c)));
-    const { error } = await supabase.from("clients").update({ gender: value }).eq("id", clientId);
-    if (error) return toast.error("Could not save gender");
-    toast.success("Gender saved");
-  };
-
   const PHASE3_FIELDS = [
     { key: "phase3_meat", label: "Meat" },
     { key: "phase3_fish", label: "Fish" },
