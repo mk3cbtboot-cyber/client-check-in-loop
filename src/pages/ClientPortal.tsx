@@ -11,8 +11,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Home, ClipboardCheck, BookOpen, CalendarDays, MessageCircle } from "lucide-react";
+import { Home, ClipboardCheck, BookOpen, CalendarDays, MessageCircle, Info } from "lucide-react";
 import ChatThread, { type ChatMessage } from "@/components/ChatThread";
+import ClientWelcome from "@/components/ClientWelcome";
 
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
