@@ -80,6 +80,7 @@ import ClientTrendGraphs from "@/components/ClientTrendGraphs";
 import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
 import PractitionerMessages from "@/components/PractitionerMessages";
 import MealsOverviewSection from "@/components/MealsOverviewSection";
+import AppointmentDialog, { type Appointment } from "@/components/AppointmentDialog";
 
 
 interface Client {
@@ -173,6 +174,10 @@ export default function Dashboard() {
   const [heightCm, setHeightCm] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [practitionerId, setPractitionerId] = useState<string>("");
+  const [appointments, setAppointments] = useState<Record<string, Appointment | null>>({});
+  const [apptDialogClientId, setApptDialogClientId] = useState<string | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [tier, setTier] = useState<PractitionerTier | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [savingTier, setSavingTier] = useState(false);
@@ -309,6 +314,7 @@ export default function Dashboard() {
         return;
       }
       setUserEmail(email);
+      setPractitionerId(userId);
       const { data: profile } = await supabase
         .from("profiles")
         .select("practitioner_tier, office_hours, out_of_office, ooo_message, ooo_return_date, timezone, display_name")
@@ -482,6 +488,23 @@ export default function Dashboard() {
         ws[id] = computeWaterStreak(rows, todayStr);
       });
       setWaterStreaks(ws);
+
+      // Next upcoming appointment per client (one per client).
+      const nowIso = new Date().toISOString();
+      const { data: apptRows } = await supabase
+        .from("appointments")
+        .select("*")
+        .in("client_id", ids)
+        .gte("scheduled_at", nowIso)
+        .order("scheduled_at", { ascending: true });
+      if (!isCurrent()) return;
+      const appts: Record<string, Appointment | null> = {};
+      ids.forEach((id) => { appts[id] = null; });
+      (apptRows ?? []).forEach((a: any) => {
+        if (!appts[a.client_id]) appts[a.client_id] = a as Appointment;
+      });
+      setAppointments(appts);
+
 
       // Latest client-sent message per client for unread indicator.
       // Deferred messages (sent while practitioner was off-hours) are excluded
@@ -1361,8 +1384,25 @@ export default function Dashboard() {
                         : null;
                       return `${mt ? `${mt} — ` : ""}${lastRecipe.name} — ${when}`;
                     })();
+                    const upcomingAppt = appointments[client.id] ?? null;
                     return (
                   <div className="border-t pt-3 space-y-4" onClick={(e) => e.stopPropagation()}>
+                    {upcomingAppt && (
+                      <button
+                        type="button"
+                        onClick={() => { setEditingAppointment(upcomingAppt); setApptDialogClientId(client.id); }}
+                        className="w-full text-left rounded-md border border-primary/40 bg-primary/5 p-3 hover:bg-primary/10 transition-colors"
+                      >
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Next appointment</p>
+                        <p className="text-sm font-medium">
+                          {format(new Date(upcomingAppt.scheduled_at), "EEE MMM d")}
+                          {" · "}
+                          {upcomingAppt.title}
+                          {" · "}
+                          {format(new Date(upcomingAppt.scheduled_at), "h:mm a")}
+                        </p>
+                      </button>
+                    )}
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {stats.map((s) => (
                         <div key={s.label} className="rounded-md border p-2">
@@ -1371,6 +1411,7 @@ export default function Dashboard() {
                         </div>
                       ))}
                     </div>
+
 
                     <Tabs defaultValue="overview" className="w-full">
                       <TabsList className="grid w-full grid-cols-5">
@@ -1576,6 +1617,16 @@ export default function Dashboard() {
 
 
 
+                        <div className="flex justify-start">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => { setEditingAppointment(appointments[client.id] ?? null); setApptDialogClientId(client.id); }}
+                          >
+                            {appointments[client.id] ? "Edit Next Appointment" : "Book Next Appointment"}
+                          </Button>
+                        </div>
 
                         <div className="space-y-2">
                           <Label htmlFor={`pn-${client.id}`} className="text-sm font-medium">Practitioner Notes</Label>
@@ -1921,6 +1972,17 @@ export default function Dashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {apptDialogClientId && practitionerId && (
+        <AppointmentDialog
+          open={!!apptDialogClientId}
+          onOpenChange={(o) => { if (!o) { setApptDialogClientId(null); setEditingAppointment(null); } }}
+          clientId={apptDialogClientId}
+          practitionerId={practitionerId}
+          appointment={editingAppointment}
+          onSaved={() => { void loadRef.current(); }}
+        />
+      )}
     </main>
   );
 }
