@@ -1165,8 +1165,8 @@ export default function ClientPortal() {
             <MealPlanner
               token={token!}
               filteredSources={filteredSources}
-              weeklyFoodLimits={client.weekly_food_limits ?? {}}
-              eggsMaxPerWeek={client.eggs_max_per_week ?? null}
+              weeklyFoodLimits={foodLimits}
+              eggsMaxPerWeek={Number(foodLimits.eggs ?? 0) || null}
               onPlanChanged={(p) => setWeeklyPlan(p)}
               oilAllowed={oilAllowed(client.phase)}
               batchCookingMode={client.batch_cooking_mode ?? "3-day"}
