@@ -57,12 +57,10 @@ function categoriesForPhase(raw: unknown, phase: string, parsedOilsRaw: string |
   if (base.length === 0 && client) {
     base = categoriesFromParsedFields(client);
   }
-  if (phase === "phase2_extended" && !base.some((c) => /oil/i.test(c.title))) {
-    const parsedOils = parseParsedOils(parsedOilsRaw);
-    if (parsedOils.length > 0) {
-      return [...base, { title: "Oils (Cold-Pressed)", items: parsedOils }];
-    }
-  }
+  return base;
+}
+
+function _unused_categoriesForPhase_tail() {
   return base;
 }
 import { toast } from "sonner";
