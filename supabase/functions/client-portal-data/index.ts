@@ -126,6 +126,7 @@ Deno.serve(async (req) => {
         system_mode: c.system_mode === "own_practice" ? "own_practice" : "mb",
         gender: normalizeGender(c.gender),
         batch_cooking_mode: c.batch_cooking_mode === "off" ? "off" : "3-day",
+        welcome_seen: c.welcome_seen === true,
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
