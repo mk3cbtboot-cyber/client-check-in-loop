@@ -66,6 +66,7 @@ const OIL_OPTIONS = [
 export default function MealRecipeSection({
   token, meal, variant, optionDef, phase, foodLimits, foodLimitCounts,
   lockedRecipe, lockedSelections, sectionTitle, extraComponents, filteredSources, onLogged, blockGeneration, fullScreenOnSelect,
+  lunchProteinBonus = 0, lunchCarbBonus = 0,
 }: Props) {
 
   const [picks, setPicks] = useState<Record<string, string>>({});
