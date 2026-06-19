@@ -453,7 +453,10 @@ Deno.serve(async (req) => {
 
           const lovableKey = Deno.env.get("LOVABLE_API_KEY");
           console.log("ai_interceptor: lovableKey present?", !!lovableKey);
-          let aiAnswer = AI_FALLBACK;
+          let aiAnswer = isPhase4
+            ? "I couldn't generate an answer right now — please try again in a moment."
+            : AI_FALLBACK;
+
           if (lovableKey) {
           console.log("ai_interceptor: before AI gateway fetch");
             console.log("ai_interceptor: gateway_request_body", JSON.stringify({
