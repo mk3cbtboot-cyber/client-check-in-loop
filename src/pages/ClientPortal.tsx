@@ -1262,12 +1262,6 @@ export default function ClientPortal() {
                 return (
                   <div className="space-y-6">
                     <div className="space-y-3">
-                      {client.phase === "phase4" && (
-                        <div>
-                          <p className="font-medium">Phase 3 — Extended Food List</p>
-                          <p className="text-xs text-muted-foreground">Read-only shopping reference.</p>
-                        </div>
-                      )}
                       <div className="grid gap-4 md:grid-cols-2">
                         {populated.map((cat) => (
                           <Card key={cat.title} className="p-4">
