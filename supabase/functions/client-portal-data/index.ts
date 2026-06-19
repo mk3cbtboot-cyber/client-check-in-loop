@@ -102,6 +102,17 @@ Deno.serve(async (req) => {
       else break;
     }
 
+    // Phase 4 — upcoming scheduled appointments (used to gate the check-in window)
+    let phase4Appointments: Array<{ id: string; title: string; scheduled_at: string; status: string | null }> = [];
+    if (c.phase === "phase4") {
+      const { data: appts } = await admin
+        .from("appointments")
+        .select("id, title, scheduled_at, status")
+        .eq("client_id", c.id)
+        .order("scheduled_at", { ascending: true });
+      phase4Appointments = (appts ?? []) as typeof phase4Appointments;
+    }
+
     return new Response(JSON.stringify({
       valid: true,
       client: {
@@ -143,8 +154,11 @@ Deno.serve(async (req) => {
         batch_cooking_mode: c.batch_cooking_mode === "off" ? "off" : "3-day",
         welcome_seen: c.welcome_seen === true,
         practitioner_first_name: practitionerFirstName,
+        phase4_start_date: c.phase4_start_date ?? null,
+        phase4_appointments: phase4Appointments,
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
   } catch (e) {
     return new Response(JSON.stringify({ valid: false, error: String(e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
