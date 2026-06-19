@@ -172,6 +172,10 @@ Deno.serve(async (req) => {
         practitioner_first_name: practitionerFirstName,
         phase4_start_date: c.phase4_start_date ?? null,
         phase4_appointments: phase4Appointments,
+        phase3_lunch_protein_bonus: Number(c.phase3_lunch_protein_bonus ?? 0),
+        phase3_lunch_carb_bonus: Number(c.phase3_lunch_carb_bonus ?? 0),
+        phase3_portions_confirmed: c.phase3_portions_confirmed === true,
+        phase3_lunch_prompt_last_dismissed_on: c.phase3_lunch_prompt_last_dismissed_on ?? null,
       },
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
