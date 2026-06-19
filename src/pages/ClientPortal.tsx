@@ -305,6 +305,45 @@ export default function ClientPortal() {
     }
   };
 
+  // Phase 3 weekly lunch portion prompt
+  const [lunchPromptStep, setLunchPromptStep] = useState<"initial" | "confirm" | null>("initial");
+  const mondayOfDate = (d: Date): string => {
+    const dt = new Date(d);
+    const day = (dt.getUTCDay() + 6) % 7;
+    dt.setUTCDate(dt.getUTCDate() - day);
+    return dt.toISOString().slice(0, 10);
+  };
+  const showLunchPrompt = (() => {
+    if (!client || client.phase !== "phase3") return false;
+    if (client.phase3_portions_confirmed) return false;
+    const thisMonday = mondayOfDate(new Date());
+    const last = client.phase3_lunch_prompt_last_dismissed_on;
+    if (!last) return true;
+    return last < thisMonday;
+  })();
+  const sendLunchAction = async (action: "accept" | "confirm" | "defer") => {
+    if (!token) return;
+    const { data } = await supabase.functions.invoke("update-client-prefs", { body: { token, phase3_lunch_action: action } });
+    const updated = data?.client;
+    setClient((c) => (c ? {
+      ...c,
+      phase3_lunch_protein_bonus: updated?.phase3_lunch_protein_bonus ?? c.phase3_lunch_protein_bonus,
+      phase3_lunch_carb_bonus: updated?.phase3_lunch_carb_bonus ?? c.phase3_lunch_carb_bonus,
+      phase3_portions_confirmed: updated?.phase3_portions_confirmed ?? c.phase3_portions_confirmed,
+      phase3_lunch_prompt_last_dismissed_on: updated?.phase3_lunch_prompt_last_dismissed_on ?? c.phase3_lunch_prompt_last_dismissed_on,
+    } : c));
+    setLunchPromptStep("initial");
+    if (action === "accept") {
+      const p = (updated?.phase3_lunch_protein_bonus ?? 0);
+      const cb = (updated?.phase3_lunch_carb_bonus ?? 0);
+      toast.success(`Lunch portions updated — protein +${p}g, carbs +${cb}g from your original plan.`);
+    } else if (action === "confirm") {
+      toast.success("Lunch portions locked in.");
+    }
+  };
+
+
+
 
   const pickOption = (m: MealType, o: OptionDef) => {
     setOption(o);
