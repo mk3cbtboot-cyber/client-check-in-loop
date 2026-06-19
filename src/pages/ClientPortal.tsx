@@ -1164,7 +1164,7 @@ export default function ClientPortal() {
         </section>
       )}
 
-      {tab === "planner" && (
+      {tab === "planner" && client.phase !== "phase4" && (
         <section className="max-w-5xl mx-auto p-4">
           {client.phase === "phase1" ? (
             <Card className="p-6 text-sm text-muted-foreground">
