@@ -1291,8 +1291,7 @@ export default function ClientPortal() {
             .filter(({ key }) => !(phase4CheckinHidden && key === "checkin"));
           return (
         <div className={`max-w-5xl mx-auto grid`} style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}>
-          {navItems
-
+          {navItems.map(({ key, label, Icon }) => {
             const active = tab === key;
             const showBadge = key === "messages" && unreadMessages > 0;
             return (
@@ -1317,7 +1316,10 @@ export default function ClientPortal() {
             );
           })}
         </div>
+          );
+        })()}
       </nav>
+
 
       <Dialog open={!!eggLogConfirm} onOpenChange={(o) => !o && setEggLogConfirm(null)}>
         <DialogContent className="max-w-sm">
