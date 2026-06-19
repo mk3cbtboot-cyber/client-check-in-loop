@@ -678,11 +678,14 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
             {picker?.items.length === 0 && (
               <p className="text-sm text-muted-foreground">No options available in your personal list for this category.</p>
             )}
-            {picker?.items.map((it) => (
-              <Button key={it} variant="outline" className="w-full justify-start" onClick={() => pickItem(it)}>
-                {it}
-              </Button>
-            ))}
+            {picker?.items.map((it) => {
+              const carbAdd = picker && isLunchCarbSources(picker.sources, picker.meal) ? lunchCarbBonus : 0;
+              return (
+                <Button key={it} variant="outline" className="w-full justify-start" onClick={() => pickItem(it)}>
+                  {bumpBreadName(it, carbAdd)}
+                </Button>
+              );
+            })}
           </div>
         </DialogContent>
       </Dialog>
