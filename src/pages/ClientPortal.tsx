@@ -592,6 +592,8 @@ export default function ClientPortal() {
 
       {tab === "home" && (
         <section className="max-w-5xl mx-auto p-4 space-y-6">
+          {client.phase !== "phase4" && (
+            <>
           {/* Trackers */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {Object.entries(foodLimits)
@@ -650,6 +652,8 @@ export default function ClientPortal() {
               </ol>
             </Card>
           ) : null}
+            </>
+          )}
 
           {!recipeBuilderEnabled(client.phase) ? (
             <Card className="p-6 text-center">
