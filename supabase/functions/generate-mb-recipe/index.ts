@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     if (!parsed.success) {
       return new Response(JSON.stringify({ error: "Invalid input" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const { token, meal_type, option_label, ingredients, oil } = parsed.data;
+    const { token, meal_type, option_label, ingredients: rawIngredients, oil } = parsed.data;
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: c } = await admin.from("clients").select("*").eq("magic_token", token).maybeSingle();
@@ -31,6 +31,23 @@ Deno.serve(async (req) => {
     if (c.phase === "phase1") {
       return new Response(JSON.stringify({ error: "The recipe builder is not available during Phase 1." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    // Phase 3 lunch portion bonuses — applied to protein and carb/bread ingredients on lunch only.
+    const proteinBonus = c.phase === "phase3" && meal_type === "lunch" ? Number(c.phase3_lunch_protein_bonus ?? 0) : 0;
+    const carbBonus = c.phase === "phase3" && meal_type === "lunch" ? Number(c.phase3_lunch_carb_bonus ?? 0) : 0;
+    const PROTEIN_LABELS = /^(poultry|fish( or seafood)?|seafood|meat|cheese|legumes)\b/i;
+    const CARB_LABELS = /^(bread|starches?)\b/i;
+    const bumpQty = (qty: string, add: number): string => {
+      if (!add) return qty;
+      const m = qty.match(/^(\d+(?:\.\d+)?)\s*g\b(.*)$/i);
+      if (m) return `${Math.round(parseFloat(m[1]) + add)}g${m[2] ?? ""}`;
+      return `${qty} (+${add}g)`;
+    };
+    const ingredients = rawIngredients.map((i) => {
+      if (proteinBonus && PROTEIN_LABELS.test(i.label)) return { ...i, qty: bumpQty(i.qty, proteinBonus) };
+      if (carbBonus && CARB_LABELS.test(i.label)) return { ...i, qty: bumpQty(i.qty, carbBonus) };
+      return i;
+    });
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
