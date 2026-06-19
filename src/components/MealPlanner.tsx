@@ -305,7 +305,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
 
   const openPicker = (slot: "primary" | "alt", m: MealType, c: { key: string; label: string; sources: (keyof typeof MB_FOODS)[] }) => {
     if (confirmed) return;
-    setPicker({ slot, meal: m, componentKey: c.key, label: c.label, items: filteredSources(c.sources) });
+    setPicker({ slot, meal: m, componentKey: c.key, label: c.label, items: filteredSources(c.sources), sources: c.sources as string[] });
   };
 
   const pickItem = async (food: string) => {
