@@ -1279,8 +1279,8 @@ export default function ClientPortal() {
 
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 inset-x-0 border-t bg-background">
-        <div className={`max-w-5xl mx-auto grid ${client.phase === "phase4" ? "grid-cols-4" : "grid-cols-5"}`}>
-          {(([
+        {(() => {
+          const navItems = ([
             { key: "home", label: "Home", Icon: Home },
             { key: "planner", label: "Meal Planner", Icon: CalendarDays },
             { key: "checkin", label: "Check-in", Icon: ClipboardCheck },
@@ -1288,7 +1288,11 @@ export default function ClientPortal() {
             { key: "messages", label: "Messages", Icon: MessageCircle },
           ] as { key: TabKey; label: string; Icon: typeof Home }[])
             .filter(({ key }) => !(client.phase === "phase4" && key === "planner"))
-          ).map(({ key, label, Icon }) => {
+            .filter(({ key }) => !(phase4CheckinHidden && key === "checkin"));
+          return (
+        <div className={`max-w-5xl mx-auto grid`} style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}>
+          {navItems
+
             const active = tab === key;
             const showBadge = key === "messages" && unreadMessages > 0;
             return (
