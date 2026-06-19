@@ -83,6 +83,10 @@ interface ClientState {
   practitioner_first_name?: string;
   phase4_start_date?: string | null;
   phase4_appointments?: Array<{ id: string; title: string; scheduled_at: string; status: string | null }>;
+  phase3_lunch_protein_bonus: number;
+  phase3_lunch_carb_bonus: number;
+  phase3_portions_confirmed: boolean;
+  phase3_lunch_prompt_last_dismissed_on: string | null;
 }
 
 
