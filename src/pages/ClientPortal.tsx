@@ -891,7 +891,20 @@ export default function ClientPortal() {
 
 
 
-      {tab === "checkin" && (
+      {tab === "checkin" && phase4CheckinHidden && (
+        <section className="max-w-md mx-auto p-4">
+          <Card className="p-6 text-center space-y-2">
+            <p className="font-medium">Check-in is currently closed</p>
+            <p className="text-sm text-muted-foreground">
+              {phase4CheckinState.nextOpensAt && phase4CheckinState.nextAppointmentTitle
+                ? `Your next check-in opens ${fmtDate(phase4CheckinState.nextOpensAt)} — one week before your ${phase4CheckinState.nextAppointmentTitle}.`
+                : "You have no upcoming check-in appointments scheduled."}
+            </p>
+          </Card>
+        </section>
+      )}
+      {tab === "checkin" && !phase4CheckinHidden && (
+
         <section className="max-w-md mx-auto p-4">
           {checkinDone ? (
             <Card className="p-6 text-center space-y-3">
