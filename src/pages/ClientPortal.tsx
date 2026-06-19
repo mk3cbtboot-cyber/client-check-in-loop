@@ -1273,6 +1273,53 @@ export default function ClientPortal() {
                 </p>
               </Card>
 
+              {client.phase === "phase3" && (() => {
+                const pBonus = client.phase3_lunch_protein_bonus ?? 0;
+                const cBonus = client.phase3_lunch_carb_bonus ?? 0;
+                const lunchOpts = MB_OPTIONS.lunch;
+                const proteinKeys = new Set(["poultry","fish","seafood","meat","cheese","legumes"]);
+                const carbKeys = new Set(["bread","starch"]);
+                const rows: { label: string; base: string; total: string; kind: "protein" | "carb" }[] = [];
+                lunchOpts.forEach((opt) => {
+                  (opt.fixed ?? []).forEach((f) => {
+                    if (/eggs?/i.test(f.label)) {
+                      rows.push({ label: `${opt.label} — ${f.label}`, base: f.qty, total: f.qty, kind: "protein" });
+                    }
+                  });
+                  opt.components.forEach((c) => {
+                    const isProtein = c.sources.some((s) => proteinKeys.has(s));
+                    const isCarb = c.sources.some((s) => carbKeys.has(s));
+                    if (!isProtein && !isCarb) return;
+                    const add = isProtein ? pBonus : cBonus;
+                    const m = (c.qty || "").match(/^(\d+(?:\.\d+)?)\s*g\b(.*)$/i);
+                    const total = add && m ? `${Math.round(parseFloat(m[1]) + add)}g${m[2] ?? ""}` : (add ? `${c.qty} + ${add}g` : c.qty);
+                    const base = c.qty || "as listed";
+                    const display = add && m ? `${parseFloat(m[1])}g + ${add}g = ${total}` : (add ? `${base} + ${add}g` : base);
+                    rows.push({ label: `${opt.label} — ${c.label}`, base, total: display, kind: isProtein ? "protein" : "carb" });
+                  });
+                });
+                return (
+                  <Card className="p-4 space-y-3">
+                    <div>
+                      <p className="font-medium">Current Lunch Portions</p>
+                      <p className="text-xs text-muted-foreground">
+                        Protein bonus: +{pBonus}g · Carb bonus: +{cBonus}g
+                        {client.phase3_portions_confirmed ? " · Locked in" : ""}
+                      </p>
+                    </div>
+                    <ul className="text-sm space-y-1">
+                      {rows.map((r, i) => (
+                        <li key={i} className="flex justify-between gap-3 border-b last:border-0 pb-1">
+                          <span className="text-muted-foreground">{r.label}</span>
+                          <span className="font-medium">{r.total}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                );
+              })()}
+
+
               {(client.phase === "phase3" || client.phase === "phase4") ? (() => {
                 const groups: { title: string; field: keyof ClientState }[] = [
                   { title: "Fish", field: "phase3_mb_fish" },
