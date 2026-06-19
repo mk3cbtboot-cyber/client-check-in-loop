@@ -52,6 +52,21 @@ interface Props {
   onPlanChanged?: (plan: WeeklyPlan | null) => void;
   oilAllowed?: boolean;
   batchCookingMode?: "3-day" | "off";
+  lunchProteinBonus?: number;
+  lunchCarbBonus?: number;
+}
+
+const LUNCH_PROTEIN_SOURCES = new Set(["poultry", "fish", "seafood", "meat", "cheese", "legumes"]);
+const LUNCH_CARB_SOURCES = new Set(["bread", "starch"]);
+function applyLunchBonus(qty: string, sources: string[], meal: MealType, proteinBonus: number, carbBonus: number): string {
+  if (meal !== "lunch") return qty;
+  const isProtein = sources.some((s) => LUNCH_PROTEIN_SOURCES.has(s));
+  const isCarb = sources.some((s) => LUNCH_CARB_SOURCES.has(s));
+  const add = isProtein ? proteinBonus : isCarb ? carbBonus : 0;
+  if (!add) return qty;
+  const m = (qty || "").match(/^(\d+(?:\.\d+)?)\s*g\b(.*)$/i);
+  if (m) return `${Math.round(parseFloat(m[1]) + add)}g${m[2] ?? ""} (+${add}g)`;
+  return `${qty} + ${add}g`;
 }
 
 const MEALS: MealType[] = ["breakfast", "lunch", "dinner"];
