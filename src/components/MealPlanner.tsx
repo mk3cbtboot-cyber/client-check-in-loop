@@ -523,6 +523,9 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
                     ))}
                     {opt.components.map((c) => {
                       const chosen = s[c.key];
+                      const eggMeal = isEggLunchOption(opt);
+                      const isCarbHere = isLunchCarbSources(c.sources, m);
+                      const chosenDisplay = chosen && isCarbHere ? bumpBreadName(chosen, lunchCarbBonus) : chosen;
                       return (
                         <Button
                           key={c.key}
@@ -534,9 +537,9 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
                         >
                           <span className="text-xs">
                             {c.label}
-                            {c.qty && <span className="text-muted-foreground"> · {applyLunchBonus(c.qty, c.sources as string[], m, lunchProteinBonus, lunchCarbBonus)}</span>}
+                            {c.qty && <span className="text-muted-foreground"> · {applyLunchBonus(c.qty, c.sources as string[], m, lunchProteinBonus, lunchCarbBonus, eggMeal)}</span>}
                           </span>
-                          <span className="text-xs font-medium">{chosen ?? "Choose"}</span>
+                          <span className="text-xs font-medium">{chosenDisplay ?? "Choose"}</span>
                         </Button>
                       );
                     })}
