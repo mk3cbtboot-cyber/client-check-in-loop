@@ -152,7 +152,7 @@ export default function ClientPortal() {
       setWeightUnit(data.client.weight_unit || "kg");
       setLengthUnit(data.client.length_unit || "cm");
       setLatestWeightKg(data.client.latest_weight_kg ?? null);
-      if (data.client.welcome_seen === false) setWelcomeOpen(true);
+      if (data.client.welcome_seen === false && data.client.phase !== "phase4") setWelcomeOpen(true);
     } else if (data?.archived) {
       setArchived(true);
     }
