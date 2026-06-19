@@ -43,15 +43,29 @@ function applyLunchBonus(
   meal: MealType,
   proteinBonus: number,
   carbBonus: number,
+  isEggMeal = false,
 ): string {
   if (meal !== "lunch") return qty;
   const isProtein = sources.some((s) => LUNCH_PROTEIN_SOURCES.has(s as string));
   const isCarb = sources.some((s) => LUNCH_CARB_SOURCES.has(s as string));
-  const add = isProtein ? proteinBonus : isCarb ? carbBonus : 0;
+  // Egg-based lunch meals: skip protein bonus (carb bonus still applies).
+  const effectiveProtein = isEggMeal ? 0 : proteinBonus;
+  const add = isProtein ? effectiveProtein : isCarb ? carbBonus : 0;
   if (!add) return qty;
   const m = (qty || "").match(/^(\d+(?:\.\d+)?)\s*g\b(.*)$/i);
   if (m) return `${Math.round(parseFloat(m[1]) + add)}g${m[2] ?? ""} (base ${m[1]}g + ${add}g)`;
   return `${qty} + ${add}g`;
+}
+
+// Bumps trailing "(Ng)" in bread/starch item names, e.g. "100% Rye Crackers (10g)" → "(15g)".
+function bumpBreadName(name: string, add: number): string {
+  if (!add) return name;
+  return name.replace(/\((\d+(?:\.\d+)?)\s*g\)/i, (_full, g) => `(${Math.round(parseFloat(g) + add)}g)`);
+}
+
+function isLunchCarb(sources: (keyof typeof MB_FOODS)[], meal: MealType): boolean {
+  if (meal !== "lunch") return false;
+  return sources.some((s) => LUNCH_CARB_SOURCES.has(s as string));
 }
 
 const OIL_OPTIONS = [
@@ -122,6 +136,13 @@ export default function MealRecipeSection({
         let qty = c.qty || "see option";
         if (c.key === "veg1") qty = veg1Qty || qty;
         if (c.key === "veg2") qty = veg2Qty || "see option";
+        // For bread/starch the gram amount lives inside the picked item name, e.g.
+        // "100% Rye Crackers (10g)". Extract it so the recipe generator receives a
+        // real gram qty and the carb bonus can be applied server-side.
+        if (isLunchCarb(c.sources, meal)) {
+          const gm = (picks[c.key] || "").match(/\((\d+(?:\.\d+)?)\s*g\)/i);
+          if (gm) qty = `${gm[1]}g`;
+        }
         return { label: `${c.label}: ${picks[c.key]}`, qty };
       }),
       ...(picks["starch_extra"] ? [{ label: `Starches: ${picks["starch_extra"]}`, qty: "as advised" }] : []),
@@ -333,6 +354,8 @@ export default function MealRecipeSection({
         {allComponents.map((comp) => {
           const items = restrictedItems(comp.sources, comp.key);
           const showOilBefore = oilAllow && comp.key === "fruit";
+          const eggMeal = !!optionDef.fixed?.some((f) => /egg/i.test(f.label));
+          const carbAdd = isLunchCarb(comp.sources, meal) ? lunchCarbBonus : 0;
           return (
             <div key={comp.key} className="space-y-3">
               {showOilBefore && (
@@ -348,7 +371,7 @@ export default function MealRecipeSection({
                 </div>
               )}
               <div className="space-y-1">
-                <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {applyLunchBonus(comp.qty, comp.sources, meal, lunchProteinBonus, lunchCarbBonus)}</span>}</Label>
+                <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {applyLunchBonus(comp.qty, comp.sources, meal, lunchProteinBonus, lunchCarbBonus, eggMeal)}</span>}</Label>
                 <Select
                   value={picks[comp.key] ?? ""}
                   onValueChange={(v) => {
@@ -360,14 +383,18 @@ export default function MealRecipeSection({
                     setPicks((p) => ({ ...p, [comp.key]: v }));
                   }}
                 >
-                  <SelectTrigger><SelectValue placeholder={comp.optional ? "Optional" : "Select…"} /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder={comp.optional ? "Optional" : "Select…"}>
+                      {picks[comp.key] ? bumpBreadName(picks[comp.key], carbAdd) : null}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     {items.map((i) => {
                       const limitedKey = limitedKeyForLabel(i);
                       const disabled = !!limitedKey;
                       return (
                         <SelectItem key={i} value={i} disabled={disabled} className={disabled ? "opacity-50" : undefined}>
-                          {i}{disabled ? " (limit reached)" : ""}
+                          {bumpBreadName(i, carbAdd)}{disabled ? " (limit reached)" : ""}
                         </SelectItem>
                       );
                     })}

@@ -58,15 +58,36 @@ interface Props {
 
 const LUNCH_PROTEIN_SOURCES = new Set(["poultry", "fish", "seafood", "meat", "cheese", "legumes"]);
 const LUNCH_CARB_SOURCES = new Set(["bread", "starch"]);
-function applyLunchBonus(qty: string, sources: string[], meal: MealType, proteinBonus: number, carbBonus: number): string {
+function isEggLunchOption(opt: OptionDef): boolean {
+  return !!opt.fixed?.some((f) => /egg/i.test(f.label));
+}
+function applyLunchBonus(
+  qty: string,
+  sources: string[],
+  meal: MealType,
+  proteinBonus: number,
+  carbBonus: number,
+  isEggMeal = false,
+): string {
   if (meal !== "lunch") return qty;
   const isProtein = sources.some((s) => LUNCH_PROTEIN_SOURCES.has(s));
   const isCarb = sources.some((s) => LUNCH_CARB_SOURCES.has(s));
-  const add = isProtein ? proteinBonus : isCarb ? carbBonus : 0;
+  // Egg-based lunch meals: skip protein bonus (carb bonus still applies).
+  const effectiveProtein = isEggMeal ? 0 : proteinBonus;
+  const add = isProtein ? effectiveProtein : isCarb ? carbBonus : 0;
   if (!add) return qty;
   const m = (qty || "").match(/^(\d+(?:\.\d+)?)\s*g\b(.*)$/i);
   if (m) return `${Math.round(parseFloat(m[1]) + add)}g${m[2] ?? ""} (+${add}g)`;
   return `${qty} + ${add}g`;
+}
+// Bumps trailing "(Ng)" in bread/starch item names, e.g. "100% Rye Crackers (10g)" → "(15g)".
+function bumpBreadName(name: string, add: number): string {
+  if (!add) return name;
+  return name.replace(/\((\d+(?:\.\d+)?)\s*g\)/i, (_full, g) => `(${Math.round(parseFloat(g) + add)}g)`);
+}
+function isLunchCarbSources(sources: (keyof typeof MB_FOODS)[] | string[], meal: MealType): boolean {
+  if (meal !== "lunch") return false;
+  return (sources as string[]).some((s) => LUNCH_CARB_SOURCES.has(s));
 }
 
 const MEALS: MealType[] = ["breakfast", "lunch", "dinner"];
@@ -114,7 +135,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<WeeklyPlan | null>(null);
   const [weekStart, setWeekStart] = useState<string>("");
-  const [picker, setPicker] = useState<{ slot: "primary" | "alt"; meal: MealType; componentKey: string; label: string; items: string[] } | null>(null);
+  const [picker, setPicker] = useState<{ slot: "primary" | "alt"; meal: MealType; componentKey: string; label: string; items: string[]; sources: string[] } | null>(null);
   const [showShopping, setShowShopping] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
@@ -284,7 +305,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
 
   const openPicker = (slot: "primary" | "alt", m: MealType, c: { key: string; label: string; sources: (keyof typeof MB_FOODS)[] }) => {
     if (confirmed) return;
-    setPicker({ slot, meal: m, componentKey: c.key, label: c.label, items: filteredSources(c.sources) });
+    setPicker({ slot, meal: m, componentKey: c.key, label: c.label, items: filteredSources(c.sources), sources: c.sources as string[] });
   };
 
   const pickItem = async (food: string) => {
@@ -502,6 +523,9 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
                     ))}
                     {opt.components.map((c) => {
                       const chosen = s[c.key];
+                      const eggMeal = isEggLunchOption(opt);
+                      const isCarbHere = isLunchCarbSources(c.sources, m);
+                      const chosenDisplay = chosen && isCarbHere ? bumpBreadName(chosen, lunchCarbBonus) : chosen;
                       return (
                         <Button
                           key={c.key}
@@ -513,9 +537,9 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
                         >
                           <span className="text-xs">
                             {c.label}
-                            {c.qty && <span className="text-muted-foreground"> · {applyLunchBonus(c.qty, c.sources as string[], m, lunchProteinBonus, lunchCarbBonus)}</span>}
+                            {c.qty && <span className="text-muted-foreground"> · {applyLunchBonus(c.qty, c.sources as string[], m, lunchProteinBonus, lunchCarbBonus, eggMeal)}</span>}
                           </span>
-                          <span className="text-xs font-medium">{chosen ?? "Choose"}</span>
+                          <span className="text-xs font-medium">{chosenDisplay ?? "Choose"}</span>
                         </Button>
                       );
                     })}
@@ -654,11 +678,14 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
             {picker?.items.length === 0 && (
               <p className="text-sm text-muted-foreground">No options available in your personal list for this category.</p>
             )}
-            {picker?.items.map((it) => (
-              <Button key={it} variant="outline" className="w-full justify-start" onClick={() => pickItem(it)}>
-                {it}
-              </Button>
-            ))}
+            {picker?.items.map((it) => {
+              const carbAdd = picker && isLunchCarbSources(picker.sources, picker.meal) ? lunchCarbBonus : 0;
+              return (
+                <Button key={it} variant="outline" className="w-full justify-start" onClick={() => pickItem(it)}>
+                  {bumpBreadName(it, carbAdd)}
+                </Button>
+              );
+            })}
           </div>
         </DialogContent>
       </Dialog>
