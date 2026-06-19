@@ -348,7 +348,7 @@ export default function MealRecipeSection({
                 </div>
               )}
               <div className="space-y-1">
-                <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {comp.qty}</span>}</Label>
+                <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {applyLunchBonus(comp.qty, comp.sources, meal, lunchProteinBonus, lunchCarbBonus)}</span>}</Label>
                 <Select
                   value={picks[comp.key] ?? ""}
                   onValueChange={(v) => {
