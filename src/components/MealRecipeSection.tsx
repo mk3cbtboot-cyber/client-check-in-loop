@@ -136,6 +136,13 @@ export default function MealRecipeSection({
         let qty = c.qty || "see option";
         if (c.key === "veg1") qty = veg1Qty || qty;
         if (c.key === "veg2") qty = veg2Qty || "see option";
+        // For bread/starch the gram amount lives inside the picked item name, e.g.
+        // "100% Rye Crackers (10g)". Extract it so the recipe generator receives a
+        // real gram qty and the carb bonus can be applied server-side.
+        if (isLunchCarb(c.sources, meal)) {
+          const gm = (picks[c.key] || "").match(/\((\d+(?:\.\d+)?)\s*g\)/i);
+          if (gm) qty = `${gm[1]}g`;
+        }
         return { label: `${c.label}: ${picks[c.key]}`, qty };
       }),
       ...(picks["starch_extra"] ? [{ label: `Starches: ${picks["starch_extra"]}`, qty: "as advised" }] : []),
