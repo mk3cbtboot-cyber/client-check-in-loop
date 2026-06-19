@@ -679,7 +679,7 @@ export default function ClientPortal() {
             <>
               <Card className="p-3 border-primary/40 bg-primary/5">
                 <p className="text-xs text-primary">
-                  {client?.batch_cooking_mode === "off"
+                  {(client?.batch_cooking_mode === "off" || client.phase === "phase4")
                     ? "Your meal plan is set — generate a fresh recipe whenever you're ready to cook."
                     : "Your weekly meal plan is set — recipe options are limited to the foods you selected for this week."}
                 </p>
