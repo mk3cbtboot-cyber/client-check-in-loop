@@ -30,6 +30,28 @@ interface Props {
   onLogged: () => Promise<void> | void;
   blockGeneration?: { reason: string } | null;
   fullScreenOnSelect?: boolean;
+  lunchProteinBonus?: number;
+  lunchCarbBonus?: number;
+}
+
+const LUNCH_PROTEIN_SOURCES = new Set(["poultry", "fish", "seafood", "meat", "cheese", "legumes"]);
+const LUNCH_CARB_SOURCES = new Set(["bread", "starch"]);
+
+function applyLunchBonus(
+  qty: string,
+  sources: (keyof typeof MB_FOODS)[],
+  meal: MealType,
+  proteinBonus: number,
+  carbBonus: number,
+): string {
+  if (meal !== "lunch") return qty;
+  const isProtein = sources.some((s) => LUNCH_PROTEIN_SOURCES.has(s as string));
+  const isCarb = sources.some((s) => LUNCH_CARB_SOURCES.has(s as string));
+  const add = isProtein ? proteinBonus : isCarb ? carbBonus : 0;
+  if (!add) return qty;
+  const m = (qty || "").match(/^(\d+(?:\.\d+)?)\s*g\b(.*)$/i);
+  if (m) return `${Math.round(parseFloat(m[1]) + add)}g${m[2] ?? ""} (base ${m[1]}g + ${add}g)`;
+  return `${qty} + ${add}g`;
 }
 
 const OIL_OPTIONS = [
