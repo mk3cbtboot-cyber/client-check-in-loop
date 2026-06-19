@@ -992,6 +992,8 @@ export default function ClientPortal() {
                         extraComponents={buildExtras(altOption)}
                         filteredSources={filteredSources}
                         onLogged={refetchAll}
+                        lunchProteinBonus={client.phase === "phase3" ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
+                        lunchCarbBonus={client.phase === "phase3" ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
                       />
                     )}
                   </div>
