@@ -1086,19 +1086,6 @@ export default function ClientPortal() {
                 Your full personal food list will be available when you move to Phase 2.
               </p>
             </div>
-          ) : client.phase === "phase4" ? (
-            <Card className="p-6 space-y-2">
-              <p className="font-medium">Phase 4 — Maintenance</p>
-              <p className="text-sm text-muted-foreground">
-                You are in the Maintenance Phase. The 8 Rules are now your lifestyle. Continue making mindful food choices and stay in touch with your practitioner.
-              </p>
-              <div className="pt-3">
-                <p className="font-medium text-foreground text-sm mb-2">The 8 Metabolic Balance Rules</p>
-                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
-                  {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
-                </ol>
-              </div>
-            </Card>
           ) : (
             <>
               <Card className="p-6 space-y-3">
