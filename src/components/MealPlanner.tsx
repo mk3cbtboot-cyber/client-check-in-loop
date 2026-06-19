@@ -513,7 +513,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
                         >
                           <span className="text-xs">
                             {c.label}
-                            {c.qty && <span className="text-muted-foreground"> · {c.qty}</span>}
+                            {c.qty && <span className="text-muted-foreground"> · {applyLunchBonus(c.qty, c.sources as string[], m, lunchProteinBonus, lunchCarbBonus)}</span>}
                           </span>
                           <span className="text-xs font-medium">{chosen ?? "Choose"}</span>
                         </Button>
