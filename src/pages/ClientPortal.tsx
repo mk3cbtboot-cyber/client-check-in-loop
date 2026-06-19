@@ -65,7 +65,10 @@ interface ClientState {
   batch_cooking_mode: "3-day" | "off";
   welcome_seen: boolean;
   practitioner_first_name?: string;
+  phase4_start_date?: string | null;
+  phase4_appointments?: Array<{ id: string; title: string; scheduled_at: string; status: string | null }>;
 }
+
 
 type TabKey = "home" | "checkin" | "plan" | "planner" | "messages";
 
