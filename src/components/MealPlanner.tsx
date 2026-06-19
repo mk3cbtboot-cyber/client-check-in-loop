@@ -110,7 +110,7 @@ function categoryForSources(sources: (keyof typeof MB_FOODS)[]): string {
   return "Other";
 }
 
-export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, eggsMaxPerWeek = null, onPlanChanged, oilAllowed = false, batchCookingMode = "3-day" }: Props) {
+export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, eggsMaxPerWeek = null, onPlanChanged, oilAllowed = false, batchCookingMode = "3-day", lunchProteinBonus = 0, lunchCarbBonus = 0 }: Props) {
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<WeeklyPlan | null>(null);
   const [weekStart, setWeekStart] = useState<string>("");
