@@ -661,7 +661,7 @@ export default function ClientPortal() {
                 The recipe builder is not available during Phase 1. Focus on the meal structure in your My Plan tab.
               </p>
             </Card>
-          ) : client.batch_cooking_mode === "off" && !client.mb_pdf_path ? (
+          ) : client.phase !== "phase4" && client.batch_cooking_mode === "off" && !client.mb_pdf_path ? (
             <Card className="p-6 text-center space-y-4">
               <p className="font-medium">No meal plan uploaded yet</p>
               <p className="text-sm text-muted-foreground">
