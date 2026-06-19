@@ -59,8 +59,9 @@ function applyLunchBonus(
 
 // Bumps trailing "(Ng)" in bread/starch item names, e.g. "100% Rye Crackers (10g)" → "(15g)".
 function bumpBreadName(name: string, add: number): string {
-  if (!add) return name;
-  return name.replace(/\((\d+(?:\.\d+)?)\s*g\)/i, (_full, g) => `(${Math.round(parseFloat(g) + add)}g)`);
+  const bonus = Number(add) || 0;
+  if (!bonus) return name;
+  return name.replace(/\((\d+(?:\.\d+)?)\s*g\s*\)(?!.*\(\d+(?:\.\d+)?\s*g\s*\))/i, (_full, g) => `(${Math.round(parseFloat(g) + bonus)}g)`);
 }
 
 function isLunchCarb(sources: (keyof typeof MB_FOODS)[], meal: MealType): boolean {
@@ -392,9 +393,10 @@ export default function MealRecipeSection({
                     {items.map((i) => {
                       const limitedKey = limitedKeyForLabel(i);
                       const disabled = !!limitedKey;
+                      const displayLabel = bumpBreadName(i, carbAdd);
                       return (
-                        <SelectItem key={i} value={i} disabled={disabled} className={disabled ? "opacity-50" : undefined}>
-                          {bumpBreadName(i, carbAdd)}{disabled ? " (limit reached)" : ""}
+                        <SelectItem key={`${i}-${displayLabel}`} value={i} textValue={displayLabel} disabled={disabled} className={disabled ? "opacity-50" : undefined}>
+                          {displayLabel}{disabled ? " (limit reached)" : ""}
                         </SelectItem>
                       );
                     })}
