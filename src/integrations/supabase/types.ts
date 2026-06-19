@@ -206,6 +206,9 @@ export type Database = {
           phase3_dairy: string
           phase3_fish: string
           phase3_fruit: string
+          phase3_lunch_carb_bonus: number
+          phase3_lunch_prompt_last_dismissed_on: string | null
+          phase3_lunch_protein_bonus: number
           phase3_mb_cheese: string
           phase3_mb_fat_oil: string
           phase3_mb_fish: string
@@ -218,6 +221,7 @@ export type Database = {
           phase3_meat: string
           phase3_mode: string
           phase3_other: string
+          phase3_portions_confirmed: boolean
           phase3_starches: string
           phase3_vegetables: string
           phase4_start_date: string | null
@@ -290,6 +294,9 @@ export type Database = {
           phase3_dairy?: string
           phase3_fish?: string
           phase3_fruit?: string
+          phase3_lunch_carb_bonus?: number
+          phase3_lunch_prompt_last_dismissed_on?: string | null
+          phase3_lunch_protein_bonus?: number
           phase3_mb_cheese?: string
           phase3_mb_fat_oil?: string
           phase3_mb_fish?: string
@@ -302,6 +309,7 @@ export type Database = {
           phase3_meat?: string
           phase3_mode?: string
           phase3_other?: string
+          phase3_portions_confirmed?: boolean
           phase3_starches?: string
           phase3_vegetables?: string
           phase4_start_date?: string | null
@@ -374,6 +382,9 @@ export type Database = {
           phase3_dairy?: string
           phase3_fish?: string
           phase3_fruit?: string
+          phase3_lunch_carb_bonus?: number
+          phase3_lunch_prompt_last_dismissed_on?: string | null
+          phase3_lunch_protein_bonus?: number
           phase3_mb_cheese?: string
           phase3_mb_fat_oil?: string
           phase3_mb_fish?: string
@@ -386,6 +397,7 @@ export type Database = {
           phase3_meat?: string
           phase3_mode?: string
           phase3_other?: string
+          phase3_portions_confirmed?: boolean
           phase3_starches?: string
           phase3_vegetables?: string
           phase4_start_date?: string | null

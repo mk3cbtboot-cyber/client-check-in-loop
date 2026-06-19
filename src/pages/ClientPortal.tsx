@@ -83,6 +83,10 @@ interface ClientState {
   practitioner_first_name?: string;
   phase4_start_date?: string | null;
   phase4_appointments?: Array<{ id: string; title: string; scheduled_at: string; status: string | null }>;
+  phase3_lunch_protein_bonus: number;
+  phase3_lunch_carb_bonus: number;
+  phase3_portions_confirmed: boolean;
+  phase3_lunch_prompt_last_dismissed_on: string | null;
 }
 
 
@@ -300,6 +304,45 @@ export default function ClientPortal() {
       await supabase.functions.invoke("update-client-prefs", { body: { token, welcome_seen: true } });
     }
   };
+
+  // Phase 3 weekly lunch portion prompt
+  const [lunchPromptStep, setLunchPromptStep] = useState<"initial" | "confirm" | null>("initial");
+  const mondayOfDate = (d: Date): string => {
+    const dt = new Date(d);
+    const day = (dt.getUTCDay() + 6) % 7;
+    dt.setUTCDate(dt.getUTCDate() - day);
+    return dt.toISOString().slice(0, 10);
+  };
+  const showLunchPrompt = (() => {
+    if (!client || client.phase !== "phase3") return false;
+    if (client.phase3_portions_confirmed) return false;
+    const thisMonday = mondayOfDate(new Date());
+    const last = client.phase3_lunch_prompt_last_dismissed_on;
+    if (!last) return true;
+    return last < thisMonday;
+  })();
+  const sendLunchAction = async (action: "accept" | "confirm" | "defer") => {
+    if (!token) return;
+    const { data } = await supabase.functions.invoke("update-client-prefs", { body: { token, phase3_lunch_action: action } });
+    const updated = data?.client;
+    setClient((c) => (c ? {
+      ...c,
+      phase3_lunch_protein_bonus: updated?.phase3_lunch_protein_bonus ?? c.phase3_lunch_protein_bonus,
+      phase3_lunch_carb_bonus: updated?.phase3_lunch_carb_bonus ?? c.phase3_lunch_carb_bonus,
+      phase3_portions_confirmed: updated?.phase3_portions_confirmed ?? c.phase3_portions_confirmed,
+      phase3_lunch_prompt_last_dismissed_on: updated?.phase3_lunch_prompt_last_dismissed_on ?? c.phase3_lunch_prompt_last_dismissed_on,
+    } : c));
+    setLunchPromptStep("initial");
+    if (action === "accept") {
+      const p = (updated?.phase3_lunch_protein_bonus ?? 0);
+      const cb = (updated?.phase3_lunch_carb_bonus ?? 0);
+      toast.success(`Lunch portions updated — protein +${p}g, carbs +${cb}g from your original plan.`);
+    } else if (action === "confirm") {
+      toast.success("Lunch portions locked in.");
+    }
+  };
+
+
 
 
   const pickOption = (m: MealType, o: OptionDef) => {
@@ -676,6 +719,33 @@ export default function ClientPortal() {
 
       {tab === "home" && (
         <section className="max-w-5xl mx-auto p-4 space-y-6">
+          {showLunchPrompt && (
+            <Card className="p-4 border-primary/50 bg-primary/5 space-y-3">
+              {lunchPromptStep === "initial" ? (
+                <>
+                  <p className="text-sm font-medium">Time to check your lunch portions.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Would you like to add 5g of protein and 5g of carbs to all your lunch meals this week?
+                  </p>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => sendLunchAction("accept")}>Yes</Button>
+                    <Button size="sm" variant="outline" onClick={() => setLunchPromptStep("confirm")}>No</Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-medium">Are your current lunch portions right for you?</p>
+                  <p className="text-sm text-muted-foreground">
+                    Tap Confirm to lock them in as your ongoing portions.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => sendLunchAction("confirm")}>Confirm</Button>
+                    <Button size="sm" variant="outline" onClick={() => sendLunchAction("defer")}>Cancel</Button>
+                  </div>
+                </>
+              )}
+            </Card>
+          )}
           {client.phase !== "phase4" && (
             <>
           {/* Trackers */}
@@ -1202,6 +1272,53 @@ export default function ClientPortal() {
                   {client.phase === "phase4" && "You are in the Maintenance Phase. Your Phase 3 food list is shown below as a read-only shopping reference. The 8 Rules are now your lifestyle."}
                 </p>
               </Card>
+
+              {client.phase === "phase3" && (() => {
+                const pBonus = client.phase3_lunch_protein_bonus ?? 0;
+                const cBonus = client.phase3_lunch_carb_bonus ?? 0;
+                const lunchOpts = MB_OPTIONS.lunch;
+                const proteinKeys = new Set(["poultry","fish","seafood","meat","cheese","legumes"]);
+                const carbKeys = new Set(["bread","starch"]);
+                const rows: { label: string; base: string; total: string; kind: "protein" | "carb" }[] = [];
+                lunchOpts.forEach((opt) => {
+                  (opt.fixed ?? []).forEach((f) => {
+                    if (/eggs?/i.test(f.label)) {
+                      rows.push({ label: `${opt.label} — ${f.label}`, base: f.qty, total: f.qty, kind: "protein" });
+                    }
+                  });
+                  opt.components.forEach((c) => {
+                    const isProtein = c.sources.some((s) => proteinKeys.has(s));
+                    const isCarb = c.sources.some((s) => carbKeys.has(s));
+                    if (!isProtein && !isCarb) return;
+                    const add = isProtein ? pBonus : cBonus;
+                    const m = (c.qty || "").match(/^(\d+(?:\.\d+)?)\s*g\b(.*)$/i);
+                    const total = add && m ? `${Math.round(parseFloat(m[1]) + add)}g${m[2] ?? ""}` : (add ? `${c.qty} + ${add}g` : c.qty);
+                    const base = c.qty || "as listed";
+                    const display = add && m ? `${parseFloat(m[1])}g + ${add}g = ${total}` : (add ? `${base} + ${add}g` : base);
+                    rows.push({ label: `${opt.label} — ${c.label}`, base, total: display, kind: isProtein ? "protein" : "carb" });
+                  });
+                });
+                return (
+                  <Card className="p-4 space-y-3">
+                    <div>
+                      <p className="font-medium">Current Lunch Portions</p>
+                      <p className="text-xs text-muted-foreground">
+                        Protein bonus: +{pBonus}g · Carb bonus: +{cBonus}g
+                        {client.phase3_portions_confirmed ? " · Locked in" : ""}
+                      </p>
+                    </div>
+                    <ul className="text-sm space-y-1">
+                      {rows.map((r, i) => (
+                        <li key={i} className="flex justify-between gap-3 border-b last:border-0 pb-1">
+                          <span className="text-muted-foreground">{r.label}</span>
+                          <span className="font-medium">{r.total}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                );
+              })()}
+
 
               {(client.phase === "phase3" || client.phase === "phase4") ? (() => {
                 const groups: { title: string; field: keyof ClientState }[] = [
