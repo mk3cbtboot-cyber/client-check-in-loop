@@ -702,7 +702,7 @@ export default function ClientPortal() {
                 const hidePrimary = isSplit && primaryLogCount >= primaryDays;
                 const primaryOption = primaryId != null ? MB_OPTIONS[meal].find((o) => o.id === primaryId) ?? null : null;
                 const altOption = altId != null ? MB_OPTIONS[meal].find((o) => o.id === altId) ?? null : null;
-                const batchMode = ((client as any).batch_cooking_mode ?? "3-day") as "3-day" | "off";
+                const batchMode = (client.phase === "phase4" ? "off" : (((client as any).batch_cooking_mode ?? "3-day"))) as "3-day" | "off";
                 const batchActive = (start: string | null | undefined): boolean => {
                   if (!start) return false;
                   const s = new Date(start + "T00:00:00Z").getTime();
