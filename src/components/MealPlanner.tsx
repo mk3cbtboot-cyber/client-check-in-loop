@@ -135,7 +135,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<WeeklyPlan | null>(null);
   const [weekStart, setWeekStart] = useState<string>("");
-  const [picker, setPicker] = useState<{ slot: "primary" | "alt"; meal: MealType; componentKey: string; label: string; items: string[] } | null>(null);
+  const [picker, setPicker] = useState<{ slot: "primary" | "alt"; meal: MealType; componentKey: string; label: string; items: string[]; sources: string[] } | null>(null);
   const [showShopping, setShowShopping] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
