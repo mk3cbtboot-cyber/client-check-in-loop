@@ -82,8 +82,9 @@ function applyLunchBonus(
 }
 // Bumps trailing "(Ng)" in bread/starch item names, e.g. "100% Rye Crackers (10g)" → "(15g)".
 function bumpBreadName(name: string, add: number): string {
-  if (!add) return name;
-  return name.replace(/\((\d+(?:\.\d+)?)\s*g\)/i, (_full, g) => `(${Math.round(parseFloat(g) + add)}g)`);
+  const bonus = Number(add) || 0;
+  if (!bonus) return name;
+  return name.replace(/\((\d+(?:\.\d+)?)\s*g\s*\)(?!.*\(\d+(?:\.\d+)?\s*g\s*\))/i, (_full, g) => `(${Math.round(parseFloat(g) + bonus)}g)`);
 }
 function isLunchCarbSources(sources: (keyof typeof MB_FOODS)[] | string[], meal: MealType): boolean {
   if (meal !== "lunch") return false;
@@ -680,9 +681,10 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
             )}
             {picker?.items.map((it) => {
               const carbAdd = picker && isLunchCarbSources(picker.sources, picker.meal) ? lunchCarbBonus : 0;
+              const displayLabel = bumpBreadName(it, carbAdd);
               return (
                 <Button key={it} variant="outline" className="w-full justify-start" onClick={() => pickItem(it)}>
-                  {bumpBreadName(it, carbAdd)}
+                  {displayLabel}
                 </Button>
               );
             })}
