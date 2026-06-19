@@ -719,6 +719,33 @@ export default function ClientPortal() {
 
       {tab === "home" && (
         <section className="max-w-5xl mx-auto p-4 space-y-6">
+          {showLunchPrompt && (
+            <Card className="p-4 border-primary/50 bg-primary/5 space-y-3">
+              {lunchPromptStep === "initial" ? (
+                <>
+                  <p className="text-sm font-medium">Time to check your lunch portions.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Would you like to add 5g of protein and 5g of carbs to all your lunch meals this week?
+                  </p>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => sendLunchAction("accept")}>Yes</Button>
+                    <Button size="sm" variant="outline" onClick={() => setLunchPromptStep("confirm")}>No</Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-medium">Are your current lunch portions right for you?</p>
+                  <p className="text-sm text-muted-foreground">
+                    Tap Confirm to lock them in as your ongoing portions.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => sendLunchAction("confirm")}>Confirm</Button>
+                    <Button size="sm" variant="outline" onClick={() => sendLunchAction("defer")}>Cancel</Button>
+                  </div>
+                </>
+              )}
+            </Card>
+          )}
           {client.phase !== "phase4" && (
             <>
           {/* Trackers */}
