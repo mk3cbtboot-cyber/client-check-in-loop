@@ -575,7 +575,7 @@ export default function ClientPortal() {
 
 
       {tab === "home" && client.phase === "phase4" && (
-        <section className="max-w-3xl mx-auto p-4 space-y-4">
+        <section className="max-w-3xl mx-auto p-4 pb-0 space-y-4">
           <Card className="p-6 space-y-3">
             <h2 className="text-lg font-semibold">Congratulations {client.name.split(/\s+/)[0]}!!</h2>
             <p className="text-sm leading-relaxed">
@@ -590,7 +590,7 @@ export default function ClientPortal() {
         </section>
       )}
 
-      {tab === "home" && client.phase !== "phase4" && (
+      {tab === "home" && (
         <section className="max-w-5xl mx-auto p-4 space-y-6">
           {/* Trackers */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
