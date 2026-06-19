@@ -1189,18 +1189,47 @@ export default function ClientPortal() {
                   );
                 }
                 return (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {populated.map((cat) => (
-                      <Card key={cat.title} className="p-4">
-                        <p className="font-medium mb-2">{cat.title}</p>
-                        <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                          {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
-                        </ul>
-                      </Card>
-                    ))}
+                  <div className="space-y-6">
+                    {client.phase === "phase4" && planCategories.length > 0 && (
+                      <div className="space-y-3">
+                        <div>
+                          <p className="font-medium">Phase 2 — Personal Food List</p>
+                          <p className="text-xs text-muted-foreground">Read-only shopping reference.</p>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {planCategories.map((cat) => (
+                            <Card key={`p2-${cat.title}`} className="p-4">
+                              <p className="font-medium mb-2">{cat.title}</p>
+                              <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                                {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                              </ul>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="space-y-3">
+                      {client.phase === "phase4" && (
+                        <div>
+                          <p className="font-medium">Phase 3 — Extended Food List</p>
+                          <p className="text-xs text-muted-foreground">Read-only shopping reference.</p>
+                        </div>
+                      )}
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {populated.map((cat) => (
+                          <Card key={cat.title} className="p-4">
+                            <p className="font-medium mb-2">{cat.title}</p>
+                            <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                              {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                            </ul>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 );
               })() : (
+
                 <div className="grid gap-4 md:grid-cols-2">
                   {planCategories.map((cat) => (
                     <Card key={cat.title} className="p-4">
