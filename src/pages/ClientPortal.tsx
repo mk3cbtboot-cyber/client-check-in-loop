@@ -1222,14 +1222,16 @@ export default function ClientPortal() {
 
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 inset-x-0 border-t bg-background">
-        <div className="max-w-5xl mx-auto grid grid-cols-5">
-          {([
+        <div className={`max-w-5xl mx-auto grid ${client.phase === "phase4" ? "grid-cols-4" : "grid-cols-5"}`}>
+          {(([
             { key: "home", label: "Home", Icon: Home },
             { key: "planner", label: "Meal Planner", Icon: CalendarDays },
             { key: "checkin", label: "Check-in", Icon: ClipboardCheck },
             { key: "plan", label: "My Plan", Icon: BookOpen },
             { key: "messages", label: "Messages", Icon: MessageCircle },
-          ] as { key: TabKey; label: string; Icon: typeof Home }[]).map(({ key, label, Icon }) => {
+          ] as { key: TabKey; label: string; Icon: typeof Home }[])
+            .filter(({ key }) => !(client.phase === "phase4" && key === "planner"))
+          ).map(({ key, label, Icon }) => {
             const active = tab === key;
             const showBadge = key === "messages" && unreadMessages > 0;
             return (
