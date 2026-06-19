@@ -80,11 +80,17 @@ function applyLunchBonus(
   if (m) return `${Math.round(parseFloat(m[1]) + add)}g${m[2] ?? ""} (+${add}g)`;
   return `${qty} + ${add}g`;
 }
-// Bumps trailing "(Ng)" in bread/starch item names, e.g. "100% Rye Crackers (10g)" → "(15g)".
+// Formats bread/starch item names with Phase 3 carb bonus breakdown.
+// e.g. "100% Rye Crackers (10g)" → "100% Rye Crackers · 15g (base 10g + 5g)"
 function bumpBreadName(name: string, add: number): string {
   const bonus = Number(add) || 0;
   if (!bonus) return name;
-  return name.replace(/\((\d+(?:\.\d+)?)\s*g\s*\)(?!.*\(\d+(?:\.\d+)?\s*g\s*\))/i, (_full, g) => `(${Math.round(parseFloat(g) + bonus)}g)`);
+  const m = name.match(/^(.*)\s*\((\d+(?:\.\d+)?)\s*g\s*\)$/i);
+  if (!m) return name;
+  const baseName = m[1].trim();
+  const baseGrams = parseFloat(m[2]);
+  const total = Math.round(baseGrams + bonus);
+  return `${baseName} · ${total}g (base ${Math.round(baseGrams)}g + ${bonus}g)`;
 }
 function isLunchCarbSources(sources: (keyof typeof MB_FOODS)[] | string[], meal: MealType): boolean {
   if (meal !== "lunch") return false;
