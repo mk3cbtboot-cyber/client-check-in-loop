@@ -43,15 +43,29 @@ function applyLunchBonus(
   meal: MealType,
   proteinBonus: number,
   carbBonus: number,
+  isEggMeal = false,
 ): string {
   if (meal !== "lunch") return qty;
   const isProtein = sources.some((s) => LUNCH_PROTEIN_SOURCES.has(s as string));
   const isCarb = sources.some((s) => LUNCH_CARB_SOURCES.has(s as string));
-  const add = isProtein ? proteinBonus : isCarb ? carbBonus : 0;
+  // Egg-based lunch meals: skip protein bonus (carb bonus still applies).
+  const effectiveProtein = isEggMeal ? 0 : proteinBonus;
+  const add = isProtein ? effectiveProtein : isCarb ? carbBonus : 0;
   if (!add) return qty;
   const m = (qty || "").match(/^(\d+(?:\.\d+)?)\s*g\b(.*)$/i);
   if (m) return `${Math.round(parseFloat(m[1]) + add)}g${m[2] ?? ""} (base ${m[1]}g + ${add}g)`;
   return `${qty} + ${add}g`;
+}
+
+// Bumps trailing "(Ng)" in bread/starch item names, e.g. "100% Rye Crackers (10g)" → "(15g)".
+function bumpBreadName(name: string, add: number): string {
+  if (!add) return name;
+  return name.replace(/\((\d+(?:\.\d+)?)\s*g\)/i, (_full, g) => `(${Math.round(parseFloat(g) + add)}g)`);
+}
+
+function isLunchCarb(sources: (keyof typeof MB_FOODS)[], meal: MealType): boolean {
+  if (meal !== "lunch") return false;
+  return sources.some((s) => LUNCH_CARB_SOURCES.has(s as string));
 }
 
 const OIL_OPTIONS = [
