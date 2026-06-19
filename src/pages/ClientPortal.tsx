@@ -60,6 +60,22 @@ interface ClientState {
   phase2_strict_started_at: string | null;
   phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
+  food_fish: string;
+  food_seafood: string;
+  food_milk_products: string;
+  food_yogurt: string;
+  food_nuts: string;
+  food_meat: string;
+  food_poultry: string;
+  food_cheese: string;
+  food_legumes: string;
+  food_pumpkin_seeds: string;
+  food_sunflower_seeds: string;
+  food_vegetables: string;
+  food_veg_lettuce: string;
+  food_starch: string;
+  food_bread: string;
+  food_fruit: string;
   system_mode: "mb" | "own_practice";
   gender: "female" | "male" | "unspecified" | null;
   batch_cooking_mode: "3-day" | "off";
@@ -330,6 +346,30 @@ export default function ClientPortal() {
 
   const parseList = (s: string | undefined | null) =>
     (s ?? "").split(",").map((x) => x.trim()).filter((x) => x.length > 0);
+
+  const phase2ParsedGroups: { title: string; field: keyof ClientState }[] = [
+    { title: "Fish", field: "food_fish" },
+    { title: "Seafood", field: "food_seafood" },
+    { title: "Milk Products", field: "food_milk_products" },
+    { title: "Yogurt", field: "food_yogurt" },
+    { title: "Nuts", field: "food_nuts" },
+    { title: "Meat", field: "food_meat" },
+    { title: "Poultry", field: "food_poultry" },
+    { title: "Cheese", field: "food_cheese" },
+    { title: "Legumes", field: "food_legumes" },
+    { title: "Pumpkin Seeds", field: "food_pumpkin_seeds" },
+    { title: "Sunflower Seeds", field: "food_sunflower_seeds" },
+    { title: "Vegetables", field: "food_vegetables" },
+    { title: "Veg./Lettuce", field: "food_veg_lettuce" },
+    { title: "Starch", field: "food_starch" },
+    { title: "Bread", field: "food_bread" },
+    { title: "Fruit", field: "food_fruit" },
+  ];
+
+  const categoriesFromFields = (groups: { title: string; field: keyof ClientState }[]) =>
+    groups
+      .map((g) => ({ title: g.title, items: parseList(client?.[g.field] as string | undefined) }))
+      .filter((g) => g.items.length > 0);
 
   const phase3ExtrasForSources = (sources: (keyof typeof MB_FOODS)[]): string[] => {
     if (!client) return [];
@@ -1178,6 +1218,37 @@ export default function ClientPortal() {
                 const populated = groups
                   .map((g) => ({ title: g.title, items: parseList(client[g.field] as string) }))
                   .filter((g) => g.items.length > 0);
+                if (client.phase === "phase4") {
+                  const phase2Populated = categoriesFromFields(phase2ParsedGroups);
+                  const renderReadonlySection = (items: { title: string; items: string[] }[]) => (
+                    items.length > 0 ? (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {items.map((cat) => (
+                          <Card key={cat.title} className="p-4">
+                            <p className="font-medium mb-2">{cat.title}</p>
+                            <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                              {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                            </ul>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <Card className="p-4 text-sm text-muted-foreground">No data available</Card>
+                    )
+                  );
+                  return (
+                    <div className="space-y-6">
+                      <div className="space-y-3">
+                        <p className="font-medium">Phase 2 Food List</p>
+                        {renderReadonlySection(phase2Populated)}
+                      </div>
+                      <div className="space-y-3">
+                        <p className="font-medium">Phase 3 Food List</p>
+                        {renderReadonlySection(populated)}
+                      </div>
+                    </div>
+                  );
+                }
                 if (populated.length === 0) {
                   return (
                     <Card className="p-6 text-center space-y-2">
@@ -1190,31 +1261,7 @@ export default function ClientPortal() {
                 }
                 return (
                   <div className="space-y-6">
-                    {client.phase === "phase4" && planCategories.length > 0 && (
-                      <div className="space-y-3">
-                        <div>
-                          <p className="font-medium">Phase 2 — Personal Food List</p>
-                          <p className="text-xs text-muted-foreground">Read-only shopping reference.</p>
-                        </div>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          {planCategories.map((cat) => (
-                            <Card key={`p2-${cat.title}`} className="p-4">
-                              <p className="font-medium mb-2">{cat.title}</p>
-                              <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                                {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
-                              </ul>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                     <div className="space-y-3">
-                      {client.phase === "phase4" && (
-                        <div>
-                          <p className="font-medium">Phase 3 — Extended Food List</p>
-                          <p className="text-xs text-muted-foreground">Read-only shopping reference.</p>
-                        </div>
-                      )}
                       <div className="grid gap-4 md:grid-cols-2">
                         {populated.map((cat) => (
                           <Card key={cat.title} className="p-4">
