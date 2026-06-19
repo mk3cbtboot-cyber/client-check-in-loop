@@ -52,6 +52,21 @@ interface Props {
   onPlanChanged?: (plan: WeeklyPlan | null) => void;
   oilAllowed?: boolean;
   batchCookingMode?: "3-day" | "off";
+  lunchProteinBonus?: number;
+  lunchCarbBonus?: number;
+}
+
+const LUNCH_PROTEIN_SOURCES = new Set(["poultry", "fish", "seafood", "meat", "cheese", "legumes"]);
+const LUNCH_CARB_SOURCES = new Set(["bread", "starch"]);
+function applyLunchBonus(qty: string, sources: string[], meal: MealType, proteinBonus: number, carbBonus: number): string {
+  if (meal !== "lunch") return qty;
+  const isProtein = sources.some((s) => LUNCH_PROTEIN_SOURCES.has(s));
+  const isCarb = sources.some((s) => LUNCH_CARB_SOURCES.has(s));
+  const add = isProtein ? proteinBonus : isCarb ? carbBonus : 0;
+  if (!add) return qty;
+  const m = (qty || "").match(/^(\d+(?:\.\d+)?)\s*g\b(.*)$/i);
+  if (m) return `${Math.round(parseFloat(m[1]) + add)}g${m[2] ?? ""} (+${add}g)`;
+  return `${qty} + ${add}g`;
 }
 
 const MEALS: MealType[] = ["breakfast", "lunch", "dinner"];
@@ -95,7 +110,7 @@ function categoryForSources(sources: (keyof typeof MB_FOODS)[]): string {
   return "Other";
 }
 
-export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, eggsMaxPerWeek = null, onPlanChanged, oilAllowed = false, batchCookingMode = "3-day" }: Props) {
+export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, eggsMaxPerWeek = null, onPlanChanged, oilAllowed = false, batchCookingMode = "3-day", lunchProteinBonus = 0, lunchCarbBonus = 0 }: Props) {
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<WeeklyPlan | null>(null);
   const [weekStart, setWeekStart] = useState<string>("");
@@ -498,7 +513,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
                         >
                           <span className="text-xs">
                             {c.label}
-                            {c.qty && <span className="text-muted-foreground"> · {c.qty}</span>}
+                            {c.qty && <span className="text-muted-foreground"> · {applyLunchBonus(c.qty, c.sources as string[], m, lunchProteinBonus, lunchCarbBonus)}</span>}
                           </span>
                           <span className="text-xs font-medium">{chosen ?? "Choose"}</span>
                         </Button>

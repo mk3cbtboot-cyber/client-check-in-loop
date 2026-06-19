@@ -934,6 +934,8 @@ export default function ClientPortal() {
                                 filteredSources={filteredSources}
                                 onLogged={refetchAll}
                                 fullScreenOnSelect
+                                lunchProteinBonus={client.phase === "phase3" ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
+                                lunchCarbBonus={client.phase === "phase3" ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
                               />
                             )}
                           </div>
@@ -969,6 +971,8 @@ export default function ClientPortal() {
                           filteredSources={filteredSources}
                           onLogged={refetchAll}
                           blockGeneration={block}
+                          lunchProteinBonus={client.phase === "phase3" ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
+                          lunchCarbBonus={client.phase === "phase3" ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
                         />
                       );
                     })()}
@@ -988,6 +992,8 @@ export default function ClientPortal() {
                         extraComponents={buildExtras(altOption)}
                         filteredSources={filteredSources}
                         onLogged={refetchAll}
+                        lunchProteinBonus={client.phase === "phase3" ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
+                        lunchCarbBonus={client.phase === "phase3" ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
                       />
                     )}
                   </div>
@@ -1429,6 +1435,8 @@ export default function ClientPortal() {
               onPlanChanged={(p) => setWeeklyPlan(p)}
               oilAllowed={oilAllowed(client.phase)}
               batchCookingMode={client.batch_cooking_mode ?? "3-day"}
+              lunchProteinBonus={client.phase === "phase3" ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
+              lunchCarbBonus={client.phase === "phase3" ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
             />
 
           )}
