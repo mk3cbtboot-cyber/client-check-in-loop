@@ -1102,10 +1102,11 @@ export default function ClientPortal() {
                   {client.phase === "phase3" && (client.phase3_mode === "mb_standard"
                     ? "You are in the Relaxed Conversion Phase. Your personal food list has been expanded as part of your Metabolic Balance plan. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week."
                     : "You are in the Relaxed Conversion Phase. Your food list has been expanded by your practitioner. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week.")}
+                  {client.phase === "phase4" && "You are in the Maintenance Phase. Your Phase 3 food list is shown below as a read-only shopping reference. The 8 Rules are now your lifestyle."}
                 </p>
               </Card>
 
-              {client.phase === "phase3" ? (() => {
+              {(client.phase === "phase3" || client.phase === "phase4") ? (() => {
                 const groups: { title: string; field: keyof ClientState }[] = [
                   { title: "Fish", field: "phase3_mb_fish" },
                   { title: "Seafood", field: "phase3_mb_seafood" },
