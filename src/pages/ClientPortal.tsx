@@ -60,6 +60,22 @@ interface ClientState {
   phase2_strict_started_at: string | null;
   phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
+  food_fish: string;
+  food_seafood: string;
+  food_milk_products: string;
+  food_yogurt: string;
+  food_nuts: string;
+  food_meat: string;
+  food_poultry: string;
+  food_cheese: string;
+  food_legumes: string;
+  food_pumpkin_seeds: string;
+  food_sunflower_seeds: string;
+  food_vegetables: string;
+  food_veg_lettuce: string;
+  food_starch: string;
+  food_bread: string;
+  food_fruit: string;
   system_mode: "mb" | "own_practice";
   gender: "female" | "male" | "unspecified" | null;
   batch_cooking_mode: "3-day" | "off";
@@ -330,6 +346,30 @@ export default function ClientPortal() {
 
   const parseList = (s: string | undefined | null) =>
     (s ?? "").split(",").map((x) => x.trim()).filter((x) => x.length > 0);
+
+  const phase2ParsedGroups: { title: string; field: keyof ClientState }[] = [
+    { title: "Fish", field: "food_fish" },
+    { title: "Seafood", field: "food_seafood" },
+    { title: "Milk Products", field: "food_milk_products" },
+    { title: "Yogurt", field: "food_yogurt" },
+    { title: "Nuts", field: "food_nuts" },
+    { title: "Meat", field: "food_meat" },
+    { title: "Poultry", field: "food_poultry" },
+    { title: "Cheese", field: "food_cheese" },
+    { title: "Legumes", field: "food_legumes" },
+    { title: "Pumpkin Seeds", field: "food_pumpkin_seeds" },
+    { title: "Sunflower Seeds", field: "food_sunflower_seeds" },
+    { title: "Vegetables", field: "food_vegetables" },
+    { title: "Veg./Lettuce", field: "food_veg_lettuce" },
+    { title: "Starch", field: "food_starch" },
+    { title: "Bread", field: "food_bread" },
+    { title: "Fruit", field: "food_fruit" },
+  ];
+
+  const categoriesFromFields = (groups: { title: string; field: keyof ClientState }[]) =>
+    groups
+      .map((g) => ({ title: g.title, items: parseList(client?.[g.field] as string | undefined) }))
+      .filter((g) => g.items.length > 0);
 
   const phase3ExtrasForSources = (sources: (keyof typeof MB_FOODS)[]): string[] => {
     if (!client) return [];
