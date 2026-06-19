@@ -668,7 +668,7 @@ export default function ClientPortal() {
                 Your practitioner will upload your personalised Metabolic Balance plan here.
               </p>
             </Card>
-          ) : client.batch_cooking_mode !== "off" && !weekConfirmed ? (
+          ) : client.phase !== "phase4" && client.batch_cooking_mode !== "off" && !weekConfirmed ? (
             <Card className="p-6 text-center space-y-4">
               <p className="text-sm text-muted-foreground">
                 Before generating recipes, please head to Meal Planner to select your meals for the week and build your shopping list. Your recipe generator will then be loaded with your chosen foods for the week.
