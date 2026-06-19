@@ -1218,6 +1218,37 @@ export default function ClientPortal() {
                 const populated = groups
                   .map((g) => ({ title: g.title, items: parseList(client[g.field] as string) }))
                   .filter((g) => g.items.length > 0);
+                if (client.phase === "phase4") {
+                  const phase2Populated = categoriesFromFields(phase2ParsedGroups);
+                  const renderReadonlySection = (items: { title: string; items: string[] }[]) => (
+                    items.length > 0 ? (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {items.map((cat) => (
+                          <Card key={cat.title} className="p-4">
+                            <p className="font-medium mb-2">{cat.title}</p>
+                            <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                              {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                            </ul>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <Card className="p-4 text-sm text-muted-foreground">No data available</Card>
+                    )
+                  );
+                  return (
+                    <div className="space-y-6">
+                      <div className="space-y-3">
+                        <p className="font-medium">Phase 2 Food List</p>
+                        {renderReadonlySection(phase2Populated)}
+                      </div>
+                      <div className="space-y-3">
+                        <p className="font-medium">Phase 3 Food List</p>
+                        {renderReadonlySection(populated)}
+                      </div>
+                    </div>
+                  );
+                }
                 if (populated.length === 0) {
                   return (
                     <Card className="p-6 text-center space-y-2">
@@ -1230,24 +1261,6 @@ export default function ClientPortal() {
                 }
                 return (
                   <div className="space-y-6">
-                    {client.phase === "phase4" && planCategories.length > 0 && (
-                      <div className="space-y-3">
-                        <div>
-                          <p className="font-medium">Phase 2 — Personal Food List</p>
-                          <p className="text-xs text-muted-foreground">Read-only shopping reference.</p>
-                        </div>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          {planCategories.map((cat) => (
-                            <Card key={`p2-${cat.title}`} className="p-4">
-                              <p className="font-medium mb-2">{cat.title}</p>
-                              <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                                {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
-                              </ul>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                     <div className="space-y-3">
                       {client.phase === "phase4" && (
                         <div>
