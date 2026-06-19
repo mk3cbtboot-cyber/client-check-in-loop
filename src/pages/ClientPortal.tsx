@@ -152,7 +152,7 @@ export default function ClientPortal() {
       setWeightUnit(data.client.weight_unit || "kg");
       setLengthUnit(data.client.length_unit || "cm");
       setLatestWeightKg(data.client.latest_weight_kg ?? null);
-      if (data.client.welcome_seen === false) setWelcomeOpen(true);
+      if (data.client.welcome_seen === false && data.client.phase !== "phase4") setWelcomeOpen(true);
     } else if (data?.archived) {
       setArchived(true);
     }
@@ -575,7 +575,7 @@ export default function ClientPortal() {
 
 
       {tab === "home" && client.phase === "phase4" && (
-        <section className="max-w-3xl mx-auto p-4 space-y-4">
+        <section className="max-w-3xl mx-auto p-4 pb-0 space-y-4">
           <Card className="p-6 space-y-3">
             <h2 className="text-lg font-semibold">Congratulations {client.name.split(/\s+/)[0]}!!</h2>
             <p className="text-sm leading-relaxed">
@@ -590,8 +590,10 @@ export default function ClientPortal() {
         </section>
       )}
 
-      {tab === "home" && client.phase !== "phase4" && (
+      {tab === "home" && (
         <section className="max-w-5xl mx-auto p-4 space-y-6">
+          {client.phase !== "phase4" && (
+            <>
           {/* Trackers */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {Object.entries(foodLimits)
@@ -650,6 +652,8 @@ export default function ClientPortal() {
               </ol>
             </Card>
           ) : null}
+            </>
+          )}
 
           {!recipeBuilderEnabled(client.phase) ? (
             <Card className="p-6 text-center">
@@ -657,14 +661,14 @@ export default function ClientPortal() {
                 The recipe builder is not available during Phase 1. Focus on the meal structure in your My Plan tab.
               </p>
             </Card>
-          ) : client.batch_cooking_mode === "off" && !client.mb_pdf_path ? (
+          ) : client.phase !== "phase4" && client.batch_cooking_mode === "off" && !client.mb_pdf_path ? (
             <Card className="p-6 text-center space-y-4">
               <p className="font-medium">No meal plan uploaded yet</p>
               <p className="text-sm text-muted-foreground">
                 Your practitioner will upload your personalised Metabolic Balance plan here.
               </p>
             </Card>
-          ) : client.batch_cooking_mode !== "off" && !weekConfirmed ? (
+          ) : client.phase !== "phase4" && client.batch_cooking_mode !== "off" && !weekConfirmed ? (
             <Card className="p-6 text-center space-y-4">
               <p className="text-sm text-muted-foreground">
                 Before generating recipes, please head to Meal Planner to select your meals for the week and build your shopping list. Your recipe generator will then be loaded with your chosen foods for the week.
@@ -675,7 +679,7 @@ export default function ClientPortal() {
             <>
               <Card className="p-3 border-primary/40 bg-primary/5">
                 <p className="text-xs text-primary">
-                  {client?.batch_cooking_mode === "off"
+                  {(client?.batch_cooking_mode === "off" || client.phase === "phase4")
                     ? "Your meal plan is set — generate a fresh recipe whenever you're ready to cook."
                     : "Your weekly meal plan is set — recipe options are limited to the foods you selected for this week."}
                 </p>
@@ -698,7 +702,7 @@ export default function ClientPortal() {
                 const hidePrimary = isSplit && primaryLogCount >= primaryDays;
                 const primaryOption = primaryId != null ? MB_OPTIONS[meal].find((o) => o.id === primaryId) ?? null : null;
                 const altOption = altId != null ? MB_OPTIONS[meal].find((o) => o.id === altId) ?? null : null;
-                const batchMode = ((client as any).batch_cooking_mode ?? "3-day") as "3-day" | "off";
+                const batchMode = (client.phase === "phase4" ? "off" : (((client as any).batch_cooking_mode ?? "3-day"))) as "3-day" | "off";
                 const batchActive = (start: string | null | undefined): boolean => {
                   if (!start) return false;
                   const s = new Date(start + "T00:00:00Z").getTime();
@@ -1082,19 +1086,6 @@ export default function ClientPortal() {
                 Your full personal food list will be available when you move to Phase 2.
               </p>
             </div>
-          ) : client.phase === "phase4" ? (
-            <Card className="p-6 space-y-2">
-              <p className="font-medium">Phase 4 — Maintenance</p>
-              <p className="text-sm text-muted-foreground">
-                You are in the Maintenance Phase. The 8 Rules are now your lifestyle. Continue making mindful food choices and stay in touch with your practitioner.
-              </p>
-              <div className="pt-3">
-                <p className="font-medium text-foreground text-sm mb-2">The 8 Metabolic Balance Rules</p>
-                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
-                  {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
-                </ol>
-              </div>
-            </Card>
           ) : (
             <>
               <Card className="p-6 space-y-3">
@@ -1111,10 +1102,11 @@ export default function ClientPortal() {
                   {client.phase === "phase3" && (client.phase3_mode === "mb_standard"
                     ? "You are in the Relaxed Conversion Phase. Your personal food list has been expanded as part of your Metabolic Balance plan. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week."
                     : "You are in the Relaxed Conversion Phase. Your food list has been expanded by your practitioner. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week.")}
+                  {client.phase === "phase4" && "You are in the Maintenance Phase. Your Phase 3 food list is shown below as a read-only shopping reference. The 8 Rules are now your lifestyle."}
                 </p>
               </Card>
 
-              {client.phase === "phase3" ? (() => {
+              {(client.phase === "phase3" || client.phase === "phase4") ? (() => {
                 const groups: { title: string; field: keyof ClientState }[] = [
                   { title: "Fish", field: "phase3_mb_fish" },
                   { title: "Seafood", field: "phase3_mb_seafood" },
@@ -1172,7 +1164,7 @@ export default function ClientPortal() {
         </section>
       )}
 
-      {tab === "planner" && (
+      {tab === "planner" && client.phase !== "phase4" && (
         <section className="max-w-5xl mx-auto p-4">
           {client.phase === "phase1" ? (
             <Card className="p-6 text-sm text-muted-foreground">
@@ -1230,14 +1222,16 @@ export default function ClientPortal() {
 
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 inset-x-0 border-t bg-background">
-        <div className="max-w-5xl mx-auto grid grid-cols-5">
-          {([
+        <div className={`max-w-5xl mx-auto grid ${client.phase === "phase4" ? "grid-cols-4" : "grid-cols-5"}`}>
+          {(([
             { key: "home", label: "Home", Icon: Home },
             { key: "planner", label: "Meal Planner", Icon: CalendarDays },
             { key: "checkin", label: "Check-in", Icon: ClipboardCheck },
             { key: "plan", label: "My Plan", Icon: BookOpen },
             { key: "messages", label: "Messages", Icon: MessageCircle },
-          ] as { key: TabKey; label: string; Icon: typeof Home }[]).map(({ key, label, Icon }) => {
+          ] as { key: TabKey; label: string; Icon: typeof Home }[])
+            .filter(({ key }) => !(client.phase === "phase4" && key === "planner"))
+          ).map(({ key, label, Icon }) => {
             const active = tab === key;
             const showBadge = key === "messages" && unreadMessages > 0;
             return (
