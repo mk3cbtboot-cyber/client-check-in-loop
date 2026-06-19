@@ -354,6 +354,8 @@ export default function MealRecipeSection({
         {allComponents.map((comp) => {
           const items = restrictedItems(comp.sources, comp.key);
           const showOilBefore = oilAllow && comp.key === "fruit";
+          const eggMeal = !!optionDef.fixed?.some((f) => /egg/i.test(f.label));
+          const carbAdd = isLunchCarb(comp.sources, meal) ? lunchCarbBonus : 0;
           return (
             <div key={comp.key} className="space-y-3">
               {showOilBefore && (
@@ -369,7 +371,7 @@ export default function MealRecipeSection({
                 </div>
               )}
               <div className="space-y-1">
-                <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {applyLunchBonus(comp.qty, comp.sources, meal, lunchProteinBonus, lunchCarbBonus)}</span>}</Label>
+                <Label>{comp.label}{comp.qty && <span className="text-muted-foreground font-normal"> · {applyLunchBonus(comp.qty, comp.sources, meal, lunchProteinBonus, lunchCarbBonus, eggMeal)}</span>}</Label>
                 <Select
                   value={picks[comp.key] ?? ""}
                   onValueChange={(v) => {
@@ -381,14 +383,18 @@ export default function MealRecipeSection({
                     setPicks((p) => ({ ...p, [comp.key]: v }));
                   }}
                 >
-                  <SelectTrigger><SelectValue placeholder={comp.optional ? "Optional" : "Select…"} /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder={comp.optional ? "Optional" : "Select…"}>
+                      {picks[comp.key] ? bumpBreadName(picks[comp.key], carbAdd) : null}
+                    </SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     {items.map((i) => {
                       const limitedKey = limitedKeyForLabel(i);
                       const disabled = !!limitedKey;
                       return (
                         <SelectItem key={i} value={i} disabled={disabled} className={disabled ? "opacity-50" : undefined}>
-                          {i}{disabled ? " (limit reached)" : ""}
+                          {bumpBreadName(i, carbAdd)}{disabled ? " (limit reached)" : ""}
                         </SelectItem>
                       );
                     })}
