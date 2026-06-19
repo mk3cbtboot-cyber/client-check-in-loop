@@ -65,7 +65,10 @@ interface ClientState {
   batch_cooking_mode: "3-day" | "off";
   welcome_seen: boolean;
   practitioner_first_name?: string;
+  phase4_start_date?: string | null;
+  phase4_appointments?: Array<{ id: string; title: string; scheduled_at: string; status: string | null }>;
 }
+
 
 type TabKey = "home" | "checkin" | "plan" | "planner" | "messages";
 
@@ -553,6 +556,47 @@ export default function ClientPortal() {
     return resolvePhase2Categories(client.phase2_food_list);
   })();
 
+  // Phase 4 — check-in is only open in the 7 days before each scheduled check-in appointment.
+  const phase4CheckinState: {
+    enabled: boolean;
+    inWindow: boolean;
+    nextOpensAt: Date | null;
+    nextAppointmentTitle: string | null;
+    nextAppointmentAt: Date | null;
+  } = (() => {
+    if (client.phase !== "phase4") {
+      return { enabled: false, inWindow: true, nextOpensAt: null, nextAppointmentTitle: null, nextAppointmentAt: null };
+    }
+    const now = new Date();
+    const appts = (client.phase4_appointments ?? [])
+      .filter((a) => /check-?in/i.test(a.title) && a.status !== "attended")
+      .map((a) => ({ ...a, at: new Date(a.scheduled_at) }))
+      .filter((a) => !isNaN(a.at.getTime()))
+      .sort((a, b) => a.at.getTime() - b.at.getTime());
+    // Find an appointment whose window contains now: [scheduled - 7d, scheduled]
+    const current = appts.find((a) => {
+      const opens = new Date(a.at.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return now >= opens && now <= a.at;
+    });
+    if (current) {
+      return { enabled: true, inWindow: true, nextOpensAt: null, nextAppointmentTitle: current.title, nextAppointmentAt: current.at };
+    }
+    const upcoming = appts.find((a) => a.at.getTime() > now.getTime());
+    if (upcoming) {
+      return {
+        enabled: true, inWindow: false,
+        nextOpensAt: new Date(upcoming.at.getTime() - 7 * 24 * 60 * 60 * 1000),
+        nextAppointmentTitle: upcoming.title,
+        nextAppointmentAt: upcoming.at,
+      };
+    }
+    return { enabled: true, inWindow: false, nextOpensAt: null, nextAppointmentTitle: null, nextAppointmentAt: null };
+  })();
+  const phase4CheckinHidden = client.phase === "phase4" && !phase4CheckinState.inWindow;
+  const fmtDate = (d: Date) => d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+
+
+
   return (
     <main className="min-h-screen bg-background pb-24">
       <ClientWelcome open={welcomeOpen} clientName={client.name} onDismiss={dismissWelcome} />
@@ -847,7 +891,20 @@ export default function ClientPortal() {
 
 
 
-      {tab === "checkin" && (
+      {tab === "checkin" && phase4CheckinHidden && (
+        <section className="max-w-md mx-auto p-4">
+          <Card className="p-6 text-center space-y-2">
+            <p className="font-medium">Check-in is currently closed</p>
+            <p className="text-sm text-muted-foreground">
+              {phase4CheckinState.nextOpensAt && phase4CheckinState.nextAppointmentTitle
+                ? `Your next check-in opens ${fmtDate(phase4CheckinState.nextOpensAt)} — one week before your ${phase4CheckinState.nextAppointmentTitle}.`
+                : "You have no upcoming check-in appointments scheduled."}
+            </p>
+          </Card>
+        </section>
+      )}
+      {tab === "checkin" && !phase4CheckinHidden && (
+
         <section className="max-w-md mx-auto p-4">
           {checkinDone ? (
             <Card className="p-6 text-center space-y-3">
@@ -1132,18 +1189,47 @@ export default function ClientPortal() {
                   );
                 }
                 return (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {populated.map((cat) => (
-                      <Card key={cat.title} className="p-4">
-                        <p className="font-medium mb-2">{cat.title}</p>
-                        <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                          {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
-                        </ul>
-                      </Card>
-                    ))}
+                  <div className="space-y-6">
+                    {client.phase === "phase4" && planCategories.length > 0 && (
+                      <div className="space-y-3">
+                        <div>
+                          <p className="font-medium">Phase 2 — Personal Food List</p>
+                          <p className="text-xs text-muted-foreground">Read-only shopping reference.</p>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {planCategories.map((cat) => (
+                            <Card key={`p2-${cat.title}`} className="p-4">
+                              <p className="font-medium mb-2">{cat.title}</p>
+                              <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                                {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                              </ul>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="space-y-3">
+                      {client.phase === "phase4" && (
+                        <div>
+                          <p className="font-medium">Phase 3 — Extended Food List</p>
+                          <p className="text-xs text-muted-foreground">Read-only shopping reference.</p>
+                        </div>
+                      )}
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {populated.map((cat) => (
+                          <Card key={cat.title} className="p-4">
+                            <p className="font-medium mb-2">{cat.title}</p>
+                            <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                              {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                            </ul>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 );
               })() : (
+
                 <div className="grid gap-4 md:grid-cols-2">
                   {planCategories.map((cat) => (
                     <Card key={cat.title} className="p-4">
@@ -1222,8 +1308,8 @@ export default function ClientPortal() {
 
       {/* Bottom navigation */}
       <nav className="fixed bottom-0 inset-x-0 border-t bg-background">
-        <div className={`max-w-5xl mx-auto grid ${client.phase === "phase4" ? "grid-cols-4" : "grid-cols-5"}`}>
-          {(([
+        {(() => {
+          const navItems = ([
             { key: "home", label: "Home", Icon: Home },
             { key: "planner", label: "Meal Planner", Icon: CalendarDays },
             { key: "checkin", label: "Check-in", Icon: ClipboardCheck },
@@ -1231,7 +1317,10 @@ export default function ClientPortal() {
             { key: "messages", label: "Messages", Icon: MessageCircle },
           ] as { key: TabKey; label: string; Icon: typeof Home }[])
             .filter(({ key }) => !(client.phase === "phase4" && key === "planner"))
-          ).map(({ key, label, Icon }) => {
+            .filter(({ key }) => !(phase4CheckinHidden && key === "checkin"));
+          return (
+        <div className={`max-w-5xl mx-auto grid`} style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}>
+          {navItems.map(({ key, label, Icon }) => {
             const active = tab === key;
             const showBadge = key === "messages" && unreadMessages > 0;
             return (
@@ -1256,7 +1345,10 @@ export default function ClientPortal() {
             );
           })}
         </div>
+          );
+        })()}
       </nav>
+
 
       <Dialog open={!!eggLogConfirm} onOpenChange={(o) => !o && setEggLogConfirm(null)}>
         <DialogContent className="max-w-sm">

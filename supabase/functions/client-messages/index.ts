@@ -371,6 +371,42 @@ Deno.serve(async (req) => {
             return `- ${label} (no meal selected — available options):\n${optionLines}`;
           };
 
+          // Build a Phase 2 personal food list summary (parsed from PDF) for inclusion in plan context.
+          const phase2Cats = Array.isArray(f.phase2_food_list)
+            ? (f.phase2_food_list as any[])
+                .filter((c) => c && typeof c.title === "string" && Array.isArray(c.items))
+                .map((c) => ({ title: String(c.title), items: (c.items as unknown[]).filter((i) => typeof i === "string") as string[] }))
+            : [];
+          const phase2Summary = phase2Cats.length
+            ? phase2Cats.map((c) => `  - ${c.title}: ${c.items.join(", ")}`).join("\n")
+            : "  (no Phase 2 food list parsed)";
+
+          // Phase 3 extended list (oils included).
+          const phase3Pairs: Array<[string, string]> = [
+            ["Fish", list(f.phase3_mb_fish)],
+            ["Seafood", list(f.phase3_mb_seafood)],
+            ["Meat", list(f.phase3_mb_meat)],
+            ["Cheese", list(f.phase3_mb_cheese)],
+            ["Legumes", list(f.phase3_mb_legumes)],
+            ["Vegetables", list(f.phase3_mb_vegetables)],
+            ["Veg/Lettuce", list(f.phase3_mb_veg_lettuce)],
+            ["Sprouts", list(f.phase3_mb_sprouts)],
+            ["Oils (Cold-Pressed)", list(f.phase3_mb_fat_oil)],
+          ];
+          const phase3Summary = phase3Pairs.filter(([, v]) => v).map(([k, v]) => `  - ${k}: ${v}`).join("\n")
+            || "  (no Phase 3 extended list parsed)";
+
+          const MB_RULES_TEXT = [
+            "1. Eat only 3 meals a day with no snacks in between.",
+            "2. Leave at least 5 hours between meals.",
+            "3. Do not eat for longer than 60 minutes per meal.",
+            "4. Start every meal with a bite of protein.",
+            "5. Eat only one type of protein per meal.",
+            "6. Eat one piece of fruit with every meal (eaten last).",
+            "7. Drink 2.5+ litres of still water or unsweetened tea per day.",
+            "8. Finish your last meal before 9pm.",
+          ].join("\n");
+
           const planSummary = [
             `Client name: ${f.name ?? "(unknown)"}`,
             `Phase: ${f.phase ?? "(unknown)"}`,
@@ -388,24 +424,39 @@ Deno.serve(async (req) => {
               ? `Weekly food limits: ${JSON.stringify(f.food_limits)}` : "",
             f.food_limit_counts && Object.keys(f.food_limit_counts).length
               ? `Used this week: ${JSON.stringify(f.food_limit_counts)}` : "",
+            "",
+            "PHASE 2 — PERSONAL FOOD LIST (parsed from the client's MB PDF):",
+            phase2Summary,
+            "",
+            "PHASE 3 — EXTENDED FOOD LIST (parsed from the client's MB PDF, includes oils):",
+            phase3Summary,
+            "",
+            "THE 8 METABOLIC BALANCE RULES (apply at all times):",
+            MB_RULES_TEXT,
+            "",
+            "TREAT MEAL GUIDANCE: Phase 2 Extended allows up to 1 treat meal per week. Phase 3 allows up to 1 treat meal per week. Phase 4 (Maintenance) allows up to 3 treat meals per week.",
           ].filter(Boolean).join("\n");
 
           const systemPrompt = [
             "You are the AI assistant for a Metabolic Balance nutrition practitioner, answering the client's question about their personal plan.",
-            "Answer ONLY from the client's parsed meal plan data provided below. Do NOT infer, speculate, or suggest anything not explicitly in the plan.",
-            "When a client asks about a specific food, find which meal slot(s) in their plan contain that food category. Report only those slots and the exact portion specified in the plan for that slot.",
+            "Answer ONLY from the client's parsed meal plan data provided below (meal slots, Phase 2 list, Phase 3 list, 8 Rules, treat meal guidance). Do NOT infer, speculate, or suggest anything not in this data.",
+            "When a client asks about a specific food, find which meal slot(s) or food list contain that food category. Report only those slots/lists and the exact portion specified.",
             "NEVER suggest that a food in one meal slot can substitute for a food in a different meal slot or category. Do NOT compare proteins to dairy, seeds, or any other category.",
-            "If a food category has multiple options (e.g., poultry = chicken breast or turkey breast), list the options and the single portion that applies to that slot. The portion is the same regardless of which option the client chooses.",
-            "If the food is not in the client's plan at all, say so plainly: \"That food is not in your meal plan.\"",
+            "If a food category has multiple options, list the options and the single portion that applies. The portion is the same regardless of which option the client chooses.",
+            "If the food is genuinely not anywhere in the client's plan, say so plainly: \"That food is not in your meal plan.\"",
             "Be specific: name the foods and quantities from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
             isPhase4
-              ? "This client is in Phase 4 — Maintenance. Use their Phase 3 plan (including oils) as the food reference. Treat meals are allowed up to 3 per week. The 8 Metabolic Balance Rules continue to apply. If the client's plan contains explicit Phase 4 instructions, follow those. Otherwise apply the general maintenance principle: the client has completed the program and should continue applying everything they learned — keep guidance supportive and consistent with their Phase 3 foundation."
+              ? "This client is in Phase 4 — Maintenance. They have completed the program. Use their Phase 2 personal food list, Phase 3 extended list (including oils), the 8 Metabolic Balance Rules, and treat meal guidance (up to 3 treat meals per week) as your full reference. The PDF data above is comprehensive — answer any question that can be answered from it. NEVER tell the client you've passed their question to the practitioner, NEVER say you'll forward it, and NEVER suggest they wait for a human reply. If the answer truly isn't in the plan data, give the best general Metabolic Balance maintenance guidance consistent with what's in the plan."
               : `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
           ].join(" ");
 
+
           const lovableKey = Deno.env.get("LOVABLE_API_KEY");
           console.log("ai_interceptor: lovableKey present?", !!lovableKey);
-          let aiAnswer = AI_FALLBACK;
+          let aiAnswer = isPhase4
+            ? "I couldn't generate an answer right now — please try again in a moment."
+            : AI_FALLBACK;
+
           if (lovableKey) {
           console.log("ai_interceptor: before AI gateway fetch");
             console.log("ai_interceptor: gateway_request_body", JSON.stringify({
