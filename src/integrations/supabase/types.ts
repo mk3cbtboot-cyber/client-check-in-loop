@@ -159,6 +159,7 @@ export type Database = {
           breakfast_veg_grams: number | null
           client_goal: string
           client_last_read_at: string | null
+          client_type: string
           created_at: string
           current_medications: string
           dinner_protein_category: string | null
@@ -225,6 +226,7 @@ export type Database = {
           phase3_starches: string
           phase3_vegetables: string
           phase4_start_date: string | null
+          plan_format: string
           practitioner_id: string
           practitioner_last_read_at: string | null
           practitioner_notes: string
@@ -247,6 +249,7 @@ export type Database = {
           breakfast_veg_grams?: number | null
           client_goal?: string
           client_last_read_at?: string | null
+          client_type?: string
           created_at?: string
           current_medications?: string
           dinner_protein_category?: string | null
@@ -313,6 +316,7 @@ export type Database = {
           phase3_starches?: string
           phase3_vegetables?: string
           phase4_start_date?: string | null
+          plan_format?: string
           practitioner_id: string
           practitioner_last_read_at?: string | null
           practitioner_notes?: string
@@ -335,6 +339,7 @@ export type Database = {
           breakfast_veg_grams?: number | null
           client_goal?: string
           client_last_read_at?: string | null
+          client_type?: string
           created_at?: string
           current_medications?: string
           dinner_protein_category?: string | null
@@ -401,6 +406,7 @@ export type Database = {
           phase3_starches?: string
           phase3_vegetables?: string
           phase4_start_date?: string | null
+          plan_format?: string
           practitioner_id?: string
           practitioner_last_read_at?: string | null
           practitioner_notes?: string
