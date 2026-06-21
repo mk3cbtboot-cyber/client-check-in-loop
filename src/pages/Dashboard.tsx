@@ -691,7 +691,7 @@ export default function Dashboard() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Client invited — magic link emailed");
-      setName(""); setEmail(""); setGender(""); setHeightCm(""); setNewClientType(null); setOpen(false);
+      setName(""); setEmail(""); setGender(""); setHeightCm(""); setHeightFt(""); setHeightIn(""); setHeightUnit("cm"); setNewClientType(null); setOpen(false);
       await load();
     } catch (err: any) {
       toast.error(err.message ?? "Failed to invite client");
