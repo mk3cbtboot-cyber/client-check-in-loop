@@ -198,6 +198,7 @@ export type Database = {
           mb_meal_options: Json
           mb_pdf_path: string | null
           meal_streak: number
+          meals_per_day: number
           medical_conditions: string
           name: string
           phase: string
@@ -290,6 +291,7 @@ export type Database = {
           mb_meal_options?: Json
           mb_pdf_path?: string | null
           meal_streak?: number
+          meals_per_day?: number
           medical_conditions?: string
           name: string
           phase?: string
@@ -382,6 +384,7 @@ export type Database = {
           mb_meal_options?: Json
           mb_pdf_path?: string | null
           meal_streak?: number
+          meals_per_day?: number
           medical_conditions?: string
           name?: string
           phase?: string
