@@ -1184,10 +1184,10 @@ export default function Dashboard() {
           let streaks = 0, waterHit = 0, attention = 0;
           activeClients.forEach((c) => {
             const list = checkIns[c.id] ?? [];
-            if (computeStreak(list) >= 7) streaks += 1;
-            const today = new Date().toISOString().slice(0, 10);
-            if (c.water_date === today && Number(c.water_today_litres ?? 0) >= 2.5) waterHit += 1;
             const matchesFilter = typeFilter === "all" || (typeFilter === "mb" ? c.client_type === "mb" : c.client_type === "custom");
+            if (matchesFilter && computeStreak(list) >= 7) streaks += 1;
+            const today = new Date().toISOString().slice(0, 10);
+            if (matchesFilter && c.water_date === today && Number(c.water_today_litres ?? 0) >= 2.5) waterHit += 1;
             if (matchesFilter && needsAttention(c, list)) attention += 1;
           });
 
@@ -1245,7 +1245,10 @@ export default function Dashboard() {
                 )}
               </Card>
               {(() => {
-                const unreadClients = activeClients.filter((c) => hasUnreadFromClient(c));
+                const unreadClients = activeClients.filter((c) => {
+                  const matchesFilter = typeFilter === "all" || (typeFilter === "mb" ? c.client_type === "mb" : c.client_type === "custom");
+                  return matchesFilter && hasUnreadFromClient(c);
+                });
                 const unreadCount = unreadClients.length;
                 const items = [
                   {
