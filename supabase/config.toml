@@ -15,3 +15,10 @@ verify_jwt = false
 [functions.parse-mb-pdf]
 verify_jwt = false
 
+[functions.generate-foodlist-recipe]
+verify_jwt = false
+
+[functions.log-foodlist-meal]
+verify_jwt = false
+
+

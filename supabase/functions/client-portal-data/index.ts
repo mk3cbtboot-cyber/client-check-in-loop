@@ -176,7 +176,13 @@ Deno.serve(async (req) => {
         phase3_lunch_carb_bonus: Number(c.phase3_lunch_carb_bonus ?? 0),
         phase3_portions_confirmed: c.phase3_portions_confirmed === true,
         phase3_lunch_prompt_last_dismissed_on: c.phase3_lunch_prompt_last_dismissed_on ?? null,
+        client_type: c.client_type === "custom" ? "custom" : "mb",
+        plan_format: typeof c.plan_format === "string" ? c.plan_format : "recipe",
+        food_list: c.food_list ?? {},
+        food_list_notes: c.food_list_notes ?? {},
+        meals_per_day: Number(c.meals_per_day ?? 3),
       },
+
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (e) {
