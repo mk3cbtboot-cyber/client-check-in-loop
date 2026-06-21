@@ -1332,30 +1332,75 @@ export default function Dashboard() {
                         <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="cgender">Biological Sex (optional)</Label>
+                        <Label htmlFor="cgender">Biological Sex</Label>
                         <select
                           id="cgender"
+                          required
                           className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                           value={gender}
-                          onChange={(e) => setGender(e.target.value as "female" | "male" | "unspecified" | "")}
+                          onChange={(e) => setGender(e.target.value as "female" | "male" | "")}
                         >
-                          <option value="">Not set</option>
+                          <option value="">Select…</option>
                           <option value="male">Male</option>
                           <option value="female">Female</option>
-                          <option value="unspecified">Other</option>
                         </select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="cheight">Height in cm (optional)</Label>
-                        <Input
-                          id="cheight"
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          placeholder="e.g. 168"
-                          value={heightCm}
-                          onChange={(e) => setHeightCm(e.target.value)}
-                        />
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="cheight">Height</Label>
+                          <div className="inline-flex rounded-md border border-input p-0.5 text-xs">
+                            <button
+                              type="button"
+                              className={`px-2 py-0.5 rounded ${heightUnit === "cm" ? "bg-primary text-primary-foreground" : ""}`}
+                              onClick={() => setHeightUnit("cm")}
+                            >cm</button>
+                            <button
+                              type="button"
+                              className={`px-2 py-0.5 rounded ${heightUnit === "ftin" ? "bg-primary text-primary-foreground" : ""}`}
+                              onClick={() => setHeightUnit("ftin")}
+                            >ft / in</button>
+                          </div>
+                        </div>
+                        {heightUnit === "cm" ? (
+                          <Input
+                            id="cheight"
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            required
+                            placeholder="e.g. 175"
+                            value={heightCm}
+                            onChange={(e) => setHeightCm(e.target.value)}
+                          />
+                        ) : (
+                          <div className="flex gap-2">
+                            <div className="flex items-center gap-1 flex-1">
+                              <Input
+                                id="cheight"
+                                type="number"
+                                step="1"
+                                min="0"
+                                required
+                                placeholder="5"
+                                value={heightFt}
+                                onChange={(e) => setHeightFt(e.target.value)}
+                              />
+                              <span className="text-sm text-muted-foreground">ft</span>
+                            </div>
+                            <div className="flex items-center gap-1 flex-1">
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="11.9"
+                                placeholder="10"
+                                value={heightIn}
+                                onChange={(e) => setHeightIn(e.target.value)}
+                              />
+                              <span className="text-sm text-muted-foreground">in</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <Button type="submit" className="w-full" disabled={submitting}>
                         {submitting ? "Sending invite…" : "Add & send invite"}
