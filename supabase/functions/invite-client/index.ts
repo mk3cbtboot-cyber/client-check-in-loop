@@ -48,12 +48,14 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { name, email, system_mode, gender, height_cm } = parsed.data;
+    const { name, email, system_mode, client_type, plan_format, gender, height_cm } = parsed.data;
 
     const admin = createClient(supabaseUrl, serviceKey);
 
     const insertRow: Record<string, unknown> = { practitioner_id: practitionerId, name, email };
     if (system_mode) insertRow.system_mode = system_mode;
+    if (client_type) insertRow.client_type = client_type;
+    if (plan_format) insertRow.plan_format = plan_format;
     if (gender) insertRow.gender = gender;
     if (height_cm != null) insertRow.height_cm = height_cm;
     const { data: client, error: insertErr } = await admin
