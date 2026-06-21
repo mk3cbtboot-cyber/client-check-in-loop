@@ -669,15 +669,24 @@ export default function Dashboard() {
       if (email.trim().toLowerCase() === userEmail.toLowerCase()) {
         throw new Error("You cannot invite yourself as a client");
       }
-      const trimmedHeight = heightCm.trim();
-      const heightNum = trimmedHeight === "" ? null : Number(trimmedHeight);
-      if (heightNum !== null && (!Number.isFinite(heightNum) || heightNum <= 0)) {
-        throw new Error("Please enter a valid height in cm");
+      let heightNum: number | null = null;
+      if (heightUnit === "cm") {
+        const trimmedHeight = heightCm.trim();
+        if (trimmedHeight === "") throw new Error("Height is required");
+        const n = Number(trimmedHeight);
+        if (!Number.isFinite(n) || n <= 0) throw new Error("Please enter a valid height in cm");
+        heightNum = n;
+      } else {
+        const ft = heightFt.trim() === "" ? NaN : Number(heightFt);
+        const inch = heightIn.trim() === "" ? 0 : Number(heightIn);
+        if (!Number.isFinite(ft) || ft <= 0 || !Number.isFinite(inch) || inch < 0) {
+          throw new Error("Please enter a valid height");
+        }
+        heightNum = Math.round((ft * 12 + inch) * 2.54 * 10) / 10;
       }
+      if (!gender) throw new Error("Biological sex is required");
       const system_mode = newClientType === "custom" ? "own_practice" : "mb";
-      const body: Record<string, unknown> = { name, email, system_mode, client_type: newClientType };
-      if (gender) body.gender = gender;
-      if (heightNum !== null) body.height_cm = heightNum;
+      const body: Record<string, unknown> = { name, email, system_mode, client_type: newClientType, gender, height_cm: heightNum };
       const { data, error } = await supabase.functions.invoke("invite-client", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
