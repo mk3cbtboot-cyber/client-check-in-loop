@@ -167,8 +167,11 @@ export default function Dashboard() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [gender, setGender] = useState<"female" | "male" | "unspecified" | "">("");
+  const [gender, setGender] = useState<"female" | "male" | "">("");
   const [heightCm, setHeightCm] = useState<string>("");
+  const [heightUnit, setHeightUnit] = useState<"cm" | "ftin">("cm");
+  const [heightFt, setHeightFt] = useState<string>("");
+  const [heightIn, setHeightIn] = useState<string>("");
   const [newClientType, setNewClientType] = useState<"mb" | "custom" | null>(null);
   const [typeFilter, setTypeFilter] = useState<"all" | "mb" | "custom">("all");
   const [submitting, setSubmitting] = useState(false);
