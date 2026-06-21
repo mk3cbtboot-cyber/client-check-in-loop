@@ -445,41 +445,8 @@ Deno.serve(async (req) => {
             return lines.join("\n");
           };
 
-          // Build a Phase 2 personal food list summary (parsed from PDF) for inclusion in plan context.
-          const phase2Cats = Array.isArray(f.phase2_food_list)
-            ? (f.phase2_food_list as any[])
-                .filter((c) => c && typeof c.title === "string" && Array.isArray(c.items))
-                .map((c) => ({ title: String(c.title), items: (c.items as unknown[]).filter((i) => typeof i === "string") as string[] }))
-            : [];
-          const phase2Summary = phase2Cats.length
-            ? phase2Cats.map((c) => `  - ${c.title}: ${c.items.join(", ")}`).join("\n")
-            : "  (no Phase 2 food list parsed)";
 
-          // Phase 3 extended list (oils included).
-          const phase3Pairs: Array<[string, string]> = [
-            ["Fish", list(f.phase3_mb_fish)],
-            ["Seafood", list(f.phase3_mb_seafood)],
-            ["Meat", list(f.phase3_mb_meat)],
-            ["Cheese", list(f.phase3_mb_cheese)],
-            ["Legumes", list(f.phase3_mb_legumes)],
-            ["Vegetables", list(f.phase3_mb_vegetables)],
-            ["Veg/Lettuce", list(f.phase3_mb_veg_lettuce)],
-            ["Sprouts", list(f.phase3_mb_sprouts)],
-            ["Oils (Cold-Pressed)", list(f.phase3_mb_fat_oil)],
-          ];
-          const phase3Summary = phase3Pairs.filter(([, v]) => v).map(([k, v]) => `  - ${k}: ${v}`).join("\n")
-            || "  (no Phase 3 extended list parsed)";
 
-          const MB_RULES_TEXT = [
-            "1. Eat only 3 meals a day with no snacks in between.",
-            "2. Leave at least 5 hours between meals.",
-            "3. Do not eat for longer than 60 minutes per meal.",
-            "4. Start every meal with a bite of protein.",
-            "5. Eat only one type of protein per meal.",
-            "6. Eat one piece of fruit with every meal (eaten last).",
-            "7. Drink 2.5+ litres of still water or unsweetened tea per day.",
-            "8. Finish your last meal before 9pm.",
-          ].join("\n");
 
           const planSummary = isFoodList
             ? [
