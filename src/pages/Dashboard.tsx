@@ -662,6 +662,7 @@ export default function Dashboard() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      if (!newClientType) throw new Error("Please choose a client type first");
       if (email.trim().toLowerCase() === userEmail.toLowerCase()) {
         throw new Error("You cannot invite yourself as a client");
       }
@@ -670,14 +671,15 @@ export default function Dashboard() {
       if (heightNum !== null && (!Number.isFinite(heightNum) || heightNum <= 0)) {
         throw new Error("Please enter a valid height in cm");
       }
-      const body: Record<string, unknown> = { name, email, system_mode: defaultSystemMode(tier) };
+      const system_mode = newClientType === "custom" ? "own_practice" : "mb";
+      const body: Record<string, unknown> = { name, email, system_mode, client_type: newClientType };
       if (gender) body.gender = gender;
       if (heightNum !== null) body.height_cm = heightNum;
       const { data, error } = await supabase.functions.invoke("invite-client", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Client invited — magic link emailed");
-      setName(""); setEmail(""); setGender(""); setHeightCm(""); setOpen(false);
+      setName(""); setEmail(""); setGender(""); setHeightCm(""); setNewClientType(null); setOpen(false);
       await load();
     } catch (err: any) {
       toast.error(err.message ?? "Failed to invite client");
