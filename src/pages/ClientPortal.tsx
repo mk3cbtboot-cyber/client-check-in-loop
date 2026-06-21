@@ -1526,6 +1526,7 @@ export default function ClientPortal() {
             { key: "plan", label: "My Plan", Icon: BookOpen },
             { key: "messages", label: "Messages", Icon: MessageCircle },
           ] as { key: TabKey; label: string; Icon: typeof Home }[])
+            .filter(({ key }) => !(client.plan_format === "food_list" && key === "planner"))
             .filter(({ key }) => !(client.phase === "phase4" && key === "planner"))
             .filter(({ key }) => !(phase4CheckinHidden && key === "checkin"));
           return (
