@@ -18,27 +18,24 @@ export interface FoodItem {
   portion: string;
   category: FoodCategoryKind;
 }
-export type SlotKey = "breakfast" | "lunch" | "dinner";
-export interface FoodList {
-  breakfast: FoodItem[];
-  lunch: FoodItem[];
-  dinner: FoodItem[];
-}
-export interface FoodListNotes {
-  breakfast: string;
-  lunch: string;
-  dinner: string;
-}
+export type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
+export type FoodList = Record<SlotKey, FoodItem[]>;
+export type FoodListNotes = Record<SlotKey, string>;
 
-const SLOTS: { key: SlotKey; label: string }[] = [
+const ALL_SLOTS: { key: SlotKey; label: string }[] = [
   { key: "breakfast", label: "Breakfast" },
+  { key: "morning_snack", label: "Morning Snack" },
   { key: "lunch", label: "Lunch" },
+  { key: "afternoon_snack", label: "Afternoon Snack" },
   { key: "dinner", label: "Dinner" },
 ];
 const CATEGORIES: FoodCategoryKind[] = ["Protein", "Carbs", "Veg", "Fat", "Other"];
 
-const EMPTY_LIST: FoodList = { breakfast: [], lunch: [], dinner: [] };
-const EMPTY_NOTES: FoodListNotes = { breakfast: "", lunch: "", dinner: "" };
+function visibleSlotKeys(meals: number): SlotKey[] {
+  if (meals === 5) return ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
+  if (meals === 4) return ["breakfast", "lunch", "afternoon_snack", "dinner"];
+  return ["breakfast", "lunch", "dinner"];
+}
 
 function normalizeList(raw: unknown): FoodList {
   const r = (raw ?? {}) as Partial<Record<SlotKey, unknown>>;
@@ -53,14 +50,23 @@ function normalizeList(raw: unknown): FoodList {
           };
         })
       : [];
-  return { breakfast: slot(r.breakfast), lunch: slot(r.lunch), dinner: slot(r.dinner) };
+  return {
+    breakfast: slot(r.breakfast),
+    morning_snack: slot(r.morning_snack),
+    lunch: slot(r.lunch),
+    afternoon_snack: slot(r.afternoon_snack),
+    dinner: slot(r.dinner),
+  };
 }
 function normalizeNotes(raw: unknown): FoodListNotes {
   const r = (raw ?? {}) as Partial<Record<SlotKey, unknown>>;
+  const s = (v: unknown) => (typeof v === "string" ? v : "");
   return {
-    breakfast: typeof r.breakfast === "string" ? r.breakfast : "",
-    lunch: typeof r.lunch === "string" ? r.lunch : "",
-    dinner: typeof r.dinner === "string" ? r.dinner : "",
+    breakfast: s(r.breakfast),
+    morning_snack: s(r.morning_snack),
+    lunch: s(r.lunch),
+    afternoon_snack: s(r.afternoon_snack),
+    dinner: s(r.dinner),
   };
 }
 
@@ -68,14 +74,24 @@ interface Props {
   clientId: string;
   initialList: unknown;
   initialNotes: unknown;
+  initialMealsPerDay?: number;
 }
 
-export default function CustomFoodListEditor({ clientId, initialList, initialNotes }: Props) {
+export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialMealsPerDay }: Props) {
   const [list, setList] = useState<FoodList>(() => normalizeList(initialList));
   const [notes, setNotes] = useState<FoodListNotes>(() => normalizeNotes(initialNotes));
+  const [mealsPerDay, setMealsPerDay] = useState<number>(() => {
+    const v = Number(initialMealsPerDay ?? 3);
+    return v === 4 || v === 5 ? v : 3;
+  });
+  const [pendingMeals, setPendingMeals] = useState<number | null>(null);
 
   useEffect(() => { setList(normalizeList(initialList)); }, [initialList]);
   useEffect(() => { setNotes(normalizeNotes(initialNotes)); }, [initialNotes]);
+  useEffect(() => {
+    const v = Number(initialMealsPerDay ?? 3);
+    setMealsPerDay(v === 4 || v === 5 ? v : 3);
+  }, [initialMealsPerDay]);
 
   async function saveList(next: FoodList) {
     const prev = list;
@@ -97,14 +113,54 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     }
   }
 
+  async function saveMealsPerDay(next: number) {
+    const prev = mealsPerDay;
+    setMealsPerDay(next);
+    const { error } = await supabase.from("clients").update({ meals_per_day: next } as never).eq("id", clientId);
+    if (error) {
+      setMealsPerDay(prev);
+      toast.error("Failed to update meals per day");
+    }
+  }
+
+  function requestMealsChange(nextStr: string) {
+    const next = Number(nextStr);
+    if (next === mealsPerDay) return;
+    const currentVisible = new Set(visibleSlotKeys(mealsPerDay));
+    const nextVisible = new Set(visibleSlotKeys(next));
+    const willHide: SlotKey[] = [];
+    for (const k of currentVisible) if (!nextVisible.has(k)) willHide.push(k);
+    const hasHiddenContent = willHide.some((k) => list[k].length > 0 || notes[k].trim() !== "");
+    if (next < mealsPerDay && hasHiddenContent) {
+      setPendingMeals(next);
+      return;
+    }
+    void saveMealsPerDay(next);
+  }
+
+  const visible = visibleSlotKeys(mealsPerDay);
+  const slots = ALL_SLOTS.filter((s) => visible.includes(s.key));
+  const gridCols = slots.length >= 5 ? "md:grid-cols-5" : slots.length === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">Meal Plan</h3>
         <span className="text-xs text-muted-foreground">Food-List</span>
+        <div className="ml-auto flex items-center gap-2">
+          <Label className="text-xs">Meals per day</Label>
+          <Select value={String(mealsPerDay)} onValueChange={requestMealsChange}>
+            <SelectTrigger className="h-8 w-20"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="3">3</SelectItem>
+              <SelectItem value="4">4</SelectItem>
+              <SelectItem value="5">5</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {SLOTS.map((s) => (
+      <div className={`grid grid-cols-1 ${gridCols} gap-3`}>
+        {slots.map((s) => (
           <SlotPanel
             key={s.key}
             label={s.label}
@@ -118,6 +174,28 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
           />
         ))}
       </div>
+
+      <AlertDialog open={pendingMeals != null} onOpenChange={(o) => !o && setPendingMeals(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reduce meals per day?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will hide the Afternoon Snack and Morning Snack slots. Any foods added to those slots will be saved but not visible to the client. Are you sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingMeals != null) void saveMealsPerDay(pendingMeals);
+                setPendingMeals(null);
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
