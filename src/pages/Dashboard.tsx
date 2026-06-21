@@ -114,6 +114,8 @@ interface Client {
   food_limits: Record<string, number>;
   food_limit_counts: Record<string, number>;
   system_mode: "mb" | "own_practice";
+  client_type: "mb" | "custom";
+  plan_format: "food_list" | "recipe";
   batch_cooking_mode: "3-day" | "off";
   meal_streak: number | null;
   created_at: string;
@@ -167,6 +169,8 @@ export default function Dashboard() {
   const [email, setEmail] = useState("");
   const [gender, setGender] = useState<"female" | "male" | "unspecified" | "">("");
   const [heightCm, setHeightCm] = useState<string>("");
+  const [newClientType, setNewClientType] = useState<"mb" | "custom" | null>(null);
+  const [typeFilter, setTypeFilter] = useState<"all" | "mb" | "custom">("all");
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [practitionerId, setPractitionerId] = useState<string>("");
@@ -658,6 +662,7 @@ export default function Dashboard() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      if (!newClientType) throw new Error("Please choose a client type first");
       if (email.trim().toLowerCase() === userEmail.toLowerCase()) {
         throw new Error("You cannot invite yourself as a client");
       }
@@ -666,14 +671,15 @@ export default function Dashboard() {
       if (heightNum !== null && (!Number.isFinite(heightNum) || heightNum <= 0)) {
         throw new Error("Please enter a valid height in cm");
       }
-      const body: Record<string, unknown> = { name, email, system_mode: defaultSystemMode(tier) };
+      const system_mode = newClientType === "custom" ? "own_practice" : "mb";
+      const body: Record<string, unknown> = { name, email, system_mode, client_type: newClientType };
       if (gender) body.gender = gender;
       if (heightNum !== null) body.height_cm = heightNum;
       const { data, error } = await supabase.functions.invoke("invite-client", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast.success("Client invited — magic link emailed");
-      setName(""); setEmail(""); setGender(""); setHeightCm(""); setOpen(false);
+      setName(""); setEmail(""); setGender(""); setHeightCm(""); setNewClientType(null); setOpen(false);
       await load();
     } catch (err: any) {
       toast.error(err.message ?? "Failed to invite client");
@@ -894,13 +900,27 @@ export default function Dashboard() {
   const setSystemMode = async (clientId: string, mode: "mb" | "own_practice") => {
     const prev = clients.find((c) => c.id === clientId)?.system_mode ?? "mb";
     if (prev === mode) return;
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: mode } : c)));
-    const { error } = await supabase.from("clients").update({ system_mode: mode } as never).eq("id", clientId);
+    const newType = mode === "own_practice" ? "custom" : "mb";
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: mode, client_type: newType } : c)));
+    const { error } = await supabase.from("clients").update({ system_mode: mode, client_type: newType } as never).eq("id", clientId);
     if (error) {
-      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: prev } : c)));
+      const prevType = prev === "own_practice" ? "custom" : "mb";
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: prev, client_type: prevType } : c)));
       return toast.error("Could not update system");
     }
     toast.success(mode === "mb" ? "Switched to Metabolic Balance" : "Switched to Custom");
+  };
+
+  const setPlanFormat = async (clientId: string, fmt: "food_list" | "recipe") => {
+    const prev = clients.find((c) => c.id === clientId)?.plan_format ?? "food_list";
+    if (prev === fmt) return;
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, plan_format: fmt } : c)));
+    const { error } = await supabase.from("clients").update({ plan_format: fmt } as never).eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, plan_format: prev } : c)));
+      return toast.error("Could not update plan format");
+    }
+    toast.success(fmt === "recipe" ? "Plan format: Recipe" : "Plan format: Food-List");
   };
 
   const setShow8Rules = async (clientId: string, value: boolean) => {
@@ -1234,51 +1254,102 @@ export default function Dashboard() {
                   Archived ({clients.filter((c) => !!c.archived_at).length})
                 </button>
               </div>
+              {!showArchived && (
+                <div role="group" aria-label="Client type filter" className="inline-flex rounded-md border overflow-hidden text-xs">
+                  {([
+                    { v: "all", label: `All (${clients.filter((c) => !c.archived_at).length})` },
+                    { v: "mb", label: `MB (${clients.filter((c) => !c.archived_at && c.client_type !== "custom").length})` },
+                    { v: "custom", label: `Custom (${clients.filter((c) => !c.archived_at && c.client_type === "custom").length})` },
+                  ] as const).map((opt, i) => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setTypeFilter(opt.v)}
+                      className={`px-2.5 py-1 ${i > 0 ? "border-l" : ""} ${typeFilter === opt.v ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                      aria-pressed={typeFilter === opt.v}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {!showArchived && (
-              <Dialog open={open} onOpenChange={setOpen}>
+              <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setNewClientType(null); }}>
                 <DialogTrigger asChild><Button>Add client</Button></DialogTrigger>
                 <DialogContent>
                   <DialogHeader><DialogTitle>Add a new client</DialogTitle></DialogHeader>
-                  <form onSubmit={addClient} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="cname">Name</Label>
-                      <Input id="cname" required value={name} onChange={(e) => setName(e.target.value)} />
+                  {!newClientType ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">Choose the client type to get started.</p>
+                      <div className="grid gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setNewClientType("mb")}
+                          className="text-left rounded-lg border p-4 hover:border-primary hover:bg-accent transition-colors"
+                        >
+                          <p className="font-medium">MB</p>
+                          <p className="text-xs text-muted-foreground mt-1">Metabolic Balance client. Uses MB food plans and phases.</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewClientType("custom")}
+                          className="text-left rounded-lg border p-4 hover:border-primary hover:bg-accent transition-colors"
+                        >
+                          <p className="font-medium">Custom</p>
+                          <p className="text-xs text-muted-foreground mt-1">Your own nutrition protocol. Uses food-list or recipe plans.</p>
+                        </button>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cemail">Email</Label>
-                      <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cgender">Biological Sex (optional)</Label>
-                      <select
-                        id="cgender"
-                        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                        value={gender}
-                        onChange={(e) => setGender(e.target.value as "female" | "male" | "unspecified" | "")}
-                      >
-                        <option value="">Not set</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="unspecified">Other</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cheight">Height in cm (optional)</Label>
-                      <Input
-                        id="cheight"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        placeholder="e.g. 168"
-                        value={heightCm}
-                        onChange={(e) => setHeightCm(e.target.value)}
-                      />
-                    </div>
-                    <Button type="submit" className="w-full" disabled={submitting}>
-                      {submitting ? "Sending invite…" : "Add & send invite"}
-                    </Button>
-                  </form>
+                  ) : (
+                    <form onSubmit={addClient} className="space-y-4">
+                      <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
+                        <span className="text-xs">
+                          Type: <span className="font-medium">{newClientType === "mb" ? "MB" : "Custom"}</span>
+                        </span>
+                        <button type="button" className="text-xs text-primary hover:underline" onClick={() => setNewClientType(null)}>
+                          Change
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cname">Name</Label>
+                        <Input id="cname" required value={name} onChange={(e) => setName(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cemail">Email</Label>
+                        <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cgender">Biological Sex (optional)</Label>
+                        <select
+                          id="cgender"
+                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                          value={gender}
+                          onChange={(e) => setGender(e.target.value as "female" | "male" | "unspecified" | "")}
+                        >
+                          <option value="">Not set</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                          <option value="unspecified">Other</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cheight">Height in cm (optional)</Label>
+                        <Input
+                          id="cheight"
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          placeholder="e.g. 168"
+                          value={heightCm}
+                          onChange={(e) => setHeightCm(e.target.value)}
+                        />
+                      </div>
+                      <Button type="submit" className="w-full" disabled={submitting}>
+                        {submitting ? "Sending invite…" : "Add & send invite"}
+                      </Button>
+                    </form>
+                  )}
                 </DialogContent>
               </Dialog>
             )}
@@ -1299,7 +1370,10 @@ export default function Dashboard() {
           };
           const visibleClients = isDetailView
             ? clients.filter((c) => c.id === routeClientId)
-            : clients.filter((c) => (showArchived ? !!c.archived_at : !c.archived_at)).sort(sortByName);
+            : clients
+                .filter((c) => (showArchived ? !!c.archived_at : !c.archived_at))
+                .filter((c) => showArchived || typeFilter === "all" || (typeFilter === "custom" ? c.client_type === "custom" : c.client_type !== "custom"))
+                .sort(sortByName);
           if (visibleClients.length === 0) {
             if (isDetailView) {
               return <Card className="p-8 text-center text-muted-foreground">Loading client…</Card>;
@@ -1327,7 +1401,10 @@ export default function Dashboard() {
           };
           const visibleClients = isDetailView
             ? clients.filter((c) => c.id === routeClientId)
-            : clients.filter((c) => (showArchived ? !!c.archived_at : !c.archived_at)).sort(sortByName);
+            : clients
+                .filter((c) => (showArchived ? !!c.archived_at : !c.archived_at))
+                .filter((c) => showArchived || typeFilter === "all" || (typeFilter === "custom" ? c.client_type === "custom" : c.client_type !== "custom"))
+                .sort(sortByName);
           if (visibleClients.length === 0) return null;
           return (
           <div className="space-y-4">
@@ -1604,7 +1681,7 @@ export default function Dashboard() {
                       <TabsContent value="overview" className="space-y-4 pt-3">
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-3">
-                            {client.system_mode !== "own_practice" && (
+                            {client.system_mode !== "own_practice" ? (
                               <div className="flex items-center gap-2">
                                 <Label className="text-xs">Phase</Label>
                                 <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
@@ -1615,6 +1692,24 @@ export default function Dashboard() {
                                         {p.value === "phase2_extended" ? "Phase 2 Extended" : p.label}
                                       </SelectItem>
                                     ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs">Plan Format</Label>
+                                <Select
+                                  value={client.plan_format ?? "food_list"}
+                                  onValueChange={(v) => setPlanFormat(client.id, v as "food_list" | "recipe")}
+                                >
+                                  <SelectTrigger className="h-8 w-[280px]"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="food_list">
+                                      Food-List — Practitioner defines foods per meal slot. Client generates recipes from those foods.
+                                    </SelectItem>
+                                    <SelectItem value="recipe">
+                                      Recipe — Practitioner assigns specific recipes. Client picks and logs.
+                                    </SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
