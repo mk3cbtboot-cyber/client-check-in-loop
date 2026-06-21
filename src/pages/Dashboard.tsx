@@ -900,7 +900,7 @@ export default function Dashboard() {
       setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: prev } : c)));
       return toast.error("Could not update system");
     }
-    toast.success(mode === "mb" ? "Switched to Metabolic Balance" : "Switched to Own Practice");
+    toast.success(mode === "mb" ? "Switched to Metabolic Balance" : "Switched to Custom");
   };
 
   const setShow8Rules = async (clientId: string, value: boolean) => {
@@ -1411,7 +1411,7 @@ export default function Dashboard() {
                               className={`px-2 py-1 text-xs border-l ${client.system_mode === "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
                               aria-pressed={client.system_mode === "own_practice"}
                             >
-                              Own Practice
+                              Custom
                             </button>
                           </div>
                         )}
