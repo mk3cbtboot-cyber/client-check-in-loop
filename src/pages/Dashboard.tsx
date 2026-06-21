@@ -1275,49 +1275,81 @@ export default function Dashboard() {
               )}
             </div>
             {!showArchived && (
-              <Dialog open={open} onOpenChange={setOpen}>
+              <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setNewClientType(null); }}>
                 <DialogTrigger asChild><Button>Add client</Button></DialogTrigger>
                 <DialogContent>
                   <DialogHeader><DialogTitle>Add a new client</DialogTitle></DialogHeader>
-                  <form onSubmit={addClient} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="cname">Name</Label>
-                      <Input id="cname" required value={name} onChange={(e) => setName(e.target.value)} />
+                  {!newClientType ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">Choose the client type to get started.</p>
+                      <div className="grid gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setNewClientType("mb")}
+                          className="text-left rounded-lg border p-4 hover:border-primary hover:bg-accent transition-colors"
+                        >
+                          <p className="font-medium">MB</p>
+                          <p className="text-xs text-muted-foreground mt-1">Metabolic Balance client. Uses MB food plans and phases.</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewClientType("custom")}
+                          className="text-left rounded-lg border p-4 hover:border-primary hover:bg-accent transition-colors"
+                        >
+                          <p className="font-medium">Custom</p>
+                          <p className="text-xs text-muted-foreground mt-1">Your own nutrition protocol. Uses food-list or recipe plans.</p>
+                        </button>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cemail">Email</Label>
-                      <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cgender">Biological Sex (optional)</Label>
-                      <select
-                        id="cgender"
-                        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                        value={gender}
-                        onChange={(e) => setGender(e.target.value as "female" | "male" | "unspecified" | "")}
-                      >
-                        <option value="">Not set</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="unspecified">Other</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cheight">Height in cm (optional)</Label>
-                      <Input
-                        id="cheight"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        placeholder="e.g. 168"
-                        value={heightCm}
-                        onChange={(e) => setHeightCm(e.target.value)}
-                      />
-                    </div>
-                    <Button type="submit" className="w-full" disabled={submitting}>
-                      {submitting ? "Sending invite…" : "Add & send invite"}
-                    </Button>
-                  </form>
+                  ) : (
+                    <form onSubmit={addClient} className="space-y-4">
+                      <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
+                        <span className="text-xs">
+                          Type: <span className="font-medium">{newClientType === "mb" ? "MB" : "Custom"}</span>
+                        </span>
+                        <button type="button" className="text-xs text-primary hover:underline" onClick={() => setNewClientType(null)}>
+                          Change
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cname">Name</Label>
+                        <Input id="cname" required value={name} onChange={(e) => setName(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cemail">Email</Label>
+                        <Input id="cemail" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cgender">Biological Sex (optional)</Label>
+                        <select
+                          id="cgender"
+                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                          value={gender}
+                          onChange={(e) => setGender(e.target.value as "female" | "male" | "unspecified" | "")}
+                        >
+                          <option value="">Not set</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                          <option value="unspecified">Other</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cheight">Height in cm (optional)</Label>
+                        <Input
+                          id="cheight"
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          placeholder="e.g. 168"
+                          value={heightCm}
+                          onChange={(e) => setHeightCm(e.target.value)}
+                        />
+                      </div>
+                      <Button type="submit" className="w-full" disabled={submitting}>
+                        {submitting ? "Sending invite…" : "Add & send invite"}
+                      </Button>
+                    </form>
+                  )}
                 </DialogContent>
               </Dialog>
             )}
