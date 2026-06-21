@@ -169,6 +169,8 @@ export default function Dashboard() {
   const [email, setEmail] = useState("");
   const [gender, setGender] = useState<"female" | "male" | "unspecified" | "">("");
   const [heightCm, setHeightCm] = useState<string>("");
+  const [newClientType, setNewClientType] = useState<"mb" | "custom" | null>(null);
+  const [typeFilter, setTypeFilter] = useState<"all" | "mb" | "custom">("all");
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [practitionerId, setPractitionerId] = useState<string>("");
