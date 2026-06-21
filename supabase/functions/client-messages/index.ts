@@ -175,6 +175,7 @@ Deno.serve(async (req) => {
             .from("clients")
             .select([
               "name", "phase", "batch_cooking_mode",
+              "plan_format", "food_list", "food_list_notes", "meals_per_day",
               "breakfast_protein_category", "breakfast_protein_grams", "breakfast_veg_grams",
               "lunch_protein_category", "lunch_protein_grams", "lunch_veg_grams",
               "dinner_protein_category", "dinner_protein_grams", "dinner_veg_grams",
@@ -189,6 +190,7 @@ Deno.serve(async (req) => {
               "eggs_min_per_week",
               "water_target_litres", "food_limits", "food_limit_counts",
             ].join(", "))
+
             .eq("id", c.id)
             .maybeSingle();
           console.log("ai_interceptor: after fetch client plan data", { has_full: !!full, fullErr });
@@ -407,48 +409,107 @@ Deno.serve(async (req) => {
             "8. Finish your last meal before 9pm.",
           ].join("\n");
 
-          const planSummary = [
-            `Client name: ${f.name ?? "(unknown)"}`,
-            `Phase: ${f.phase ?? "(unknown)"}`,
-            `Batch cooking mode: ${f.batch_cooking_mode ?? "(unknown)"}`,
-            (weekPlan as any)?.confirmed_at ? "Meal planner: confirmed for this week" : "Meal planner: not confirmed",
-            "",
-            "MEAL PLAN — each slot below shows ONLY the foods that belong to that slot. Do NOT move foods between slots.",
-            describeSlot("breakfast"),
-            describeSlot("lunch"),
-            describeSlot("dinner"),
-            "",
-            `Eggs minimum per week: ${f.eggs_min_per_week ?? "?"}`,
-            `Water target: ${f.water_target_litres ?? "?"} litres/day`,
-            f.food_limits && Object.keys(f.food_limits).length
-              ? `Weekly food limits: ${JSON.stringify(f.food_limits)}` : "",
-            f.food_limit_counts && Object.keys(f.food_limit_counts).length
-              ? `Used this week: ${JSON.stringify(f.food_limit_counts)}` : "",
-            "",
-            "PHASE 2 — PERSONAL FOOD LIST (parsed from the client's MB PDF):",
-            phase2Summary,
-            "",
-            "PHASE 3 — EXTENDED FOOD LIST (parsed from the client's MB PDF, includes oils):",
-            phase3Summary,
-            "",
-            "THE 8 METABOLIC BALANCE RULES (apply at all times):",
-            MB_RULES_TEXT,
-            "",
-            "TREAT MEAL GUIDANCE: Phase 2 Extended allows up to 1 treat meal per week. Phase 3 allows up to 1 treat meal per week. Phase 4 (Maintenance) allows up to 3 treat meals per week.",
-          ].filter(Boolean).join("\n");
+          const isFoodList = String(f.plan_format ?? "") === "food_list";
 
-          const systemPrompt = [
-            "You are the AI assistant for a Metabolic Balance nutrition practitioner, answering the client's question about their personal plan.",
-            "Answer ONLY from the client's parsed meal plan data provided below (meal slots, Phase 2 list, Phase 3 list, 8 Rules, treat meal guidance). Do NOT infer, speculate, or suggest anything not in this data.",
-            "When a client asks about a specific food, find which meal slot(s) or food list contain that food category. Report only those slots/lists and the exact portion specified.",
-            "NEVER suggest that a food in one meal slot can substitute for a food in a different meal slot or category. Do NOT compare proteins to dairy, seeds, or any other category.",
-            "If a food category has multiple options, list the options and the single portion that applies. The portion is the same regardless of which option the client chooses.",
-            "If the food is genuinely not anywhere in the client's plan, say so plainly: \"That food is not in your meal plan.\"",
-            "Be specific: name the foods and quantities from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
-            isPhase4
-              ? "This client is in Phase 4 — Maintenance. They have completed the program. Use their Phase 2 personal food list, Phase 3 extended list (including oils), the 8 Metabolic Balance Rules, and treat meal guidance (up to 3 treat meals per week) as your full reference. The PDF data above is comprehensive — answer any question that can be answered from it. NEVER tell the client you've passed their question to the practitioner, NEVER say you'll forward it, and NEVER suggest they wait for a human reply. If the answer truly isn't in the plan data, give the best general Metabolic Balance maintenance guidance consistent with what's in the plan."
-              : `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
-          ].join(" ");
+          const FOOD_LIST_SLOTS: Array<{ key: string; label: string }> = [
+            { key: "breakfast", label: "Breakfast" },
+            { key: "morning_snack", label: "Morning Snack" },
+            { key: "lunch", label: "Lunch" },
+            { key: "afternoon_snack", label: "Afternoon Snack" },
+            { key: "dinner", label: "Dinner" },
+          ];
+          const visibleFoodListSlots = (meals: number): string[] => {
+            if (meals === 5) return ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
+            if (meals === 4) return ["breakfast", "lunch", "afternoon_snack", "dinner"];
+            return ["breakfast", "lunch", "dinner"];
+          };
+
+          const buildFoodListSummary = (): string => {
+            const fl = (f.food_list ?? {}) as Record<string, Array<{ name?: string; portion?: string; category?: string }>>;
+            const notes = (f.food_list_notes ?? {}) as Record<string, string>;
+            const meals = Number(f.meals_per_day ?? 3);
+            const visible = new Set(visibleFoodListSlots(meals));
+            const lines: string[] = ["Client meal plan:"];
+            for (const { key, label } of FOOD_LIST_SLOTS) {
+              if (!visible.has(key)) continue;
+              const items = Array.isArray(fl[key]) ? fl[key] : [];
+              const itemStr = items.length
+                ? items.map((it) => {
+                    const parts = [it?.name, it?.portion, it?.category].map((p) => (typeof p === "string" ? p.trim() : "")).filter(Boolean);
+                    return parts.join(" · ");
+                  }).filter(Boolean).join(", ")
+                : "(no foods listed)";
+              const note = typeof notes[key] === "string" ? notes[key].trim() : "";
+              lines.push(`${label}: [${itemStr}]${note ? ` Note: ${note}` : ""}`);
+            }
+            return lines.join("\n");
+          };
+
+
+
+
+          const planSummary = isFoodList
+            ? [
+                `Client name: ${f.name ?? "(unknown)"}`,
+                `Plan format: Food List (${Number(f.meals_per_day ?? 3)} meals/day)`,
+                "",
+                buildFoodListSummary(),
+                "",
+                `Water target: ${f.water_target_litres ?? "?"} litres/day`,
+              ].filter(Boolean).join("\n")
+            : [
+                `Client name: ${f.name ?? "(unknown)"}`,
+                `Phase: ${f.phase ?? "(unknown)"}`,
+                `Batch cooking mode: ${f.batch_cooking_mode ?? "(unknown)"}`,
+                (weekPlan as any)?.confirmed_at ? "Meal planner: confirmed for this week" : "Meal planner: not confirmed",
+                "",
+                "MEAL PLAN — each slot below shows ONLY the foods that belong to that slot. Do NOT move foods between slots.",
+                describeSlot("breakfast"),
+                describeSlot("lunch"),
+                describeSlot("dinner"),
+                "",
+                `Eggs minimum per week: ${f.eggs_min_per_week ?? "?"}`,
+                `Water target: ${f.water_target_litres ?? "?"} litres/day`,
+                f.food_limits && Object.keys(f.food_limits).length
+                  ? `Weekly food limits: ${JSON.stringify(f.food_limits)}` : "",
+                f.food_limit_counts && Object.keys(f.food_limit_counts).length
+                  ? `Used this week: ${JSON.stringify(f.food_limit_counts)}` : "",
+                "",
+                "PHASE 2 — PERSONAL FOOD LIST (parsed from the client's MB PDF):",
+                phase2Summary,
+                "",
+                "PHASE 3 — EXTENDED FOOD LIST (parsed from the client's MB PDF, includes oils):",
+                phase3Summary,
+                "",
+                "THE 8 METABOLIC BALANCE RULES (apply at all times):",
+                MB_RULES_TEXT,
+                "",
+                "TREAT MEAL GUIDANCE: Phase 2 Extended allows up to 1 treat meal per week. Phase 3 allows up to 1 treat meal per week. Phase 4 (Maintenance) allows up to 3 treat meals per week.",
+              ].filter(Boolean).join("\n");
+
+          const systemPrompt = isFoodList
+            ? [
+                "You are the AI assistant for a nutrition practitioner, answering the client's question about their personal Food-List meal plan.",
+                "Answer ONLY from the client's meal plan provided below. Each meal slot lists the exact foods, portions, and categories the practitioner has assigned. Do NOT infer, speculate, or recommend foods outside the listed slots.",
+                "When a client asks about a specific food, report which slot(s) contain it and the exact portion. Do NOT suggest substitutions across slots or invent foods that aren't listed.",
+                "If a slot has a Note, treat it as practitioner guidance for that slot.",
+                "If the food is not anywhere in the plan, say so plainly: \"That food is not in your meal plan.\"",
+                "Be specific: name the foods and portions from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
+                `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. supplements, medical advice, or coaching).`,
+              ].join(" ")
+            : [
+                "You are the AI assistant for a Metabolic Balance nutrition practitioner, answering the client's question about their personal plan.",
+                "Answer ONLY from the client's parsed meal plan data provided below (meal slots, Phase 2 list, Phase 3 list, 8 Rules, treat meal guidance). Do NOT infer, speculate, or suggest anything not in this data.",
+                "When a client asks about a specific food, find which meal slot(s) or food list contain that food category. Report only those slots/lists and the exact portion specified.",
+                "NEVER suggest that a food in one meal slot can substitute for a food in a different meal slot or category. Do NOT compare proteins to dairy, seeds, or any other category.",
+                "If a food category has multiple options, list the options and the single portion that applies. The portion is the same regardless of which option the client chooses.",
+                "If the food is genuinely not anywhere in the client's plan, say so plainly: \"That food is not in your meal plan.\"",
+                "Be specific: name the foods and quantities from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
+                isPhase4
+                  ? "This client is in Phase 4 — Maintenance. They have completed the program. Use their Phase 2 personal food list, Phase 3 extended list (including oils), the 8 Metabolic Balance Rules, and treat meal guidance (up to 3 treat meals per week) as your full reference. The PDF data above is comprehensive — answer any question that can be answered from it. NEVER tell the client you've passed their question to the practitioner, NEVER say you'll forward it, and NEVER suggest they wait for a human reply. If the answer truly isn't in the plan data, give the best general Metabolic Balance maintenance guidance consistent with what's in the plan."
+                  : `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
+              ].join(" ");
+
 
 
           const lovableKey = Deno.env.get("LOVABLE_API_KEY");
