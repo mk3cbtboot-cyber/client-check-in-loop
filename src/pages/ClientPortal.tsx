@@ -87,7 +87,13 @@ interface ClientState {
   phase3_lunch_carb_bonus: number;
   phase3_portions_confirmed: boolean;
   phase3_lunch_prompt_last_dismissed_on: string | null;
+  client_type?: "mb" | "custom";
+  plan_format?: string;
+  food_list?: Record<string, Array<{ name: string; portion: string; category: string }>>;
+  food_list_notes?: Record<string, string>;
+  meals_per_day?: number;
 }
+
 
 
 type TabKey = "home" | "checkin" | "plan" | "planner" | "messages";
