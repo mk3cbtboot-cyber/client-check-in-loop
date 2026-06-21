@@ -175,6 +175,7 @@ Deno.serve(async (req) => {
             .from("clients")
             .select([
               "name", "phase", "batch_cooking_mode",
+              "plan_format", "food_list", "food_list_notes", "meals_per_day",
               "breakfast_protein_category", "breakfast_protein_grams", "breakfast_veg_grams",
               "lunch_protein_category", "lunch_protein_grams", "lunch_veg_grams",
               "dinner_protein_category", "dinner_protein_grams", "dinner_veg_grams",
@@ -189,6 +190,7 @@ Deno.serve(async (req) => {
               "eggs_min_per_week",
               "water_target_litres", "food_limits", "food_limit_counts",
             ].join(", "))
+
             .eq("id", c.id)
             .maybeSingle();
           console.log("ai_interceptor: after fetch client plan data", { has_full: !!full, fullErr });
