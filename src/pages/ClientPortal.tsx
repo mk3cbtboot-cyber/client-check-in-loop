@@ -22,6 +22,8 @@ import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/
 import { getPhaseProgress } from "@/lib/progress";
 import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
 import MealRecipeSection from "@/components/MealRecipeSection";
+import FoodListClientHome from "@/components/FoodListClientHome";
+
 
 
 interface ClientState {
