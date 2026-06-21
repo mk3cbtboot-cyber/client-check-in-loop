@@ -725,8 +725,38 @@ export default function ClientPortal() {
         </section>
       )}
 
-      {tab === "home" && (
+      {tab === "home" && client.plan_format === "food_list" && (
+        <section className="max-w-3xl mx-auto p-4 space-y-6">
+          <div className="grid grid-cols-3 gap-3">
+            <Card className="p-4">
+              <p className="text-xs uppercase text-muted-foreground">Water Today</p>
+              <p className="text-2xl font-semibold">{client.water_today_litres.toFixed(2)}L<span className="text-sm text-muted-foreground"> / 2.5L</span></p>
+              <Button size="sm" variant="outline" className="mt-2 w-full" onClick={addWater}>+ Glass (250ml)</Button>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase text-muted-foreground">Meal Streak</p>
+              <p className="text-2xl font-semibold">{client.meal_streak}</p>
+              <p className="text-xs text-muted-foreground">consecutive meals logged</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs uppercase text-muted-foreground">Water Streak</p>
+              <p className="text-2xl font-semibold">{client.water_streak ?? 0}</p>
+              <p className="text-xs text-muted-foreground">consecutive days on target</p>
+            </Card>
+          </div>
+          <FoodListClientHome
+            token={token!}
+            foodList={client.food_list ?? {}}
+            foodListNotes={client.food_list_notes ?? {}}
+            mealsPerDay={Number(client.meals_per_day ?? 3)}
+            onLogged={refresh}
+          />
+        </section>
+      )}
+
+      {tab === "home" && client.plan_format !== "food_list" && (
         <section className="max-w-5xl mx-auto p-4 space-y-6">
+
           {showLunchPrompt && (
             <Card className="p-4 border-primary/50 bg-primary/5 space-y-3">
               {lunchPromptStep === "initial" ? (
