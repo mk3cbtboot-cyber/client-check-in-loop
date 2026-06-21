@@ -1564,29 +1564,37 @@ export default function Dashboard() {
                       {/* Row 2: toggles | client info | details */}
                       <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                         {tierShowsToggle(tier) && (
-                          <div
-                            role="group"
-                            aria-label="System mode"
-                            className="inline-flex rounded-md border overflow-hidden"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setSystemMode(client.id, "mb"); }}
-                              className={`px-2 py-1 text-xs ${client.system_mode !== "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
-                              aria-pressed={client.system_mode !== "own_practice"}
-                            >
-                              MB
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setSystemMode(client.id, "own_practice"); }}
-                              className={`px-2 py-1 text-xs border-l ${client.system_mode === "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
-                              aria-pressed={client.system_mode === "own_practice"}
-                            >
-                              Custom
-                            </button>
-                          </div>
+                          <>
+                            {client.client_type === "custom" ? (
+                              <span className="px-2 py-1 rounded-md border bg-primary text-primary-foreground text-xs font-medium">
+                                Custom
+                              </span>
+                            ) : (
+                              <div
+                                role="group"
+                                aria-label="System mode"
+                                className="inline-flex rounded-md border overflow-hidden"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setSystemMode(client.id, "mb"); }}
+                                  className={`px-2 py-1 text-xs ${client.system_mode !== "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                                  aria-pressed={client.system_mode !== "own_practice"}
+                                >
+                                  MB
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setSystemMode(client.id, "own_practice"); }}
+                                  className={`px-2 py-1 text-xs border-l ${client.system_mode === "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                                  aria-pressed={client.system_mode === "own_practice"}
+                                >
+                                  Custom
+                                </button>
+                              </div>
+                            )}
+                          </>
                         )}
                         <span className="whitespace-nowrap">
                           {client.email}
@@ -1810,19 +1818,21 @@ export default function Dashboard() {
                                 </Select>
                               </div>
                             )}
-                            <div className="flex items-center gap-2">
-                              <Label className="text-xs">Batch cooking</Label>
-                              <Select
-                                value={client.batch_cooking_mode ?? "3-day"}
-                                onValueChange={(v) => setBatchCookingMode(client.id, v as "3-day" | "off")}
-                              >
-                                <SelectTrigger className="h-8 w-[120px]"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="3-day">3-day</SelectItem>
-                                  <SelectItem value="off">Off</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
+                            {client.plan_format !== "food_list" && (
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs">Batch cooking</Label>
+                                <Select
+                                  value={client.batch_cooking_mode ?? "3-day"}
+                                  onValueChange={(v) => setBatchCookingMode(client.id, v as "3-day" | "off")}
+                                >
+                                  <SelectTrigger className="h-8 w-[120px]"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="3-day">3-day</SelectItem>
+                                    <SelectItem value="off">Off</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
                             <Button variant="outline" size="sm"
                               onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
                               Copy portal link
