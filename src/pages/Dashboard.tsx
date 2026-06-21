@@ -900,13 +900,27 @@ export default function Dashboard() {
   const setSystemMode = async (clientId: string, mode: "mb" | "own_practice") => {
     const prev = clients.find((c) => c.id === clientId)?.system_mode ?? "mb";
     if (prev === mode) return;
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: mode } : c)));
-    const { error } = await supabase.from("clients").update({ system_mode: mode } as never).eq("id", clientId);
+    const newType = mode === "own_practice" ? "custom" : "mb";
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: mode, client_type: newType } : c)));
+    const { error } = await supabase.from("clients").update({ system_mode: mode, client_type: newType } as never).eq("id", clientId);
     if (error) {
-      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: prev } : c)));
+      const prevType = prev === "own_practice" ? "custom" : "mb";
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, system_mode: prev, client_type: prevType } : c)));
       return toast.error("Could not update system");
     }
     toast.success(mode === "mb" ? "Switched to Metabolic Balance" : "Switched to Custom");
+  };
+
+  const setPlanFormat = async (clientId: string, fmt: "food_list" | "recipe") => {
+    const prev = clients.find((c) => c.id === clientId)?.plan_format ?? "food_list";
+    if (prev === fmt) return;
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, plan_format: fmt } : c)));
+    const { error } = await supabase.from("clients").update({ plan_format: fmt } as never).eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, plan_format: prev } : c)));
+      return toast.error("Could not update plan format");
+    }
+    toast.success(fmt === "recipe" ? "Plan format: Recipe" : "Plan format: Food-List");
   };
 
   const setShow8Rules = async (clientId: string, value: boolean) => {
