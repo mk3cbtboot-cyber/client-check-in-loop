@@ -1338,7 +1338,10 @@ export default function Dashboard() {
           };
           const visibleClients = isDetailView
             ? clients.filter((c) => c.id === routeClientId)
-            : clients.filter((c) => (showArchived ? !!c.archived_at : !c.archived_at)).sort(sortByName);
+            : clients
+                .filter((c) => (showArchived ? !!c.archived_at : !c.archived_at))
+                .filter((c) => showArchived || typeFilter === "all" || (typeFilter === "custom" ? c.client_type === "custom" : c.client_type !== "custom"))
+                .sort(sortByName);
           if (visibleClients.length === 0) {
             if (isDetailView) {
               return <Card className="p-8 text-center text-muted-foreground">Loading client…</Card>;
@@ -1366,7 +1369,10 @@ export default function Dashboard() {
           };
           const visibleClients = isDetailView
             ? clients.filter((c) => c.id === routeClientId)
-            : clients.filter((c) => (showArchived ? !!c.archived_at : !c.archived_at)).sort(sortByName);
+            : clients
+                .filter((c) => (showArchived ? !!c.archived_at : !c.archived_at))
+                .filter((c) => showArchived || typeFilter === "all" || (typeFilter === "custom" ? c.client_type === "custom" : c.client_type !== "custom"))
+                .sort(sortByName);
           if (visibleClients.length === 0) return null;
           return (
           <div className="space-y-4">
