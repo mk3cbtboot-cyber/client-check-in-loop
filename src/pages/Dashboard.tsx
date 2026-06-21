@@ -114,6 +114,8 @@ interface Client {
   food_limits: Record<string, number>;
   food_limit_counts: Record<string, number>;
   system_mode: "mb" | "own_practice";
+  client_type: "mb" | "custom";
+  plan_format: "food_list" | "recipe";
   batch_cooking_mode: "3-day" | "off";
   meal_streak: number | null;
   created_at: string;
