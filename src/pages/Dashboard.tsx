@@ -75,6 +75,7 @@ import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
 import PractitionerMessages from "@/components/PractitionerMessages";
 import MealsOverviewSection from "@/components/MealsOverviewSection";
 import AppointmentDialog, { type Appointment } from "@/components/AppointmentDialog";
+import CustomFoodListEditor from "@/components/CustomFoodListEditor";
 
 
 interface Client {
