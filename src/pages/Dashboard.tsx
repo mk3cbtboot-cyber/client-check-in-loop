@@ -75,6 +75,7 @@ import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
 import PractitionerMessages from "@/components/PractitionerMessages";
 import MealsOverviewSection from "@/components/MealsOverviewSection";
 import AppointmentDialog, { type Appointment } from "@/components/AppointmentDialog";
+import CustomFoodListEditor from "@/components/CustomFoodListEditor";
 
 
 interface Client {
@@ -1854,6 +1855,16 @@ export default function Dashboard() {
                             );
                           })()}
                         </div>
+
+                        {client.system_mode === "own_practice" && (client.plan_format ?? "food_list") === "food_list" && (
+                          <CustomFoodListEditor
+                            clientId={client.id}
+                            initialList={(client as unknown as { food_list?: unknown }).food_list}
+                            initialNotes={(client as unknown as { food_list_notes?: unknown }).food_list_notes}
+                          />
+                        )}
+
+
 
 
 
