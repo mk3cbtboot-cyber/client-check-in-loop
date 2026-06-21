@@ -1187,7 +1187,8 @@ export default function Dashboard() {
             if (computeStreak(list) >= 7) streaks += 1;
             const today = new Date().toISOString().slice(0, 10);
             if (c.water_date === today && Number(c.water_today_litres ?? 0) >= 2.5) waterHit += 1;
-            if (needsAttention(c, list)) attention += 1;
+            const matchesFilter = typeFilter === "all" || (typeFilter === "mb" ? c.client_type === "mb" : c.client_type === "custom");
+            if (matchesFilter && needsAttention(c, list)) attention += 1;
           });
 
           // Breakdown for the top-left card
