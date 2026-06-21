@@ -1254,6 +1254,25 @@ export default function Dashboard() {
                   Archived ({clients.filter((c) => !!c.archived_at).length})
                 </button>
               </div>
+              {!showArchived && (
+                <div role="group" aria-label="Client type filter" className="inline-flex rounded-md border overflow-hidden text-xs">
+                  {([
+                    { v: "all", label: `All (${clients.filter((c) => !c.archived_at).length})` },
+                    { v: "mb", label: `MB (${clients.filter((c) => !c.archived_at && c.client_type !== "custom").length})` },
+                    { v: "custom", label: `Custom (${clients.filter((c) => !c.archived_at && c.client_type === "custom").length})` },
+                  ] as const).map((opt, i) => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setTypeFilter(opt.v)}
+                      className={`px-2.5 py-1 ${i > 0 ? "border-l" : ""} ${typeFilter === opt.v ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                      aria-pressed={typeFilter === opt.v}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {!showArchived && (
               <Dialog open={open} onOpenChange={setOpen}>
