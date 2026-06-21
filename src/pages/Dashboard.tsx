@@ -1861,6 +1861,7 @@ export default function Dashboard() {
                             clientId={client.id}
                             initialList={(client as unknown as { food_list?: unknown }).food_list}
                             initialNotes={(client as unknown as { food_list_notes?: unknown }).food_list_notes}
+                            initialMealsPerDay={(client as unknown as { meals_per_day?: number }).meals_per_day ?? 3}
                           />
                         )}
 
