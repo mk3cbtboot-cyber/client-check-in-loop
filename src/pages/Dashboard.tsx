@@ -1681,7 +1681,7 @@ export default function Dashboard() {
                       <TabsContent value="overview" className="space-y-4 pt-3">
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-3">
-                            {client.system_mode !== "own_practice" && (
+                            {client.system_mode !== "own_practice" ? (
                               <div className="flex items-center gap-2">
                                 <Label className="text-xs">Phase</Label>
                                 <Select value={client.phase} onValueChange={(v) => setPhase(client.id, v as Phase)}>
@@ -1692,6 +1692,24 @@ export default function Dashboard() {
                                         {p.value === "phase2_extended" ? "Phase 2 Extended" : p.label}
                                       </SelectItem>
                                     ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs">Plan Format</Label>
+                                <Select
+                                  value={client.plan_format ?? "food_list"}
+                                  onValueChange={(v) => setPlanFormat(client.id, v as "food_list" | "recipe")}
+                                >
+                                  <SelectTrigger className="h-8 w-[280px]"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="food_list">
+                                      Food-List — Practitioner defines foods per meal slot. Client generates recipes from those foods.
+                                    </SelectItem>
+                                    <SelectItem value="recipe">
+                                      Recipe — Practitioner assigns specific recipes. Client picks and logs.
+                                    </SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
