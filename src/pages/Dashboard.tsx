@@ -1866,13 +1866,6 @@ export default function Dashboard() {
                           })()}
                         </div>
 
-
-
-
-
-
-
-
                         {(() => {
                           const weightEntries = [...list]
                             .filter((ci) => ci.weight_kg != null)
