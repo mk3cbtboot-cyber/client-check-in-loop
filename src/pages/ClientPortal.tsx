@@ -690,7 +690,7 @@ export default function ClientPortal() {
 
   return (
     <main className="min-h-screen bg-background pb-24">
-      <ClientWelcome open={welcomeOpen} clientName={client.name} onDismiss={dismissWelcome} />
+      <ClientWelcome open={welcomeOpen} clientName={client.name} planFormat={client.plan_format} practitionerDisplayName={client.practitioner_first_name ?? "your nutritionist"} onDismiss={dismissWelcome} />
       <header className="border-b">
         <div className="max-w-5xl mx-auto p-4 flex items-start justify-between gap-3">
           <div>
