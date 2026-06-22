@@ -2123,7 +2123,16 @@ export default function Dashboard() {
 
                       <TabsContent value="mealplan" className="pt-3">
                         {client.system_mode === "own_practice" ? (
-                          <p className="text-sm text-muted-foreground">Meal plan tools are MB-specific. Switch this client to MB to manage extended food lists.</p>
+                          client.plan_format === "food_list" ? (
+                            <CustomFoodListEditor
+                              clientId={client.id}
+                              initialList={(client as unknown as { food_list?: unknown }).food_list}
+                              initialNotes={(client as unknown as { food_list_notes?: unknown }).food_list_notes}
+                              initialMealsPerDay={(client as unknown as { meals_per_day?: number }).meals_per_day ?? 3}
+                            />
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No meal plan tools available for this plan format.</p>
+                          )
                         ) : (client.phase === "phase2_strict" || client.phase === "phase2_extended") ? (() => {
                           const cats = categoriesForPhase(client.phase2_food_list, client.phase, client.phase3_mb_fat_oil, client as unknown as Record<string, unknown>);
                           const isCustomised = Array.isArray(client.phase2_food_list);
