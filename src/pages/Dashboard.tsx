@@ -76,6 +76,7 @@ import PractitionerMessages from "@/components/PractitionerMessages";
 import MealsOverviewSection from "@/components/MealsOverviewSection";
 import AppointmentDialog, { type Appointment } from "@/components/AppointmentDialog";
 import CustomFoodListEditor from "@/components/CustomFoodListEditor";
+import FoodListDocImport from "@/components/FoodListDocImport";
 
 
 interface Client {
@@ -1839,6 +1840,13 @@ export default function Dashboard() {
                             </Button>
                             {client.system_mode !== "own_practice" && (
                               <MbPdfImport clientId={client.id} onSaved={load} hasUpload={!!client.mb_pdf_path} />
+                            )}
+                            {client.system_mode === "own_practice" && client.plan_format === "food_list" && (
+                              <FoodListDocImport
+                                clientId={client.id}
+                                existingList={(client as unknown as { food_list?: unknown }).food_list}
+                                onSaved={load}
+                              />
                             )}
                           </div>
                           {client.system_mode !== "own_practice" && client.phase2_strict_mode === "practitioner_custom" && (
