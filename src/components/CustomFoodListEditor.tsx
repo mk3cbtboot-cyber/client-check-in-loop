@@ -97,12 +97,6 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
   });
   const [pendingMeals, setPendingMeals] = useState<number | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importing, setImporting] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState(false);
-  const [reviewList, setReviewList] = useState<FoodList>(emptyList());
-  const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
-
   useEffect(() => { setList(normalizeList(initialList)); }, [initialList]);
   useEffect(() => { setNotes(normalizeNotes(initialNotes)); }, [initialNotes]);
   useEffect(() => {
