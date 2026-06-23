@@ -30,22 +30,10 @@ const ALL_SLOTS: { key: SlotKey; label: string }[] = [
   { key: "dinner", label: "Dinner" },
 ];
 const CATEGORIES: FoodCategoryKind[] = ["Protein", "Carbs", "Veg", "Fat", "Other"];
-const SLOT_LABEL: Record<SlotKey, string> = {
-  breakfast: "Breakfast",
-  morning_snack: "Morning Snack",
-  lunch: "Lunch",
-  afternoon_snack: "Afternoon Snack",
-  dinner: "Dinner",
-};
-
 function visibleSlotKeys(meals: number): SlotKey[] {
   if (meals === 5) return ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
   if (meals === 4) return ["breakfast", "lunch", "afternoon_snack", "dinner"];
   return ["breakfast", "lunch", "dinner"];
-}
-
-function emptyList(): FoodList {
-  return { breakfast: [], morning_snack: [], lunch: [], afternoon_snack: [], dinner: [] };
 }
 
 function normalizeList(raw: unknown): FoodList {
