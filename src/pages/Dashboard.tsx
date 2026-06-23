@@ -1840,6 +1840,13 @@ export default function Dashboard() {
                             {client.system_mode !== "own_practice" && (
                               <MbPdfImport clientId={client.id} onSaved={load} hasUpload={!!client.mb_pdf_path} />
                             )}
+                            {client.system_mode === "own_practice" && client.plan_format === "food_list" && (
+                              <FoodListDocImport
+                                clientId={client.id}
+                                existingList={(client as unknown as { food_list?: unknown }).food_list}
+                                onSaved={load}
+                              />
+                            )}
                           </div>
                           {client.system_mode !== "own_practice" && client.phase2_strict_mode === "practitioner_custom" && (
                             <div className="flex items-center gap-2">
