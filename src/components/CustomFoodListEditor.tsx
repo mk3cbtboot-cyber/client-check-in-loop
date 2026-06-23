@@ -208,65 +208,6 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Review imported foods</DialogTitle>
-            <DialogDescription>
-              Review the imported foods below. You can remove anything that doesn't look right and edit further after saving.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {(Object.keys(SLOT_LABEL) as SlotKey[]).map((k) => {
-              const items = reviewList[k];
-              if (!items || items.length === 0) return null;
-              return (
-                <div key={k} className="rounded-md border p-3">
-                  <h4 className="text-sm font-semibold mb-2">{SLOT_LABEL[k]}</h4>
-                  <ul className="space-y-1.5">
-                    {items.map((it, idx) => (
-                      <li key={idx} className="flex items-start justify-between gap-2 rounded border p-2 text-xs">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium truncate">{it.name}</p>
-                          <p className="text-muted-foreground">
-                            {it.portion || "—"} · <span className="uppercase tracking-wide">{it.category}</span>
-                          </p>
-                        </div>
-                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => reviewRemove(k, idx)} aria-label="Remove food">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-            {reviewTotal() === 0 && (
-              <p className="text-sm text-muted-foreground">No foods remaining. Cancel and try a different document.</p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReviewOpen(false)}>Cancel</Button>
-            <Button onClick={onConfirmReview} disabled={reviewTotal() === 0}>Confirm and save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={confirmReplaceOpen} onOpenChange={setConfirmReplaceOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Replace existing food list?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will replace the existing food list for this client. Are you sure?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void doSaveImport()}>Replace</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
