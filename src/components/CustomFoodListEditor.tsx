@@ -160,23 +160,6 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
         <h3 className="text-sm font-semibold">Meal Plan</h3>
         <span className="text-xs text-muted-foreground">Food-List</span>
         <div className="ml-auto flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            className="hidden"
-            onChange={handleFileSelected}
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8"
-            disabled={importing}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {importing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Upload className="h-3 w-3 mr-1" />}
-            {importing ? "Parsing…" : "Import from document"}
-          </Button>
           <Label className="text-xs">Meals per day</Label>
           <Select value={String(mealsPerDay)} onValueChange={requestMealsChange}>
             <SelectTrigger className="h-8 w-20"><SelectValue /></SelectTrigger>
