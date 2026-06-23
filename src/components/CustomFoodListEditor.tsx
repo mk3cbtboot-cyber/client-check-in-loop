@@ -146,7 +146,7 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">Meal Plan</h3>
-        <span className="text-xs text-muted-foreground">Food-List</span>
+        <span className="text-xs text-muted-foreground">Meal Plan</span>
         <div className="ml-auto flex items-center gap-2">
           <Label className="text-xs">Meals per day</Label>
           <Select value={String(mealsPerDay)} onValueChange={requestMealsChange}>
