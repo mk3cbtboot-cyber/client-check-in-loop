@@ -934,7 +934,7 @@ export default function Dashboard() {
       setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, plan_format: prev } : c)));
       return toast.error("Could not update plan format");
     }
-    toast.success(fmt === "recipe" ? "Plan format: Recipe" : "Plan format: Food-List");
+    toast.success(fmt === "recipe" ? "Plan format: Recipe Plan" : "Plan format: Meal Plan");
   };
 
   const setShow8Rules = async (clientId: string, value: boolean) => {
@@ -1207,7 +1207,7 @@ export default function Dashboard() {
           } else if (typeFilter === "custom") {
             const planFormatCounts: Record<string, number> = {};
             cardActiveClients.forEach((c) => {
-              const label = c.plan_format === "food_list" ? "Food-List" : c.plan_format === "recipe" ? "Recipe" : "Not set";
+              const label = c.plan_format === "food_list" ? "Meal Plan" : c.plan_format === "recipe" ? "Recipe Plan" : "Not set";
               planFormatCounts[label] = (planFormatCounts[label] ?? 0) + 1;
             });
             cardBreakdown = Object.entries(planFormatCounts)
@@ -1810,10 +1810,10 @@ export default function Dashboard() {
                                   <SelectTrigger className="h-8 w-[280px]"><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="food_list">
-                                      Food-List — Practitioner defines foods per meal slot. Client generates recipes from those foods.
+                                      Meal Plan — Practitioner defines foods per meal slot. Client generates recipes from those foods.
                                     </SelectItem>
                                     <SelectItem value="recipe">
-                                      Recipe — Practitioner assigns specific recipes. Client picks and logs.
+                                      Recipe Plan — Practitioner assigns specific recipes. Client picks and logs.
                                     </SelectItem>
                                   </SelectContent>
                                 </Select>
