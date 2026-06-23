@@ -76,6 +76,7 @@ import PractitionerMessages from "@/components/PractitionerMessages";
 import MealsOverviewSection from "@/components/MealsOverviewSection";
 import AppointmentDialog, { type Appointment } from "@/components/AppointmentDialog";
 import CustomFoodListEditor from "@/components/CustomFoodListEditor";
+import FoodListDocImport from "@/components/FoodListDocImport";
 
 
 interface Client {
