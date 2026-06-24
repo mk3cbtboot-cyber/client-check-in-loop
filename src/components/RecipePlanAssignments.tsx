@@ -62,12 +62,14 @@ export default function RecipePlanAssignments({
   const [loading, setLoading] = useState(false);
 
   const [pickerSlot, setPickerSlot] = useState<SlotKey | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const [portionStage, setPortionStage] = useState<{
     slot: SlotKey;
     recipe: Recipe;
     overrides: Ingredient[];
     existingId?: string;
   } | null>(null);
+
 
   const load = async () => {
     setLoading(true);
