@@ -299,7 +299,7 @@ export default function RecipePlanAssignments({
                   >
                     <p className="font-medium text-sm">{r.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      Default: {ALL_SLOTS.find((s) => s.key === r.default_slot)?.label ?? "Any"} ·{" "}
+                      Default: {r.default_slot === "any" ? "Any" : customSlotLabel(r.default_slot as SlotKey)} ·{" "}
                       {r.ingredients.length} ingredient{r.ingredients.length === 1 ? "" : "s"}
                     </p>
                   </button>
