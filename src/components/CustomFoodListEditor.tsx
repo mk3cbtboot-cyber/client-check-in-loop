@@ -83,7 +83,6 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     const v = Number(initialMealsPerDay ?? 3);
     return v === 4 || v === 5 ? v : 3;
   });
-  const [pendingMeals, setPendingMeals] = useState<number | null>(null);
 
   useEffect(() => { setList(normalizeList(initialList)); }, [initialList]);
   useEffect(() => { setNotes(normalizeNotes(initialNotes)); }, [initialNotes]);
@@ -112,30 +111,6 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     }
   }
 
-  async function saveMealsPerDay(next: number) {
-    const prev = mealsPerDay;
-    setMealsPerDay(next);
-    const { error } = await supabase.from("clients").update({ meals_per_day: next } as never).eq("id", clientId);
-    if (error) {
-      setMealsPerDay(prev);
-      toast.error("Failed to update meals per day");
-    }
-  }
-
-  function requestMealsChange(nextStr: string) {
-    const next = Number(nextStr);
-    if (next === mealsPerDay) return;
-    const currentVisible = new Set(visibleSlotKeys(mealsPerDay));
-    const nextVisible = new Set(visibleSlotKeys(next));
-    const willHide: SlotKey[] = [];
-    for (const k of currentVisible) if (!nextVisible.has(k)) willHide.push(k);
-    const hasHiddenContent = willHide.some((k) => list[k].length > 0 || notes[k].trim() !== "");
-    if (next < mealsPerDay && hasHiddenContent) {
-      setPendingMeals(next);
-      return;
-    }
-    void saveMealsPerDay(next);
-  }
 
 
   const visible = visibleSlotKeys(mealsPerDay);
