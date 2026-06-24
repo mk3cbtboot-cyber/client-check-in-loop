@@ -11,8 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { BookOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import RecipeLibrary from "./RecipeLibrary";
+
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 type RecipeSlot = SlotKey | "any";
@@ -60,12 +62,14 @@ export default function RecipePlanAssignments({
   const [loading, setLoading] = useState(false);
 
   const [pickerSlot, setPickerSlot] = useState<SlotKey | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const [portionStage, setPortionStage] = useState<{
     slot: SlotKey;
     recipe: Recipe;
     overrides: Ingredient[];
     existingId?: string;
   } | null>(null);
+
 
   const load = async () => {
     setLoading(true);
@@ -180,12 +184,26 @@ export default function RecipePlanAssignments({
 
   return (
     <div className="space-y-3">
-      <div>
-        <p className="text-sm font-medium">Assigned Recipes</p>
-        <p className="text-xs text-muted-foreground">
-          Assign recipes from your library to each meal slot. Override portions per client as needed.
-        </p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium">Assigned Recipes</p>
+          <p className="text-xs text-muted-foreground">
+            Assign recipes from your library to each meal slot. Override portions per client as needed.
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setLibraryOpen(true)}>
+          <BookOpen className="h-4 w-4" /> Recipe Library
+        </Button>
       </div>
+
+      <RecipeLibrary
+        open={libraryOpen}
+        onOpenChange={(v) => {
+          setLibraryOpen(v);
+          if (!v) void load();
+        }}
+      />
+
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
