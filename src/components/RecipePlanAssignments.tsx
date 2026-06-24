@@ -215,7 +215,7 @@ export default function RecipePlanAssignments({
             return (
               <Card key={s.key} className="p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="font-medium text-sm">{s.label}</p>
+                  <p className="font-medium text-sm">{customSlotLabel(s.key, mealsPerDay)}</p>
                   <Button size="sm" variant="outline" onClick={() => openPicker(s.key)}>
                     <Plus className="h-4 w-4" /> Assign recipe
                   </Button>
