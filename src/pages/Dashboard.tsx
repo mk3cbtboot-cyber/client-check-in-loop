@@ -1003,6 +1003,12 @@ export default function Dashboard() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {!isDetailView && (
+              <Button variant="outline" size="sm" onClick={() => setRecipeLibOpen(true)}>
+                <BookOpen className="h-4 w-4" /> Recipe Library
+              </Button>
+            )}
+            <RecipeLibrary open={recipeLibOpen} onOpenChange={setRecipeLibOpen} />
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" aria-label="Settings">
