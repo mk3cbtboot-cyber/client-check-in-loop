@@ -1885,6 +1885,7 @@ export default function Dashboard() {
                               <FoodListDocImport
                                 clientId={client.id}
                                 existingList={(client as unknown as { food_list?: unknown }).food_list}
+                                mealsPerDay={Number((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)}
                                 onSaved={load}
                               />
                             )}

@@ -16,11 +16,11 @@ import { toast } from "sonner";
 type Slot = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner" | "any";
 
 const SLOT_OPTIONS: { value: Slot; label: string }[] = [
-  { value: "breakfast", label: "Breakfast" },
-  { value: "morning_snack", label: "Morning Snack" },
-  { value: "lunch", label: "Lunch" },
-  { value: "afternoon_snack", label: "Afternoon Snack" },
-  { value: "dinner", label: "Dinner" },
+  { value: "breakfast", label: "Meal 1" },
+  { value: "morning_snack", label: "Meal 2" },
+  { value: "lunch", label: "Meal 3" },
+  { value: "afternoon_snack", label: "Meal 4" },
+  { value: "dinner", label: "Meal 5" },
   { value: "any", label: "Any" },
 ];
 

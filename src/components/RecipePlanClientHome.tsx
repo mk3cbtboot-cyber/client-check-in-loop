@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { customSlotLabel } from "@/lib/meal-slots";
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 
@@ -82,7 +83,7 @@ export default function RecipePlanClientHome({ token, assignments, mealsPerDay, 
         const list = bySlot.get(s.key) ?? [];
         return (
           <section key={s.key} className="space-y-3">
-            <h2 className="text-lg font-semibold">{s.label}</h2>
+            <h2 className="text-lg font-semibold">{customSlotLabel(s.key, mealsPerDay)}</h2>
             {list.length === 0 ? (
               <Card className="p-4">
                 <p className="text-sm text-muted-foreground">

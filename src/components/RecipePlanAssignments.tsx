@@ -14,6 +14,7 @@ import {
 import { BookOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import RecipeLibrary from "./RecipeLibrary";
+import { customSlotLabel } from "@/lib/meal-slots";
 
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
@@ -214,7 +215,7 @@ export default function RecipePlanAssignments({
             return (
               <Card key={s.key} className="p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="font-medium text-sm">{s.label}</p>
+                  <p className="font-medium text-sm">{customSlotLabel(s.key, mealsPerDay)}</p>
                   <Button size="sm" variant="outline" onClick={() => openPicker(s.key)}>
                     <Plus className="h-4 w-4" /> Assign recipe
                   </Button>
@@ -237,7 +238,7 @@ export default function RecipePlanAssignments({
                               {r?.name ?? "Unknown recipe"}
                             </p>
                             <p className="text-[11px] text-muted-foreground">
-                              {s.label}
+                              {customSlotLabel(s.key, mealsPerDay)}
                               {a.portion_overrides && a.portion_overrides.length > 0
                                 ? ` · ${a.portion_overrides.length} portion override${a.portion_overrides.length === 1 ? "" : "s"}`
                                 : ""}
@@ -275,7 +276,7 @@ export default function RecipePlanAssignments({
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              Assign recipe — {ALL_SLOTS.find((x) => x.key === pickerSlot)?.label}
+              Assign recipe — {pickerSlot ? customSlotLabel(pickerSlot, mealsPerDay) : ""}
             </DialogTitle>
           </DialogHeader>
           {pickerSlot && (() => {
@@ -298,7 +299,7 @@ export default function RecipePlanAssignments({
                   >
                     <p className="font-medium text-sm">{r.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      Default: {ALL_SLOTS.find((s) => s.key === r.default_slot)?.label ?? "Any"} ·{" "}
+                      Default: {r.default_slot === "any" ? "Any" : customSlotLabel(r.default_slot as SlotKey)} ·{" "}
                       {r.ingredients.length} ingredient{r.ingredients.length === 1 ? "" : "s"}
                     </p>
                   </button>

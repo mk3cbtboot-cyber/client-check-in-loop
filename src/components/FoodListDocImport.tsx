@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Trash2, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { customSlotLabel } from "@/lib/meal-slots";
 
 type FoodCategoryKind = "Protein" | "Carbs" | "Veg" | "Fat" | "Other";
 interface FoodItem { name: string; portion: string; category: FoodCategoryKind }
@@ -17,13 +18,7 @@ type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "di
 type FoodList = Record<SlotKey, FoodItem[]>;
 
 const CATEGORIES: FoodCategoryKind[] = ["Protein", "Carbs", "Veg", "Fat", "Other"];
-const SLOT_LABEL: Record<SlotKey, string> = {
-  breakfast: "Breakfast",
-  morning_snack: "Morning Snack",
-  lunch: "Lunch",
-  afternoon_snack: "Afternoon Snack",
-  dinner: "Dinner",
-};
+const SLOT_ORDER: SlotKey[] = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
 
 function emptyList(): FoodList {
   return { breakfast: [], morning_snack: [], lunch: [], afternoon_snack: [], dinner: [] };
@@ -54,10 +49,11 @@ function normalizeList(raw: unknown): FoodList {
 interface Props {
   clientId: string;
   existingList: unknown;
+  mealsPerDay: number;
   onSaved?: () => void;
 }
 
-export default function FoodListDocImport({ clientId, existingList, onSaved }: Props) {
+export default function FoodListDocImport({ clientId, existingList, mealsPerDay, onSaved }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -171,12 +167,12 @@ export default function FoodListDocImport({ clientId, existingList, onSaved }: P
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {(Object.keys(SLOT_LABEL) as SlotKey[]).map((k) => {
+            {SLOT_ORDER.map((k) => {
               const items = reviewList[k];
               if (!items || items.length === 0) return null;
               return (
                 <div key={k} className="rounded-md border p-3">
-                  <h4 className="text-sm font-semibold mb-2">{SLOT_LABEL[k]}</h4>
+                  <h4 className="text-sm font-semibold mb-2">{customSlotLabel(k, mealsPerDay)}</h4>
                   <ul className="space-y-1.5">
                     {items.map((it, idx) => (
                       <li key={idx} className="flex items-start justify-between gap-2 rounded border p-2 text-xs">

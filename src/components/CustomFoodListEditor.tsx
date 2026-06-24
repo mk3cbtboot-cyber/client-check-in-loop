@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Pencil, Trash2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
+import { customSlotLabel } from "@/lib/meal-slots";
 
 export type FoodCategoryKind = "Protein" | "Carbs" | "Veg" | "Fat" | "Other";
 export interface FoodItem {
@@ -127,7 +128,7 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
         {slots.map((s) => (
           <SlotPanel
             key={s.key}
-            label={s.label}
+            label={customSlotLabel(s.key, mealsPerDay)}
             items={list[s.key]}
             note={notes[s.key]}
             onItemsChange={(items) => saveList({ ...list, [s.key]: items })}
