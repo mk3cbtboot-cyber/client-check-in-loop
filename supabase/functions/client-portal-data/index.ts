@@ -113,6 +113,56 @@ Deno.serve(async (req) => {
       phase4Appointments = (appts ?? []) as typeof phase4Appointments;
     }
 
+    // Recipe Plan assignments — resolve to recipes with portion overrides applied.
+    let recipeAssignments: Array<{
+      id: string;
+      meal_slot: string;
+      recipe_id: string;
+      name: string;
+      ingredients: Array<{ food: string; amount: string }>;
+      method: string;
+    }> = [];
+    if (c.plan_format === "recipe") {
+      const { data: assigns } = await admin
+        .from("client_recipe_assignments")
+        .select("id, recipe_id, meal_slot, portion_overrides")
+        .eq("client_id", c.id);
+      const rows = (assigns ?? []) as Array<{ id: string; recipe_id: string; meal_slot: string; portion_overrides: Array<{ food: string; amount: string }> | null }>;
+      const ids = Array.from(new Set(rows.map((r) => r.recipe_id)));
+      if (ids.length) {
+        const { data: recs } = await admin
+          .from("practitioner_recipes")
+          .select("id, name, ingredients, method")
+          .in("id", ids);
+        const recipeMap = new Map<string, { name: string; ingredients: Array<{ food: string; amount: string }>; method: string }>();
+        for (const r of (recs ?? []) as Array<{ id: string; name: string; ingredients: Array<{ food: string; amount: string }>; method: string }>) {
+          recipeMap.set(r.id, {
+            name: r.name,
+            ingredients: Array.isArray(r.ingredients) ? r.ingredients : [],
+            method: typeof r.method === "string" ? r.method : "",
+          });
+        }
+        recipeAssignments = rows.map((a) => {
+          const r = recipeMap.get(a.recipe_id);
+          const baseIngs = r?.ingredients ?? [];
+          const overrides = Array.isArray(a.portion_overrides) ? a.portion_overrides : [];
+          const merged = baseIngs.map((i) => {
+            const ov = overrides.find((o) => o.food === i.food);
+            return { food: i.food, amount: ov?.amount ?? i.amount ?? "" };
+          });
+          return {
+            id: a.id,
+            meal_slot: a.meal_slot,
+            recipe_id: a.recipe_id,
+            name: r?.name ?? "Recipe",
+            ingredients: merged,
+            method: r?.method ?? "",
+          };
+        });
+      }
+    }
+
+
     return new Response(JSON.stringify({
       valid: true,
       client: {
