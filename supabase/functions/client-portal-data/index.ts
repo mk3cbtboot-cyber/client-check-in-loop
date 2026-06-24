@@ -231,7 +231,9 @@ Deno.serve(async (req) => {
         food_list: c.food_list ?? {},
         food_list_notes: c.food_list_notes ?? {},
         meals_per_day: Number(c.meals_per_day ?? 3),
+        recipe_assignments: recipeAssignments,
       },
+
 
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
