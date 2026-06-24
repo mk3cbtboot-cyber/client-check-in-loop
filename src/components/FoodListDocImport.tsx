@@ -18,13 +18,7 @@ type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "di
 type FoodList = Record<SlotKey, FoodItem[]>;
 
 const CATEGORIES: FoodCategoryKind[] = ["Protein", "Carbs", "Veg", "Fat", "Other"];
-const SLOT_LABEL: Record<SlotKey, string> = {
-  breakfast: "Breakfast",
-  morning_snack: "Morning Snack",
-  lunch: "Lunch",
-  afternoon_snack: "Afternoon Snack",
-  dinner: "Dinner",
-};
+const SLOT_ORDER: SlotKey[] = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
 
 function emptyList(): FoodList {
   return { breakfast: [], morning_snack: [], lunch: [], afternoon_snack: [], dinner: [] };
