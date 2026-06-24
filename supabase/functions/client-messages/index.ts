@@ -410,6 +410,60 @@ Deno.serve(async (req) => {
           ].join("\n");
 
           const isFoodList = String(f.plan_format ?? "") === "food_list";
+          const isRecipePlan = String(f.plan_format ?? "") === "recipe";
+
+          // Fetch Recipe Plan assignments (recipe library + per-client portion overrides).
+          let recipeSummary = "";
+          if (isRecipePlan) {
+            const { data: assigns } = await admin
+              .from("client_recipe_assignments")
+              .select("recipe_id, meal_slot, portion_overrides")
+              .eq("client_id", c.id);
+            const arows = (assigns ?? []) as Array<{ recipe_id: string; meal_slot: string; portion_overrides: Array<{ food: string; amount: string }> | null }>;
+            const ids = Array.from(new Set(arows.map((r) => r.recipe_id)));
+            const recMap = new Map<string, { name: string; ingredients: Array<{ food: string; amount: string }>; method: string }>();
+            if (ids.length) {
+              const { data: recs } = await admin
+                .from("practitioner_recipes")
+                .select("id, name, ingredients, method")
+                .in("id", ids);
+              for (const r of (recs ?? []) as Array<{ id: string; name: string; ingredients: Array<{ food: string; amount: string }>; method: string }>) {
+                recMap.set(r.id, { name: r.name, ingredients: Array.isArray(r.ingredients) ? r.ingredients : [], method: typeof r.method === "string" ? r.method : "" });
+              }
+            }
+            const slotLabel: Record<string, string> = {
+              breakfast: "Breakfast", morning_snack: "Morning Snack",
+              lunch: "Lunch", afternoon_snack: "Afternoon Snack", dinner: "Dinner",
+            };
+            const meals = Number(f.meals_per_day ?? 3);
+            const visible = meals === 5
+              ? ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"]
+              : meals === 4
+                ? ["breakfast", "lunch", "afternoon_snack", "dinner"]
+                : ["breakfast", "lunch", "dinner"];
+            const lines: string[] = ["Client meal plan (assigned recipes):"];
+            for (const slot of visible) {
+              const items = arows.filter((a) => a.meal_slot === slot);
+              if (!items.length) {
+                lines.push(`${slotLabel[slot] ?? slot}: (no recipes assigned)`);
+                continue;
+              }
+              const parts = items.map((a) => {
+                const r = recMap.get(a.recipe_id);
+                if (!r) return "(unknown recipe)";
+                const overrides = Array.isArray(a.portion_overrides) ? a.portion_overrides : [];
+                const ingStr = r.ingredients.map((i) => {
+                  const ov = overrides.find((o) => o.food === i.food);
+                  const amt = ov?.amount ?? i.amount ?? "";
+                  return amt ? `${i.food} (${amt})` : i.food;
+                }).join(", ");
+                return `"${r.name}" — ingredients: ${ingStr || "(none)"}; method: ${r.method ? r.method.replace(/\s+/g, " ").trim() : "(none)"}`;
+              }).join(" | ");
+              lines.push(`${slotLabel[slot] ?? slot}: ${parts}`);
+            }
+            recipeSummary = lines.join("\n");
+          }
+
 
           const FOOD_LIST_SLOTS: Array<{ key: string; label: string }> = [
             { key: "breakfast", label: "Breakfast" },
