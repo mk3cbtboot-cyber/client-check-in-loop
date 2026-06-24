@@ -75,6 +75,7 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
           filename: file.name,
           mime: file.type || (lower.endsWith(".pdf") ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
           data_base64,
+          meals_per_day: mealsPerDay,
         },
       });
       if (error || !data?.ok || !Array.isArray(data?.recipes) || data.recipes.length === 0) {
