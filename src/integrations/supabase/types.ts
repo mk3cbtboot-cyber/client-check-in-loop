@@ -150,6 +150,48 @@ export type Database = {
           },
         ]
       }
+      client_recipe_assignments: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          meal_slot: string
+          portion_overrides: Json | null
+          recipe_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          meal_slot: string
+          portion_overrides?: Json | null
+          recipe_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          meal_slot?: string
+          portion_overrides?: Json | null
+          recipe_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_recipe_assignments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_recipe_assignments_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           archived_at: string | null

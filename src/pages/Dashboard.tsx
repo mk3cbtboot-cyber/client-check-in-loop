@@ -77,6 +77,7 @@ import PractitionerMessages from "@/components/PractitionerMessages";
 import MealsOverviewSection from "@/components/MealsOverviewSection";
 import AppointmentDialog, { type Appointment } from "@/components/AppointmentDialog";
 import CustomFoodListEditor from "@/components/CustomFoodListEditor";
+import RecipePlanAssignments from "@/components/RecipePlanAssignments";
 import FoodListDocImport from "@/components/FoodListDocImport";
 
 
@@ -2138,6 +2139,11 @@ export default function Dashboard() {
                               initialList={(client as unknown as { food_list?: unknown }).food_list}
                               initialNotes={(client as unknown as { food_list_notes?: unknown }).food_list_notes}
                               initialMealsPerDay={(client as unknown as { meals_per_day?: number }).meals_per_day ?? 3}
+                            />
+                          ) : client.plan_format === "recipe" ? (
+                            <RecipePlanAssignments
+                              clientId={client.id}
+                              mealsPerDay={(client as unknown as { meals_per_day?: number }).meals_per_day ?? 3}
                             />
                           ) : (
                             <p className="text-sm text-muted-foreground">No meal plan tools available for this plan format.</p>
