@@ -56,7 +56,7 @@ export default function FoodListClientHome({ token, foodList, foodListNotes, mea
             key={s.key}
             token={token}
             slotKey={s.key}
-            label={s.label}
+            label={customSlotLabel(s.key, mealsPerDay)}
             foods={foods}
             note={note}
             onLogged={onLogged}
