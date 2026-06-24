@@ -238,7 +238,7 @@ export default function RecipePlanAssignments({
                               {r?.name ?? "Unknown recipe"}
                             </p>
                             <p className="text-[11px] text-muted-foreground">
-                              {s.label}
+                              {customSlotLabel(s.key, mealsPerDay)}
                               {a.portion_overrides && a.portion_overrides.length > 0
                                 ? ` · ${a.portion_overrides.length} portion override${a.portion_overrides.length === 1 ? "" : "s"}`
                                 : ""}
