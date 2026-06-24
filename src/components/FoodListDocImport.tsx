@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Trash2, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { customSlotLabel } from "@/lib/meal-slots";
 
 type FoodCategoryKind = "Protein" | "Carbs" | "Veg" | "Fat" | "Other";
 interface FoodItem { name: string; portion: string; category: FoodCategoryKind }
