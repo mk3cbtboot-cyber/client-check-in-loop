@@ -1857,6 +1857,9 @@ export default function Dashboard() {
                                 onSaved={load}
                               />
                             )}
+                            {client.system_mode === "own_practice" && client.plan_format === "recipe" && (
+                              <RecipesDocImport clientId={client.id} onSaved={load} />
+                            )}
                           </div>
                           {client.system_mode !== "own_practice" && client.phase2_strict_mode === "practitioner_custom" && (
                             <div className="flex items-center gap-2">
