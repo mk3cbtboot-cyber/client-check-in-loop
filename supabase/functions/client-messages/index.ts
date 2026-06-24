@@ -464,13 +464,6 @@ Deno.serve(async (req) => {
           }
 
 
-          const FOOD_LIST_SLOTS: Array<{ key: string; label: string }> = [
-            { key: "breakfast", label: "Breakfast" },
-            { key: "morning_snack", label: "Morning Snack" },
-            { key: "lunch", label: "Lunch" },
-            { key: "afternoon_snack", label: "Afternoon Snack" },
-            { key: "dinner", label: "Dinner" },
-          ];
           const visibleFoodListSlots = (meals: number): string[] => {
             if (meals === 5) return ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
             if (meals === 4) return ["breakfast", "lunch", "afternoon_snack", "dinner"];
@@ -481,10 +474,10 @@ Deno.serve(async (req) => {
             const fl = (f.food_list ?? {}) as Record<string, Array<{ name?: string; portion?: string; category?: string }>>;
             const notes = (f.food_list_notes ?? {}) as Record<string, string>;
             const meals = Number(f.meals_per_day ?? 3);
-            const visible = new Set(visibleFoodListSlots(meals));
+            const visible = visibleFoodListSlots(meals);
             const lines: string[] = ["Client meal plan:"];
-            for (const { key, label } of FOOD_LIST_SLOTS) {
-              if (!visible.has(key)) continue;
+            visible.forEach((key, i) => {
+              const label = `Meal ${i + 1}`;
               const items = Array.isArray(fl[key]) ? fl[key] : [];
               const itemStr = items.length
                 ? items.map((it) => {
@@ -494,9 +487,10 @@ Deno.serve(async (req) => {
                 : "(no foods listed)";
               const note = typeof notes[key] === "string" ? notes[key].trim() : "";
               lines.push(`${label}: [${itemStr}]${note ? ` Note: ${note}` : ""}`);
-            }
+            });
             return lines.join("\n");
           };
+
 
 
 
