@@ -1843,6 +1843,22 @@ export default function Dashboard() {
                                 </Select>
                               </div>
                             )}
+                            {client.system_mode === "own_practice" && (
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs">Meals per day</Label>
+                                <Select
+                                  value={String((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)}
+                                  onValueChange={(v) => setMealsPerDay(client.id, Number(v))}
+                                >
+                                  <SelectTrigger className="h-8 w-20"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="3">3</SelectItem>
+                                    <SelectItem value="4">4</SelectItem>
+                                    <SelectItem value="5">5</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
                             {client.system_mode !== "own_practice" && (
                               <div className="flex items-center gap-2">
                                 <Label className="text-xs">Batch cooking</Label>
