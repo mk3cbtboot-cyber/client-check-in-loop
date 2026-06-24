@@ -185,6 +185,7 @@ export default function Dashboard() {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [tier, setTier] = useState<PractitionerTier | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [recipeLibOpen, setRecipeLibOpen] = useState(false);
   const [savingTier, setSavingTier] = useState(false);
   const [rawOpen, setRawOpen] = useState<Record<string, boolean>>({});
   const [showArchived, setShowArchived] = useState(false);
