@@ -14,6 +14,7 @@ import {
 import { BookOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import RecipeLibrary from "./RecipeLibrary";
+import { customSlotLabel } from "@/lib/meal-slots";
 
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
