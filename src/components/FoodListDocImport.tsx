@@ -49,10 +49,11 @@ function normalizeList(raw: unknown): FoodList {
 interface Props {
   clientId: string;
   existingList: unknown;
+  mealsPerDay: number;
   onSaved?: () => void;
 }
 
-export default function FoodListDocImport({ clientId, existingList, onSaved }: Props) {
+export default function FoodListDocImport({ clientId, existingList, mealsPerDay, onSaved }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
