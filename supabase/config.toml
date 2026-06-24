@@ -24,4 +24,9 @@ verify_jwt = false
 [functions.parse-foodlist-document]
 verify_jwt = false
 
+[functions.log-recipe-meal]
+verify_jwt = false
+
+
+
 

@@ -410,6 +410,60 @@ Deno.serve(async (req) => {
           ].join("\n");
 
           const isFoodList = String(f.plan_format ?? "") === "food_list";
+          const isRecipePlan = String(f.plan_format ?? "") === "recipe";
+
+          // Fetch Recipe Plan assignments (recipe library + per-client portion overrides).
+          let recipeSummary = "";
+          if (isRecipePlan) {
+            const { data: assigns } = await admin
+              .from("client_recipe_assignments")
+              .select("recipe_id, meal_slot, portion_overrides")
+              .eq("client_id", c.id);
+            const arows = (assigns ?? []) as Array<{ recipe_id: string; meal_slot: string; portion_overrides: Array<{ food: string; amount: string }> | null }>;
+            const ids = Array.from(new Set(arows.map((r) => r.recipe_id)));
+            const recMap = new Map<string, { name: string; ingredients: Array<{ food: string; amount: string }>; method: string }>();
+            if (ids.length) {
+              const { data: recs } = await admin
+                .from("practitioner_recipes")
+                .select("id, name, ingredients, method")
+                .in("id", ids);
+              for (const r of (recs ?? []) as Array<{ id: string; name: string; ingredients: Array<{ food: string; amount: string }>; method: string }>) {
+                recMap.set(r.id, { name: r.name, ingredients: Array.isArray(r.ingredients) ? r.ingredients : [], method: typeof r.method === "string" ? r.method : "" });
+              }
+            }
+            const slotLabel: Record<string, string> = {
+              breakfast: "Breakfast", morning_snack: "Morning Snack",
+              lunch: "Lunch", afternoon_snack: "Afternoon Snack", dinner: "Dinner",
+            };
+            const meals = Number(f.meals_per_day ?? 3);
+            const visible = meals === 5
+              ? ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"]
+              : meals === 4
+                ? ["breakfast", "lunch", "afternoon_snack", "dinner"]
+                : ["breakfast", "lunch", "dinner"];
+            const lines: string[] = ["Client meal plan (assigned recipes):"];
+            for (const slot of visible) {
+              const items = arows.filter((a) => a.meal_slot === slot);
+              if (!items.length) {
+                lines.push(`${slotLabel[slot] ?? slot}: (no recipes assigned)`);
+                continue;
+              }
+              const parts = items.map((a) => {
+                const r = recMap.get(a.recipe_id);
+                if (!r) return "(unknown recipe)";
+                const overrides = Array.isArray(a.portion_overrides) ? a.portion_overrides : [];
+                const ingStr = r.ingredients.map((i) => {
+                  const ov = overrides.find((o) => o.food === i.food);
+                  const amt = ov?.amount ?? i.amount ?? "";
+                  return amt ? `${i.food} (${amt})` : i.food;
+                }).join(", ");
+                return `"${r.name}" — ingredients: ${ingStr || "(none)"}; method: ${r.method ? r.method.replace(/\s+/g, " ").trim() : "(none)"}`;
+              }).join(" | ");
+              lines.push(`${slotLabel[slot] ?? slot}: ${parts}`);
+            }
+            recipeSummary = lines.join("\n");
+          }
+
 
           const FOOD_LIST_SLOTS: Array<{ key: string; label: string }> = [
             { key: "breakfast", label: "Breakfast" },
@@ -448,7 +502,16 @@ Deno.serve(async (req) => {
 
 
 
-          const planSummary = isFoodList
+          const planSummary = isRecipePlan
+            ? [
+                `Client name: ${f.name ?? "(unknown)"}`,
+                `Plan format: Recipe Plan (${Number(f.meals_per_day ?? 3)} meals/day)`,
+                "",
+                recipeSummary,
+                "",
+                `Water target: ${f.water_target_litres ?? "?"} litres/day`,
+              ].filter(Boolean).join("\n")
+            : isFoodList
             ? [
                 `Client name: ${f.name ?? "(unknown)"}`,
                 `Plan format: Food List (${Number(f.meals_per_day ?? 3)} meals/day)`,
@@ -487,7 +550,17 @@ Deno.serve(async (req) => {
                 "TREAT MEAL GUIDANCE: Phase 2 Extended allows up to 1 treat meal per week. Phase 3 allows up to 1 treat meal per week. Phase 4 (Maintenance) allows up to 3 treat meals per week.",
               ].filter(Boolean).join("\n");
 
-          const systemPrompt = isFoodList
+          const systemPrompt = isRecipePlan
+            ? [
+                "You are the AI assistant for a nutrition practitioner, answering the client's question about their personal Recipe Plan.",
+                "Answer ONLY from the client's assigned recipes provided below. Each meal slot lists the exact recipes the practitioner has assigned, with ingredients (and the client's specific portion amounts) and method.",
+                "When a client asks about a specific food or recipe, report which slot(s) it appears in and the exact portion. Do NOT suggest substitutions across slots or invent recipes that aren't listed.",
+                "If a slot has no recipes assigned, say so plainly.",
+                "If the food is not anywhere in the plan, say: \"That food is not in your meal plan.\"",
+                "Be specific: name the recipes, ingredients, and portions from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
+                `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. supplements, medical advice, or coaching).`,
+              ].join(" ")
+            : isFoodList
             ? [
                 "You are the AI assistant for a nutrition practitioner, answering the client's question about their personal Food-List meal plan.",
                 "Answer ONLY from the client's meal plan provided below. Each meal slot lists the exact foods, portions, and categories the practitioner has assigned. Do NOT infer, speculate, or recommend foods outside the listed slots.",
@@ -509,6 +582,7 @@ Deno.serve(async (req) => {
                   ? "This client is in Phase 4 — Maintenance. They have completed the program. Use their Phase 2 personal food list, Phase 3 extended list (including oils), the 8 Metabolic Balance Rules, and treat meal guidance (up to 3 treat meals per week) as your full reference. The PDF data above is comprehensive — answer any question that can be answered from it. NEVER tell the client you've passed their question to the practitioner, NEVER say you'll forward it, and NEVER suggest they wait for a human reply. If the answer truly isn't in the plan data, give the best general Metabolic Balance maintenance guidance consistent with what's in the plan."
                   : `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
               ].join(" ");
+
 
 
 
