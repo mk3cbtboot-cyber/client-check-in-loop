@@ -106,11 +106,11 @@ Deno.serve(async (req) => {
       if (!text) {
         return new Response(JSON.stringify({ error: "empty" }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      userContent = [{ type: "text", text: `${SYSTEM_PROMPT}\n\nDocument text:\n\n${text}` }];
+      userContent = [{ type: "text", text: `${systemPrompt}\n\nDocument text:\n\n${text}` }];
     } else {
       const cleanB64 = data_base64.replace(/^data:[^;]+;base64,/, "");
       userContent = [
-        { type: "text", text: SYSTEM_PROMPT },
+        { type: "text", text: systemPrompt },
         { type: "file", file: { filename, file_data: `data:application/pdf;base64,${cleanB64}` } },
       ];
     }
