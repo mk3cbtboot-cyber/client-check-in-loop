@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { X, ArrowLeft, Settings as SettingsIcon } from "lucide-react";
+import { X, ArrowLeft, Settings as SettingsIcon, BookOpen } from "lucide-react";
+import RecipeLibrary from "@/components/RecipeLibrary";
 import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
 import { TIERS, tierLabel, tierShowsToggle, defaultSystemMode, type PractitionerTier } from "@/lib/tiers";
 import {
@@ -184,6 +185,7 @@ export default function Dashboard() {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [tier, setTier] = useState<PractitionerTier | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [recipeLibOpen, setRecipeLibOpen] = useState(false);
   const [savingTier, setSavingTier] = useState(false);
   const [rawOpen, setRawOpen] = useState<Record<string, boolean>>({});
   const [showArchived, setShowArchived] = useState(false);
@@ -1001,6 +1003,12 @@ export default function Dashboard() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {!isDetailView && (
+              <Button variant="outline" size="sm" onClick={() => setRecipeLibOpen(true)}>
+                <BookOpen className="h-4 w-4" /> Recipe Library
+              </Button>
+            )}
+            <RecipeLibrary open={recipeLibOpen} onOpenChange={setRecipeLibOpen} />
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" aria-label="Settings">
