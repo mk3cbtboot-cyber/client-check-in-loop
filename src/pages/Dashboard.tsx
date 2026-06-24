@@ -941,6 +941,20 @@ export default function Dashboard() {
     toast.success(fmt === "recipe" ? "Plan format: Recipe Plan" : "Plan format: Meal Plan");
   };
 
+  const setMealsPerDay = async (clientId: string, next: number) => {
+    const c = clients.find((x) => x.id === clientId);
+    const prev = Number((c as unknown as { meals_per_day?: number } | undefined)?.meals_per_day ?? 3);
+    if (next === prev) return;
+    if (next < prev && !window.confirm("Reduce meals per day? Hidden meal slots will be saved but not visible to the client.")) return;
+    setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, meals_per_day: next } as typeof x) : x)));
+    const { error } = await supabase.from("clients").update({ meals_per_day: next } as never).eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, meals_per_day: prev } as typeof x) : x)));
+      return toast.error("Could not update meals per day");
+    }
+    toast.success(`Meals per day: ${next}`);
+  };
+
   const setShow8Rules = async (clientId: string, value: boolean) => {
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, show_8_rules: value } : c)));
     const { error } = await supabase.from("clients").update({ show_8_rules: value }).eq("id", clientId);
@@ -1825,6 +1839,22 @@ export default function Dashboard() {
                                     <SelectItem value="recipe">
                                       Recipe Plan — Practitioner assigns specific recipes. Client picks and logs.
                                     </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                            {client.system_mode === "own_practice" && (
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs">Meals per day</Label>
+                                <Select
+                                  value={String((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)}
+                                  onValueChange={(v) => setMealsPerDay(client.id, Number(v))}
+                                >
+                                  <SelectTrigger className="h-8 w-20"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="3">3</SelectItem>
+                                    <SelectItem value="4">4</SelectItem>
+                                    <SelectItem value="5">5</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>

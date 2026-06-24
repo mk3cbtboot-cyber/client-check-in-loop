@@ -83,7 +83,6 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     const v = Number(initialMealsPerDay ?? 3);
     return v === 4 || v === 5 ? v : 3;
   });
-  const [pendingMeals, setPendingMeals] = useState<number | null>(null);
 
   useEffect(() => { setList(normalizeList(initialList)); }, [initialList]);
   useEffect(() => { setNotes(normalizeNotes(initialNotes)); }, [initialNotes]);
@@ -112,30 +111,6 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     }
   }
 
-  async function saveMealsPerDay(next: number) {
-    const prev = mealsPerDay;
-    setMealsPerDay(next);
-    const { error } = await supabase.from("clients").update({ meals_per_day: next } as never).eq("id", clientId);
-    if (error) {
-      setMealsPerDay(prev);
-      toast.error("Failed to update meals per day");
-    }
-  }
-
-  function requestMealsChange(nextStr: string) {
-    const next = Number(nextStr);
-    if (next === mealsPerDay) return;
-    const currentVisible = new Set(visibleSlotKeys(mealsPerDay));
-    const nextVisible = new Set(visibleSlotKeys(next));
-    const willHide: SlotKey[] = [];
-    for (const k of currentVisible) if (!nextVisible.has(k)) willHide.push(k);
-    const hasHiddenContent = willHide.some((k) => list[k].length > 0 || notes[k].trim() !== "");
-    if (next < mealsPerDay && hasHiddenContent) {
-      setPendingMeals(next);
-      return;
-    }
-    void saveMealsPerDay(next);
-  }
 
 
   const visible = visibleSlotKeys(mealsPerDay);
@@ -147,17 +122,6 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">Meal Plan</h3>
         <span className="text-xs text-muted-foreground">Meal Plan</span>
-        <div className="ml-auto flex items-center gap-2">
-          <Label className="text-xs">Meals per day</Label>
-          <Select value={String(mealsPerDay)} onValueChange={requestMealsChange}>
-            <SelectTrigger className="h-8 w-20"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="3">3</SelectItem>
-              <SelectItem value="4">4</SelectItem>
-              <SelectItem value="5">5</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </div>
       <div className={`grid grid-cols-1 ${gridCols} gap-3`}>
         {slots.map((s) => (
@@ -175,27 +139,6 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
         ))}
       </div>
 
-      <AlertDialog open={pendingMeals != null} onOpenChange={(o) => !o && setPendingMeals(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reduce meals per day?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will hide the Afternoon Snack and Morning Snack slots. Any foods added to those slots will be saved but not visible to the client. Are you sure?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (pendingMeals != null) void saveMealsPerDay(pendingMeals);
-                setPendingMeals(null);
-              }}
-            >
-              Confirm
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
