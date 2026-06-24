@@ -147,17 +147,6 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">Meal Plan</h3>
         <span className="text-xs text-muted-foreground">Meal Plan</span>
-        <div className="ml-auto flex items-center gap-2">
-          <Label className="text-xs">Meals per day</Label>
-          <Select value={String(mealsPerDay)} onValueChange={requestMealsChange}>
-            <SelectTrigger className="h-8 w-20"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="3">3</SelectItem>
-              <SelectItem value="4">4</SelectItem>
-              <SelectItem value="5">5</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </div>
       <div className={`grid grid-cols-1 ${gridCols} gap-3`}>
         {slots.map((s) => (
