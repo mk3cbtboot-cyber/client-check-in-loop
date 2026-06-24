@@ -79,6 +79,7 @@ import AppointmentDialog, { type Appointment } from "@/components/AppointmentDia
 import CustomFoodListEditor from "@/components/CustomFoodListEditor";
 import RecipePlanAssignments from "@/components/RecipePlanAssignments";
 import FoodListDocImport from "@/components/FoodListDocImport";
+import RecipesDocImport from "@/components/RecipesDocImport";
 
 
 interface Client {
@@ -1856,6 +1857,9 @@ export default function Dashboard() {
                                 existingList={(client as unknown as { food_list?: unknown }).food_list}
                                 onSaved={load}
                               />
+                            )}
+                            {client.system_mode === "own_practice" && client.plan_format === "recipe" && (
+                              <RecipesDocImport clientId={client.id} onSaved={load} />
                             )}
                           </div>
                           {client.system_mode !== "own_practice" && client.phase2_strict_mode === "practitioner_custom" && (
