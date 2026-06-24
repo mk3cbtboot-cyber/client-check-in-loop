@@ -431,16 +431,15 @@ Deno.serve(async (req) => {
                 recMap.set(r.id, { name: r.name, ingredients: Array.isArray(r.ingredients) ? r.ingredients : [], method: typeof r.method === "string" ? r.method : "" });
               }
             }
-            const slotLabel: Record<string, string> = {
-              breakfast: "Breakfast", morning_snack: "Morning Snack",
-              lunch: "Lunch", afternoon_snack: "Afternoon Snack", dinner: "Dinner",
-            };
             const meals = Number(f.meals_per_day ?? 3);
             const visible = meals === 5
               ? ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"]
               : meals === 4
                 ? ["breakfast", "lunch", "afternoon_snack", "dinner"]
                 : ["breakfast", "lunch", "dinner"];
+            const slotLabel: Record<string, string> = Object.fromEntries(
+              visible.map((k, i) => [k, `Meal ${i + 1}`]),
+            );
             const lines: string[] = ["Client meal plan (assigned recipes):"];
             for (const slot of visible) {
               const items = arows.filter((a) => a.meal_slot === slot);
