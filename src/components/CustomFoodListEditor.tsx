@@ -139,27 +139,6 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
         ))}
       </div>
 
-      <AlertDialog open={pendingMeals != null} onOpenChange={(o) => !o && setPendingMeals(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reduce meals per day?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will hide the Afternoon Snack and Morning Snack slots. Any foods added to those slots will be saved but not visible to the client. Are you sure?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (pendingMeals != null) void saveMealsPerDay(pendingMeals);
-                setPendingMeals(null);
-              }}
-            >
-              Confirm
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
