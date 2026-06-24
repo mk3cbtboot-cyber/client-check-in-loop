@@ -48,31 +48,46 @@ export default function ClientWelcome({
   const firstName = (clientName || "").trim().split(/\s+/)[0] || "there";
   const practitioner = practitionerDisplayName?.trim() || "your nutritionist";
   const isFoodList = planFormat === "food_list";
+  const isRecipe = planFormat === "recipe";
+
+  const customBody = isRecipe
+    ? `The old saying that a journey of a thousand miles starts with a single step is never more true than right now. Congratulations, ${firstName}, on taking your first step out of your comfort zone and moving towards taking control of your health and fitness. This app has been built to help you put your personal meal plan, created by ${practitioner}, into practice. Your practitioner has created a set of personalised recipes to make it as easy as possible to follow your plan and reach your goals. It will also help you track your progress and stay connected to your nutritionist between appointments, so you can stay on track and give yourself the best chance of success.`
+    : `The old saying that a journey of a thousand miles starts with a single step is never more true than right now. Congratulations, ${firstName}, on taking your first step out of your comfort zone and moving towards taking control of your health and fitness. This app has been built to help you put your personal meal plan, created by ${practitioner}, into practice. The recipe generator will help you create meals that make it easier to follow your plan and reach your goals. It will also help you track your progress and stay connected to your nutritionist between appointments, so you can stay on track and give yourself the best chance of success.`;
+
+  const customFirstSteps = isRecipe
+    ? [
+        "View your meal plan on the Home tab and your approved foods are listed by meal",
+        "Open a meal slot on the Home tab and tap a recipe to see the full ingredients and method.",
+        "Tap I Ate This when you've eaten a meal to log your progress",
+        "Track your water intake daily",
+        "Complete your check-ins so your practitioner can see how you're going",
+      ]
+    : FOOD_LIST_FIRST_STEPS;
+
+  const isCustom = isFoodList || isRecipe;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onDismiss(); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl">
-            {isFoodList ? `Welcome to Tenacia, ${firstName}.` : `Welcome, ${firstName}`}
+            {isCustom ? `Welcome to Tenacia, ${firstName}.` : `Welcome, ${firstName}`}
           </DialogTitle>
-          {!isFoodList && (
+          {!isCustom && (
             <DialogDescription className="text-base">
               Your Metabolic Balance™ journey starts here.
             </DialogDescription>
           )}
         </DialogHeader>
 
-        {isFoodList ? (
+        {isCustom ? (
           <div className="space-y-5 text-sm">
-            <p>
-              The old saying that a journey of a thousand miles starts with a single step is never more true than right now. Congratulations, {firstName}, on taking your first step out of your comfort zone and moving towards taking control of your health and fitness. This app has been built to help you put your personal meal plan, created by {practitioner}, into practice. The recipe generator will help you create meals that make it easier to follow your plan and reach your goals. It will also help you track your progress and stay connected to your nutritionist between appointments, so you can stay on track and give yourself the best chance of success.
-            </p>
+            <p>{customBody}</p>
 
             <div>
               <h3 className="font-semibold mb-2">What to do first:</h3>
               <ul className="list-disc pl-5 space-y-1">
-                {FOOD_LIST_FIRST_STEPS.map((step) => (
+                {customFirstSteps.map((step) => (
                   <li key={step}>{step}</li>
                 ))}
               </ul>
