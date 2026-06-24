@@ -15,7 +15,21 @@ const Body = z.object({
 
 const SLOTS = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner", "any"] as const;
 
-const SYSTEM_PROMPT = `This document contains nutrition recipes. Extract every recipe you can find. For each recipe extract: the recipe name, the list of ingredients (each as a food name plus an amount/portion string), the method (preparation steps as plain text — combine numbered steps with line breaks), and the meal slot it belongs to (one of: breakfast, morning_snack, lunch, afternoon_snack, dinner, any — use "any" if the slot isn't clear from the document). Only include recipes that are clearly present. Do not invent recipes. Return the result as structured JSON.`;
+function buildSystemPrompt(mealsPerDay?: number): string {
+  const mappings: Record<number, string> = {
+    3: `The client eats 3 meals per day. Numbered labels map to: Meal 1 = breakfast, Meal 2 = lunch, Meal 3 = dinner.`,
+    4: `The client eats 4 meals per day. Numbered labels map to: Meal 1 = breakfast, Meal 2 = lunch, Meal 3 = afternoon_snack, Meal 4 = dinner.`,
+    5: `The client eats 5 meals per day. Numbered labels map to: Meal 1 = breakfast, Meal 2 = morning_snack, Meal 3 = lunch, Meal 4 = afternoon_snack, Meal 5 = dinner.`,
+  };
+  const numberedRule = mealsPerDay && mappings[mealsPerDay]
+    ? mappings[mealsPerDay]
+    : `If the document uses numbered labels (Meal 1, Meal 2, …) and the client's meals-per-day is unknown, assume 5 meals: Meal 1 = breakfast, Meal 2 = morning_snack, Meal 3 = lunch, Meal 4 = afternoon_snack, Meal 5 = dinner.`;
+  return `This document contains nutrition recipes. Extract every recipe you can find. For each recipe extract: the recipe name, the list of ingredients (each as a food name plus an amount/portion string), the method (preparation steps as plain text — combine numbered steps with line breaks), and the meal slot it belongs to (one of: breakfast, morning_snack, lunch, afternoon_snack, dinner, any).
+
+Recognise both named meal labels (Breakfast, Morning Snack, Lunch, Afternoon Snack, Dinner) and numbered meal labels (Meal 1, Meal 2, Meal 3, Meal 4, Meal 5). ${numberedRule} If the document uses neither named nor numbered labels and the slot is not clear, set meal_slot to "any".
+
+Only include recipes that are clearly present. Do not invent recipes. Return the result as structured JSON.`;
+}
 
 const TOOL = {
   type: "function",
