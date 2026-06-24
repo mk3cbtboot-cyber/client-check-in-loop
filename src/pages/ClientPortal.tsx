@@ -23,6 +23,7 @@ import { getPhaseProgress } from "@/lib/progress";
 import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
 import MealRecipeSection from "@/components/MealRecipeSection";
 import FoodListClientHome from "@/components/FoodListClientHome";
+import RecipePlanClientHome, { type RecipeAssignment } from "@/components/RecipePlanClientHome";
 
 
 
@@ -94,6 +95,7 @@ interface ClientState {
   food_list?: Record<string, Array<{ name: string; portion: string; category: string }>>;
   food_list_notes?: Record<string, string>;
   meals_per_day?: number;
+  recipe_assignments?: RecipeAssignment[];
 }
 
 
@@ -695,7 +697,7 @@ export default function ClientPortal() {
         <div className="max-w-5xl mx-auto p-4 flex items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold">Hi {client.name}</h1>
-            <p className="text-xs text-muted-foreground">{client.plan_format === "food_list" ? "Custom Plan" : `Metabolic Balance · ${phaseShort(client.phase)}`}</p>
+            <p className="text-xs text-muted-foreground">{client.plan_format === "food_list" ? "Meal Plan" : client.plan_format === "recipe" && client.client_type === "custom" ? "Recipe Plan" : `Metabolic Balance · ${phaseShort(client.phase)}`}</p>
           </div>
           <button
             type="button"
@@ -1526,7 +1528,7 @@ export default function ClientPortal() {
             { key: "plan", label: "My Plan", Icon: BookOpen },
             { key: "messages", label: "Messages", Icon: MessageCircle },
           ] as { key: TabKey; label: string; Icon: typeof Home }[])
-            .filter(({ key }) => !(client.plan_format === "food_list" && key === "planner"))
+            .filter(({ key }) => !((client.plan_format === "food_list" || (client.plan_format === "recipe" && client.client_type === "custom")) && key === "planner"))
             .filter(({ key }) => !(client.phase === "phase4" && key === "planner"))
             .filter(({ key }) => !(phase4CheckinHidden && key === "checkin"));
           return (
