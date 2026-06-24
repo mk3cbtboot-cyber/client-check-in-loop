@@ -1890,7 +1890,7 @@ export default function Dashboard() {
                               />
                             )}
                             {client.system_mode === "own_practice" && client.plan_format === "recipe" && (
-                              <RecipesDocImport clientId={client.id} onSaved={load} />
+                              <RecipesDocImport clientId={client.id} mealsPerDay={Number((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)} onSaved={load} />
                             )}
                           </div>
                           {client.system_mode !== "own_practice" && client.phase2_strict_mode === "practitioner_custom" && (

@@ -34,10 +34,11 @@ type ParsedRecipe = {
 
 interface Props {
   clientId: string;
+  mealsPerDay?: number;
   onSaved?: () => void;
 }
 
-export default function RecipesDocImport({ clientId, onSaved }: Props) {
+export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -74,6 +75,7 @@ export default function RecipesDocImport({ clientId, onSaved }: Props) {
           filename: file.name,
           mime: file.type || (lower.endsWith(".pdf") ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
           data_base64,
+          meals_per_day: mealsPerDay,
         },
       });
       if (error || !data?.ok || !Array.isArray(data?.recipes) || data.recipes.length === 0) {
