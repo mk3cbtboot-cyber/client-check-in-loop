@@ -34,10 +34,11 @@ type ParsedRecipe = {
 
 interface Props {
   clientId: string;
+  mealsPerDay?: number;
   onSaved?: () => void;
 }
 
-export default function RecipesDocImport({ clientId, onSaved }: Props) {
+export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
