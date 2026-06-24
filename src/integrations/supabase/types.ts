@@ -502,6 +502,39 @@ export type Database = {
           },
         ]
       }
+      practitioner_recipes: {
+        Row: {
+          created_at: string
+          default_slot: Database["public"]["Enums"]["recipe_slot"]
+          id: string
+          ingredients: Json
+          method: string
+          name: string
+          practitioner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_slot?: Database["public"]["Enums"]["recipe_slot"]
+          id?: string
+          ingredients?: Json
+          method?: string
+          name: string
+          practitioner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_slot?: Database["public"]["Enums"]["recipe_slot"]
+          id?: string
+          ingredients?: Json
+          method?: string
+          name?: string
+          practitioner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -779,6 +812,13 @@ export type Database = {
     }
     Enums: {
       app_role: "practitioner" | "client"
+      recipe_slot:
+        | "breakfast"
+        | "morning_snack"
+        | "lunch"
+        | "afternoon_snack"
+        | "dinner"
+        | "any"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -907,6 +947,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["practitioner", "client"],
+      recipe_slot: [
+        "breakfast",
+        "morning_snack",
+        "lunch",
+        "afternoon_snack",
+        "dinner",
+        "any",
+      ],
     },
   },
 } as const
