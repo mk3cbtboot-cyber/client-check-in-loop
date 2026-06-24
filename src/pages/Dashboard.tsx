@@ -1828,7 +1828,7 @@ export default function Dashboard() {
                                 </Select>
                               </div>
                             )}
-                            {client.plan_format !== "food_list" && (
+                            {client.system_mode !== "own_practice" && (
                               <div className="flex items-center gap-2">
                                 <Label className="text-xs">Batch cooking</Label>
                                 <Select
