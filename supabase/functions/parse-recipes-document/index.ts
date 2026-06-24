@@ -10,6 +10,7 @@ const Body = z.object({
   filename: z.string().min(1).max(300),
   mime: z.string().min(1).max(200),
   data_base64: z.string().min(10),
+  meals_per_day: z.union([z.literal(3), z.literal(4), z.literal(5)]).optional(),
 });
 
 const SLOTS = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner", "any"] as const;
