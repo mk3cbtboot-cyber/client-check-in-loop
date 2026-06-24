@@ -167,12 +167,12 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {(Object.keys(SLOT_LABEL) as SlotKey[]).map((k) => {
+            {SLOT_ORDER.map((k) => {
               const items = reviewList[k];
               if (!items || items.length === 0) return null;
               return (
                 <div key={k} className="rounded-md border p-3">
-                  <h4 className="text-sm font-semibold mb-2">{SLOT_LABEL[k]}</h4>
+                  <h4 className="text-sm font-semibold mb-2">{customSlotLabel(k, mealsPerDay)}</h4>
                   <ul className="space-y-1.5">
                     {items.map((it, idx) => (
                       <li key={idx} className="flex items-start justify-between gap-2 rounded border p-2 text-xs">
