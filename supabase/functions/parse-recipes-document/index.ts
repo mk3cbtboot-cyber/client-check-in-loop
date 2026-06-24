@@ -86,7 +86,8 @@ Deno.serve(async (req) => {
     if (!parsed.success) {
       return new Response(JSON.stringify({ error: "Invalid input" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const { filename, mime, data_base64 } = parsed.data;
+    const { filename, mime, data_base64, meals_per_day } = parsed.data;
+    const systemPrompt = buildSystemPrompt(meals_per_day);
     const lower = filename.toLowerCase();
     const isPdf = mime.includes("pdf") || lower.endsWith(".pdf");
     const isDocx = mime.includes("officedocument.wordprocessingml") || lower.endsWith(".docx");
