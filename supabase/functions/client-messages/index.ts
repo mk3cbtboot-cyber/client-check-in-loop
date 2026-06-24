@@ -502,7 +502,16 @@ Deno.serve(async (req) => {
 
 
 
-          const planSummary = isFoodList
+          const planSummary = isRecipePlan
+            ? [
+                `Client name: ${f.name ?? "(unknown)"}`,
+                `Plan format: Recipe Plan (${Number(f.meals_per_day ?? 3)} meals/day)`,
+                "",
+                recipeSummary,
+                "",
+                `Water target: ${f.water_target_litres ?? "?"} litres/day`,
+              ].filter(Boolean).join("\n")
+            : isFoodList
             ? [
                 `Client name: ${f.name ?? "(unknown)"}`,
                 `Plan format: Food List (${Number(f.meals_per_day ?? 3)} meals/day)`,
@@ -541,7 +550,17 @@ Deno.serve(async (req) => {
                 "TREAT MEAL GUIDANCE: Phase 2 Extended allows up to 1 treat meal per week. Phase 3 allows up to 1 treat meal per week. Phase 4 (Maintenance) allows up to 3 treat meals per week.",
               ].filter(Boolean).join("\n");
 
-          const systemPrompt = isFoodList
+          const systemPrompt = isRecipePlan
+            ? [
+                "You are the AI assistant for a nutrition practitioner, answering the client's question about their personal Recipe Plan.",
+                "Answer ONLY from the client's assigned recipes provided below. Each meal slot lists the exact recipes the practitioner has assigned, with ingredients (and the client's specific portion amounts) and method.",
+                "When a client asks about a specific food or recipe, report which slot(s) it appears in and the exact portion. Do NOT suggest substitutions across slots or invent recipes that aren't listed.",
+                "If a slot has no recipes assigned, say so plainly.",
+                "If the food is not anywhere in the plan, say: \"That food is not in your meal plan.\"",
+                "Be specific: name the recipes, ingredients, and portions from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
+                `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. supplements, medical advice, or coaching).`,
+              ].join(" ")
+            : isFoodList
             ? [
                 "You are the AI assistant for a nutrition practitioner, answering the client's question about their personal Food-List meal plan.",
                 "Answer ONLY from the client's meal plan provided below. Each meal slot lists the exact foods, portions, and categories the practitioner has assigned. Do NOT infer, speculate, or recommend foods outside the listed slots.",
@@ -563,6 +582,7 @@ Deno.serve(async (req) => {
                   ? "This client is in Phase 4 — Maintenance. They have completed the program. Use their Phase 2 personal food list, Phase 3 extended list (including oils), the 8 Metabolic Balance Rules, and treat meal guidance (up to 3 treat meals per week) as your full reference. The PDF data above is comprehensive — answer any question that can be answered from it. NEVER tell the client you've passed their question to the practitioner, NEVER say you'll forward it, and NEVER suggest they wait for a human reply. If the answer truly isn't in the plan data, give the best general Metabolic Balance maintenance guidance consistent with what's in the plan."
                   : `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
               ].join(" ");
+
 
 
 
