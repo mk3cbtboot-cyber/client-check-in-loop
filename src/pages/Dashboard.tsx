@@ -79,6 +79,7 @@ import AppointmentDialog, { type Appointment } from "@/components/AppointmentDia
 import CustomFoodListEditor from "@/components/CustomFoodListEditor";
 import RecipePlanAssignments from "@/components/RecipePlanAssignments";
 import FoodListDocImport from "@/components/FoodListDocImport";
+import RecipesDocImport from "@/components/RecipesDocImport";
 
 
 interface Client {
