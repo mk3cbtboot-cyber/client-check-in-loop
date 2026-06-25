@@ -83,7 +83,14 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         toast.error("We couldn't extract any recipes from this document. Check that the document contains recipes with ingredients and method, then try again. You can also add recipes manually from the Recipe Library.");
         return;
       }
-      setRecipes(data.recipes as ParsedRecipe[]);
+      const normalized = (data.recipes as Array<Partial<ParsedRecipe>>).map((r) => ({
+        name: r.name ?? "",
+        meal_slot: (r.meal_slot ?? "any") as Slot,
+        method: r.method ?? "",
+        notes: r.notes ?? "",
+        ingredients: Array.isArray(r.ingredients) ? r.ingredients : [],
+      })) as ParsedRecipe[];
+      setRecipes(normalized);
       setReviewOpen(true);
     } catch (err) {
       console.error(err);
