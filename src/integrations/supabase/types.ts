@@ -552,6 +552,7 @@ export type Database = {
           ingredients: Json
           method: string
           name: string
+          notes: string | null
           practitioner_id: string
           updated_at: string
         }
@@ -562,6 +563,7 @@ export type Database = {
           ingredients?: Json
           method?: string
           name: string
+          notes?: string | null
           practitioner_id: string
           updated_at?: string
         }
@@ -572,6 +574,7 @@ export type Database = {
           ingredients?: Json
           method?: string
           name?: string
+          notes?: string | null
           practitioner_id?: string
           updated_at?: string
         }

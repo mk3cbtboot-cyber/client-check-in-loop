@@ -1,0 +1,1 @@
+ALTER TABLE public.practitioner_recipes ADD COLUMN IF NOT EXISTS notes text;
