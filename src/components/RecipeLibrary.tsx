@@ -160,6 +160,7 @@ export default function RecipeLibrary({ open, onOpenChange }: { open: boolean; o
       default_slot: form.default_slot,
       ingredients: cleanIngredients,
       method: form.method,
+      notes: form.notes.trim() ? form.notes.trim() : null,
       practitioner_id: uid,
     };
 
