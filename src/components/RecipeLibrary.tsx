@@ -204,6 +204,7 @@ export default function RecipeLibrary({ open, onOpenChange }: { open: boolean; o
       default_slot: (r.default_slot as Slot) ?? "any",
       ingredients: r.ingredients?.length ? r.ingredients : [{ food: "", amount: "" }],
       method: r.method ?? "",
+      notes: (r as unknown as { notes?: string }).notes ?? "",
     });
     setAiOpen(false);
     setAiBrief("");
