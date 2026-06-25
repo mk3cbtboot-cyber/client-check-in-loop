@@ -53,6 +53,7 @@ type Recipe = {
   name: string;
   ingredients: Ingredient[];
   method: string;
+  notes: string | null;
   default_slot: Slot;
   created_at: string;
 };
@@ -63,6 +64,7 @@ type FormState = {
   default_slot: Slot;
   ingredients: Ingredient[];
   method: string;
+  notes: string;
 };
 
 const emptyForm = (): FormState => ({
@@ -70,6 +72,7 @@ const emptyForm = (): FormState => ({
   default_slot: "any",
   ingredients: [{ food: "", amount: "" }],
   method: "",
+  notes: "",
 });
 
 export default function RecipeLibrary({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
