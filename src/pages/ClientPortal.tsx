@@ -697,7 +697,7 @@ export default function ClientPortal() {
         <div className="max-w-5xl mx-auto p-4 flex items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold">Hi {client.name}</h1>
-            <p className="text-xs text-muted-foreground">{client.plan_format === "food_list" ? "Meal Plan" : client.plan_format === "recipe" && client.client_type === "custom" ? "Recipe Plan" : `Metabolic Balance · ${phaseShort(client.phase)}`}</p>
+            <p className="text-xs text-muted-foreground">{client.client_type === "custom" && client.plan_format === "food_list" ? "Meal Plan" : client.client_type === "custom" && client.plan_format === "recipe" ? "Recipe Plan" : `Metabolic Balance · ${phaseShort(client.phase)}`}</p>
           </div>
           <button
             type="button"
@@ -727,7 +727,7 @@ export default function ClientPortal() {
         </section>
       )}
 
-      {tab === "home" && client.plan_format === "food_list" && (
+      {tab === "home" && client.client_type === "custom" && client.plan_format === "food_list" && (
         <section className="max-w-3xl mx-auto p-4 space-y-6">
           <div className="grid grid-cols-3 gap-3">
             <Card className="p-4">
@@ -784,7 +784,7 @@ export default function ClientPortal() {
         </section>
       )}
 
-      {tab === "home" && client.plan_format !== "food_list" && !(client.plan_format === "recipe" && client.client_type === "custom") && (
+      {tab === "home" && !(client.client_type === "custom" && (client.plan_format === "food_list" || client.plan_format === "recipe")) && (
         <section className="max-w-5xl mx-auto p-4 space-y-6">
 
           {showLunchPrompt && (
@@ -1556,7 +1556,7 @@ export default function ClientPortal() {
             { key: "plan", label: "My Plan", Icon: BookOpen },
             { key: "messages", label: "Messages", Icon: MessageCircle },
           ] as { key: TabKey; label: string; Icon: typeof Home }[])
-            .filter(({ key }) => !((client.plan_format === "food_list" || (client.plan_format === "recipe" && client.client_type === "custom")) && key === "planner"))
+            .filter(({ key }) => !(client.client_type === "custom" && (client.plan_format === "food_list" || client.plan_format === "recipe") && key === "planner"))
             .filter(({ key }) => !(client.phase === "phase4" && key === "planner"))
             .filter(({ key }) => !(phase4CheckinHidden && key === "checkin"));
           return (
