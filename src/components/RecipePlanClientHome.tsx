@@ -147,6 +147,12 @@ export default function RecipePlanClientHome({ token, assignments, mealsPerDay, 
                 </ol>
               )}
             </div>
+            {open.notes && open.notes.trim() && (
+              <div>
+                <p className="text-xs uppercase text-muted-foreground mb-2">Notes from your practitioner</p>
+                <p className="text-sm whitespace-pre-wrap">{open.notes}</p>
+              </div>
+            )}
           </div>
           <div className="fixed bottom-0 left-0 right-0 p-4 border-t bg-background">
             <Button className="w-full" disabled={logging} onClick={logIt}>
