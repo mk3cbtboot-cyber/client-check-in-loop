@@ -24,7 +24,7 @@ function buildSystemPrompt(mealsPerDay?: number): string {
   const numberedRule = mealsPerDay && mappings[mealsPerDay]
     ? mappings[mealsPerDay]
     : `If the document uses numbered labels (Meal 1, Meal 2, …) and the client's meals-per-day is unknown, assume 5 meals: Meal 1 = breakfast, Meal 2 = morning_snack, Meal 3 = lunch, Meal 4 = afternoon_snack, Meal 5 = dinner.`;
-  return `This document contains nutrition recipes. Extract every recipe you can find. For each recipe extract: the recipe name, the list of ingredients (each as a food name plus an amount/portion string), the method (preparation steps as plain text — combine numbered steps with line breaks), and the meal slot it belongs to (one of: breakfast, morning_snack, lunch, afternoon_snack, dinner, any).
+  return `This document contains nutrition recipes. Extract every recipe you can find. For each recipe extract: the recipe name, the list of ingredients (each as a food name plus an amount/portion string), the method (preparation steps as plain text — combine numbered steps with line breaks), any free-text notes from the practitioner that accompany the recipe (e.g. "Works well for meal prep", "Substitute chicken with turkey if preferred", "Best served immediately." — empty string if there are none), and the meal slot it belongs to (one of: breakfast, morning_snack, lunch, afternoon_snack, dinner, any).
 
 Recognise both named meal labels (Breakfast, Morning Snack, Lunch, Afternoon Snack, Dinner) and numbered meal labels (Meal 1, Meal 2, Meal 3, Meal 4, Meal 5). ${numberedRule} If the document uses neither named nor numbered labels and the slot is not clear, set meal_slot to "any".
 
