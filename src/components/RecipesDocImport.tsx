@@ -130,6 +130,7 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         ...r,
         name: r.name.trim(),
         method: r.method.trim(),
+        notes: (r.notes ?? "").trim(),
         ingredients: r.ingredients
           .map((i) => ({ food: i.food.trim(), amount: i.amount.trim() }))
           .filter((i) => i.food),
@@ -152,6 +153,7 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         name: r.name,
         ingredients: r.ingredients,
         method: r.method,
+        notes: r.notes ? r.notes : null,
         default_slot: r.meal_slot,
       }));
       const { data: inserted, error: insertErr } = await supabase
