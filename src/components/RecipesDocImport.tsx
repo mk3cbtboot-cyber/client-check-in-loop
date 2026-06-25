@@ -29,6 +29,7 @@ type ParsedRecipe = {
   name: string;
   meal_slot: Slot;
   method: string;
+  notes: string;
   ingredients: Ingredient[];
 };
 
