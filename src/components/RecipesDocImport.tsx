@@ -29,6 +29,7 @@ type ParsedRecipe = {
   name: string;
   meal_slot: Slot;
   method: string;
+  notes: string;
   ingredients: Ingredient[];
 };
 
@@ -82,7 +83,14 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         toast.error("We couldn't extract any recipes from this document. Check that the document contains recipes with ingredients and method, then try again. You can also add recipes manually from the Recipe Library.");
         return;
       }
-      setRecipes(data.recipes as ParsedRecipe[]);
+      const normalized = (data.recipes as Array<Partial<ParsedRecipe>>).map((r) => ({
+        name: r.name ?? "",
+        meal_slot: (r.meal_slot ?? "any") as Slot,
+        method: r.method ?? "",
+        notes: r.notes ?? "",
+        ingredients: Array.isArray(r.ingredients) ? r.ingredients : [],
+      })) as ParsedRecipe[];
+      setRecipes(normalized);
       setReviewOpen(true);
     } catch (err) {
       console.error(err);
@@ -122,6 +130,7 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         ...r,
         name: r.name.trim(),
         method: r.method.trim(),
+        notes: (r.notes ?? "").trim(),
         ingredients: r.ingredients
           .map((i) => ({ food: i.food.trim(), amount: i.amount.trim() }))
           .filter((i) => i.food),
@@ -144,6 +153,7 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         name: r.name,
         ingredients: r.ingredients,
         method: r.method,
+        notes: r.notes ? r.notes : null,
         default_slot: r.meal_slot,
       }));
       const { data: inserted, error: insertErr } = await supabase
@@ -259,6 +269,16 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
                 <div className="space-y-1">
                   <Label className="text-xs">Method</Label>
                   <Textarea rows={4} value={r.method} onChange={(e) => updateRecipe(rIdx, { method: e.target.value })} />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Notes</Label>
+                  <Textarea
+                    rows={2}
+                    value={r.notes ?? ""}
+                    onChange={(e) => updateRecipe(rIdx, { notes: e.target.value })}
+                    placeholder={`Optional. e.g. "Works well for meal prep", "Substitute chicken with turkey if preferred."`}
+                  />
                 </div>
               </div>
             ))}

@@ -24,7 +24,7 @@ function buildSystemPrompt(mealsPerDay?: number): string {
   const numberedRule = mealsPerDay && mappings[mealsPerDay]
     ? mappings[mealsPerDay]
     : `If the document uses numbered labels (Meal 1, Meal 2, …) and the client's meals-per-day is unknown, assume 5 meals: Meal 1 = breakfast, Meal 2 = morning_snack, Meal 3 = lunch, Meal 4 = afternoon_snack, Meal 5 = dinner.`;
-  return `This document contains nutrition recipes. Extract every recipe you can find. For each recipe extract: the recipe name, the list of ingredients (each as a food name plus an amount/portion string), the method (preparation steps as plain text — combine numbered steps with line breaks), and the meal slot it belongs to (one of: breakfast, morning_snack, lunch, afternoon_snack, dinner, any).
+  return `This document contains nutrition recipes. Extract every recipe you can find. For each recipe extract: the recipe name, the list of ingredients (each as a food name plus an amount/portion string), the method (preparation steps as plain text — combine numbered steps with line breaks), any free-text notes from the practitioner that accompany the recipe (e.g. "Works well for meal prep", "Substitute chicken with turkey if preferred", "Best served immediately." — empty string if there are none), and the meal slot it belongs to (one of: breakfast, morning_snack, lunch, afternoon_snack, dinner, any).
 
 Recognise both named meal labels (Breakfast, Morning Snack, Lunch, Afternoon Snack, Dinner) and numbered meal labels (Meal 1, Meal 2, Meal 3, Meal 4, Meal 5). ${numberedRule} If the document uses neither named nor numbered labels and the slot is not clear, set meal_slot to "any".
 
@@ -47,6 +47,7 @@ const TOOL = {
               name: { type: "string" },
               meal_slot: { type: "string", enum: [...SLOTS] },
               method: { type: "string" },
+              notes: { type: "string" },
               ingredients: {
                 type: "array",
                 items: {
@@ -60,7 +61,7 @@ const TOOL = {
                 },
               },
             },
-            required: ["name", "meal_slot", "method", "ingredients"],
+            required: ["name", "meal_slot", "method", "notes", "ingredients"],
             additionalProperties: false,
           },
         },
@@ -141,10 +142,11 @@ Deno.serve(async (req) => {
     const rawRecipes = Array.isArray(args.recipes) ? args.recipes : [];
     const recipes = rawRecipes
       .filter((r: { name?: string }) => r && typeof r.name === "string" && r.name.trim().length > 0)
-      .map((r: { name: string; meal_slot?: string; method?: string; ingredients?: Array<{ food?: string; amount?: string }> }) => ({
+      .map((r: { name: string; meal_slot?: string; method?: string; notes?: string; ingredients?: Array<{ food?: string; amount?: string }> }) => ({
         name: String(r.name).trim(),
         meal_slot: (SLOTS as readonly string[]).includes(String(r.meal_slot)) ? String(r.meal_slot) : "any",
         method: String(r.method ?? "").trim(),
+        notes: String(r.notes ?? "").trim(),
         ingredients: Array.isArray(r.ingredients)
           ? r.ingredients
               .filter((i) => i && typeof i.food === "string" && i.food.trim().length > 0)

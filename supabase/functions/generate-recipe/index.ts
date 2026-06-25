@@ -22,7 +22,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemPrompt = `You generate practical, healthy recipes for a nutrition practitioner. Return a single recipe matching the brief. Respond ONLY with JSON of shape: {"name": string, "default_slot": "breakfast"|"morning_snack"|"lunch"|"afternoon_snack"|"dinner"|"any", "ingredients": [{"food": string, "amount": string}], "method": string}. The method should be plain text steps separated by newlines.`;
+    const systemPrompt = `You generate practical, healthy recipes for a nutrition practitioner. Return a single recipe matching the brief.
+
+Respond ONLY with JSON of shape:
+{"name": string, "default_slot": "breakfast"|"morning_snack"|"lunch"|"afternoon_snack"|"dinner"|"any", "ingredients": [{"food": string, "amount": string}], "method": string, "notes": string}
+
+Method requirements — write detailed, step-by-step instructions a home cook can follow without guessing:
+- Numbered steps separated by newlines (e.g. "1. …\\n2. …"). Each step is ONE single action — prep, cook, assemble, or plate.
+- Include specific cooking details where relevant: temperatures (°C), times (minutes), pan type (non-stick, cast iron, sheet pan), heat level (low, medium, medium-high, high).
+- Include prep steps explicitly (e.g. "Pat the salmon dry with paper towel.", "Dice the sweet potato into 2 cm cubes.", "Finely chop the garlic.").
+- Include seasoning steps inline within the method — do NOT put seasoning in a separate section.
+- Aim for 6–10 steps for a main meal (breakfast, lunch, dinner), or 3–5 steps for a snack.
+- Write in plain, direct language — second person, active voice ("Heat a pan over medium-high heat.", not "The pan should be heated.").
+
+The "notes" field is optional free text for the practitioner (e.g. "Works well for meal prep", "Substitute chicken with turkey if preferred"). Return an empty string if there are no useful notes.`;
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -66,6 +79,7 @@ Deno.serve(async (req) => {
             .filter((i: any) => i.food)
         : [],
       method: String(parsed.method ?? ""),
+      notes: String(parsed.notes ?? ""),
     };
 
     return new Response(JSON.stringify({ recipe }), {

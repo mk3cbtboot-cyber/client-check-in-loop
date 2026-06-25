@@ -53,6 +53,7 @@ type Recipe = {
   name: string;
   ingredients: Ingredient[];
   method: string;
+  notes: string | null;
   default_slot: Slot;
   created_at: string;
 };
@@ -63,6 +64,7 @@ type FormState = {
   default_slot: Slot;
   ingredients: Ingredient[];
   method: string;
+  notes: string;
 };
 
 const emptyForm = (): FormState => ({
@@ -70,6 +72,7 @@ const emptyForm = (): FormState => ({
   default_slot: "any",
   ingredients: [{ food: "", amount: "" }],
   method: "",
+  notes: "",
 });
 
 export default function RecipeLibrary({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
@@ -120,6 +123,7 @@ export default function RecipeLibrary({ open, onOpenChange }: { open: boolean; o
       default_slot: r.default_slot,
       ingredients: r.ingredients?.length ? r.ingredients : [{ food: "", amount: "" }],
       method: r.method ?? "",
+      notes: r.notes ?? "",
     });
     setFormOpen(true);
   };
@@ -156,6 +160,7 @@ export default function RecipeLibrary({ open, onOpenChange }: { open: boolean; o
       default_slot: form.default_slot,
       ingredients: cleanIngredients,
       method: form.method,
+      notes: form.notes.trim() ? form.notes.trim() : null,
       practitioner_id: uid,
     };
 
@@ -199,6 +204,7 @@ export default function RecipeLibrary({ open, onOpenChange }: { open: boolean; o
       default_slot: (r.default_slot as Slot) ?? "any",
       ingredients: r.ingredients?.length ? r.ingredients : [{ food: "", amount: "" }],
       method: r.method ?? "",
+      notes: (r as unknown as { notes?: string }).notes ?? "",
     });
     setAiOpen(false);
     setAiBrief("");
@@ -324,6 +330,16 @@ export default function RecipeLibrary({ open, onOpenChange }: { open: boolean; o
                 value={form.method}
                 onChange={(e) => setForm({ ...form, method: e.target.value })}
                 placeholder="Preparation steps…"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Notes</Label>
+              <Textarea
+                rows={3}
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder={`Optional. e.g. "Works well for meal prep", "Substitute chicken with turkey if preferred", "Best served immediately."`}
               />
             </div>
           </div>
