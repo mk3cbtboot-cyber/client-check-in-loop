@@ -47,6 +47,7 @@ const TOOL = {
               name: { type: "string" },
               meal_slot: { type: "string", enum: [...SLOTS] },
               method: { type: "string" },
+              notes: { type: "string" },
               ingredients: {
                 type: "array",
                 items: {
@@ -60,7 +61,7 @@ const TOOL = {
                 },
               },
             },
-            required: ["name", "meal_slot", "method", "ingredients"],
+            required: ["name", "meal_slot", "method", "notes", "ingredients"],
             additionalProperties: false,
           },
         },
