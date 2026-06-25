@@ -332,6 +332,16 @@ export default function RecipeLibrary({ open, onOpenChange }: { open: boolean; o
                 placeholder="Preparation steps…"
               />
             </div>
+
+            <div className="space-y-1">
+              <Label>Notes</Label>
+              <Textarea
+                rows={3}
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder={`Optional. e.g. "Works well for meal prep", "Substitute chicken with turkey if preferred", "Best served immediately."`}
+              />
+            </div>
           </div>
 
           <DialogFooter>
