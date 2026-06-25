@@ -121,6 +121,7 @@ Deno.serve(async (req) => {
       name: string;
       ingredients: Array<{ food: string; amount: string }>;
       method: string;
+      notes: string;
     }> = [];
     if (c.plan_format === "recipe") {
       const { data: assigns } = await admin
@@ -132,14 +133,15 @@ Deno.serve(async (req) => {
       if (ids.length) {
         const { data: recs } = await admin
           .from("practitioner_recipes")
-          .select("id, name, ingredients, method")
+          .select("id, name, ingredients, method, notes")
           .in("id", ids);
-        const recipeMap = new Map<string, { name: string; ingredients: Array<{ food: string; amount: string }>; method: string }>();
-        for (const r of (recs ?? []) as Array<{ id: string; name: string; ingredients: Array<{ food: string; amount: string }>; method: string }>) {
+        const recipeMap = new Map<string, { name: string; ingredients: Array<{ food: string; amount: string }>; method: string; notes: string }>();
+        for (const r of (recs ?? []) as Array<{ id: string; name: string; ingredients: Array<{ food: string; amount: string }>; method: string; notes: string | null }>) {
           recipeMap.set(r.id, {
             name: r.name,
             ingredients: Array.isArray(r.ingredients) ? r.ingredients : [],
             method: typeof r.method === "string" ? r.method : "",
+            notes: typeof r.notes === "string" ? r.notes : "",
           });
         }
         recipeAssignments = rows.map((a) => {
@@ -157,6 +159,7 @@ Deno.serve(async (req) => {
             name: r?.name ?? "Recipe",
             ingredients: merged,
             method: r?.method ?? "",
+            notes: r?.notes ?? "",
           };
         });
       }
