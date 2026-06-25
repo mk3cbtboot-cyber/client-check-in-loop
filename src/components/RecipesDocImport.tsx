@@ -270,6 +270,16 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
                   <Label className="text-xs">Method</Label>
                   <Textarea rows={4} value={r.method} onChange={(e) => updateRecipe(rIdx, { method: e.target.value })} />
                 </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Notes</Label>
+                  <Textarea
+                    rows={2}
+                    value={r.notes ?? ""}
+                    onChange={(e) => updateRecipe(rIdx, { notes: e.target.value })}
+                    placeholder={`Optional. e.g. "Works well for meal prep", "Substitute chicken with turkey if preferred."`}
+                  />
+                </div>
               </div>
             ))}
           </div>
