@@ -15,6 +15,7 @@ export interface RecipeAssignment {
   name: string;
   ingredients: Array<{ food: string; amount: string }>;
   method: string;
+  notes?: string;
 }
 
 const ALL_SLOTS: { key: SlotKey; label: string }[] = [
