@@ -142,10 +142,11 @@ Deno.serve(async (req) => {
     const rawRecipes = Array.isArray(args.recipes) ? args.recipes : [];
     const recipes = rawRecipes
       .filter((r: { name?: string }) => r && typeof r.name === "string" && r.name.trim().length > 0)
-      .map((r: { name: string; meal_slot?: string; method?: string; ingredients?: Array<{ food?: string; amount?: string }> }) => ({
+      .map((r: { name: string; meal_slot?: string; method?: string; notes?: string; ingredients?: Array<{ food?: string; amount?: string }> }) => ({
         name: String(r.name).trim(),
         meal_slot: (SLOTS as readonly string[]).includes(String(r.meal_slot)) ? String(r.meal_slot) : "any",
         method: String(r.method ?? "").trim(),
+        notes: String(r.notes ?? "").trim(),
         ingredients: Array.isArray(r.ingredients)
           ? r.ingredients
               .filter((i) => i && typeof i.food === "string" && i.food.trim().length > 0)
