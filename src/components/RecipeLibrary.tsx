@@ -123,6 +123,7 @@ export default function RecipeLibrary({ open, onOpenChange }: { open: boolean; o
       default_slot: r.default_slot,
       ingredients: r.ingredients?.length ? r.ingredients : [{ food: "", amount: "" }],
       method: r.method ?? "",
+      notes: r.notes ?? "",
     });
     setFormOpen(true);
   };
