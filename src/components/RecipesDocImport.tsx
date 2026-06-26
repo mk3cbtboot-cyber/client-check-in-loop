@@ -99,6 +99,13 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         ? ((data as { exclusions: unknown[] }).exclusions).map((x) => String(x ?? "").trim()).filter((x) => x.length > 0)
         : [];
       setExclusions(exc);
+      const strOrNull = (v: unknown): string | null => {
+        const s = typeof v === "string" ? v.trim() : "";
+        return s.length > 0 ? s : null;
+      };
+      setKeys(strOrNull((data as { keys_to_success?: unknown }).keys_to_success));
+      setDigestion(strOrNull((data as { digestion_protocol?: unknown }).digestion_protocol));
+      setSupplements(strOrNull((data as { recommended_supplements?: unknown }).recommended_supplements));
       setReviewOpen(true);
     } catch (err) {
       console.error(err);
