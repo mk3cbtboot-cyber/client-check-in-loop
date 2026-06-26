@@ -190,6 +190,7 @@ Deno.serve(async (req) => {
               "eggs_min_per_week",
               "water_target_litres", "food_limits", "food_limit_counts",
               "food_exclusions",
+              "keys_to_success", "digestion_protocol", "recommended_supplements",
             ].join(", "))
 
 
