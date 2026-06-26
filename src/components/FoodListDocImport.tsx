@@ -101,6 +101,13 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
         ? ((data as { exclusions: unknown[] }).exclusions).map((x) => String(x ?? "").trim()).filter((x) => x.length > 0)
         : [];
       setReviewExclusions(exc);
+      const strOrNull = (v: unknown): string | null => {
+        const s = typeof v === "string" ? v.trim() : "";
+        return s.length > 0 ? s : null;
+      };
+      setReviewKeys(strOrNull((data as { keys_to_success?: unknown }).keys_to_success));
+      setReviewDigestion(strOrNull((data as { digestion_protocol?: unknown }).digestion_protocol));
+      setReviewSupplements(strOrNull((data as { recommended_supplements?: unknown }).recommended_supplements));
       setReviewOpen(true);
     } catch (err) {
       console.error(err);
