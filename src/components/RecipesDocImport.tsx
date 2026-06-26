@@ -228,6 +228,21 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
             {recipes.length === 0 && (
               <p className="text-sm text-muted-foreground">No recipes remaining. Cancel and try a different document.</p>
             )}
+            {exclusions.length > 0 && (
+              <div className="rounded-md border p-3">
+                <Label className="text-xs">Foods to avoid (saved on this client)</Label>
+                <ul className="mt-2 text-xs space-y-1 list-disc list-inside text-muted-foreground">
+                  {exclusions.map((it, idx) => (
+                    <li key={idx} className="flex items-start justify-between gap-2">
+                      <span className="text-foreground">{it}</span>
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setExclusions((prev) => prev.filter((_, i) => i !== idx))} aria-label="Remove exclusion">
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {recipes.map((r, rIdx) => (
               <div key={rIdx} className="rounded-md border p-3 space-y-3">
                 <div className="flex items-start justify-between gap-2">
