@@ -522,6 +522,7 @@ Deno.serve(async (req) => {
                 "",
                 `Water target: ${f.water_target_litres ?? "?"} litres/day`,
                 customExclusionsLine,
+                customExtras,
               ].filter(Boolean).join("\n")
             : isFoodList
             ? [
