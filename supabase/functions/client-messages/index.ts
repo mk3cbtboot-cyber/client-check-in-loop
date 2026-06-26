@@ -497,6 +497,11 @@ Deno.serve(async (req) => {
 
 
 
+          const customExclusionsLine =
+            Array.isArray((f as any).food_exclusions) && (f as any).food_exclusions.length
+              ? `\nFOODS EXCLUDED FROM THIS CLIENT'S PLAN (never suggest): ${((f as any).food_exclusions as string[]).join(", ")}`
+              : "";
+
           const planSummary = isRecipePlan
             ? [
                 `Client name: ${f.name ?? "(unknown)"}`,
@@ -505,6 +510,7 @@ Deno.serve(async (req) => {
                 recipeSummary,
                 "",
                 `Water target: ${f.water_target_litres ?? "?"} litres/day`,
+                customExclusionsLine,
               ].filter(Boolean).join("\n")
             : isFoodList
             ? [
@@ -514,6 +520,7 @@ Deno.serve(async (req) => {
                 buildFoodListSummary(),
                 "",
                 `Water target: ${f.water_target_litres ?? "?"} litres/day`,
+                customExclusionsLine,
               ].filter(Boolean).join("\n")
             : [
                 `Client name: ${f.name ?? "(unknown)"}`,
