@@ -239,6 +239,8 @@ Deno.serve(async (req) => {
         keys_to_success: typeof c.keys_to_success === "string" && c.keys_to_success.trim().length > 0 ? c.keys_to_success : null,
         digestion_protocol: typeof c.digestion_protocol === "string" && c.digestion_protocol.trim().length > 0 ? c.digestion_protocol : null,
         recommended_supplements: typeof c.recommended_supplements === "string" && c.recommended_supplements.trim().length > 0 ? c.recommended_supplements : null,
+        macros_shared: c.macros_shared === true,
+        macros: c.macros_shared === true && c.macros && typeof c.macros === "object" ? c.macros : null,
 
       },
 
