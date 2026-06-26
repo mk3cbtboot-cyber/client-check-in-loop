@@ -45,6 +45,9 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
   const [reviewOpen, setReviewOpen] = useState(false);
   const [recipes, setRecipes] = useState<ParsedRecipe[]>([]);
   const [exclusions, setExclusions] = useState<string[]>([]);
+  const [keys, setKeys] = useState<string | null>(null);
+  const [digestion, setDigestion] = useState<string | null>(null);
+  const [supplements, setSupplements] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -96,6 +99,13 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         ? ((data as { exclusions: unknown[] }).exclusions).map((x) => String(x ?? "").trim()).filter((x) => x.length > 0)
         : [];
       setExclusions(exc);
+      const strOrNull = (v: unknown): string | null => {
+        const s = typeof v === "string" ? v.trim() : "";
+        return s.length > 0 ? s : null;
+      };
+      setKeys(strOrNull((data as { keys_to_success?: unknown }).keys_to_success));
+      setDigestion(strOrNull((data as { digestion_protocol?: unknown }).digestion_protocol));
+      setSupplements(strOrNull((data as { recommended_supplements?: unknown }).recommended_supplements));
       setReviewOpen(true);
     } catch (err) {
       console.error(err);
@@ -185,16 +195,24 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         toast.error("Recipes saved to library, but failed to assign to this client.");
         return;
       }
-      if (exclusions.length > 0) {
+      const clientUpdate: Record<string, unknown> = {};
+      if (exclusions.length > 0) clientUpdate.food_exclusions = exclusions;
+      clientUpdate.keys_to_success = keys;
+      clientUpdate.digestion_protocol = digestion;
+      clientUpdate.recommended_supplements = supplements;
+      if (Object.keys(clientUpdate).length > 0) {
         await supabase
           .from("clients")
-          .update({ food_exclusions: exclusions } as never)
+          .update(clientUpdate as never)
           .eq("id", clientId);
       }
       toast.success(`Imported ${cleaned.length} recipe${cleaned.length === 1 ? "" : "s"}.`);
       setReviewOpen(false);
       setRecipes([]);
       setExclusions([]);
+      setKeys(null);
+      setDigestion(null);
+      setSupplements(null);
       onSaved?.();
     } finally {
       setSaving(false);
@@ -227,6 +245,33 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
           <div className="space-y-4">
             {recipes.length === 0 && (
               <p className="text-sm text-muted-foreground">No recipes remaining. Cancel and try a different document.</p>
+            )}
+            {keys && (
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs">Keys to success</Label>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setKeys(null)} aria-label="Remove"><X className="h-3 w-3" /></Button>
+                </div>
+                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{keys}</p>
+              </div>
+            )}
+            {digestion && (
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs">Digestion protocol</Label>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setDigestion(null)} aria-label="Remove"><X className="h-3 w-3" /></Button>
+                </div>
+                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{digestion}</p>
+              </div>
+            )}
+            {supplements && (
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs">Recommended supplements</Label>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setSupplements(null)} aria-label="Remove"><X className="h-3 w-3" /></Button>
+                </div>
+                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{supplements}</p>
+              </div>
             )}
             {exclusions.length > 0 && (
               <div className="rounded-md border p-3">

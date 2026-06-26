@@ -59,6 +59,9 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewList, setReviewList] = useState<FoodList>(emptyList());
   const [reviewExclusions, setReviewExclusions] = useState<string[]>([]);
+  const [reviewKeys, setReviewKeys] = useState<string | null>(null);
+  const [reviewDigestion, setReviewDigestion] = useState<string | null>(null);
+  const [reviewSupplements, setReviewSupplements] = useState<string | null>(null);
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -98,6 +101,13 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
         ? ((data as { exclusions: unknown[] }).exclusions).map((x) => String(x ?? "").trim()).filter((x) => x.length > 0)
         : [];
       setReviewExclusions(exc);
+      const strOrNull = (v: unknown): string | null => {
+        const s = typeof v === "string" ? v.trim() : "";
+        return s.length > 0 ? s : null;
+      };
+      setReviewKeys(strOrNull((data as { keys_to_success?: unknown }).keys_to_success));
+      setReviewDigestion(strOrNull((data as { digestion_protocol?: unknown }).digestion_protocol));
+      setReviewSupplements(strOrNull((data as { recommended_supplements?: unknown }).recommended_supplements));
       setReviewOpen(true);
     } catch (err) {
       console.error(err);
@@ -136,6 +146,9 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
     setConfirmReplaceOpen(false);
     const update: Record<string, unknown> = { food_list: reviewList };
     update.food_exclusions = reviewExclusions.length > 0 ? reviewExclusions : null;
+    update.keys_to_success = reviewKeys;
+    update.digestion_protocol = reviewDigestion;
+    update.recommended_supplements = reviewSupplements;
     const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
     if (error) {
       toast.error("Failed to save food list");
@@ -214,6 +227,33 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+            {reviewKeys && (
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Keys to success</h4>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setReviewKeys(null)} aria-label="Remove keys to success"><Trash2 className="h-3 w-3" /></Button>
+                </div>
+                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{reviewKeys}</p>
+              </div>
+            )}
+            {reviewDigestion && (
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Digestion protocol</h4>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setReviewDigestion(null)} aria-label="Remove digestion protocol"><Trash2 className="h-3 w-3" /></Button>
+                </div>
+                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{reviewDigestion}</p>
+              </div>
+            )}
+            {reviewSupplements && (
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Recommended supplements</h4>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setReviewSupplements(null)} aria-label="Remove recommended supplements"><Trash2 className="h-3 w-3" /></Button>
+                </div>
+                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{reviewSupplements}</p>
               </div>
             )}
           </div>

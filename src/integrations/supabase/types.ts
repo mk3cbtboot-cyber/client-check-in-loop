@@ -204,6 +204,7 @@ export type Database = {
           client_type: string
           created_at: string
           current_medications: string
+          digestion_protocol: string | null
           dinner_protein_category: string | null
           dinner_protein_grams: number | null
           dinner_veg_grams: number | null
@@ -233,6 +234,7 @@ export type Database = {
           gender: string | null
           height_cm: number | null
           id: string
+          keys_to_success: string | null
           length_unit: string
           lunch_protein_category: string | null
           lunch_protein_grams: number | null
@@ -276,6 +278,7 @@ export type Database = {
           practitioner_id: string
           practitioner_last_read_at: string | null
           practitioner_notes: string
+          recommended_supplements: string | null
           show_8_rules: boolean
           show_rules: boolean
           system_mode: string
@@ -298,6 +301,7 @@ export type Database = {
           client_type?: string
           created_at?: string
           current_medications?: string
+          digestion_protocol?: string | null
           dinner_protein_category?: string | null
           dinner_protein_grams?: number | null
           dinner_veg_grams?: number | null
@@ -327,6 +331,7 @@ export type Database = {
           gender?: string | null
           height_cm?: number | null
           id?: string
+          keys_to_success?: string | null
           length_unit?: string
           lunch_protein_category?: string | null
           lunch_protein_grams?: number | null
@@ -370,6 +375,7 @@ export type Database = {
           practitioner_id: string
           practitioner_last_read_at?: string | null
           practitioner_notes?: string
+          recommended_supplements?: string | null
           show_8_rules?: boolean
           show_rules?: boolean
           system_mode?: string
@@ -392,6 +398,7 @@ export type Database = {
           client_type?: string
           created_at?: string
           current_medications?: string
+          digestion_protocol?: string | null
           dinner_protein_category?: string | null
           dinner_protein_grams?: number | null
           dinner_veg_grams?: number | null
@@ -421,6 +428,7 @@ export type Database = {
           gender?: string | null
           height_cm?: number | null
           id?: string
+          keys_to_success?: string | null
           length_unit?: string
           lunch_protein_category?: string | null
           lunch_protein_grams?: number | null
@@ -464,6 +472,7 @@ export type Database = {
           practitioner_id?: string
           practitioner_last_read_at?: string | null
           practitioner_notes?: string
+          recommended_supplements?: string | null
           show_8_rules?: boolean
           show_rules?: boolean
           system_mode?: string

@@ -190,6 +190,7 @@ Deno.serve(async (req) => {
               "eggs_min_per_week",
               "water_target_litres", "food_limits", "food_limit_counts",
               "food_exclusions",
+              "keys_to_success", "digestion_protocol", "recommended_supplements",
             ].join(", "))
 
 
@@ -501,6 +502,16 @@ Deno.serve(async (req) => {
             Array.isArray((f as any).food_exclusions) && (f as any).food_exclusions.length
               ? `\nFOODS EXCLUDED FROM THIS CLIENT'S PLAN (never suggest): ${((f as any).food_exclusions as string[]).join(", ")}`
               : "";
+          const customExtras = ((): string => {
+            const parts: string[] = [];
+            const kts = typeof (f as any).keys_to_success === "string" ? (f as any).keys_to_success.trim() : "";
+            const dig = typeof (f as any).digestion_protocol === "string" ? (f as any).digestion_protocol.trim() : "";
+            const sup = typeof (f as any).recommended_supplements === "string" ? (f as any).recommended_supplements.trim() : "";
+            if (kts) parts.push(`KEYS TO SUCCESS (practitioner guidance):\n${kts}`);
+            if (dig) parts.push(`DIGESTION PROTOCOL (practitioner guidance):\n${dig}`);
+            if (sup) parts.push(`RECOMMENDED SUPPLEMENTS (practitioner guidance):\n${sup}`);
+            return parts.length ? "\n" + parts.join("\n\n") : "";
+          })();
 
           const planSummary = isRecipePlan
             ? [
@@ -511,6 +522,7 @@ Deno.serve(async (req) => {
                 "",
                 `Water target: ${f.water_target_litres ?? "?"} litres/day`,
                 customExclusionsLine,
+                customExtras,
               ].filter(Boolean).join("\n")
             : isFoodList
             ? [
@@ -521,6 +533,7 @@ Deno.serve(async (req) => {
                 "",
                 `Water target: ${f.water_target_litres ?? "?"} litres/day`,
                 customExclusionsLine,
+                customExtras,
               ].filter(Boolean).join("\n")
             : [
                 `Client name: ${f.name ?? "(unknown)"}`,

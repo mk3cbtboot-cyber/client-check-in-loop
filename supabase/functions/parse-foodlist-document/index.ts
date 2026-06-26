@@ -14,7 +14,13 @@ const Body = z.object({
 
 const SYSTEM_PROMPT = `This is a nutrition meal plan document. Extract the foods listed for each meal. For each food identify: the meal slot it belongs to (Breakfast, Morning Snack, Lunch, Afternoon Snack, or Dinner), the food name, the portion size or amount, and the food category (Protein, Carbs, Veg, Fat, or Other — use your best judgement if not specified). Return the result as structured JSON. Only include foods that are clearly listed in the document. If a slot is not mentioned, return an empty array for it.
 
-Also extract any list of foods the client must avoid. The section may be labelled "Foods Not Included", "Foods to Avoid", "Excluded Foods", "Foods Not Included in This Plan", "Do Not Eat", or similar. Return each excluded food as a separate string in the "exclusions" array. If no such section exists, return an empty array.`;
+Also extract any list of foods the client must avoid. The section may be labelled "Foods Not Included", "Foods to Avoid", "Excluded Foods", "Foods Not Included in This Plan", "Do Not Eat", or similar. Return each excluded food as a separate string in the "exclusions" array. If no such section exists, return an empty array.
+
+In addition, identify each of the following sections by purpose (not by exact heading wording — practitioners use varied labels):
+- "keys_to_success": any section containing guidelines, tips, habits, or recommendations for the client to follow their plan successfully. Return the full text content verbatim (preserve line breaks). Empty string if absent.
+- "digestion_protocol": any section containing instructions, timing, or guidance specifically about digestion, eating pace, meal timing, or gut health. Return the full text content verbatim. Empty string if absent.
+- "recommended_supplements": any section listing supplements, vitamins, minerals, or products the practitioner recommends. Return the full text content verbatim. Empty string if absent.
+Only include content clearly serving each purpose. Do not invent or paraphrase.`;
 
 const TOOL = {
   type: "function",
@@ -30,8 +36,11 @@ const TOOL = {
         afternoon_snack: { type: "array", items: foodItemSchema() },
         dinner: { type: "array", items: foodItemSchema() },
         exclusions: { type: "array", items: { type: "string" } },
+        keys_to_success: { type: "string" },
+        digestion_protocol: { type: "string" },
+        recommended_supplements: { type: "string" },
       },
-      required: ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner", "exclusions"],
+      required: ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner", "exclusions", "keys_to_success", "digestion_protocol", "recommended_supplements"],
       additionalProperties: false,
     },
   },
@@ -142,7 +151,15 @@ Deno.serve(async (req) => {
       .map((x: unknown) => (typeof x === "string" ? x.trim() : ""))
       .filter((x: string) => x.length > 0);
 
-    return new Response(JSON.stringify({ ok: true, food_list: out, exclusions }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const trimOrNull = (v: unknown): string | null => {
+      const s = typeof v === "string" ? v.trim() : "";
+      return s.length > 0 ? s : null;
+    };
+    const keys_to_success = trimOrNull(args.keys_to_success);
+    const digestion_protocol = trimOrNull(args.digestion_protocol);
+    const recommended_supplements = trimOrNull(args.recommended_supplements);
+
+    return new Response(JSON.stringify({ ok: true, food_list: out, exclusions, keys_to_success, digestion_protocol, recommended_supplements }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("parse-foodlist-document error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

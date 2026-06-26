@@ -30,6 +30,12 @@ Recognise both named meal labels (Breakfast, Morning Snack, Lunch, Afternoon Sna
 
 Also extract any list of foods the client must avoid. The section may be labelled "Foods Not Included", "Foods to Avoid", "Excluded Foods", "Foods Not Included in This Plan", "Do Not Eat", or similar. Return each excluded food as a separate string in the "exclusions" array. If no such section exists, return an empty array.
 
+In addition, identify each of the following sections by purpose (not by exact heading wording — practitioners use varied labels):
+- "keys_to_success": any section containing guidelines, tips, habits, or recommendations for the client to follow their plan successfully. Return the full text content verbatim (preserve line breaks). Empty string if absent.
+- "digestion_protocol": any section containing instructions, timing, or guidance specifically about digestion, eating pace, meal timing, or gut health. Return the full text content verbatim. Empty string if absent.
+- "recommended_supplements": any section listing supplements, vitamins, minerals, or products the practitioner recommends. Return the full text content verbatim. Empty string if absent.
+Only include content clearly serving each purpose. Do not invent or paraphrase.
+
 Only include recipes that are clearly present. Do not invent recipes. Return the result as structured JSON.`;
 }
 
@@ -68,8 +74,11 @@ const TOOL = {
           },
         },
         exclusions: { type: "array", items: { type: "string" } },
+        keys_to_success: { type: "string" },
+        digestion_protocol: { type: "string" },
+        recommended_supplements: { type: "string" },
       },
-      required: ["recipes", "exclusions"],
+      required: ["recipes", "exclusions", "keys_to_success", "digestion_protocol", "recommended_supplements"],
       additionalProperties: false,
     },
   },
@@ -166,7 +175,15 @@ Deno.serve(async (req) => {
       .map((x: unknown) => (typeof x === "string" ? x.trim() : ""))
       .filter((x: string) => x.length > 0);
 
-    return new Response(JSON.stringify({ ok: true, recipes, exclusions }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const trimOrNull = (v: unknown): string | null => {
+      const s = typeof v === "string" ? v.trim() : "";
+      return s.length > 0 ? s : null;
+    };
+    const keys_to_success = trimOrNull(args.keys_to_success);
+    const digestion_protocol = trimOrNull(args.digestion_protocol);
+    const recommended_supplements = trimOrNull(args.recommended_supplements);
+
+    return new Response(JSON.stringify({ ok: true, recipes, exclusions, keys_to_success, digestion_protocol, recommended_supplements }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("parse-recipes-document error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
