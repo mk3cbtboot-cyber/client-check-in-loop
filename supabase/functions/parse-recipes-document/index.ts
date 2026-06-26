@@ -30,6 +30,12 @@ Recognise both named meal labels (Breakfast, Morning Snack, Lunch, Afternoon Sna
 
 Also extract any list of foods the client must avoid. The section may be labelled "Foods Not Included", "Foods to Avoid", "Excluded Foods", "Foods Not Included in This Plan", "Do Not Eat", or similar. Return each excluded food as a separate string in the "exclusions" array. If no such section exists, return an empty array.
 
+In addition, identify each of the following sections by purpose (not by exact heading wording — practitioners use varied labels):
+- "keys_to_success": any section containing guidelines, tips, habits, or recommendations for the client to follow their plan successfully. Return the full text content verbatim (preserve line breaks). Empty string if absent.
+- "digestion_protocol": any section containing instructions, timing, or guidance specifically about digestion, eating pace, meal timing, or gut health. Return the full text content verbatim. Empty string if absent.
+- "recommended_supplements": any section listing supplements, vitamins, minerals, or products the practitioner recommends. Return the full text content verbatim. Empty string if absent.
+Only include content clearly serving each purpose. Do not invent or paraphrase.
+
 Only include recipes that are clearly present. Do not invent recipes. Return the result as structured JSON.`;
 }
 
