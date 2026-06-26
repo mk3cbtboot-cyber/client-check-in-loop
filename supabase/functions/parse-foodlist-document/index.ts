@@ -137,7 +137,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "empty" }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ ok: true, food_list: out }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const exclusionsRaw = Array.isArray(args.exclusions) ? args.exclusions : [];
+    const exclusions = exclusionsRaw
+      .map((x: unknown) => (typeof x === "string" ? x.trim() : ""))
+      .filter((x: string) => x.length > 0);
+
+    return new Response(JSON.stringify({ ok: true, food_list: out, exclusions }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("parse-foodlist-document error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
