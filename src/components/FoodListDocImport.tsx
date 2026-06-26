@@ -146,6 +146,9 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
     setConfirmReplaceOpen(false);
     const update: Record<string, unknown> = { food_list: reviewList };
     update.food_exclusions = reviewExclusions.length > 0 ? reviewExclusions : null;
+    update.keys_to_success = reviewKeys;
+    update.digestion_protocol = reviewDigestion;
+    update.recommended_supplements = reviewSupplements;
     const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
     if (error) {
       toast.error("Failed to save food list");
