@@ -92,6 +92,10 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         ingredients: Array.isArray(r.ingredients) ? r.ingredients : [],
       })) as ParsedRecipe[];
       setRecipes(normalized);
+      const exc = Array.isArray((data as { exclusions?: unknown }).exclusions)
+        ? ((data as { exclusions: unknown[] }).exclusions).map((x) => String(x ?? "").trim()).filter((x) => x.length > 0)
+        : [];
+      setExclusions(exc);
       setReviewOpen(true);
     } catch (err) {
       console.error(err);
