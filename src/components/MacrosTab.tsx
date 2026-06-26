@@ -37,6 +37,7 @@ interface ClientLike {
   age?: number | null;
   activity_level?: ActivityLevel | null;
   macro_goal?: MacroGoal | null;
+  calorie_adjustment?: number | null;
   macros?: MacroSet | null;
   macros_adjusted?: MacroSet | null;
   macros_shared?: boolean | null;
@@ -66,7 +67,7 @@ const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
 };
 
 const GOAL_LABELS: Record<MacroGoal, string> = {
-  weight_loss: "Weight loss — 500 cal deficit",
+  weight_loss: "Weight loss — calorie deficit",
   maintenance: "Maintenance — TDEE",
   muscle_gain: "Muscle gain — 300 cal surplus",
 };
@@ -82,6 +83,7 @@ function calcMacros(
   gender: "female" | "male",
   activity: ActivityLevel,
   goal: MacroGoal,
+  deficit: number,
 ): MacroSet {
   const bmr =
     gender === "male"
@@ -89,7 +91,7 @@ function calcMacros(
       : 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
   const tdee = bmr * ACTIVITY_MULTIPLIERS[activity];
   const calories =
-    goal === "weight_loss" ? tdee - 500 : goal === "muscle_gain" ? tdee + 300 : tdee;
+    goal === "weight_loss" ? tdee - deficit : goal === "muscle_gain" ? tdee + 300 : tdee;
   const protein_g = (calories * 0.3) / 4;
   const carbs_g = (calories * 0.4) / 4;
   const fat_g = (calories * 0.3) / 9;
@@ -102,11 +104,17 @@ function calcMacros(
 }
 
 export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: Props) {
-  const isLbs = client.weight_unit === "lbs";
+  const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">(
+    client.weight_unit === "lbs" ? "lbs" : "kg",
+  );
+  const isLbs = weightUnit === "lbs";
   const heightCm = client.height_cm ? Number(client.height_cm) : null;
   const gender = client.gender === "male" || client.gender === "female" ? client.gender : null;
 
-  // Initial weight in client's unit
+  const [heightUnit, setHeightUnit] = useState<"cm" | "ftin">(
+    client.weight_unit === "lbs" ? "ftin" : "cm",
+  );
+
   const initialWeight = useMemo(() => {
     if (latestWeightKg == null) return "";
     return isLbs ? (latestWeightKg * 2.20462).toFixed(1) : latestWeightKg.toFixed(1);
@@ -116,6 +124,7 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
   const [age, setAge] = useState<string>(client.age != null ? String(client.age) : "");
   const [activity, setActivity] = useState<ActivityLevel | "">(client.activity_level ?? "");
   const [goal, setGoal] = useState<MacroGoal | "">(client.macro_goal ?? "");
+  const [deficit, setDeficit] = useState<number>(client.calorie_adjustment ?? 500);
 
   const [calculated, setCalculated] = useState<MacroSet | null>(client.macros ?? null);
   const [adjusted, setAdjusted] = useState<MacroSet | null>(
@@ -130,7 +139,7 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
 
   const heightDisplay = heightCm == null
     ? "not set"
-    : client.weight_unit === "lbs"
+    : heightUnit === "ftin"
       ? `${Math.floor(heightCm / 2.54 / 12)}ft ${Math.round((heightCm / 2.54) % 12)}in`
       : `${heightCm}cm`;
   const genderDisplay = gender ? gender.charAt(0).toUpperCase() + gender.slice(1) : "not set";
@@ -140,6 +149,21 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
     const { error } = await supabase.from("clients").update(patch as any).eq("id", client.id);
     if (error) throw error;
     onChanged?.(patch as Partial<ClientLike>);
+  }
+
+  async function handleWeightUnitChange(u: "kg" | "lbs") {
+    // Convert current input to preserve underlying value
+    const n = Number(weightInput);
+    if (Number.isFinite(n) && n > 0) {
+      if (u === "lbs" && weightUnit === "kg") setWeightInput((n * 2.20462).toFixed(1));
+      else if (u === "kg" && weightUnit === "lbs") setWeightInput((n / 2.20462).toFixed(1));
+    }
+    setWeightUnit(u);
+    try {
+      await persist({ weight_unit: u });
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   async function handleCalculate() {
@@ -170,7 +194,8 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
       return;
     }
     const weightKg = isLbs ? wNum / 2.20462 : wNum;
-    const result = calcMacros(weightKg, heightCm, ageNum, gender, activity, goal);
+    const effectiveDeficit = goal === "weight_loss" ? deficit : 0;
+    const result = calcMacros(weightKg, heightCm, ageNum, gender, activity, goal, effectiveDeficit);
     setCalculated(result);
     setAdjusted(result);
 
@@ -179,6 +204,7 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
         age: ageNum,
         activity_level: activity,
         macro_goal: goal,
+        calorie_adjustment: goal === "weight_loss" ? deficit : null,
       });
     } catch (e) {
       toast.error("Failed to save inputs");
@@ -235,7 +261,25 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
         <p className="font-medium">Calculator</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
-            <Label>Weight ({isLbs ? "lbs" : "kg"})</Label>
+            <div className="flex items-center justify-between">
+              <Label>Weight</Label>
+              <div className="inline-flex rounded border text-xs overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => handleWeightUnitChange("kg")}
+                  className={`px-2 py-0.5 ${weightUnit === "kg" ? "bg-primary text-primary-foreground" : "bg-background"}`}
+                >
+                  kg
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleWeightUnitChange("lbs")}
+                  className={`px-2 py-0.5 ${weightUnit === "lbs" ? "bg-primary text-primary-foreground" : "bg-background"}`}
+                >
+                  lbs
+                </button>
+              </div>
+            </div>
             <Input
               type="number"
               inputMode="decimal"
@@ -245,7 +289,25 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
             />
           </div>
           <div className="space-y-1">
-            <Label>Height</Label>
+            <div className="flex items-center justify-between">
+              <Label>Height</Label>
+              <div className="inline-flex rounded border text-xs overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setHeightUnit("cm")}
+                  className={`px-2 py-0.5 ${heightUnit === "cm" ? "bg-primary text-primary-foreground" : "bg-background"}`}
+                >
+                  cm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHeightUnit("ftin")}
+                  className={`px-2 py-0.5 ${heightUnit === "ftin" ? "bg-primary text-primary-foreground" : "bg-background"}`}
+                >
+                  ft+in
+                </button>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <Input value={heightDisplay} readOnly className="bg-muted" />
               {onGoToProfile && (
@@ -298,6 +360,19 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
               </SelectContent>
             </Select>
           </div>
+          {goal === "weight_loss" && (
+            <div className="space-y-1 sm:col-span-2">
+              <Label>Calorie deficit</Label>
+              <Select value={String(deficit)} onValueChange={(v) => setDeficit(Number(v))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="300">300 calories below TDEE</SelectItem>
+                  <SelectItem value="400">400 calories below TDEE</SelectItem>
+                  <SelectItem value="500">500 calories below TDEE</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <Button onClick={handleCalculate}>Calculate</Button>
       </Card>
