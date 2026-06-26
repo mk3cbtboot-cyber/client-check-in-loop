@@ -94,6 +94,10 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
         return;
       }
       setReviewList(normalizeList(data.food_list));
+      const exc = Array.isArray((data as { exclusions?: unknown }).exclusions)
+        ? ((data as { exclusions: unknown[] }).exclusions).map((x) => String(x ?? "").trim()).filter((x) => x.length > 0)
+        : [];
+      setReviewExclusions(exc);
       setReviewOpen(true);
     } catch (err) {
       console.error(err);
