@@ -2178,6 +2178,7 @@ export default function Dashboard() {
                           onChanged={(patch) => {
                             setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
                           }}
+                          onGoToProfile={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "overview" } as typeof x) : x)))}
                         />
                       </TabsContent>
 
