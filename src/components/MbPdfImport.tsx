@@ -82,7 +82,9 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
   const [fields, setFields] = useState<FieldsMap | null>(null);
   const [mealOptions, setMealOptions] = useState<MealOptionsMap>(EMPTY_MEAL_OPTIONS());
   const [storagePath, setStoragePath] = useState<string | null>(null);
+  const [foodExclusions, setFoodExclusions] = useState<string[] | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
+
 
   const reset = () => {
     setFields(null);
