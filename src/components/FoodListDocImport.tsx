@@ -58,6 +58,7 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
   const [importing, setImporting] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewList, setReviewList] = useState<FoodList>(emptyList());
+  const [reviewExclusions, setReviewExclusions] = useState<string[]>([]);
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
