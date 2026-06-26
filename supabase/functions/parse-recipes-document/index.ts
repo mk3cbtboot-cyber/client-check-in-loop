@@ -175,7 +175,15 @@ Deno.serve(async (req) => {
       .map((x: unknown) => (typeof x === "string" ? x.trim() : ""))
       .filter((x: string) => x.length > 0);
 
-    return new Response(JSON.stringify({ ok: true, recipes, exclusions }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const trimOrNull = (v: unknown): string | null => {
+      const s = typeof v === "string" ? v.trim() : "";
+      return s.length > 0 ? s : null;
+    };
+    const keys_to_success = trimOrNull(args.keys_to_success);
+    const digestion_protocol = trimOrNull(args.digestion_protocol);
+    const recommended_supplements = trimOrNull(args.recommended_supplements);
+
+    return new Response(JSON.stringify({ ok: true, recipes, exclusions, keys_to_success, digestion_protocol, recommended_supplements }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("parse-recipes-document error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
