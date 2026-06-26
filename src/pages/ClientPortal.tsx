@@ -1482,9 +1482,19 @@ export default function ClientPortal() {
                 </div>
               )}
 
+              {Array.isArray(client.food_exclusions) && client.food_exclusions.length > 0 && (
+                <Card className="p-4">
+                  <p className="font-medium mb-2">Foods to avoid</p>
+                  <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                    {client.food_exclusions.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                  </ul>
+                </Card>
+              )}
+
               <p className="text-xs text-muted-foreground text-center pt-2">
                 Quantities and exact selections are managed by your nutritionist. Use the Home tab to build today's meal.
               </p>
+
             </>
           )}
         </section>
