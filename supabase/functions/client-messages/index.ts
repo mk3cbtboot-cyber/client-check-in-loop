@@ -189,7 +189,9 @@ Deno.serve(async (req) => {
               "phase3_mb_sprouts", "phase3_mb_fat_oil",
               "eggs_min_per_week",
               "water_target_litres", "food_limits", "food_limit_counts",
+              "food_exclusions",
             ].join(", "))
+
 
             .eq("id", c.id)
             .maybeSingle();
