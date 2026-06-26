@@ -246,6 +246,33 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
             {recipes.length === 0 && (
               <p className="text-sm text-muted-foreground">No recipes remaining. Cancel and try a different document.</p>
             )}
+            {keys && (
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs">Keys to success</Label>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setKeys(null)} aria-label="Remove"><X className="h-3 w-3" /></Button>
+                </div>
+                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{keys}</p>
+              </div>
+            )}
+            {digestion && (
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs">Digestion protocol</Label>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setDigestion(null)} aria-label="Remove"><X className="h-3 w-3" /></Button>
+                </div>
+                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{digestion}</p>
+              </div>
+            )}
+            {supplements && (
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs">Recommended supplements</Label>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setSupplements(null)} aria-label="Remove"><X className="h-3 w-3" /></Button>
+                </div>
+                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{supplements}</p>
+              </div>
+            )}
             {exclusions.length > 0 && (
               <div className="rounded-md border p-3">
                 <Label className="text-xs">Foods to avoid (saved on this client)</Label>
