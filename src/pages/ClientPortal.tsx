@@ -96,6 +96,8 @@ interface ClientState {
   food_list_notes?: Record<string, string>;
   meals_per_day?: number;
   recipe_assignments?: RecipeAssignment[];
+  food_exclusions?: string[] | null;
+
 }
 
 
