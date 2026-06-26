@@ -1247,7 +1247,9 @@ export default function ClientPortal() {
           <Card className="p-4">
             <p className="text-xs uppercase text-muted-foreground">Client</p>
             <p className="text-lg font-semibold">{client.name}</p>
-            <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseShort(client.phase)}</span></p>
+            {client.client_type === "mb" && (
+              <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseShort(client.phase)}</span></p>
+            )}
           </Card>
           {!client.mb_pdf_path ? (
             <Card className="p-6 text-center space-y-4">
