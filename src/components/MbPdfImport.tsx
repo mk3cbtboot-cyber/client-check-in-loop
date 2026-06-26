@@ -166,7 +166,9 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         dinner: normalize(incoming?.dinner),
       });
       setStoragePath(path);
+      setFoodExclusions(response.foodExclusions ?? null);
       setReviewOpen(true);
+
     } catch (err) {
       toast.error("Could not parse PDF", { description: (err as Error).message });
     } finally {
