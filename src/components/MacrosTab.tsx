@@ -136,7 +136,8 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
   const genderDisplay = gender ? gender.charAt(0).toUpperCase() + gender.slice(1) : "not set";
 
   async function persist(patch: Record<string, unknown>) {
-    const { error } = await supabase.from("clients").update(patch).eq("id", client.id);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await supabase.from("clients").update(patch as any).eq("id", client.id);
     if (error) throw error;
     onChanged?.(patch as Partial<ClientLike>);
   }
