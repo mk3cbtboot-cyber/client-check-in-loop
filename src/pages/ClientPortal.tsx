@@ -97,6 +97,9 @@ interface ClientState {
   meals_per_day?: number;
   recipe_assignments?: RecipeAssignment[];
   food_exclusions?: string[] | null;
+  keys_to_success?: string | null;
+  digestion_protocol?: string | null;
+  recommended_supplements?: string | null;
 
 }
 
