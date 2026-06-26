@@ -238,7 +238,9 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       }
       // Persist 3 options per meal into the jsonb column.
       update.mb_meal_options = mealOptions;
+      update.food_exclusions = foodExclusions && foodExclusions.length ? foodExclusions : null;
       const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
+
       if (error) throw error;
       toast.success("MB data saved");
       onSaved?.();
