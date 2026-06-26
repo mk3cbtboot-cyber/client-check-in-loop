@@ -211,6 +211,7 @@ export type Database = {
           email: string
           food_bread: string
           food_cheese: string
+          food_exclusions: string[] | null
           food_fish: string
           food_fruit: string
           food_legumes: string
@@ -304,6 +305,7 @@ export type Database = {
           email: string
           food_bread?: string
           food_cheese?: string
+          food_exclusions?: string[] | null
           food_fish?: string
           food_fruit?: string
           food_legumes?: string
@@ -397,6 +399,7 @@ export type Database = {
           email?: string
           food_bread?: string
           food_cheese?: string
+          food_exclusions?: string[] | null
           food_fish?: string
           food_fruit?: string
           food_legumes?: string
