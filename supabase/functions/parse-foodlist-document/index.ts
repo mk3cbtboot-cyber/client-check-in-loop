@@ -12,7 +12,9 @@ const Body = z.object({
   data_base64: z.string().min(10),
 });
 
-const SYSTEM_PROMPT = `This is a nutrition meal plan document. Extract the foods listed for each meal. For each food identify: the meal slot it belongs to (Breakfast, Morning Snack, Lunch, Afternoon Snack, or Dinner), the food name, the portion size or amount, and the food category (Protein, Carbs, Veg, Fat, or Other — use your best judgement if not specified). Return the result as structured JSON. Only include foods that are clearly listed in the document. If a slot is not mentioned, return an empty array for it.`;
+const SYSTEM_PROMPT = `This is a nutrition meal plan document. Extract the foods listed for each meal. For each food identify: the meal slot it belongs to (Breakfast, Morning Snack, Lunch, Afternoon Snack, or Dinner), the food name, the portion size or amount, and the food category (Protein, Carbs, Veg, Fat, or Other — use your best judgement if not specified). Return the result as structured JSON. Only include foods that are clearly listed in the document. If a slot is not mentioned, return an empty array for it.
+
+Also extract any list of foods the client must avoid. The section may be labelled "Foods Not Included", "Foods to Avoid", "Excluded Foods", "Foods Not Included in This Plan", "Do Not Eat", or similar. Return each excluded food as a separate string in the "exclusions" array. If no such section exists, return an empty array.`;
 
 const TOOL = {
   type: "function",
@@ -27,8 +29,9 @@ const TOOL = {
         lunch: { type: "array", items: foodItemSchema() },
         afternoon_snack: { type: "array", items: foodItemSchema() },
         dinner: { type: "array", items: foodItemSchema() },
+        exclusions: { type: "array", items: { type: "string" } },
       },
-      required: ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"],
+      required: ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner", "exclusions"],
       additionalProperties: false,
     },
   },
@@ -134,7 +137,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "empty" }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ ok: true, food_list: out }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const exclusionsRaw = Array.isArray(args.exclusions) ? args.exclusions : [];
+    const exclusions = exclusionsRaw
+      .map((x: unknown) => (typeof x === "string" ? x.trim() : ""))
+      .filter((x: string) => x.length > 0);
+
+    return new Response(JSON.stringify({ ok: true, food_list: out, exclusions }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("parse-foodlist-document error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

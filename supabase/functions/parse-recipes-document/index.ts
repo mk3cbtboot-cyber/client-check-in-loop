@@ -28,6 +28,8 @@ function buildSystemPrompt(mealsPerDay?: number): string {
 
 Recognise both named meal labels (Breakfast, Morning Snack, Lunch, Afternoon Snack, Dinner) and numbered meal labels (Meal 1, Meal 2, Meal 3, Meal 4, Meal 5). ${numberedRule} If the document uses neither named nor numbered labels and the slot is not clear, set meal_slot to "any".
 
+Also extract any list of foods the client must avoid. The section may be labelled "Foods Not Included", "Foods to Avoid", "Excluded Foods", "Foods Not Included in This Plan", "Do Not Eat", or similar. Return each excluded food as a separate string in the "exclusions" array. If no such section exists, return an empty array.
+
 Only include recipes that are clearly present. Do not invent recipes. Return the result as structured JSON.`;
 }
 
@@ -65,8 +67,9 @@ const TOOL = {
             additionalProperties: false,
           },
         },
+        exclusions: { type: "array", items: { type: "string" } },
       },
-      required: ["recipes"],
+      required: ["recipes", "exclusions"],
       additionalProperties: false,
     },
   },
@@ -158,7 +161,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "empty" }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ ok: true, recipes }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const exclusionsRaw = Array.isArray(args.exclusions) ? args.exclusions : [];
+    const exclusions = exclusionsRaw
+      .map((x: unknown) => (typeof x === "string" ? x.trim() : ""))
+      .filter((x: string) => x.length > 0);
+
+    return new Response(JSON.stringify({ ok: true, recipes, exclusions }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("parse-recipes-document error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

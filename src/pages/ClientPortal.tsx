@@ -1251,7 +1251,29 @@ export default function ClientPortal() {
               <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseShort(client.phase)}</span></p>
             )}
           </Card>
-          {!client.mb_pdf_path ? (
+          {client.client_type === "custom" && (
+            <>
+              {client.plan_format === "food_list" && (
+                <Card className="p-4 text-sm text-muted-foreground">
+                  Your meal plan is set up by your practitioner. Use the Home tab to log what you ate and build today's meals.
+                </Card>
+              )}
+              {client.plan_format === "recipe" && (
+                <Card className="p-4 text-sm text-muted-foreground">
+                  Your assigned recipes appear on the Home tab. Use it to choose a recipe and log what you ate.
+                </Card>
+              )}
+              {Array.isArray(client.food_exclusions) && client.food_exclusions.length > 0 && (
+                <Card className="p-4">
+                  <p className="font-medium mb-2">Foods to avoid</p>
+                  <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                    {client.food_exclusions.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                  </ul>
+                </Card>
+              )}
+            </>
+          )}
+          {client.client_type === "custom" ? null : !client.mb_pdf_path ? (
             <Card className="p-6 text-center space-y-4">
               <p className="font-medium">No meal plan uploaded yet</p>
               <p className="text-sm text-muted-foreground">

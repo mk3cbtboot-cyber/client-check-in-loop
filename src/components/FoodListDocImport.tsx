@@ -58,6 +58,7 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
   const [importing, setImporting] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewList, setReviewList] = useState<FoodList>(emptyList());
+  const [reviewExclusions, setReviewExclusions] = useState<string[]>([]);
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -93,6 +94,10 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
         return;
       }
       setReviewList(normalizeList(data.food_list));
+      const exc = Array.isArray((data as { exclusions?: unknown }).exclusions)
+        ? ((data as { exclusions: unknown[] }).exclusions).map((x) => String(x ?? "").trim()).filter((x) => x.length > 0)
+        : [];
+      setReviewExclusions(exc);
       setReviewOpen(true);
     } catch (err) {
       console.error(err);
@@ -129,7 +134,9 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
 
   async function doSaveImport() {
     setConfirmReplaceOpen(false);
-    const { error } = await supabase.from("clients").update({ food_list: reviewList } as never).eq("id", clientId);
+    const update: Record<string, unknown> = { food_list: reviewList };
+    update.food_exclusions = reviewExclusions.length > 0 ? reviewExclusions : null;
+    const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
     if (error) {
       toast.error("Failed to save food list");
       return;
@@ -193,6 +200,21 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
             })}
             {reviewTotal() === 0 && (
               <p className="text-sm text-muted-foreground">No foods remaining. Cancel and try a different document.</p>
+            )}
+            {reviewExclusions.length > 0 && (
+              <div className="rounded-md border p-3">
+                <h4 className="text-sm font-semibold mb-2">Foods to avoid</h4>
+                <ul className="text-xs space-y-1 list-disc list-inside text-muted-foreground">
+                  {reviewExclusions.map((it, idx) => (
+                    <li key={idx} className="flex items-start justify-between gap-2">
+                      <span className="text-foreground">{it}</span>
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setReviewExclusions((prev) => prev.filter((_, i) => i !== idx))} aria-label="Remove exclusion">
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
           <DialogFooter>

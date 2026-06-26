@@ -497,6 +497,11 @@ Deno.serve(async (req) => {
 
 
 
+          const customExclusionsLine =
+            Array.isArray((f as any).food_exclusions) && (f as any).food_exclusions.length
+              ? `\nFOODS EXCLUDED FROM THIS CLIENT'S PLAN (never suggest): ${((f as any).food_exclusions as string[]).join(", ")}`
+              : "";
+
           const planSummary = isRecipePlan
             ? [
                 `Client name: ${f.name ?? "(unknown)"}`,
@@ -505,6 +510,7 @@ Deno.serve(async (req) => {
                 recipeSummary,
                 "",
                 `Water target: ${f.water_target_litres ?? "?"} litres/day`,
+                customExclusionsLine,
               ].filter(Boolean).join("\n")
             : isFoodList
             ? [
@@ -514,6 +520,7 @@ Deno.serve(async (req) => {
                 buildFoodListSummary(),
                 "",
                 `Water target: ${f.water_target_litres ?? "?"} litres/day`,
+                customExclusionsLine,
               ].filter(Boolean).join("\n")
             : [
                 `Client name: ${f.name ?? "(unknown)"}`,
@@ -549,6 +556,11 @@ Deno.serve(async (req) => {
               ].filter(Boolean).join("\n");
 
 
+          const exclusionsRule =
+            Array.isArray((f as any).food_exclusions) && (f as any).food_exclusions.length
+              ? `The following foods are excluded from this client's plan and must not be suggested under any circumstances: ${((f as any).food_exclusions as string[]).join(", ")}. If the client asks about any of these foods, tell them these foods are not included in their plan.`
+              : "";
+
           const systemPrompt = isRecipePlan
             ? [
                 "You are the AI assistant for a nutrition practitioner, answering the client's question about their personal Recipe Plan.",
@@ -558,7 +570,8 @@ Deno.serve(async (req) => {
                 "If the food is not anywhere in the plan, say: \"That food is not in your meal plan.\"",
                 "Be specific: name the recipes, ingredients, and portions from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
                 `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. supplements, medical advice, or coaching).`,
-              ].join(" ")
+                exclusionsRule,
+              ].filter(Boolean).join(" ")
             : isFoodList
             ? [
                 "You are the AI assistant for a nutrition practitioner, answering the client's question about their personal Food-List meal plan.",
@@ -568,7 +581,8 @@ Deno.serve(async (req) => {
                 "If the food is not anywhere in the plan, say so plainly: \"That food is not in your meal plan.\"",
                 "Be specific: name the foods and portions from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
                 `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. supplements, medical advice, or coaching).`,
-              ].join(" ")
+                exclusionsRule,
+              ].filter(Boolean).join(" ")
             : [
                 "You are the AI assistant for a Metabolic Balance nutrition practitioner, answering the client's question about their personal plan.",
                 "Answer ONLY from the client's parsed meal plan data provided below (meal slots, Phase 2 list, Phase 3 list, 8 Rules, treat meal guidance). Do NOT infer, speculate, or suggest anything not in this data.",
