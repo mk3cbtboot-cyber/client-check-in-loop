@@ -543,7 +543,11 @@ Deno.serve(async (req) => {
                 MB_RULES_TEXT,
                 "",
                 "TREAT MEAL GUIDANCE: Phase 2 Extended allows up to 1 treat meal per week. Phase 3 allows up to 1 treat meal per week. Phase 4 (Maintenance) allows up to 3 treat meals per week.",
+                Array.isArray((f as any).food_exclusions) && (f as any).food_exclusions.length
+                  ? `\nFOODS EXCLUDED FROM THIS CLIENT'S PLAN (never suggest): ${((f as any).food_exclusions as string[]).join(", ")}`
+                  : "",
               ].filter(Boolean).join("\n");
+
 
           const systemPrompt = isRecipePlan
             ? [
