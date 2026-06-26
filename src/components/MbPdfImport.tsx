@@ -140,7 +140,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         setReviewOpen(true);
         throw new Error(detail);
       }
-      const response = data as { fields?: FieldsMap; mealOptions?: MealOptionsMap; error?: string; detail?: string; debug?: Record<string, unknown> };
+      const response = data as { fields?: FieldsMap; mealOptions?: MealOptionsMap; foodExclusions?: string[] | null; error?: string; detail?: string; debug?: Record<string, unknown> };
       if (response.error || !response.fields) {
         const detail = [
           `Step: parse-mb-pdf`,
