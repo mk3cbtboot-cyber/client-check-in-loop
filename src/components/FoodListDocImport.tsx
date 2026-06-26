@@ -201,6 +201,21 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
             {reviewTotal() === 0 && (
               <p className="text-sm text-muted-foreground">No foods remaining. Cancel and try a different document.</p>
             )}
+            {reviewExclusions.length > 0 && (
+              <div className="rounded-md border p-3">
+                <h4 className="text-sm font-semibold mb-2">Foods to avoid</h4>
+                <ul className="text-xs space-y-1 list-disc list-inside text-muted-foreground">
+                  {reviewExclusions.map((it, idx) => (
+                    <li key={idx} className="flex items-start justify-between gap-2">
+                      <span className="text-foreground">{it}</span>
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setReviewExclusions((prev) => prev.filter((_, i) => i !== idx))} aria-label="Remove exclusion">
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReviewOpen(false)}>Cancel</Button>
