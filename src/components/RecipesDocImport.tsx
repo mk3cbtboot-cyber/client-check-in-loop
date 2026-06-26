@@ -185,9 +185,16 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         toast.error("Recipes saved to library, but failed to assign to this client.");
         return;
       }
+      if (exclusions.length > 0) {
+        await supabase
+          .from("clients")
+          .update({ food_exclusions: exclusions } as never)
+          .eq("id", clientId);
+      }
       toast.success(`Imported ${cleaned.length} recipe${cleaned.length === 1 ? "" : "s"}.`);
       setReviewOpen(false);
       setRecipes([]);
+      setExclusions([]);
       onSaved?.();
     } finally {
       setSaving(false);
