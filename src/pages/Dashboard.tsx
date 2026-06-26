@@ -1793,10 +1793,11 @@ export default function Dashboard() {
 
 
                     <Tabs defaultValue="overview" className="w-full">
-                      <TabsList className="grid w-full grid-cols-5">
+                      <TabsList className="grid w-full grid-cols-6">
                         <TabsTrigger value="overview">Overview</TabsTrigger>
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="progress">Progress</TabsTrigger>
+                        <TabsTrigger value="macros">Macros</TabsTrigger>
                         <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
                         <TabsTrigger value="messages" className="relative">
                           Messages
