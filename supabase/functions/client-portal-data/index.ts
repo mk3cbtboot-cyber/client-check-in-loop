@@ -235,6 +235,8 @@ Deno.serve(async (req) => {
         food_list_notes: c.food_list_notes ?? {},
         meals_per_day: Number(c.meals_per_day ?? 3),
         recipe_assignments: recipeAssignments,
+        food_exclusions: Array.isArray(c.food_exclusions) ? c.food_exclusions : null,
+
       },
 
 
