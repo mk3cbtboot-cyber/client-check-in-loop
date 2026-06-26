@@ -2168,6 +2168,19 @@ export default function Dashboard() {
                         </Collapsible>
                       </TabsContent>
 
+                      <TabsContent value="macros" className="pt-3">
+                        <MacrosTab
+                          client={client as unknown as Parameters<typeof MacrosTab>[0]["client"]}
+                          latestWeightKg={(() => {
+                            const w = list.find((ci) => ci.weight_kg != null)?.weight_kg;
+                            return w != null ? Number(w) : null;
+                          })()}
+                          onChanged={(patch) => {
+                            setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
+                          }}
+                        />
+                      </TabsContent>
+
                       <TabsContent value="mealplan" className="pt-3">
                         {client.system_mode === "own_practice" ? (
                           client.plan_format === "food_list" ? (
