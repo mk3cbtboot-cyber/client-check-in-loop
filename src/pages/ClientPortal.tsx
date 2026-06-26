@@ -1253,7 +1253,11 @@ export default function ClientPortal() {
             <Card className="p-6 text-center space-y-4">
               <p className="font-medium">No meal plan uploaded yet</p>
               <p className="text-sm text-muted-foreground">
-                Your practitioner will upload your personalised Metabolic Balance plan here.
+                {client.plan_format === "food_list"
+                  ? "Your practitioner will set up your meal plan here."
+                  : client.plan_format === "recipe"
+                  ? "Your practitioner will assign your recipes here."
+                  : "Your practitioner will upload your personalised Metabolic Balance plan here."}
               </p>
             </Card>
           ) : client.phase === "phase1" ? (
