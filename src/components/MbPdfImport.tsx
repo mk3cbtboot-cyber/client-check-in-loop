@@ -90,10 +90,12 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
     setFields(null);
     setMealOptions(EMPTY_MEAL_OPTIONS());
     setStoragePath(null);
+    setFoodExclusions(null);
     setReviewError(null);
     setReviewOpen(false);
     if (fileRef.current) fileRef.current.value = "";
   };
+
 
   const startUpload = () => fileRef.current?.click();
 
