@@ -12,7 +12,9 @@ const Body = z.object({
   data_base64: z.string().min(10),
 });
 
-const SYSTEM_PROMPT = `This is a nutrition meal plan document. Extract the foods listed for each meal. For each food identify: the meal slot it belongs to (Breakfast, Morning Snack, Lunch, Afternoon Snack, or Dinner), the food name, the portion size or amount, and the food category (Protein, Carbs, Veg, Fat, or Other — use your best judgement if not specified). Return the result as structured JSON. Only include foods that are clearly listed in the document. If a slot is not mentioned, return an empty array for it.`;
+const SYSTEM_PROMPT = `This is a nutrition meal plan document. Extract the foods listed for each meal. For each food identify: the meal slot it belongs to (Breakfast, Morning Snack, Lunch, Afternoon Snack, or Dinner), the food name, the portion size or amount, and the food category (Protein, Carbs, Veg, Fat, or Other — use your best judgement if not specified). Return the result as structured JSON. Only include foods that are clearly listed in the document. If a slot is not mentioned, return an empty array for it.
+
+Also extract any list of foods the client must avoid. The section may be labelled "Foods Not Included", "Foods to Avoid", "Excluded Foods", "Foods Not Included in This Plan", "Do Not Eat", or similar. Return each excluded food as a separate string in the "exclusions" array. If no such section exists, return an empty array.`;
 
 const TOOL = {
   type: "function",
