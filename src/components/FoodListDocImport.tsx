@@ -229,6 +229,33 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
                 </ul>
               </div>
             )}
+            {reviewKeys && (
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Keys to success</h4>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setReviewKeys(null)} aria-label="Remove keys to success"><Trash2 className="h-3 w-3" /></Button>
+                </div>
+                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{reviewKeys}</p>
+              </div>
+            )}
+            {reviewDigestion && (
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Digestion protocol</h4>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setReviewDigestion(null)} aria-label="Remove digestion protocol"><Trash2 className="h-3 w-3" /></Button>
+                </div>
+                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{reviewDigestion}</p>
+              </div>
+            )}
+            {reviewSupplements && (
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold">Recommended supplements</h4>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setReviewSupplements(null)} aria-label="Remove recommended supplements"><Trash2 className="h-3 w-3" /></Button>
+                </div>
+                <p className="text-xs whitespace-pre-wrap text-muted-foreground">{reviewSupplements}</p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReviewOpen(false)}>Cancel</Button>
