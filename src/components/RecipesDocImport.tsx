@@ -44,6 +44,7 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
   const [importing, setImporting] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [recipes, setRecipes] = useState<ParsedRecipe[]>([]);
+  const [exclusions, setExclusions] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
