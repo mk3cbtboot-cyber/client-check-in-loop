@@ -194,6 +194,8 @@ export type Database = {
       }
       clients: {
         Row: {
+          activity_level: string | null
+          age: number | null
           archived_at: string | null
           batch_cooking_mode: string
           breakfast_protein_category: string | null
@@ -239,6 +241,10 @@ export type Database = {
           lunch_protein_category: string | null
           lunch_protein_grams: number | null
           lunch_veg_grams: number | null
+          macro_goal: string | null
+          macros: Json | null
+          macros_adjusted: Json | null
+          macros_shared: boolean
           magic_token: string
           mb_meal_options: Json
           mb_pdf_path: string | null
@@ -291,6 +297,8 @@ export type Database = {
           welcome_seen: boolean
         }
         Insert: {
+          activity_level?: string | null
+          age?: number | null
           archived_at?: string | null
           batch_cooking_mode?: string
           breakfast_protein_category?: string | null
@@ -336,6 +344,10 @@ export type Database = {
           lunch_protein_category?: string | null
           lunch_protein_grams?: number | null
           lunch_veg_grams?: number | null
+          macro_goal?: string | null
+          macros?: Json | null
+          macros_adjusted?: Json | null
+          macros_shared?: boolean
           magic_token?: string
           mb_meal_options?: Json
           mb_pdf_path?: string | null
@@ -388,6 +400,8 @@ export type Database = {
           welcome_seen?: boolean
         }
         Update: {
+          activity_level?: string | null
+          age?: number | null
           archived_at?: string | null
           batch_cooking_mode?: string
           breakfast_protein_category?: string | null
@@ -433,6 +447,10 @@ export type Database = {
           lunch_protein_category?: string | null
           lunch_protein_grams?: number | null
           lunch_veg_grams?: number | null
+          macro_goal?: string | null
+          macros?: Json | null
+          macros_adjusted?: Json | null
+          macros_shared?: boolean
           magic_token?: string
           mb_meal_options?: Json
           mb_pdf_path?: string | null

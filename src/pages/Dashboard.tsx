@@ -67,6 +67,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MbPdfImport } from "@/components/MbPdfImport";
+import { MacrosTab } from "@/components/MacrosTab";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
 import { formatDistanceToNow } from "date-fns";
@@ -1793,10 +1794,11 @@ export default function Dashboard() {
 
 
                     <Tabs defaultValue="overview" className="w-full">
-                      <TabsList className="grid w-full grid-cols-5">
+                      <TabsList className="grid w-full grid-cols-6">
                         <TabsTrigger value="overview">Overview</TabsTrigger>
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="progress">Progress</TabsTrigger>
+                        <TabsTrigger value="macros">Macros</TabsTrigger>
                         <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
                         <TabsTrigger value="messages" className="relative">
                           Messages
@@ -2164,6 +2166,19 @@ export default function Dashboard() {
                             )}
                           </CollapsibleContent>
                         </Collapsible>
+                      </TabsContent>
+
+                      <TabsContent value="macros" className="pt-3">
+                        <MacrosTab
+                          client={client as unknown as Parameters<typeof MacrosTab>[0]["client"]}
+                          latestWeightKg={(() => {
+                            const w = list.find((ci) => ci.weight_kg != null)?.weight_kg;
+                            return w != null ? Number(w) : null;
+                          })()}
+                          onChanged={(patch) => {
+                            setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
+                          }}
+                        />
                       </TabsContent>
 
                       <TabsContent value="mealplan" className="pt-3">
