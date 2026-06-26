@@ -1274,6 +1274,24 @@ export default function ClientPortal() {
                   </ul>
                 </Card>
               )}
+              {client.keys_to_success && (
+                <Card className="p-4">
+                  <p className="font-medium mb-2">Keys to success</p>
+                  <p className="text-sm whitespace-pre-wrap text-foreground">{client.keys_to_success}</p>
+                </Card>
+              )}
+              {client.digestion_protocol && (
+                <Card className="p-4">
+                  <p className="font-medium mb-2">Digestion protocol</p>
+                  <p className="text-sm whitespace-pre-wrap text-foreground">{client.digestion_protocol}</p>
+                </Card>
+              )}
+              {client.recommended_supplements && (
+                <Card className="p-4">
+                  <p className="font-medium mb-2">Recommended supplements</p>
+                  <p className="text-sm whitespace-pre-wrap text-foreground">{client.recommended_supplements}</p>
+                </Card>
+              )}
             </>
           )}
           {client.client_type === "custom" ? null : !client.mb_pdf_path ? (
