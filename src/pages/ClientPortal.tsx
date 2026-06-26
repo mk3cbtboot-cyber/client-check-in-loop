@@ -100,6 +100,8 @@ interface ClientState {
   keys_to_success?: string | null;
   digestion_protocol?: string | null;
   recommended_supplements?: string | null;
+  macros_shared?: boolean;
+  macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null;
 
 }
 
