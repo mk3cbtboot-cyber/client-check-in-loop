@@ -1273,7 +1273,7 @@ export default function ClientPortal() {
               )}
             </>
           )}
-          {client.client_type !== "custom" && !client.mb_pdf_path ? (
+          {client.client_type === "custom" ? null : !client.mb_pdf_path ? (
             <Card className="p-6 text-center space-y-4">
               <p className="font-medium">No meal plan uploaded yet</p>
               <p className="text-sm text-muted-foreground">
@@ -1284,10 +1284,7 @@ export default function ClientPortal() {
                   : "Your practitioner will upload your personalised Metabolic Balance plan here."}
               </p>
             </Card>
-          ) : client.client_type !== "custom" && client.mb_pdf_path ? null : null}
-          {false && (
-            <Card className="p-6 text-center" />
-          )}
+          ) : client.phase === "phase1" ? (
             <div className="space-y-4">
               <Card className="p-6 space-y-2">
                 <p className="font-medium">Phase 1 — Preparation Phase</p>
