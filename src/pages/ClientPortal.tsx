@@ -1256,6 +1256,24 @@ export default function ClientPortal() {
               <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseShort(client.phase)}</span></p>
             )}
           </Card>
+          {client.macros_shared && client.macros && (
+            <Card className="p-4">
+              <p className="font-medium mb-2">My Macro Targets</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { label: "Calories", value: client.macros.calories, unit: "kcal" },
+                  { label: "Protein", value: client.macros.protein_g, unit: "g" },
+                  { label: "Carbs", value: client.macros.carbs_g, unit: "g" },
+                  { label: "Fat", value: client.macros.fat_g, unit: "g" },
+                ].map((m) => (
+                  <div key={m.label} className="rounded border p-3 text-center">
+                    <p className="text-xs uppercase text-muted-foreground">{m.label}</p>
+                    <p className="text-xl font-semibold">{m.value}<span className="text-xs text-muted-foreground ml-1">{m.unit}</span></p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
           {client.client_type === "custom" && (
             <>
               {client.plan_format === "food_list" && (
