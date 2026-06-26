@@ -82,16 +82,20 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
   const [fields, setFields] = useState<FieldsMap | null>(null);
   const [mealOptions, setMealOptions] = useState<MealOptionsMap>(EMPTY_MEAL_OPTIONS());
   const [storagePath, setStoragePath] = useState<string | null>(null);
+  const [foodExclusions, setFoodExclusions] = useState<string[] | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
+
 
   const reset = () => {
     setFields(null);
     setMealOptions(EMPTY_MEAL_OPTIONS());
     setStoragePath(null);
+    setFoodExclusions(null);
     setReviewError(null);
     setReviewOpen(false);
     if (fileRef.current) fileRef.current.value = "";
   };
+
 
   const startUpload = () => fileRef.current?.click();
 
@@ -138,7 +142,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         setReviewOpen(true);
         throw new Error(detail);
       }
-      const response = data as { fields?: FieldsMap; mealOptions?: MealOptionsMap; error?: string; detail?: string; debug?: Record<string, unknown> };
+      const response = data as { fields?: FieldsMap; mealOptions?: MealOptionsMap; foodExclusions?: string[] | null; error?: string; detail?: string; debug?: Record<string, unknown> };
       if (response.error || !response.fields) {
         const detail = [
           `Step: parse-mb-pdf`,
@@ -164,7 +168,9 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         dinner: normalize(incoming?.dinner),
       });
       setStoragePath(path);
+      setFoodExclusions(response.foodExclusions ?? null);
       setReviewOpen(true);
+
     } catch (err) {
       toast.error("Could not parse PDF", { description: (err as Error).message });
     } finally {
@@ -232,7 +238,9 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       }
       // Persist 3 options per meal into the jsonb column.
       update.mb_meal_options = mealOptions;
+      update.food_exclusions = foodExclusions && foodExclusions.length ? foodExclusions : null;
       const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
+
       if (error) throw error;
       toast.success("MB data saved");
       onSaved?.();

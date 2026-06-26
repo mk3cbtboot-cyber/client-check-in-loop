@@ -1103,10 +1103,37 @@ Deno.serve(async (req) => {
       dinner: mealOptions.dinner,
     };
 
+    // Extract "Foods Not Included in This Plan" cover-page list.
+    const foodExclusions: string[] | null = (() => {
+      const headingRe = /Foods\s+Not\s+Included\s+in\s+This\s+Plan/i;
+      const m = fullText.match(headingRe);
+      if (!m || m.index === undefined) return null;
+      const after = fullText.slice(m.index + m[0].length);
+      // Stop at next major section / page artifact.
+      const stopRe = /(Personal Food List|Additional Information|Extended personal|Shopping Helper|©\s*Metabolic Balance|Page\s*\d|Breakfast\b|Lunch\b|Dinner\b|\$\$CA_)/i;
+      const sm = after.match(stopRe);
+      let chunk = sm && sm.index !== undefined ? after.slice(0, sm.index) : after.slice(0, 600);
+      chunk = stripFooter(chunk);
+      const items = chunk
+        .split(/[,;\n•·\-]+/)
+        .map((s) => s.replace(/\s+/g, " ").trim())
+        .filter(Boolean)
+        .filter((s) => {
+          if (s.length < 2 || s.length > 60) return false;
+          if (!/^[A-Za-z]/.test(s)) return false;
+          if (s.split(/\s+/).length > 5) return false;
+          if (/Foods\s+Not\s+Included/i.test(s)) return false;
+          return true;
+        });
+      const unique = Array.from(new Set(items));
+      return unique.length ? unique : null;
+    })();
+
     debug.step = "complete";
-    return new Response(JSON.stringify({ fields: result, mealOptions: mealOptionsResult, storagePath }), {
+    return new Response(JSON.stringify({ fields: result, mealOptions: mealOptionsResult, foodExclusions, storagePath }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
   } catch (e) {
     console.error("parse-mb-pdf failure", { step: debug.step, error: e });
     return new Response(JSON.stringify({ error: "parse_failed", detail: String((e as Error).message ?? e), debug }), {

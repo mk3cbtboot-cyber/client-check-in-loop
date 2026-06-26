@@ -189,7 +189,9 @@ Deno.serve(async (req) => {
               "phase3_mb_sprouts", "phase3_mb_fat_oil",
               "eggs_min_per_week",
               "water_target_litres", "food_limits", "food_limit_counts",
+              "food_exclusions",
             ].join(", "))
+
 
             .eq("id", c.id)
             .maybeSingle();
@@ -541,7 +543,11 @@ Deno.serve(async (req) => {
                 MB_RULES_TEXT,
                 "",
                 "TREAT MEAL GUIDANCE: Phase 2 Extended allows up to 1 treat meal per week. Phase 3 allows up to 1 treat meal per week. Phase 4 (Maintenance) allows up to 3 treat meals per week.",
+                Array.isArray((f as any).food_exclusions) && (f as any).food_exclusions.length
+                  ? `\nFOODS EXCLUDED FROM THIS CLIENT'S PLAN (never suggest): ${((f as any).food_exclusions as string[]).join(", ")}`
+                  : "",
               ].filter(Boolean).join("\n");
+
 
           const systemPrompt = isRecipePlan
             ? [
@@ -574,7 +580,11 @@ Deno.serve(async (req) => {
                 isPhase4
                   ? "This client is in Phase 4 — Maintenance. They have completed the program. Use their Phase 2 personal food list, Phase 3 extended list (including oils), the 8 Metabolic Balance Rules, and treat meal guidance (up to 3 treat meals per week) as your full reference. The PDF data above is comprehensive — answer any question that can be answered from it. NEVER tell the client you've passed their question to the practitioner, NEVER say you'll forward it, and NEVER suggest they wait for a human reply. If the answer truly isn't in the plan data, give the best general Metabolic Balance maintenance guidance consistent with what's in the plan."
                   : `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
-              ].join(" ");
+                Array.isArray((f as any).food_exclusions) && (f as any).food_exclusions.length
+                  ? `The following foods are excluded from this client's plan and must not be suggested under any circumstances: ${((f as any).food_exclusions as string[]).join(", ")}. If the client asks about any of these foods, tell them these foods are not included in their plan.`
+                  : "",
+              ].filter(Boolean).join(" ");
+
 
 
 
