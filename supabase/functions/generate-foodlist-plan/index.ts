@@ -1,4 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { usdaMacros } from "../_shared/usda.ts";
+
 
 const SLOT_KEYS = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"] as const;
 type SlotKey = (typeof SLOT_KEYS)[number];
@@ -128,6 +130,15 @@ Generate the food list now. Return JSON only.`;
           category: CATS.has(cat) ? cat : "Other",
         };
       }).filter((it) => it.name.length > 0);
+    }
+
+    // Enrich each food item with USDA-derived macros (per portion).
+    for (const slot of activeSlots) {
+      const list = out[slot] as Array<{ name: string; portion: string; category: string; est_macros?: unknown }>;
+      await Promise.all(list.map(async (item) => {
+        const m = await usdaMacros(item.name, item.portion).catch(() => null);
+        if (m) item.est_macros = m;
+      }));
     }
 
     return new Response(JSON.stringify({ ok: true, food_list: out }), {
