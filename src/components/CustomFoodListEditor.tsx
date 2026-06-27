@@ -75,6 +75,7 @@ interface Props {
   initialList: unknown;
   initialNotes: unknown;
   initialMealsPerDay?: number;
+  planFormat?: "food_list" | "food_list_generated";
 }
 
 export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialMealsPerDay }: Props) {
