@@ -2185,7 +2185,7 @@ export default function Dashboard() {
                           }}
                           onGoToProfile={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "overview" } as typeof x) : x)))}
                         />
-                        {client.system_mode === "own_practice" && client.plan_format === "food_list" && (
+                        {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                           <div className="flex flex-wrap items-center justify-end gap-2">
                             <FoodListPlanGenerator
                               clientId={client.id}
