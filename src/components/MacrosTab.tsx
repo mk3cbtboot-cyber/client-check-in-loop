@@ -48,6 +48,7 @@ interface Props {
   latestWeightKg: number | null;
   onChanged?: (patch: Partial<ClientLike>) => void;
   onGoToProfile?: () => void;
+  onAfterSave?: (saved: MacroSet) => void;
 }
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
