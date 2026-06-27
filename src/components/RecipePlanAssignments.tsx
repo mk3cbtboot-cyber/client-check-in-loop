@@ -56,9 +56,11 @@ function visibleSlotKeys(meals: number): SlotKey[] {
 export default function RecipePlanAssignments({
   clientId,
   mealsPerDay,
+  macros,
 }: {
   clientId: string;
   mealsPerDay: number;
+  macros?: MacroSet | null;
 }) {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
