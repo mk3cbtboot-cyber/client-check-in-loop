@@ -167,6 +167,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { clientId: routeClientId } = useParams<{ clientId: string }>();
   const [clients, setClients] = useState<Client[]>([]);
+  const [generatingPlans, setGeneratingPlans] = useState<Record<string, boolean>>({});
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn[]>>({});
   const [recipes, setRecipes] = useState<Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]>>({});
   const [weeklyAcks, setWeeklyAcks] = useState<Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]>>({});
