@@ -1276,7 +1276,7 @@ export default function ClientPortal() {
           )}
           {client.client_type === "custom" && (
             <>
-              {client.plan_format === "food_list" && (
+              {(client.plan_format === "food_list" || client.plan_format === "food_list_generated") && (
                 <Card className="p-4 text-sm text-muted-foreground">
                   Your meal plan is set up by your practitioner. Use the Home tab to log what you ate and build today's meals.
                 </Card>
