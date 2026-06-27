@@ -349,9 +349,10 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
             <Button size="sm" variant="ghost" onClick={resetDraft} className="h-7">
               <X className="h-3 w-3 mr-1" /> Cancel
             </Button>
-            <Button size="sm" onClick={saveDraft} className="h-7">
-              {editingIndex != null ? "Save" : "Add"}
+            <Button size="sm" onClick={saveDraft} className="h-7" disabled={estimating}>
+              {estimating ? "Estimating…" : editingIndex != null ? "Save" : "Add"}
             </Button>
+
           </div>
         </div>
       )}
