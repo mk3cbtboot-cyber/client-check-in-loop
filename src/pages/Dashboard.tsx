@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { X, ArrowLeft, Settings as SettingsIcon, BookOpen } from "lucide-react";
+import { X, ArrowLeft, Settings as SettingsIcon, BookOpen, Loader2 } from "lucide-react";
 import RecipeLibrary from "@/components/RecipeLibrary";
 import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
 import { TIERS, tierLabel, tierShowsToggle, defaultSystemMode, type PractitionerTier } from "@/lib/tiers";
@@ -167,6 +167,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { clientId: routeClientId } = useParams<{ clientId: string }>();
   const [clients, setClients] = useState<Client[]>([]);
+  const [generatingPlans, setGeneratingPlans] = useState<Record<string, boolean>>({});
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn[]>>({});
   const [recipes, setRecipes] = useState<Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]>>({});
   const [weeklyAcks, setWeeklyAcks] = useState<Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]>>({});
@@ -952,6 +953,49 @@ export default function Dashboard() {
     const label = fmt === "recipe" ? "Recipe Plan" : fmt === "food_list_generated" ? "Meal Plan Generator" : "Meal Plan";
     toast.success(`Plan format: ${label}`);
   };
+
+  const autoGenerateFoodListPlan = async (
+    clientId: string,
+    macros: { calories: number; protein_g: number; carbs_g: number; fat_g: number },
+  ) => {
+    const c = clients.find((x) => x.id === clientId);
+    const meals = Number((c as unknown as { meals_per_day?: number } | undefined)?.meals_per_day ?? 3);
+    const exclusions = (((c as unknown as { food_exclusions?: string[] | null } | undefined)?.food_exclusions) ?? []) as string[];
+    setGeneratingPlans((g) => ({ ...g, [clientId]: true }));
+    setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, _activeTab: "mealplan" } as typeof x) : x)));
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-foodlist-plan", {
+        body: { macros, meals_per_day: meals, exclusions, preferences: "" },
+      });
+      if (error || !data?.ok || !data?.food_list) {
+        toast.error(data?.error || "Failed to generate meal plan. Please try again.");
+        setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, _activeTab: "macros" } as typeof x) : x)));
+        return;
+      }
+      const { error: saveError } = await supabase
+        .from("clients")
+        .update({ food_list: data.food_list } as never)
+        .eq("id", clientId);
+      if (saveError) {
+        toast.error("Failed to save generated meal plan");
+        setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, _activeTab: "macros" } as typeof x) : x)));
+        return;
+      }
+      setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, food_list: data.food_list } as typeof x) : x)));
+      toast.success("Meal plan generated.");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to generate meal plan.");
+      setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, _activeTab: "macros" } as typeof x) : x)));
+    } finally {
+      setGeneratingPlans((g) => {
+        const n = { ...g };
+        delete n[clientId];
+        return n;
+      });
+    }
+  };
+
 
 
   const setMealsPerDay = async (clientId: string, next: number) => {
@@ -2194,6 +2238,11 @@ export default function Dashboard() {
                             setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
                           }}
                           onGoToProfile={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "overview" } as typeof x) : x)))}
+                          onAfterSave={(saved) => {
+                            if (client.system_mode === "own_practice" && client.plan_format === "food_list_generated") {
+                              void autoGenerateFoodListPlan(client.id, saved);
+                            }
+                          }}
                         />
                         {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                           <div className="flex flex-wrap items-center justify-end gap-2">
@@ -2212,17 +2261,24 @@ export default function Dashboard() {
                       <TabsContent value="mealplan" className="pt-3">
                         {client.system_mode === "own_practice" ? (
                           (client.plan_format === "food_list" || client.plan_format === "food_list_generated") ? (
-                            <div className="space-y-3">
-                              <CustomFoodListEditor
-                                clientId={client.id}
-                                initialList={(client as unknown as { food_list?: unknown }).food_list}
-                                initialNotes={(client as unknown as { food_list_notes?: unknown }).food_list_notes}
-                                initialMealsPerDay={(client as unknown as { meals_per_day?: number }).meals_per_day ?? 3}
-                                planFormat={client.plan_format as "food_list" | "food_list_generated"}
-                                macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
-                                onGoToMacros={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "macros" } as typeof x) : x)))}
-                              />
-                            </div>
+                            generatingPlans[client.id] ? (
+                              <div className="rounded-md border p-6 bg-card text-center space-y-2">
+                                <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+                                <p className="text-sm text-muted-foreground">Generating meal plan…</p>
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                <CustomFoodListEditor
+                                  clientId={client.id}
+                                  initialList={(client as unknown as { food_list?: unknown }).food_list}
+                                  initialNotes={(client as unknown as { food_list_notes?: unknown }).food_list_notes}
+                                  initialMealsPerDay={(client as unknown as { meals_per_day?: number }).meals_per_day ?? 3}
+                                  planFormat={client.plan_format as "food_list" | "food_list_generated"}
+                                  macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
+                                  onGoToMacros={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "macros" } as typeof x) : x)))}
+                                />
+                              </div>
+                            )
                           ) : client.plan_format === "recipe" ? (
                             <RecipePlanAssignments
                               clientId={client.id}

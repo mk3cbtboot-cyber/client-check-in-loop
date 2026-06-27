@@ -48,6 +48,7 @@ interface Props {
   latestWeightKg: number | null;
   onChanged?: (patch: Partial<ClientLike>) => void;
   onGoToProfile?: () => void;
+  onAfterSave?: (saved: MacroSet) => void;
 }
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
@@ -103,7 +104,7 @@ function calcMacros(
   };
 }
 
-export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: Props) {
+export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, onAfterSave }: Props) {
   const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">(
     client.weight_unit === "lbs" ? "lbs" : "kg",
   );
@@ -277,6 +278,7 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
       setBaseline(adjusted);
       setReduction(null);
       toast.success("Macros saved");
+      onAfterSave?.(adjusted);
     } catch (e) {
       toast.error("Failed to save macros");
       console.error(e);
