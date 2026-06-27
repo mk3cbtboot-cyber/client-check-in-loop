@@ -247,12 +247,26 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     setDraftCategory(it.category);
   }
 
-  function saveDraft() {
+  const [estimating, setEstimating] = useState(false);
+
+  async function saveDraft() {
     const name = draftName.trim();
     const portion = draftPortion.trim();
     if (!name) { toast.error("Food name is required"); return; }
     if (!portion) { toast.error("Portion is required"); return; }
-    const next: FoodItem = { name, portion, category: draftCategory };
+    setEstimating(true);
+    const existing = editingIndex != null ? items[editingIndex] : null;
+    const nameOrPortionChanged = !existing || existing.name !== name || existing.portion !== portion;
+    let est = {
+      est_calories: existing?.est_calories ?? 0,
+      est_protein_g: existing?.est_protein_g ?? 0,
+      est_carbs_g: existing?.est_carbs_g ?? 0,
+      est_fat_g: existing?.est_fat_g ?? 0,
+    };
+    if (nameOrPortionChanged) {
+      est = await estimateFoodMacros(name, portion);
+    }
+    const next: FoodItem = { name, portion, category: draftCategory, ...est };
     let updated: FoodItem[];
     if (editingIndex != null) {
       updated = items.map((it, i) => (i === editingIndex ? next : it));
@@ -260,8 +274,10 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
       updated = [...items, next];
     }
     onItemsChange(updated);
+    setEstimating(false);
     resetDraft();
   }
+
 
   function removeAt(idx: number) {
     onItemsChange(items.filter((_, i) => i !== idx));
