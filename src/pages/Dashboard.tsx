@@ -2169,7 +2169,7 @@ export default function Dashboard() {
                         </Collapsible>
                       </TabsContent>
 
-                      <TabsContent value="mealplan" className="pt-3 space-y-6">
+                      <TabsContent value="macros" className="pt-3 space-y-6">
                         <MacrosTab
                           client={client as unknown as Parameters<typeof MacrosTab>[0]["client"]}
                           latestWeightKg={(() => {
@@ -2181,22 +2181,24 @@ export default function Dashboard() {
                           }}
                           onGoToProfile={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "overview" } as typeof x) : x)))}
                         />
+                        {client.system_mode === "own_practice" && client.plan_format === "food_list" && (
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <FoodListPlanGenerator
+                              clientId={client.id}
+                              macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
+                              mealsPerDay={Number((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)}
+                              foodExclusions={(client as unknown as { food_exclusions?: string[] | null }).food_exclusions ?? null}
+                              existingList={(client as unknown as { food_list?: unknown }).food_list}
+                              onSaved={load}
+                            />
+                          </div>
+                        )}
+                      </TabsContent>
 
-
-                      
+                      <TabsContent value="mealplan" className="pt-3">
                         {client.system_mode === "own_practice" ? (
                           client.plan_format === "food_list" ? (
                             <div className="space-y-3">
-                              <div className="flex flex-wrap items-center justify-end gap-2">
-                                <FoodListPlanGenerator
-                                  clientId={client.id}
-                                  macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
-                                  mealsPerDay={Number((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)}
-                                  foodExclusions={(client as unknown as { food_exclusions?: string[] | null }).food_exclusions ?? null}
-                                  existingList={(client as unknown as { food_list?: unknown }).food_list}
-                                  onSaved={load}
-                                />
-                              </div>
                               <CustomFoodListEditor
                                 clientId={client.id}
                                 initialList={(client as unknown as { food_list?: unknown }).food_list}
