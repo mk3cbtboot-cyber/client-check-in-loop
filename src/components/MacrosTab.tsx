@@ -133,6 +133,9 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
   const [reduction, setReduction] = useState<
     { field: "protein_g" | "carbs_g" | "fat_g"; freed: number } | null
   >(null);
+  const [selectedOption, setSelectedOption] = useState<
+    "protein" | "fat" | "split" | "remove" | null
+  >(null);
   const [shared, setShared] = useState<boolean>(!!client.macros_shared);
   const [saving, setSaving] = useState(false);
 
