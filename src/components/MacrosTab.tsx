@@ -236,8 +236,10 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
         const perGram = field === "fat_g" ? 9 : 4;
         const freed = round((baseVal - v) * perGram);
         setReduction({ field, freed });
+        setSelectedOption(null);
       } else {
         setReduction(null);
+        setSelectedOption(null);
       }
     }
   }
