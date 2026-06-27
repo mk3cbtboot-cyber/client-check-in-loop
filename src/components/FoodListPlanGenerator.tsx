@@ -1,0 +1,339 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Sparkles, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
+import { customSlotLabel } from "@/lib/meal-slots";
+
+type FoodCategoryKind = "Protein" | "Carbs" | "Veg" | "Fat" | "Other";
+interface FoodItem { name: string; portion: string; category: FoodCategoryKind }
+type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
+type FoodList = Record<SlotKey, FoodItem[]>;
+
+interface MacroSet { calories: number; protein_g: number; carbs_g: number; fat_g: number }
+
+const CATEGORIES: FoodCategoryKind[] = ["Protein", "Carbs", "Veg", "Fat", "Other"];
+const SLOT_ORDER: SlotKey[] = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
+
+function emptyList(): FoodList {
+  return { breakfast: [], morning_snack: [], lunch: [], afternoon_snack: [], dinner: [] };
+}
+function activeSlots(meals: number): SlotKey[] {
+  if (meals === 5) return ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
+  if (meals === 4) return ["breakfast", "lunch", "afternoon_snack", "dinner"];
+  return ["breakfast", "lunch", "dinner"];
+}
+function normalizeList(raw: unknown): FoodList {
+  const r = (raw ?? {}) as Partial<Record<SlotKey, unknown>>;
+  const slot = (v: unknown): FoodItem[] =>
+    Array.isArray(v)
+      ? v.map((x) => {
+          const o = (x ?? {}) as Record<string, unknown>;
+          return {
+            name: String(o.name ?? ""),
+            portion: String(o.portion ?? ""),
+            category: (CATEGORIES.includes(o.category as FoodCategoryKind) ? o.category : "Other") as FoodCategoryKind,
+          };
+        })
+      : [];
+  return {
+    breakfast: slot(r.breakfast),
+    morning_snack: slot(r.morning_snack),
+    lunch: slot(r.lunch),
+    afternoon_snack: slot(r.afternoon_snack),
+    dinner: slot(r.dinner),
+  };
+}
+
+interface Props {
+  clientId: string;
+  macros: MacroSet | null;
+  mealsPerDay: number;
+  foodExclusions: string[] | null;
+  existingList: unknown;
+  onSaved?: () => void;
+}
+
+export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, foodExclusions, existingList, onSaved }: Props) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  const [exclusionsText, setExclusionsText] = useState("");
+  const [preferences, setPreferences] = useState("");
+
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewList, setReviewList] = useState<FoodList>(emptyList());
+  const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
+
+  useEffect(() => {
+    if (formOpen) {
+      setExclusionsText((foodExclusions ?? []).join(", "));
+      setPreferences("");
+    }
+  }, [formOpen, foodExclusions]);
+
+  const hasMacros = !!macros && Number(macros.calories) > 0;
+  const meals = [3, 4, 5].includes(Number(mealsPerDay)) ? Number(mealsPerDay) : 3;
+
+  async function handleGenerate() {
+    if (!hasMacros || !macros) return;
+    const exclusions = exclusionsText.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-foodlist-plan", {
+        body: {
+          macros: {
+            calories: macros.calories,
+            protein_g: macros.protein_g,
+            carbs_g: macros.carbs_g,
+            fat_g: macros.fat_g,
+          },
+          meals_per_day: meals,
+          exclusions,
+          preferences,
+        },
+      });
+      if (error || !data?.ok || !data?.food_list) {
+        toast.error(data?.error || "Failed to generate meal plan. Please try again.");
+        return;
+      }
+      setReviewList(normalizeList(data.food_list));
+      setFormOpen(false);
+      setReviewOpen(true);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to generate meal plan.");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function reviewTotal(): number {
+    return (Object.keys(reviewList) as SlotKey[]).reduce((n, k) => n + reviewList[k].length, 0);
+  }
+  function existingTotal(): number {
+    const l = normalizeList(existingList);
+    return (Object.keys(l) as SlotKey[]).reduce((n, k) => n + l[k].length, 0);
+  }
+
+  function onConfirmReview() {
+    if (reviewTotal() === 0) { toast.error("Nothing to save."); return; }
+    if (existingTotal() > 0) { setConfirmReplaceOpen(true); return; }
+    void doSave();
+  }
+
+  async function doSave() {
+    setConfirmReplaceOpen(false);
+    const { error } = await supabase.from("clients").update({ food_list: reviewList } as never).eq("id", clientId);
+    if (error) { toast.error("Failed to save meal plan"); return; }
+    setReviewOpen(false);
+    toast.success("Meal plan saved.");
+    onSaved?.();
+  }
+
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setFormOpen(true)}>
+        <Sparkles className="h-3 w-3 mr-1" /> Generate Meal Plan
+      </Button>
+
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Generate Meal Plan</DialogTitle>
+            <DialogDescription>
+              Generate a full food list per meal slot using the client's macros, exclusions, and preferences.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border p-3 space-y-1">
+              <div className="text-xs font-semibold">Macro targets</div>
+              {hasMacros && macros ? (
+                <div className="grid grid-cols-4 gap-2 text-xs">
+                  <div><div className="text-muted-foreground">Cal</div><div className="font-medium">{macros.calories}</div></div>
+                  <div><div className="text-muted-foreground">Protein</div><div className="font-medium">{macros.protein_g} g</div></div>
+                  <div><div className="text-muted-foreground">Carbs</div><div className="font-medium">{macros.carbs_g} g</div></div>
+                  <div><div className="text-muted-foreground">Fat</div><div className="font-medium">{macros.fat_g} g</div></div>
+                </div>
+              ) : (
+                <p className="text-xs text-destructive">
+                  No macro targets saved for this client. Go to the Macros tab to calculate them first.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Meals per day</Label>
+              <div className="text-sm font-medium">{meals}</div>
+              <p className="text-xs text-muted-foreground">Edit on the Overview tab.</p>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Food exclusions</Label>
+              <Textarea
+                value={exclusionsText}
+                onChange={(e) => setExclusionsText(e.target.value)}
+                placeholder="Comma-separated (e.g. peanuts, shellfish, dairy)"
+                className="min-h-[60px] text-xs"
+              />
+              <p className="text-xs text-muted-foreground">Edits here apply to this generation only.</p>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Additional preferences (optional)</Label>
+              <Textarea
+                value={preferences}
+                onChange={(e) => setPreferences(e.target.value)}
+                placeholder='e.g. "high fibre", "no red meat", "Mediterranean style", "easy to prepare"'
+                className="min-h-[60px] text-xs"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
+            <Button onClick={handleGenerate} disabled={!hasMacros || generating}>
+              {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
+              {generating ? "Generating…" : "Generate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Review generated meal plan</DialogTitle>
+            <DialogDescription>
+              Remove or edit anything that doesn't look right, then save to the client's meal plan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {activeSlots(meals).map((k) => (
+              <ReviewSlot
+                key={k}
+                label={customSlotLabel(k, meals)}
+                items={reviewList[k]}
+                onChange={(items) => setReviewList((prev) => ({ ...prev, [k]: items }))}
+              />
+            ))}
+            {reviewTotal() === 0 && (
+              <p className="text-sm text-muted-foreground">No foods remaining. Cancel and try again.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewOpen(false)}>Cancel</Button>
+            <Button onClick={onConfirmReview} disabled={reviewTotal() === 0}>Save to Meal Plan</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={confirmReplaceOpen} onOpenChange={setConfirmReplaceOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace existing meal plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will replace the existing food list for this client. Are you sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void doSave()}>Replace</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+function ReviewSlot({ label, items, onChange }: { label: string; items: FoodItem[]; onChange: (items: FoodItem[]) => void }) {
+  const [adding, setAdding] = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [dName, setDName] = useState("");
+  const [dPortion, setDPortion] = useState("");
+  const [dCat, setDCat] = useState<FoodCategoryKind>("Protein");
+
+  function reset() { setAdding(false); setEditingIdx(null); setDName(""); setDPortion(""); setDCat("Protein"); }
+  function startAdd() { reset(); setAdding(true); }
+  function startEdit(i: number) {
+    const it = items[i];
+    setAdding(false); setEditingIdx(i); setDName(it.name); setDPortion(it.portion); setDCat(it.category);
+  }
+  function save() {
+    const name = dName.trim(); const portion = dPortion.trim();
+    if (!name) { toast.error("Food name is required"); return; }
+    if (!portion) { toast.error("Portion is required"); return; }
+    const next: FoodItem = { name, portion, category: dCat };
+    const updated = editingIdx != null ? items.map((it, i) => (i === editingIdx ? next : it)) : [...items, next];
+    onChange(updated);
+    reset();
+  }
+  const showForm = adding || editingIdx != null;
+
+  return (
+    <div className="rounded-md border p-3">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-sm font-semibold">{label}</h4>
+        {!showForm && (
+          <Button size="sm" variant="outline" className="h-7 px-2" onClick={startAdd}>
+            <Plus className="h-3 w-3 mr-1" /> Add food
+          </Button>
+        )}
+      </div>
+      {items.length === 0 && !showForm && (
+        <p className="text-xs text-muted-foreground">No foods for this slot.</p>
+      )}
+      {items.length > 0 && (
+        <ul className="space-y-1.5">
+          {items.map((it, idx) => (
+            <li key={idx} className="flex items-start justify-between gap-2 rounded border p-2 text-xs">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium truncate">{it.name}</p>
+                <p className="text-muted-foreground">{it.portion} · <span className="uppercase tracking-wide">{it.category}</span></p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => startEdit(idx)} aria-label="Edit food"><Pencil className="h-3 w-3" /></Button>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onChange(items.filter((_, i) => i !== idx))} aria-label="Remove food"><Trash2 className="h-3 w-3" /></Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {showForm && (
+        <div className="mt-2 space-y-2 rounded border bg-muted/30 p-2">
+          <div className="space-y-1">
+            <Label className="text-xs">Food name</Label>
+            <Input value={dName} onChange={(e) => setDName(e.target.value)} className="h-8" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Portion</Label>
+            <Input value={dPortion} onChange={(e) => setDPortion(e.target.value)} className="h-8" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Category</Label>
+            <Select value={dCat} onValueChange={(v) => setDCat(v as FoodCategoryKind)}>
+              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <Button size="sm" variant="ghost" className="h-7" onClick={reset}><X className="h-3 w-3 mr-1" />Cancel</Button>
+            <Button size="sm" className="h-7" onClick={save}>{editingIdx != null ? "Save" : "Add"}</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
