@@ -132,6 +132,11 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
             label={customSlotLabel(s.key, mealsPerDay)}
             items={list[s.key]}
             note={notes[s.key]}
+            emptyMessage={
+              planFormat === "food_list_generated"
+                ? "No foods added yet. Use Generate Meal Plan on the Macros / MPG tab to get started."
+                : "No foods added yet. Use Add food to build this meal slot."
+            }
             onItemsChange={(items) => saveList({ ...list, [s.key]: items })}
             onNoteBlur={(value) => {
               if (value === notes[s.key]) return;
