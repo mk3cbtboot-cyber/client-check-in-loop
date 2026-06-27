@@ -167,6 +167,19 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
   const isEmpty = visible.every((k) => list[k].length === 0);
   const showGenPrompt = planFormat === "food_list_generated" && isEmpty;
 
+  if (showGenPrompt) {
+    return (
+      <div className="rounded-md border p-6 bg-card text-center space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Your meal plan will appear here once it's been generated. Go to the Macros / MPG tab to calculate your client's macros and generate their meal plan.
+        </p>
+        {onGoToMacros && (
+          <Button size="sm" onClick={onGoToMacros}>Go to Macros / MPG</Button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       {macros ? (
@@ -180,37 +193,22 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
         <h3 className="text-sm font-semibold">Meal Plan</h3>
         <span className="text-xs text-muted-foreground">Meal Plan</span>
       </div>
-      {showGenPrompt ? (
-        <div className="rounded-md border p-6 bg-card text-center space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Your meal plan will appear here once it's been generated. Go to the Macros / MPG tab to calculate your client's macros and generate their meal plan.
-          </p>
-          {onGoToMacros && (
-            <Button size="sm" onClick={onGoToMacros}>Go to Macros / MPG</Button>
-          )}
-        </div>
-      ) : (
-        <div className={`grid grid-cols-1 ${gridCols} gap-3`}>
-          {slots.map((s) => (
-            <SlotPanel
-              key={s.key}
-              label={customSlotLabel(s.key, mealsPerDay)}
-              items={list[s.key]}
-              note={notes[s.key]}
-              emptyMessage="No foods added yet. Use Add food to build this meal slot."
-              onItemsChange={(items) => saveList({ ...list, [s.key]: items })}
-              onNoteBlur={(value) => {
-                if (value === notes[s.key]) return;
-                saveNotes({ ...notes, [s.key]: value });
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-
-
-
+      <div className={`grid grid-cols-1 ${gridCols} gap-3`}>
+        {slots.map((s) => (
+          <SlotPanel
+            key={s.key}
+            label={customSlotLabel(s.key, mealsPerDay)}
+            items={list[s.key]}
+            note={notes[s.key]}
+            emptyMessage="No foods added yet. Use Add food to build this meal slot."
+            onItemsChange={(items) => saveList({ ...list, [s.key]: items })}
+            onNoteBlur={(value) => {
+              if (value === notes[s.key]) return;
+              saveNotes({ ...notes, [s.key]: value });
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
