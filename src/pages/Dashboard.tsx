@@ -2182,7 +2182,7 @@ export default function Dashboard() {
                         />
 
 
-                      <TabsContent value="mealplan" className="pt-3">
+                      
                         {client.system_mode === "own_practice" ? (
                           client.plan_format === "food_list" ? (
                             <div className="space-y-3">
