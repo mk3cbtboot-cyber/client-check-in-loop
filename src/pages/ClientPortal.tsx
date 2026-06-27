@@ -23,6 +23,8 @@ import { getPhaseProgress } from "@/lib/progress";
 import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
 import MealRecipeSection from "@/components/MealRecipeSection";
 import FoodListClientHome from "@/components/FoodListClientHome";
+import FoodListGeneratedClientHome from "@/components/FoodListGeneratedClientHome";
+import FoodSelectionPlanSection from "@/components/FoodSelectionPlanSection";
 import RecipePlanClientHome, { type RecipeAssignment } from "@/components/RecipePlanClientHome";
 
 
@@ -102,6 +104,7 @@ interface ClientState {
   recommended_supplements?: string | null;
   macros_shared?: boolean;
   macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null;
+  client_food_selections?: Record<string, { protein?: string | null; carbs?: string | null; veg?: string | null; fat?: string | null }>;
 
 }
 
@@ -753,13 +756,24 @@ export default function ClientPortal() {
               <p className="text-xs text-muted-foreground">consecutive days on target</p>
             </Card>
           </div>
-          <FoodListClientHome
-            token={token!}
-            foodList={client.food_list ?? {}}
-            foodListNotes={client.food_list_notes ?? {}}
-            mealsPerDay={Number(client.meals_per_day ?? 3)}
-            onLogged={refresh}
-          />
+          {client.plan_format === "food_list_generated" ? (
+            <FoodListGeneratedClientHome
+              token={token!}
+              foodList={client.food_list ?? {}}
+              foodListNotes={client.food_list_notes ?? {}}
+              mealsPerDay={Number(client.meals_per_day ?? 3)}
+              selections={client.client_food_selections ?? {}}
+              onLogged={refresh}
+            />
+          ) : (
+            <FoodListClientHome
+              token={token!}
+              foodList={client.food_list ?? {}}
+              foodListNotes={client.food_list_notes ?? {}}
+              mealsPerDay={Number(client.meals_per_day ?? 3)}
+              onLogged={refresh}
+            />
+          )}
         </section>
       )}
 
@@ -1276,10 +1290,19 @@ export default function ClientPortal() {
           )}
           {client.client_type === "custom" && (
             <>
-              {(client.plan_format === "food_list" || client.plan_format === "food_list_generated") && (
+              {client.plan_format === "food_list" && (
                 <Card className="p-4 text-sm text-muted-foreground">
                   Your meal plan is set up by your practitioner. Use the Home tab to log what you ate and build today's meals.
                 </Card>
+              )}
+              {client.plan_format === "food_list_generated" && (
+                <FoodSelectionPlanSection
+                  token={token!}
+                  foodList={client.food_list ?? {}}
+                  mealsPerDay={Number(client.meals_per_day ?? 3)}
+                  initialSelections={client.client_food_selections ?? {}}
+                  onSaved={(next) => setClient((prev) => (prev ? { ...prev, client_food_selections: next } : prev))}
+                />
               )}
               {client.plan_format === "recipe" && (
                 <Card className="p-4 text-sm text-muted-foreground">

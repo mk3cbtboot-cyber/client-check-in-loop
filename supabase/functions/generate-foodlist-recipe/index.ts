@@ -42,8 +42,21 @@ Deno.serve(async (req) => {
 
     const list = (c.food_list ?? {}) as Record<string, FoodItem[]>;
     const notesAll = (c.food_list_notes ?? {}) as Record<string, string>;
-    const foods = Array.isArray(list[slot_key]) ? list[slot_key] : [];
+    let foods = Array.isArray(list[slot_key]) ? list[slot_key] : [];
     const slotNote = typeof notesAll[slot_key] === "string" ? notesAll[slot_key] : "";
+
+    // For Meal Plan Generator clients, restrict foods to the client's saved selections for this slot.
+    if (c.plan_format === "food_list_generated") {
+      const selections = ((c.client_food_selections ?? {}) as Record<string, Record<string, string | null>>)[slot_key] ?? {};
+      const picked = new Set(
+        Object.values(selections).filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+      );
+      const keyFor = (f: FoodItem) => `${f.name}${f.portion ? ` · ${f.portion}` : ""}`;
+      foods = foods.filter((f) => picked.has(keyFor(f)));
+      if (foods.length === 0) {
+        return new Response(JSON.stringify({ error: "No foods selected for this meal. Choose foods on the My Plan tab first." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
 
     if (foods.length === 0) {
       return new Response(JSON.stringify({ error: "No foods set for this slot." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
