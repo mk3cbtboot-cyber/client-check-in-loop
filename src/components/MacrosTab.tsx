@@ -495,14 +495,18 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
                     key={key}
                     type="button"
                     onClick={() => applyReallocation(key)}
-                    className="text-left rounded border p-2 hover:bg-accent transition-colors"
+                    className={`text-left rounded border p-2 transition-colors ${
+                      selectedOption === key
+                        ? "border-primary bg-primary/10"
+                        : "hover:bg-accent"
+                    }`}
                   >
                     <p className="text-sm font-medium">{label}</p>
                     <p className="text-xs text-muted-foreground">{sub}</p>
                   </button>
                 ))}
               </div>
-              <Button size="sm" onClick={handleSave} disabled={saving}>
+              <Button size="sm" onClick={handleConfirmReallocation} disabled={saving}>
                 {saving ? "Saving…" : "Confirm reallocation"}
               </Button>
             </div>
