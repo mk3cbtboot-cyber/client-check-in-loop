@@ -201,6 +201,8 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
     const result = calcMacros(weightKg, heightCm, ageNum, gender, activity, goal, effectiveDeficit);
     setCalculated(result);
     setAdjusted(result);
+    setBaseline(result);
+    setReduction(null);
 
     try {
       await persist({
@@ -224,6 +226,33 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
       next.calories = round(next.protein_g * 4 + next.carbs_g * 4 + next.fat_g * 9);
     }
     setAdjusted(next);
+
+    if (field === "protein_g" || field === "carbs_g" || field === "fat_g") {
+      const baseVal = baseline ? baseline[field] : 0;
+      if (baseline && v < baseVal) {
+        const perGram = field === "fat_g" ? 9 : 4;
+        const freed = round((baseVal - v) * perGram);
+        setReduction({ field, freed });
+      } else {
+        setReduction(null);
+      }
+    }
+  }
+
+  function applyReallocation(option: "protein" | "fat" | "split" | "remove") {
+    if (!adjusted || !reduction) return;
+    const next = { ...adjusted };
+    if (option === "protein") {
+      next.protein_g = round(next.protein_g + reduction.freed / 4);
+    } else if (option === "fat") {
+      next.fat_g = round(next.fat_g + reduction.freed / 9);
+    } else if (option === "split") {
+      const half = reduction.freed / 2;
+      next.protein_g = round(next.protein_g + half / 4);
+      next.fat_g = round(next.fat_g + half / 9);
+    }
+    next.calories = round(next.protein_g * 4 + next.carbs_g * 4 + next.fat_g * 9);
+    setAdjusted(next);
   }
 
   async function handleSave() {
@@ -234,6 +263,8 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
         macros: adjusted,
         macros_adjusted: adjusted,
       });
+      setBaseline(adjusted);
+      setReduction(null);
       toast.success("Macros saved");
     } catch (e) {
       toast.error("Failed to save macros");
@@ -244,7 +275,10 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
   }
 
   function handleReset() {
-    if (calculated) setAdjusted(calculated);
+    if (calculated) {
+      setAdjusted(calculated);
+      setReduction(null);
+    }
   }
 
   async function handleToggleShared(v: boolean) {
