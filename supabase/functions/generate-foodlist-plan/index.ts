@@ -66,6 +66,7 @@ RULES:
 - For each active meal slot, provide 3–4 specific food options per category (Protein, Carbs, Veg, Fat). Each option is a separate array entry with the same category value.
 - Specific named foods only — "Chicken Breast", "Turkey Breast", "White Fish (cod, haddock)", "Brown Rice (cooked)" — NEVER generic terms like "Poultry", "Grain", "Vegetables".
 - Portion is grams, formatted as "<number>g" (e.g. "120g"). Cooked weights for proteins and carbs.
+- EXCEPTION: For oils and liquid fats (olive oil, coconut oil, avocado oil, sesame oil, flaxseed oil, butter, ghee, etc.), use teaspoons formatted as "<number> tsp" (e.g. "2 tsp") instead of grams. All other foods, including solid fats like nuts, seeds, and avocado, remain in grams.
 - Snack slots receive roughly half the macros of a main meal. Distribute remaining macros evenly across main meals so totals across one option per category per slot approximate the daily macro targets.
 - Snack slots typically need only Protein + Carbs (or Protein + Fat) — Veg/Fat optional for snacks; main meals should always include all four categories.
 - Strictly exclude any food on the exclusions list (including variants).
