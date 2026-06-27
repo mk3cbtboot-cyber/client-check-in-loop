@@ -1833,15 +1833,18 @@ export default function Dashboard() {
                                 <Label className="text-xs">Plan Format</Label>
                                 <Select
                                   value={client.plan_format ?? "food_list"}
-                                  onValueChange={(v) => setPlanFormat(client.id, v as "food_list" | "recipe")}
+                                  onValueChange={(v) => setPlanFormat(client.id, v as "food_list" | "recipe" | "food_list_generated")}
                                 >
-                                  <SelectTrigger className="h-8 w-[280px]"><SelectValue /></SelectTrigger>
+                                  <SelectTrigger className="h-8 w-[320px]"><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="food_list">
-                                      Meal Plan — Practitioner defines foods per meal slot. Client generates recipes from those foods.
+                                      Meal Plan — Practitioner builds the food list manually.
+                                    </SelectItem>
+                                    <SelectItem value="food_list_generated">
+                                      Meal Plan Generator — Macro calculator and AI generator build the plan.
                                     </SelectItem>
                                     <SelectItem value="recipe">
-                                      Recipe Plan — Practitioner assigns specific recipes. Client picks and logs.
+                                      Recipe Plan — Practitioner assigns specific recipes from the library.
                                     </SelectItem>
                                   </SelectContent>
                                 </Select>
