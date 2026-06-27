@@ -112,7 +112,7 @@ export async function estimateFoodMacros(name: string, portion: string): Promise
   }
 }
 
-export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialMealsPerDay, planFormat, macros }: Props) {
+export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialMealsPerDay, planFormat, macros, onGoToMacros }: Props) {
   const [list, setList] = useState<FoodList>(() => normalizeList(initialList));
   const [notes, setNotes] = useState<FoodListNotes>(() => normalizeNotes(initialNotes));
   const [mealsPerDay, setMealsPerDay] = useState<number>(() => {
