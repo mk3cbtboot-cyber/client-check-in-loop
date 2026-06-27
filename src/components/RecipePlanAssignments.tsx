@@ -36,6 +36,7 @@ type Assignment = {
   recipe_id: string;
   meal_slot: SlotKey;
   portion_overrides: Ingredient[] | null;
+  est_macros: MacroSet | null;
 };
 
 const ALL_SLOTS: { key: SlotKey; label: string }[] = [
