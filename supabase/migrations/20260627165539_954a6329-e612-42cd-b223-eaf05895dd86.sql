@@ -1,0 +1,1 @@
+ALTER TABLE public.client_recipe_assignments ADD COLUMN IF NOT EXISTS est_macros JSONB;

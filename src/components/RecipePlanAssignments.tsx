@@ -15,6 +15,7 @@ import { BookOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import RecipeLibrary from "./RecipeLibrary";
 import { customSlotLabel } from "@/lib/meal-slots";
+import MacroTracker, { type MacroSet } from "@/components/MacroTracker";
 
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
@@ -35,6 +36,7 @@ type Assignment = {
   recipe_id: string;
   meal_slot: SlotKey;
   portion_overrides: Ingredient[] | null;
+  est_macros: MacroSet | null;
 };
 
 const ALL_SLOTS: { key: SlotKey; label: string }[] = [
@@ -54,9 +56,11 @@ function visibleSlotKeys(meals: number): SlotKey[] {
 export default function RecipePlanAssignments({
   clientId,
   mealsPerDay,
+  macros,
 }: {
   clientId: string;
   mealsPerDay: number;
+  macros?: MacroSet | null;
 }) {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -136,6 +140,38 @@ export default function RecipePlanAssignments({
     setPortionStage({ slot: a.meal_slot, recipe, overrides: base, existingId: a.id });
   };
 
+  const estimateAssignmentMacros = async (
+    recipe: Recipe,
+    overrides: Ingredient[],
+    useDefaults: boolean,
+  ): Promise<MacroSet | null> => {
+    const effective = recipe.ingredients.map((ing) => {
+      if (useDefaults) return ing;
+      const ov = overrides.find((o) => o.food === ing.food);
+      return { food: ing.food, amount: ov?.amount ?? ing.amount };
+    });
+    const items = effective
+      .filter((i) => i.food.trim().length > 0 && i.amount.trim().length > 0)
+      .map((i) => ({ name: i.food, portion: i.amount }));
+    if (items.length === 0) return { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+    try {
+      const { data, error } = await supabase.functions.invoke("estimate-macros", { body: { items } });
+      if (error) throw error;
+      const t = (data as { totals?: MacroSet })?.totals;
+      return t
+        ? {
+            calories: Number(t.calories) || 0,
+            protein_g: Number(t.protein_g) || 0,
+            carbs_g: Number(t.carbs_g) || 0,
+            fat_g: Number(t.fat_g) || 0,
+          }
+        : null;
+    } catch (e) {
+      console.error("estimate-macros failed", e);
+      return null;
+    }
+  };
+
   const savePortions = async (useDefaults: boolean) => {
     if (!portionStage) return;
     const { slot, recipe, overrides, existingId } = portionStage;
@@ -149,10 +185,12 @@ export default function RecipePlanAssignments({
       portion_overrides = changed.length > 0 ? changed : null;
     }
 
+    const est_macros = await estimateAssignmentMacros(recipe, overrides, useDefaults);
+
     if (existingId) {
       const { error } = await supabase
         .from("client_recipe_assignments" as never)
-        .update({ portion_overrides } as never)
+        .update({ portion_overrides, est_macros } as never)
         .eq("id", existingId);
       if (error) return toast.error(error.message);
       toast.success("Portions updated");
@@ -162,6 +200,7 @@ export default function RecipePlanAssignments({
         recipe_id: recipe.id,
         meal_slot: slot,
         portion_overrides,
+        est_macros,
       } as never);
       if (error) return toast.error(error.message);
       toast.success("Recipe assigned");
@@ -169,6 +208,7 @@ export default function RecipePlanAssignments({
     setPortionStage(null);
     void load();
   };
+
 
   const unassign = async (a: Assignment) => {
     const { error } = await supabase
@@ -183,8 +223,32 @@ export default function RecipePlanAssignments({
   const eligibleRecipes = (slot: SlotKey) =>
     recipes.filter((r) => r.default_slot === slot || r.default_slot === "any");
 
+  const visibleKeys = visibleSlotKeys(mealsPerDay);
+  const used: MacroSet = assignments.reduce<MacroSet>(
+    (acc, a) => {
+      if (!visibleKeys.includes(a.meal_slot)) return acc;
+      const m = a.est_macros;
+      if (!m) return acc;
+      return {
+        calories: acc.calories + (Number(m.calories) || 0),
+        protein_g: acc.protein_g + (Number(m.protein_g) || 0),
+        carbs_g: acc.carbs_g + (Number(m.carbs_g) || 0),
+        fat_g: acc.fat_g + (Number(m.fat_g) || 0),
+      };
+    },
+    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+  );
+
   return (
     <div className="space-y-3">
+      {macros ? (
+        <MacroTracker target={macros} used={used} />
+      ) : (
+        <p className="text-xs text-muted-foreground rounded-md border p-3">
+          Add macro targets on the Macros / MPG tab to track progress here.
+        </p>
+      )}
+
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-sm font-medium">Assigned Recipes</p>

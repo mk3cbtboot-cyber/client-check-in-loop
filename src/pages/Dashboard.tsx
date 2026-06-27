@@ -2219,13 +2219,16 @@ export default function Dashboard() {
                                 initialNotes={(client as unknown as { food_list_notes?: unknown }).food_list_notes}
                                 initialMealsPerDay={(client as unknown as { meals_per_day?: number }).meals_per_day ?? 3}
                                 planFormat={client.plan_format as "food_list" | "food_list_generated"}
+                                macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
                               />
                             </div>
                           ) : client.plan_format === "recipe" ? (
                             <RecipePlanAssignments
                               clientId={client.id}
                               mealsPerDay={(client as unknown as { meals_per_day?: number }).meals_per_day ?? 3}
+                              macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
                             />
+
                           ) : (
                             <p className="text-sm text-muted-foreground">No meal plan tools available for this plan format.</p>
                           )

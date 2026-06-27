@@ -12,12 +12,17 @@ import {
 import { Pencil, Trash2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
+import MacroTracker, { type MacroSet } from "@/components/MacroTracker";
 
 export type FoodCategoryKind = "Protein" | "Carbs" | "Veg" | "Fat" | "Other";
 export interface FoodItem {
   name: string;
   portion: string;
   category: FoodCategoryKind;
+  est_calories?: number;
+  est_protein_g?: number;
+  est_carbs_g?: number;
+  est_fat_g?: number;
 }
 export type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 export type FoodList = Record<SlotKey, FoodItem[]>;
@@ -39,6 +44,10 @@ function visibleSlotKeys(meals: number): SlotKey[] {
 
 function normalizeList(raw: unknown): FoodList {
   const r = (raw ?? {}) as Partial<Record<SlotKey, unknown>>;
+  const num = (v: unknown) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
   const slot = (v: unknown): FoodItem[] =>
     Array.isArray(v)
       ? v.map((x) => {
@@ -47,6 +56,10 @@ function normalizeList(raw: unknown): FoodList {
             name: String(o.name ?? ""),
             portion: String(o.portion ?? ""),
             category: (CATEGORIES.includes(o.category as FoodCategoryKind) ? o.category : "Other") as FoodCategoryKind,
+            est_calories: num(o.est_calories),
+            est_protein_g: num(o.est_protein_g),
+            est_carbs_g: num(o.est_carbs_g),
+            est_fat_g: num(o.est_fat_g),
           };
         })
       : [];
@@ -76,9 +89,29 @@ interface Props {
   initialNotes: unknown;
   initialMealsPerDay?: number;
   planFormat?: "food_list" | "food_list_generated";
+  macros?: MacroSet | null;
 }
 
-export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialMealsPerDay, planFormat }: Props) {
+export async function estimateFoodMacros(name: string, portion: string): Promise<{ est_calories: number; est_protein_g: number; est_carbs_g: number; est_fat_g: number }> {
+  try {
+    const { data, error } = await supabase.functions.invoke("estimate-macros", {
+      body: { items: [{ name, portion }] },
+    });
+    if (error) throw error;
+    const m = (data as { items?: Array<{ calories?: number; protein_g?: number; carbs_g?: number; fat_g?: number }> })?.items?.[0];
+    return {
+      est_calories: Number(m?.calories) || 0,
+      est_protein_g: Number(m?.protein_g) || 0,
+      est_carbs_g: Number(m?.carbs_g) || 0,
+      est_fat_g: Number(m?.fat_g) || 0,
+    };
+  } catch (e) {
+    console.error("estimate-macros failed", e);
+    return { est_calories: 0, est_protein_g: 0, est_carbs_g: 0, est_fat_g: 0 };
+  }
+}
+
+export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialMealsPerDay, planFormat, macros }: Props) {
   const [list, setList] = useState<FoodList>(() => normalizeList(initialList));
   const [notes, setNotes] = useState<FoodListNotes>(() => normalizeNotes(initialNotes));
   const [mealsPerDay, setMealsPerDay] = useState<number>(() => {
@@ -113,14 +146,32 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     }
   }
 
-
-
   const visible = visibleSlotKeys(mealsPerDay);
   const slots = ALL_SLOTS.filter((s) => visible.includes(s.key));
   const gridCols = slots.length >= 5 ? "md:grid-cols-5" : slots.length === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
 
+  const used: MacroSet = visible.reduce(
+    (acc, key) => {
+      for (const it of list[key]) {
+        acc.calories += Number(it.est_calories) || 0;
+        acc.protein_g += Number(it.est_protein_g) || 0;
+        acc.carbs_g += Number(it.est_carbs_g) || 0;
+        acc.fat_g += Number(it.est_fat_g) || 0;
+      }
+      return acc;
+    },
+    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 } as MacroSet,
+  );
+
   return (
     <div className="space-y-3">
+      {macros ? (
+        <MacroTracker target={macros} used={used} />
+      ) : (
+        <p className="text-xs text-muted-foreground rounded-md border p-3">
+          Add macro targets on the Macros / MPG tab to track progress here.
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">Meal Plan</h3>
         <span className="text-xs text-muted-foreground">Meal Plan</span>
@@ -145,6 +196,7 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
           />
         ))}
       </div>
+
 
     </div>
   );
@@ -195,12 +247,26 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     setDraftCategory(it.category);
   }
 
-  function saveDraft() {
+  const [estimating, setEstimating] = useState(false);
+
+  async function saveDraft() {
     const name = draftName.trim();
     const portion = draftPortion.trim();
     if (!name) { toast.error("Food name is required"); return; }
     if (!portion) { toast.error("Portion is required"); return; }
-    const next: FoodItem = { name, portion, category: draftCategory };
+    setEstimating(true);
+    const existing = editingIndex != null ? items[editingIndex] : null;
+    const nameOrPortionChanged = !existing || existing.name !== name || existing.portion !== portion;
+    let est = {
+      est_calories: existing?.est_calories ?? 0,
+      est_protein_g: existing?.est_protein_g ?? 0,
+      est_carbs_g: existing?.est_carbs_g ?? 0,
+      est_fat_g: existing?.est_fat_g ?? 0,
+    };
+    if (nameOrPortionChanged) {
+      est = await estimateFoodMacros(name, portion);
+    }
+    const next: FoodItem = { name, portion, category: draftCategory, ...est };
     let updated: FoodItem[];
     if (editingIndex != null) {
       updated = items.map((it, i) => (i === editingIndex ? next : it));
@@ -208,8 +274,10 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
       updated = [...items, next];
     }
     onItemsChange(updated);
+    setEstimating(false);
     resetDraft();
   }
+
 
   function removeAt(idx: number) {
     onItemsChange(items.filter((_, i) => i !== idx));
@@ -281,9 +349,10 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
             <Button size="sm" variant="ghost" onClick={resetDraft} className="h-7">
               <X className="h-3 w-3 mr-1" /> Cancel
             </Button>
-            <Button size="sm" onClick={saveDraft} className="h-7">
-              {editingIndex != null ? "Save" : "Add"}
+            <Button size="sm" onClick={saveDraft} className="h-7" disabled={estimating}>
+              {estimating ? "Estimating…" : editingIndex != null ? "Save" : "Add"}
             </Button>
+
           </div>
         </div>
       )}
