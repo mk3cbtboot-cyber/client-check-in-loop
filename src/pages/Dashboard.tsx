@@ -954,6 +954,49 @@ export default function Dashboard() {
     toast.success(`Plan format: ${label}`);
   };
 
+  const autoGenerateFoodListPlan = async (
+    clientId: string,
+    macros: { calories: number; protein_g: number; carbs_g: number; fat_g: number },
+  ) => {
+    const c = clients.find((x) => x.id === clientId);
+    const meals = Number((c as unknown as { meals_per_day?: number } | undefined)?.meals_per_day ?? 3);
+    const exclusions = (((c as unknown as { food_exclusions?: string[] | null } | undefined)?.food_exclusions) ?? []) as string[];
+    setGeneratingPlans((g) => ({ ...g, [clientId]: true }));
+    setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, _activeTab: "mealplan" } as typeof x) : x)));
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-foodlist-plan", {
+        body: { macros, meals_per_day: meals, exclusions, preferences: "" },
+      });
+      if (error || !data?.ok || !data?.food_list) {
+        toast.error(data?.error || "Failed to generate meal plan. Please try again.");
+        setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, _activeTab: "macros" } as typeof x) : x)));
+        return;
+      }
+      const { error: saveError } = await supabase
+        .from("clients")
+        .update({ food_list: data.food_list } as never)
+        .eq("id", clientId);
+      if (saveError) {
+        toast.error("Failed to save generated meal plan");
+        setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, _activeTab: "macros" } as typeof x) : x)));
+        return;
+      }
+      setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, food_list: data.food_list } as typeof x) : x)));
+      toast.success("Meal plan generated.");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to generate meal plan.");
+      setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, _activeTab: "macros" } as typeof x) : x)));
+    } finally {
+      setGeneratingPlans((g) => {
+        const n = { ...g };
+        delete n[clientId];
+        return n;
+      });
+    }
+  };
+
+
 
   const setMealsPerDay = async (clientId: string, next: number) => {
     const c = clients.find((x) => x.id === clientId);
