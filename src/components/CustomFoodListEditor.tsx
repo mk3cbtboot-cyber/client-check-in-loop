@@ -89,9 +89,29 @@ interface Props {
   initialNotes: unknown;
   initialMealsPerDay?: number;
   planFormat?: "food_list" | "food_list_generated";
+  macros?: MacroSet | null;
 }
 
-export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialMealsPerDay, planFormat }: Props) {
+export async function estimateFoodMacros(name: string, portion: string): Promise<Pick<FoodItem, "est_calories" | "est_protein_g" | "est_carbs_g" | "est_fat_g">> {
+  try {
+    const { data, error } = await supabase.functions.invoke("estimate-macros", {
+      body: { items: [{ name, portion }] },
+    });
+    if (error) throw error;
+    const m = (data as { items?: Array<{ calories?: number; protein_g?: number; carbs_g?: number; fat_g?: number }> })?.items?.[0];
+    return {
+      est_calories: Number(m?.calories) || 0,
+      est_protein_g: Number(m?.protein_g) || 0,
+      est_carbs_g: Number(m?.carbs_g) || 0,
+      est_fat_g: Number(m?.fat_g) || 0,
+    };
+  } catch (e) {
+    console.error("estimate-macros failed", e);
+    return { est_calories: 0, est_protein_g: 0, est_carbs_g: 0, est_fat_g: 0 };
+  }
+}
+
+export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialMealsPerDay, planFormat, macros }: Props) {
   const [list, setList] = useState<FoodList>(() => normalizeList(initialList));
   const [notes, setNotes] = useState<FoodListNotes>(() => normalizeNotes(initialNotes));
   const [mealsPerDay, setMealsPerDay] = useState<number>(() => {
@@ -126,14 +146,32 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     }
   }
 
-
-
   const visible = visibleSlotKeys(mealsPerDay);
   const slots = ALL_SLOTS.filter((s) => visible.includes(s.key));
   const gridCols = slots.length >= 5 ? "md:grid-cols-5" : slots.length === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
 
+  const used: MacroSet = visible.reduce(
+    (acc, key) => {
+      for (const it of list[key]) {
+        acc.calories += Number(it.est_calories) || 0;
+        acc.protein_g += Number(it.est_protein_g) || 0;
+        acc.carbs_g += Number(it.est_carbs_g) || 0;
+        acc.fat_g += Number(it.est_fat_g) || 0;
+      }
+      return acc;
+    },
+    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 } as MacroSet,
+  );
+
   return (
     <div className="space-y-3">
+      {macros ? (
+        <MacroTracker target={macros} used={used} />
+      ) : (
+        <p className="text-xs text-muted-foreground rounded-md border p-3">
+          Add macro targets on the Macros / MPG tab to track progress here.
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">Meal Plan</h3>
         <span className="text-xs text-muted-foreground">Meal Plan</span>
@@ -158,6 +196,7 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
           />
         ))}
       </div>
+
 
     </div>
   );
