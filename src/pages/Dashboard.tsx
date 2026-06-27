@@ -1799,7 +1799,6 @@ export default function Dashboard() {
                         <TabsTrigger value="overview">Overview</TabsTrigger>
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="progress">Progress</TabsTrigger>
-                        <TabsTrigger value="macros">Macros</TabsTrigger>
                         <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
                         <TabsTrigger value="messages" className="relative">
                           Messages
@@ -2169,7 +2168,7 @@ export default function Dashboard() {
                         </Collapsible>
                       </TabsContent>
 
-                      <TabsContent value="macros" className="pt-3">
+                      <TabsContent value="mealplan" className="pt-3 space-y-6">
                         <MacrosTab
                           client={client as unknown as Parameters<typeof MacrosTab>[0]["client"]}
                           latestWeightKg={(() => {
@@ -2181,9 +2180,9 @@ export default function Dashboard() {
                           }}
                           onGoToProfile={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "overview" } as typeof x) : x)))}
                         />
-                      </TabsContent>
 
-                      <TabsContent value="mealplan" className="pt-3">
+
+                      
                         {client.system_mode === "own_practice" ? (
                           client.plan_format === "food_list" ? (
                             <div className="space-y-3">
