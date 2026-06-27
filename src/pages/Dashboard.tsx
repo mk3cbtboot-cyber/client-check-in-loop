@@ -122,7 +122,7 @@ interface Client {
   food_limit_counts: Record<string, number>;
   system_mode: "mb" | "own_practice";
   client_type: "mb" | "custom";
-  plan_format: "food_list" | "recipe";
+  plan_format: "food_list" | "recipe" | "food_list_generated";
   batch_cooking_mode: "3-day" | "off";
   meal_streak: number | null;
   created_at: string;
