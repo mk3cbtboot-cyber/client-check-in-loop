@@ -256,6 +256,12 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
     }
     next.calories = round(next.protein_g * 4 + next.carbs_g * 4 + next.fat_g * 9);
     setAdjusted(next);
+    setSelectedOption(option);
+  }
+
+  async function handleConfirmReallocation() {
+    await handleSave();
+    setSelectedOption(null);
   }
 
   async function handleSave() {
