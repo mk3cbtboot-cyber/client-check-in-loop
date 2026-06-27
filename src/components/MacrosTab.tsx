@@ -466,8 +466,40 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
             </div>
           </div>
 
+          {reduction && (
+            <div className="rounded-md border border-dashed p-3 space-y-3 bg-muted/30">
+              <p className="text-sm">
+                You freed up <span className="font-semibold">{reduction.freed}</span> calories by reducing{" "}
+                {reduction.field === "protein_g" ? "protein" : reduction.field === "carbs_g" ? "carbs" : "fat"}.
+                Where would you like to reallocate them?
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {([
+                  ["protein", "Add to Protein", `+${round(reduction.freed / 4)} g protein`],
+                  ["fat", "Add to Fat", `+${round(reduction.freed / 9)} g fat`],
+                  ["split", "Split evenly", `+${round((reduction.freed / 2) / 4)} g protein, +${round((reduction.freed / 2) / 9)} g fat`],
+                  ["remove", "Remove from total", `−${reduction.freed} kcal`],
+                ] as const).map(([key, label, sub]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => applyReallocation(key)}
+                    className="text-left rounded border p-2 hover:bg-accent transition-colors"
+                  >
+                    <p className="text-sm font-medium">{label}</p>
+                    <p className="text-xs text-muted-foreground">{sub}</p>
+                  </button>
+                ))}
+              </div>
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                {saving ? "Saving…" : "Confirm reallocation"}
+              </Button>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <Button onClick={handleSave} disabled={saving}>
+
               {saving ? "Saving…" : "Save"}
             </Button>
             {calculated && (
