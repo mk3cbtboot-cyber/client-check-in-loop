@@ -1799,6 +1799,7 @@ export default function Dashboard() {
                         <TabsTrigger value="overview">Overview</TabsTrigger>
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="progress">Progress</TabsTrigger>
+                        <TabsTrigger value="macros">Macros / MPG</TabsTrigger>
                         <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
                         <TabsTrigger value="messages" className="relative">
                           Messages
