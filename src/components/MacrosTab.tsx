@@ -133,6 +133,9 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
   const [reduction, setReduction] = useState<
     { field: "protein_g" | "carbs_g" | "fat_g"; freed: number } | null
   >(null);
+  const [selectedOption, setSelectedOption] = useState<
+    "protein" | "fat" | "split" | "remove" | null
+  >(null);
   const [shared, setShared] = useState<boolean>(!!client.macros_shared);
   const [saving, setSaving] = useState(false);
 
@@ -233,8 +236,10 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
         const perGram = field === "fat_g" ? 9 : 4;
         const freed = round((baseVal - v) * perGram);
         setReduction({ field, freed });
+        setSelectedOption(null);
       } else {
         setReduction(null);
+        setSelectedOption(null);
       }
     }
   }
@@ -253,6 +258,12 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
     }
     next.calories = round(next.protein_g * 4 + next.carbs_g * 4 + next.fat_g * 9);
     setAdjusted(next);
+    setSelectedOption(option);
+  }
+
+  async function handleConfirmReallocation() {
+    await handleSave();
+    setSelectedOption(null);
   }
 
   async function handleSave() {
@@ -484,14 +495,18 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
                     key={key}
                     type="button"
                     onClick={() => applyReallocation(key)}
-                    className="text-left rounded border p-2 hover:bg-accent transition-colors"
+                    className={`text-left rounded border p-2 transition-colors ${
+                      selectedOption === key
+                        ? "border-primary bg-primary/10"
+                        : "hover:bg-accent"
+                    }`}
                   >
                     <p className="text-sm font-medium">{label}</p>
                     <p className="text-xs text-muted-foreground">{sub}</p>
                   </button>
                 ))}
               </div>
-              <Button size="sm" onClick={handleSave} disabled={saving}>
+              <Button size="sm" onClick={handleConfirmReallocation} disabled={saving}>
                 {saving ? "Saving…" : "Confirm reallocation"}
               </Button>
             </div>
