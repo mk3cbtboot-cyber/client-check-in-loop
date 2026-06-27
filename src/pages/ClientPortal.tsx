@@ -754,13 +754,24 @@ export default function ClientPortal() {
               <p className="text-xs text-muted-foreground">consecutive days on target</p>
             </Card>
           </div>
-          <FoodListClientHome
-            token={token!}
-            foodList={client.food_list ?? {}}
-            foodListNotes={client.food_list_notes ?? {}}
-            mealsPerDay={Number(client.meals_per_day ?? 3)}
-            onLogged={refresh}
-          />
+          {client.plan_format === "food_list_generated" ? (
+            <FoodListGeneratedClientHome
+              token={token!}
+              foodList={client.food_list ?? {}}
+              foodListNotes={client.food_list_notes ?? {}}
+              mealsPerDay={Number(client.meals_per_day ?? 3)}
+              selections={client.client_food_selections ?? {}}
+              onLogged={refresh}
+            />
+          ) : (
+            <FoodListClientHome
+              token={token!}
+              foodList={client.food_list ?? {}}
+              foodListNotes={client.food_list_notes ?? {}}
+              mealsPerDay={Number(client.meals_per_day ?? 3)}
+              onLogged={refresh}
+            />
+          )}
         </section>
       )}
 
