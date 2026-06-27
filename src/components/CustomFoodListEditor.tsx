@@ -231,7 +231,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
 
       {items.length === 0 && !showForm && (
         <p className="text-xs text-muted-foreground">
-          No foods added yet. Use Add food to build this meal slot.
+          {emptyMessage ?? "No foods added yet. Use Add food to build this meal slot."}
         </p>
       )}
 
