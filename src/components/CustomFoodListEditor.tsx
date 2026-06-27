@@ -75,9 +75,10 @@ interface Props {
   initialList: unknown;
   initialNotes: unknown;
   initialMealsPerDay?: number;
+  planFormat?: "food_list" | "food_list_generated";
 }
 
-export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialMealsPerDay }: Props) {
+export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialMealsPerDay, planFormat }: Props) {
   const [list, setList] = useState<FoodList>(() => normalizeList(initialList));
   const [notes, setNotes] = useState<FoodListNotes>(() => normalizeNotes(initialNotes));
   const [mealsPerDay, setMealsPerDay] = useState<number>(() => {
@@ -131,6 +132,11 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
             label={customSlotLabel(s.key, mealsPerDay)}
             items={list[s.key]}
             note={notes[s.key]}
+            emptyMessage={
+              planFormat === "food_list_generated"
+                ? "No foods added yet. Use Generate Meal Plan on the Macros / MPG tab to get started."
+                : "No foods added yet. Use Add food to build this meal slot."
+            }
             onItemsChange={(items) => saveList({ ...list, [s.key]: items })}
             onNoteBlur={(value) => {
               if (value === notes[s.key]) return;
@@ -148,11 +154,12 @@ interface SlotPanelProps {
   label: string;
   items: FoodItem[];
   note: string;
+  emptyMessage?: string;
   onItemsChange: (items: FoodItem[]) => void;
   onNoteBlur: (value: string) => void;
 }
 
-function SlotPanel({ label, items, note, onItemsChange, onNoteBlur }: SlotPanelProps) {
+function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur }: SlotPanelProps) {
   const [adding, setAdding] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draftName, setDraftName] = useState("");
@@ -224,7 +231,7 @@ function SlotPanel({ label, items, note, onItemsChange, onNoteBlur }: SlotPanelP
 
       {items.length === 0 && !showForm && (
         <p className="text-xs text-muted-foreground">
-          No foods added yet. Use Add food to build this meal slot.
+          {emptyMessage ?? "No foods added yet. Use Add food to build this meal slot."}
         </p>
       )}
 
