@@ -1234,7 +1234,7 @@ export default function Dashboard() {
           } else if (typeFilter === "custom") {
             const planFormatCounts: Record<string, number> = {};
             cardActiveClients.forEach((c) => {
-              const label = c.plan_format === "food_list" ? "Meal Plan" : c.plan_format === "recipe" ? "Recipe Plan" : "Not set";
+              const label = c.plan_format === "food_list" ? "Meal Plan" : c.plan_format === "food_list_generated" ? "Meal Plan Generator" : c.plan_format === "recipe" ? "Recipe Plan" : "Not set";
               planFormatCounts[label] = (planFormatCounts[label] ?? 0) + 1;
             });
             cardBreakdown = Object.entries(planFormatCounts)
