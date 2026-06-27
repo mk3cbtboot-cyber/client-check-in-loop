@@ -241,6 +241,7 @@ Deno.serve(async (req) => {
         recommended_supplements: typeof c.recommended_supplements === "string" && c.recommended_supplements.trim().length > 0 ? c.recommended_supplements : null,
         macros_shared: c.macros_shared === true,
         macros: c.macros_shared === true && c.macros && typeof c.macros === "object" ? c.macros : null,
+        client_food_selections: c.client_food_selections && typeof c.client_food_selections === "object" ? c.client_food_selections : {},
 
       },
 
