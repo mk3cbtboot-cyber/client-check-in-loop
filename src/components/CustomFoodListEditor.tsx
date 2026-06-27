@@ -92,7 +92,7 @@ interface Props {
   macros?: MacroSet | null;
 }
 
-export async function estimateFoodMacros(name: string, portion: string): Promise<Pick<FoodItem, "est_calories" | "est_protein_g" | "est_carbs_g" | "est_fat_g">> {
+export async function estimateFoodMacros(name: string, portion: string): Promise<{ est_calories: number; est_protein_g: number; est_carbs_g: number; est_fat_g: number }> {
   try {
     const { data, error } = await supabase.functions.invoke("estimate-macros", {
       body: { items: [{ name, portion }] },
