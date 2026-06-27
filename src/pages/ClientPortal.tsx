@@ -791,7 +791,7 @@ export default function ClientPortal() {
         </section>
       )}
 
-      {tab === "home" && !(client.client_type === "custom" && (client.plan_format === "food_list" || client.plan_format === "recipe")) && (
+      {tab === "home" && !(client.client_type === "custom" && (client.plan_format === "food_list" || client.plan_format === "food_list_generated" || client.plan_format === "recipe")) && (
         <section className="max-w-5xl mx-auto p-4 space-y-6">
 
           {showLunchPrompt && (
