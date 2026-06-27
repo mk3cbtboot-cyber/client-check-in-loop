@@ -1,4 +1,6 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { usdaMacros } from "../_shared/usda.ts";
+
 
 type Item = { name: string; portion: string };
 type Macros = { calories: number; protein_g: number; carbs_g: number; fat_g: number };
@@ -28,6 +30,43 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Try USDA FoodData Central first for each item; collect indices that miss.
+    const usdaResults: (Macros | null)[] = await Promise.all(
+      items.map((it) => usdaMacros(it.name, it.portion).catch(() => null)),
+    );
+    const missingIdx: number[] = [];
+    usdaResults.forEach((r, i) => { if (!r) missingIdx.push(i); });
+
+    let aiResults: Macros[] = [];
+    if (missingIdx.length > 0) {
+      aiResults = await aiEstimate(apiKey, missingIdx.map((i) => items[i]));
+    }
+    const outItems: Macros[] = items.map((_, i) => {
+      const u = usdaResults[i];
+      if (u) return u;
+      const j = missingIdx.indexOf(i);
+      return aiResults[j] ?? zero();
+    });
+    const totals = outItems.reduce<Macros>((acc, m) => ({
+      calories: acc.calories + m.calories,
+      protein_g: acc.protein_g + m.protein_g,
+      carbs_g: acc.carbs_g + m.carbs_g,
+      fat_g: acc.fat_g + m.fat_g,
+    }), zero());
+    return new Response(JSON.stringify({ items: outItems, totals }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("estimate-macros error", e);
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "error" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
+
+async function aiEstimate(apiKey: string, items: Item[]): Promise<Macros[]> {
+  if (items.length === 0) return [];
 
     const system = `You are a nutrition database. Estimate macros for each food item at the given portion. Cooked weights unless noted. Be reasonable; use common nutritional values. Return ONLY JSON of this shape: {"items":[{"calories":number,"protein_g":number,"carbs_g":number,"fat_g":number}]} with one entry per input item in the same order. Round to integers.`;
 
