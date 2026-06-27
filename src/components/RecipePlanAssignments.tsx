@@ -140,6 +140,38 @@ export default function RecipePlanAssignments({
     setPortionStage({ slot: a.meal_slot, recipe, overrides: base, existingId: a.id });
   };
 
+  const estimateAssignmentMacros = async (
+    recipe: Recipe,
+    overrides: Ingredient[],
+    useDefaults: boolean,
+  ): Promise<MacroSet | null> => {
+    const effective = recipe.ingredients.map((ing) => {
+      if (useDefaults) return ing;
+      const ov = overrides.find((o) => o.food === ing.food);
+      return { food: ing.food, amount: ov?.amount ?? ing.amount };
+    });
+    const items = effective
+      .filter((i) => i.food.trim().length > 0 && i.amount.trim().length > 0)
+      .map((i) => ({ name: i.food, portion: i.amount }));
+    if (items.length === 0) return { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+    try {
+      const { data, error } = await supabase.functions.invoke("estimate-macros", { body: { items } });
+      if (error) throw error;
+      const t = (data as { totals?: MacroSet })?.totals;
+      return t
+        ? {
+            calories: Number(t.calories) || 0,
+            protein_g: Number(t.protein_g) || 0,
+            carbs_g: Number(t.carbs_g) || 0,
+            fat_g: Number(t.fat_g) || 0,
+          }
+        : null;
+    } catch (e) {
+      console.error("estimate-macros failed", e);
+      return null;
+    }
+  };
+
   const savePortions = async (useDefaults: boolean) => {
     if (!portionStage) return;
     const { slot, recipe, overrides, existingId } = portionStage;
@@ -153,10 +185,12 @@ export default function RecipePlanAssignments({
       portion_overrides = changed.length > 0 ? changed : null;
     }
 
+    const est_macros = await estimateAssignmentMacros(recipe, overrides, useDefaults);
+
     if (existingId) {
       const { error } = await supabase
         .from("client_recipe_assignments" as never)
-        .update({ portion_overrides } as never)
+        .update({ portion_overrides, est_macros } as never)
         .eq("id", existingId);
       if (error) return toast.error(error.message);
       toast.success("Portions updated");
@@ -166,6 +200,7 @@ export default function RecipePlanAssignments({
         recipe_id: recipe.id,
         meal_slot: slot,
         portion_overrides,
+        est_macros,
       } as never);
       if (error) return toast.error(error.message);
       toast.success("Recipe assigned");
@@ -173,6 +208,7 @@ export default function RecipePlanAssignments({
     setPortionStage(null);
     void load();
   };
+
 
   const unassign = async (a: Assignment) => {
     const { error } = await supabase
