@@ -127,9 +127,12 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
   const [deficit, setDeficit] = useState<number>(client.calorie_adjustment ?? 500);
 
   const [calculated, setCalculated] = useState<MacroSet | null>(client.macros ?? null);
-  const [adjusted, setAdjusted] = useState<MacroSet | null>(
-    client.macros_adjusted ?? client.macros ?? null,
-  );
+  const initialAdjusted = client.macros_adjusted ?? client.macros ?? null;
+  const [adjusted, setAdjusted] = useState<MacroSet | null>(initialAdjusted);
+  const [baseline, setBaseline] = useState<MacroSet | null>(initialAdjusted);
+  const [reduction, setReduction] = useState<
+    { field: "protein_g" | "carbs_g" | "fat_g"; freed: number } | null
+  >(null);
   const [shared, setShared] = useState<boolean>(!!client.macros_shared);
   const [saving, setSaving] = useState(false);
 
@@ -198,6 +201,8 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
     const result = calcMacros(weightKg, heightCm, ageNum, gender, activity, goal, effectiveDeficit);
     setCalculated(result);
     setAdjusted(result);
+    setBaseline(result);
+    setReduction(null);
 
     try {
       await persist({
@@ -221,6 +226,33 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
       next.calories = round(next.protein_g * 4 + next.carbs_g * 4 + next.fat_g * 9);
     }
     setAdjusted(next);
+
+    if (field === "protein_g" || field === "carbs_g" || field === "fat_g") {
+      const baseVal = baseline ? baseline[field] : 0;
+      if (baseline && v < baseVal) {
+        const perGram = field === "fat_g" ? 9 : 4;
+        const freed = round((baseVal - v) * perGram);
+        setReduction({ field, freed });
+      } else {
+        setReduction(null);
+      }
+    }
+  }
+
+  function applyReallocation(option: "protein" | "fat" | "split" | "remove") {
+    if (!adjusted || !reduction) return;
+    const next = { ...adjusted };
+    if (option === "protein") {
+      next.protein_g = round(next.protein_g + reduction.freed / 4);
+    } else if (option === "fat") {
+      next.fat_g = round(next.fat_g + reduction.freed / 9);
+    } else if (option === "split") {
+      const half = reduction.freed / 2;
+      next.protein_g = round(next.protein_g + half / 4);
+      next.fat_g = round(next.fat_g + half / 9);
+    }
+    next.calories = round(next.protein_g * 4 + next.carbs_g * 4 + next.fat_g * 9);
+    setAdjusted(next);
   }
 
   async function handleSave() {
@@ -231,6 +263,8 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
         macros: adjusted,
         macros_adjusted: adjusted,
       });
+      setBaseline(adjusted);
+      setReduction(null);
       toast.success("Macros saved");
     } catch (e) {
       toast.error("Failed to save macros");
@@ -241,7 +275,10 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
   }
 
   function handleReset() {
-    if (calculated) setAdjusted(calculated);
+    if (calculated) {
+      setAdjusted(calculated);
+      setReduction(null);
+    }
   }
 
   async function handleToggleShared(v: boolean) {
@@ -429,8 +466,40 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
             </div>
           </div>
 
+          {reduction && (
+            <div className="rounded-md border border-dashed p-3 space-y-3 bg-muted/30">
+              <p className="text-sm">
+                You freed up <span className="font-semibold">{reduction.freed}</span> calories by reducing{" "}
+                {reduction.field === "protein_g" ? "protein" : reduction.field === "carbs_g" ? "carbs" : "fat"}.
+                Where would you like to reallocate them?
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {([
+                  ["protein", "Add to Protein", `+${round(reduction.freed / 4)} g protein`],
+                  ["fat", "Add to Fat", `+${round(reduction.freed / 9)} g fat`],
+                  ["split", "Split evenly", `+${round((reduction.freed / 2) / 4)} g protein, +${round((reduction.freed / 2) / 9)} g fat`],
+                  ["remove", "Remove from total", `−${reduction.freed} kcal`],
+                ] as const).map(([key, label, sub]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => applyReallocation(key)}
+                    className="text-left rounded border p-2 hover:bg-accent transition-colors"
+                  >
+                    <p className="text-sm font-medium">{label}</p>
+                    <p className="text-xs text-muted-foreground">{sub}</p>
+                  </button>
+                ))}
+              </div>
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                {saving ? "Saving…" : "Confirm reallocation"}
+              </Button>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <Button onClick={handleSave} disabled={saving}>
+
               {saving ? "Saving…" : "Save"}
             </Button>
             {calculated && (
