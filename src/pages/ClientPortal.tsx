@@ -23,6 +23,8 @@ import { getPhaseProgress } from "@/lib/progress";
 import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
 import MealRecipeSection from "@/components/MealRecipeSection";
 import FoodListClientHome from "@/components/FoodListClientHome";
+import FoodListGeneratedClientHome from "@/components/FoodListGeneratedClientHome";
+import FoodSelectionPlanSection from "@/components/FoodSelectionPlanSection";
 import RecipePlanClientHome, { type RecipeAssignment } from "@/components/RecipePlanClientHome";
 
 
