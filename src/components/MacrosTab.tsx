@@ -278,6 +278,7 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
       setBaseline(adjusted);
       setReduction(null);
       toast.success("Macros saved");
+      onAfterSave?.(adjusted);
     } catch (e) {
       toast.error("Failed to save macros");
       console.error(e);
