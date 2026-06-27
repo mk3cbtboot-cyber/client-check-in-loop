@@ -2220,6 +2220,7 @@ export default function Dashboard() {
                                 initialMealsPerDay={(client as unknown as { meals_per_day?: number }).meals_per_day ?? 3}
                                 planFormat={client.plan_format as "food_list" | "food_list_generated"}
                                 macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
+                                onGoToMacros={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "macros" } as typeof x) : x)))}
                               />
                             </div>
                           ) : client.plan_format === "recipe" ? (
