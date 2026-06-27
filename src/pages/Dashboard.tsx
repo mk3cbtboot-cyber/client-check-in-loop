@@ -934,8 +934,17 @@ export default function Dashboard() {
   const setPlanFormat = async (clientId: string, fmt: "food_list" | "recipe" | "food_list_generated") => {
     const prev = clients.find((c) => c.id === clientId)?.plan_format ?? "food_list";
     if (prev === fmt) return;
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, plan_format: fmt } : c)));
-    const { error } = await supabase.from("clients").update({ plan_format: fmt } as never).eq("id", clientId);
+    const clearFoodList = prev === "food_list_generated" && fmt === "food_list";
+    if (clearFoodList) {
+      if (!window.confirm("Switching to Meal Plan will clear the generated food list. You'll start with empty meal slots to build manually. Are you sure?")) {
+        setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, plan_format: prev } : c)));
+        return;
+      }
+    }
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, plan_format: fmt, ...(clearFoodList ? { food_list: {} as never } : {}) } : c)));
+    const update: Record<string, unknown> = { plan_format: fmt };
+    if (clearFoodList) update.food_list = {};
+    const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
     if (error) {
       setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, plan_format: prev } : c)));
       return toast.error("Could not update plan format");
@@ -943,6 +952,7 @@ export default function Dashboard() {
     const label = fmt === "recipe" ? "Recipe Plan" : fmt === "food_list_generated" ? "Meal Plan Generator" : "Meal Plan";
     toast.success(`Plan format: ${label}`);
   };
+
 
   const setMealsPerDay = async (clientId: string, next: number) => {
     const c = clients.find((x) => x.id === clientId);
