@@ -931,7 +931,7 @@ export default function Dashboard() {
     toast.success(mode === "mb" ? "Switched to Metabolic Balance" : "Switched to Custom");
   };
 
-  const setPlanFormat = async (clientId: string, fmt: "food_list" | "recipe") => {
+  const setPlanFormat = async (clientId: string, fmt: "food_list" | "recipe" | "food_list_generated") => {
     const prev = clients.find((c) => c.id === clientId)?.plan_format ?? "food_list";
     if (prev === fmt) return;
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, plan_format: fmt } : c)));
@@ -940,7 +940,8 @@ export default function Dashboard() {
       setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, plan_format: prev } : c)));
       return toast.error("Could not update plan format");
     }
-    toast.success(fmt === "recipe" ? "Plan format: Recipe Plan" : "Plan format: Meal Plan");
+    const label = fmt === "recipe" ? "Recipe Plan" : fmt === "food_list_generated" ? "Meal Plan Generator" : "Meal Plan";
+    toast.success(`Plan format: ${label}`);
   };
 
   const setMealsPerDay = async (clientId: string, next: number) => {
