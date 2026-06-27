@@ -154,11 +154,12 @@ interface SlotPanelProps {
   label: string;
   items: FoodItem[];
   note: string;
+  emptyMessage?: string;
   onItemsChange: (items: FoodItem[]) => void;
   onNoteBlur: (value: string) => void;
 }
 
-function SlotPanel({ label, items, note, onItemsChange, onNoteBlur }: SlotPanelProps) {
+function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur }: SlotPanelProps) {
   const [adding, setAdding] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draftName, setDraftName] = useState("");
