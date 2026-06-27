@@ -127,9 +127,12 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile }: 
   const [deficit, setDeficit] = useState<number>(client.calorie_adjustment ?? 500);
 
   const [calculated, setCalculated] = useState<MacroSet | null>(client.macros ?? null);
-  const [adjusted, setAdjusted] = useState<MacroSet | null>(
-    client.macros_adjusted ?? client.macros ?? null,
-  );
+  const initialAdjusted = client.macros_adjusted ?? client.macros ?? null;
+  const [adjusted, setAdjusted] = useState<MacroSet | null>(initialAdjusted);
+  const [baseline, setBaseline] = useState<MacroSet | null>(initialAdjusted);
+  const [reduction, setReduction] = useState<
+    { field: "protein_g" | "carbs_g" | "fat_g"; freed: number } | null
+  >(null);
   const [shared, setShared] = useState<boolean>(!!client.macros_shared);
   const [saving, setSaving] = useState(false);
 
