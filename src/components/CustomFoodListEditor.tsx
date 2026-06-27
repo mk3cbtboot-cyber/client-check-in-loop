@@ -90,6 +90,7 @@ interface Props {
   initialMealsPerDay?: number;
   planFormat?: "food_list" | "food_list_generated";
   macros?: MacroSet | null;
+  onGoToMacros?: () => void;
 }
 
 export async function estimateFoodMacros(name: string, portion: string): Promise<{ est_calories: number; est_protein_g: number; est_carbs_g: number; est_fat_g: number }> {
