@@ -1290,10 +1290,19 @@ export default function ClientPortal() {
           )}
           {client.client_type === "custom" && (
             <>
-              {(client.plan_format === "food_list" || client.plan_format === "food_list_generated") && (
+              {client.plan_format === "food_list" && (
                 <Card className="p-4 text-sm text-muted-foreground">
                   Your meal plan is set up by your practitioner. Use the Home tab to log what you ate and build today's meals.
                 </Card>
+              )}
+              {client.plan_format === "food_list_generated" && (
+                <FoodSelectionPlanSection
+                  token={token!}
+                  foodList={client.food_list ?? {}}
+                  mealsPerDay={Number(client.meals_per_day ?? 3)}
+                  initialSelections={client.client_food_selections ?? {}}
+                  onSaved={(next) => setClient((prev) => (prev ? { ...prev, client_food_selections: next } : prev))}
+                />
               )}
               {client.plan_format === "recipe" && (
                 <Card className="p-4 text-sm text-muted-foreground">
