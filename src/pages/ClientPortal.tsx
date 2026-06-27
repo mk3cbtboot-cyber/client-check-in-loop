@@ -102,6 +102,7 @@ interface ClientState {
   recommended_supplements?: string | null;
   macros_shared?: boolean;
   macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null;
+  client_food_selections?: Record<string, { protein?: string | null; carbs?: string | null; veg?: string | null; fat?: string | null }>;
 
 }
 
