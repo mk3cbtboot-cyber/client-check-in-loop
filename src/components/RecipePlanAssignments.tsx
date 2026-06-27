@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dialog";
 import { BookOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase as sb } from "@/integrations/supabase/client";
 import RecipeLibrary from "./RecipeLibrary";
 import { customSlotLabel } from "@/lib/meal-slots";
 import MacroTracker, { type MacroSet } from "@/components/MacroTracker";
