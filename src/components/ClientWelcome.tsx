@@ -47,7 +47,7 @@ export default function ClientWelcome({
 }: Props) {
   const firstName = (clientName || "").trim().split(/\s+/)[0] || "there";
   const practitioner = practitionerDisplayName?.trim() || "your nutritionist";
-  const isFoodList = planFormat === "food_list";
+  const isFoodList = planFormat === "food_list" || planFormat === "food_list_generated";
   const isRecipe = planFormat === "recipe";
 
   const customBody = isRecipe

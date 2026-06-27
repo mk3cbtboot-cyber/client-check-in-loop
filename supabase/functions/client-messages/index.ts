@@ -412,7 +412,7 @@ Deno.serve(async (req) => {
             "8. Finish your last meal before 9pm.",
           ].join("\n");
 
-          const isFoodList = String(f.plan_format ?? "") === "food_list";
+          const isFoodList = String(f.plan_format ?? "") === "food_list" || String(f.plan_format ?? "") === "food_list_generated";
           const isRecipePlan = String(f.plan_format ?? "") === "recipe";
 
           // Fetch Recipe Plan assignments (recipe library + per-client portion overrides).

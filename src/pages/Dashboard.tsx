@@ -122,7 +122,7 @@ interface Client {
   food_limit_counts: Record<string, number>;
   system_mode: "mb" | "own_practice";
   client_type: "mb" | "custom";
-  plan_format: "food_list" | "recipe";
+  plan_format: "food_list" | "recipe" | "food_list_generated";
   batch_cooking_mode: "3-day" | "off";
   meal_streak: number | null;
   created_at: string;
@@ -931,7 +931,7 @@ export default function Dashboard() {
     toast.success(mode === "mb" ? "Switched to Metabolic Balance" : "Switched to Custom");
   };
 
-  const setPlanFormat = async (clientId: string, fmt: "food_list" | "recipe") => {
+  const setPlanFormat = async (clientId: string, fmt: "food_list" | "recipe" | "food_list_generated") => {
     const prev = clients.find((c) => c.id === clientId)?.plan_format ?? "food_list";
     if (prev === fmt) return;
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, plan_format: fmt } : c)));
@@ -940,7 +940,8 @@ export default function Dashboard() {
       setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, plan_format: prev } : c)));
       return toast.error("Could not update plan format");
     }
-    toast.success(fmt === "recipe" ? "Plan format: Recipe Plan" : "Plan format: Meal Plan");
+    const label = fmt === "recipe" ? "Recipe Plan" : fmt === "food_list_generated" ? "Meal Plan Generator" : "Meal Plan";
+    toast.success(`Plan format: ${label}`);
   };
 
   const setMealsPerDay = async (clientId: string, next: number) => {
@@ -1233,7 +1234,7 @@ export default function Dashboard() {
           } else if (typeFilter === "custom") {
             const planFormatCounts: Record<string, number> = {};
             cardActiveClients.forEach((c) => {
-              const label = c.plan_format === "food_list" ? "Meal Plan" : c.plan_format === "recipe" ? "Recipe Plan" : "Not set";
+              const label = c.plan_format === "food_list" ? "Meal Plan" : c.plan_format === "food_list_generated" ? "Meal Plan Generator" : c.plan_format === "recipe" ? "Recipe Plan" : "Not set";
               planFormatCounts[label] = (planFormatCounts[label] ?? 0) + 1;
             });
             cardBreakdown = Object.entries(planFormatCounts)
@@ -1832,15 +1833,18 @@ export default function Dashboard() {
                                 <Label className="text-xs">Plan Format</Label>
                                 <Select
                                   value={client.plan_format ?? "food_list"}
-                                  onValueChange={(v) => setPlanFormat(client.id, v as "food_list" | "recipe")}
+                                  onValueChange={(v) => setPlanFormat(client.id, v as "food_list" | "recipe" | "food_list_generated")}
                                 >
-                                  <SelectTrigger className="h-8 w-[280px]"><SelectValue /></SelectTrigger>
+                                  <SelectTrigger className="h-8 w-[320px]"><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="food_list">
-                                      Meal Plan — Practitioner defines foods per meal slot. Client generates recipes from those foods.
+                                      Meal Plan — Practitioner builds the food list manually.
+                                    </SelectItem>
+                                    <SelectItem value="food_list_generated">
+                                      Meal Plan Generator — Macro calculator and AI generator build the plan.
                                     </SelectItem>
                                     <SelectItem value="recipe">
-                                      Recipe Plan — Practitioner assigns specific recipes. Client picks and logs.
+                                      Recipe Plan — Practitioner assigns specific recipes from the library.
                                     </SelectItem>
                                   </SelectContent>
                                 </Select>
@@ -2181,7 +2185,7 @@ export default function Dashboard() {
                           }}
                           onGoToProfile={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "overview" } as typeof x) : x)))}
                         />
-                        {client.system_mode === "own_practice" && client.plan_format === "food_list" && (
+                        {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                           <div className="flex flex-wrap items-center justify-end gap-2">
                             <FoodListPlanGenerator
                               clientId={client.id}
@@ -2197,7 +2201,7 @@ export default function Dashboard() {
 
                       <TabsContent value="mealplan" className="pt-3">
                         {client.system_mode === "own_practice" ? (
-                          client.plan_format === "food_list" ? (
+                          (client.plan_format === "food_list" || client.plan_format === "food_list_generated") ? (
                             <div className="space-y-3">
                               <CustomFoodListEditor
                                 clientId={client.id}
