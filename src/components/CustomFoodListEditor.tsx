@@ -44,6 +44,10 @@ function visibleSlotKeys(meals: number): SlotKey[] {
 
 function normalizeList(raw: unknown): FoodList {
   const r = (raw ?? {}) as Partial<Record<SlotKey, unknown>>;
+  const num = (v: unknown) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
   const slot = (v: unknown): FoodItem[] =>
     Array.isArray(v)
       ? v.map((x) => {
@@ -52,6 +56,10 @@ function normalizeList(raw: unknown): FoodList {
             name: String(o.name ?? ""),
             portion: String(o.portion ?? ""),
             category: (CATEGORIES.includes(o.category as FoodCategoryKind) ? o.category : "Other") as FoodCategoryKind,
+            est_calories: num(o.est_calories),
+            est_protein_g: num(o.est_protein_g),
+            est_carbs_g: num(o.est_carbs_g),
+            est_fat_g: num(o.est_fat_g),
           };
         })
       : [];
