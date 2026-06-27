@@ -2168,7 +2168,7 @@ export default function Dashboard() {
                         </Collapsible>
                       </TabsContent>
 
-                      <TabsContent value="macros" className="pt-3">
+                      <TabsContent value="mealplan" className="pt-3 space-y-6">
                         <MacrosTab
                           client={client as unknown as Parameters<typeof MacrosTab>[0]["client"]}
                           latestWeightKg={(() => {
@@ -2180,7 +2180,7 @@ export default function Dashboard() {
                           }}
                           onGoToProfile={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "overview" } as typeof x) : x)))}
                         />
-                      </TabsContent>
+
 
                       <TabsContent value="mealplan" className="pt-3">
                         {client.system_mode === "own_practice" ? (
