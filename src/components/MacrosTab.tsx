@@ -251,7 +251,21 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
       if (baseline && v < baseVal) {
         const perGram = field === "fat_g" ? 9 : 4;
         const freed = round((baseVal - v) * perGram);
-        setReduction({ field, freed });
+        setReduction({ field, freed, mode: "reduce" });
+        setSelectedOption(null);
+      } else {
+        setReduction(null);
+        setSelectedOption(null);
+      }
+    } else if (field === "calories") {
+      const baseVal = baseline ? baseline.calories : 0;
+      if (baseline && v !== baseVal) {
+        const freed = Math.abs(round(baseVal - v));
+        setReduction({
+          field: "calories",
+          freed,
+          mode: v < baseVal ? "reduce" : "increase",
+        });
         setSelectedOption(null);
       } else {
         setReduction(null);
@@ -263,19 +277,22 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
   function applyReallocation(option: "protein" | "carbs" | "fat" | "split" | "remove") {
     if (!adjusted || !reduction) return;
     const next = { ...adjusted };
+    const sign = reduction.field === "calories" && reduction.mode === "reduce" ? -1 : 1;
     if (option === "protein") {
-      next.protein_g = round(next.protein_g + reduction.freed / 4);
+      next.protein_g = round(next.protein_g + (sign * reduction.freed) / 4);
     } else if (option === "carbs") {
-      next.carbs_g = round(next.carbs_g + reduction.freed / 4);
+      next.carbs_g = round(next.carbs_g + (sign * reduction.freed) / 4);
     } else if (option === "fat") {
-      next.fat_g = round(next.fat_g + reduction.freed / 9);
+      next.fat_g = round(next.fat_g + (sign * reduction.freed) / 9);
     } else if (option === "split") {
-      const third = reduction.freed / 3;
+      const third = (sign * reduction.freed) / 3;
       next.protein_g = round(next.protein_g + third / 4);
       next.carbs_g = round(next.carbs_g + third / 4);
       next.fat_g = round(next.fat_g + third / 9);
     }
-    next.calories = round(next.protein_g * 4 + next.carbs_g * 4 + next.fat_g * 9);
+    if (reduction.field !== "calories") {
+      next.calories = round(next.protein_g * 4 + next.carbs_g * 4 + next.fat_g * 9);
+    }
     setAdjusted(next);
     setSelectedOption(option);
   }
