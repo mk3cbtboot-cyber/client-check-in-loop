@@ -157,6 +157,8 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     mode: "reduce" | "increase";
     delta: number; // absolute calorie delta
     choice: "protein" | "carbs" | "fat" | "split" | "total";
+    prevVal: number; // prior macro grams value
+    prevCalories: number; // prior calories value
   }
   interface PendingCalRealloc {
     mk: MealKey;
@@ -164,6 +166,7 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     mode: "reduce" | "increase";
     delta: number; // absolute calorie delta
     choice: MealKey | "split" | "total";
+    prevVal: number; // prior calories value
   }
   const [pending, setPending] = useState<Record<string, PendingRealloc | null>>({});
   const [pendingCal, setPendingCal] = useState<Record<string, PendingCalRealloc | null>>({});
@@ -185,7 +188,11 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
       [mk]: { ...(prev[mk] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }), [field]: v },
     }));
     if (field === "protein_g" || field === "carbs_g" || field === "fat_g") {
-      const diffG = v - oldVal;
+      const existing = pending[mk];
+      // Preserve original prior value across consecutive keystrokes on the same field.
+      const prevVal = existing && existing.macro === field ? existing.prevVal : oldVal;
+      const prevCalories = existing && existing.macro === field ? existing.prevCalories : (prevSlot.calories || 0);
+      const diffG = v - prevVal;
       if (diffG !== 0) {
         const deltaCal = Math.abs(diffG) * KCAL_PER_G[field];
         const slotIndex = MEAL_KEYS.indexOf(mk);
@@ -198,14 +205,19 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
             mode: diffG < 0 ? "reduce" : "increase",
             delta: deltaCal,
             choice: "split",
+            prevVal,
+            prevCalories,
           },
         }));
+      } else {
+        setPending((p) => ({ ...p, [mk]: null }));
       }
     } else if (field === "calories") {
-      const diff = v - oldVal;
+      const existing = pendingCal[mk];
+      const prevVal = existing ? existing.prevVal : oldVal;
+      const diff = v - prevVal;
       if (diff !== 0) {
         const slotIndex = MEAL_KEYS.indexOf(mk);
-        // default choice = first other active slot
         const otherKeys = MEAL_KEYS.slice(0, meals).filter((k) => k !== mk);
         const firstOther = otherKeys[0] ?? "split";
         setPendingCal((p) => ({
@@ -216,8 +228,11 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
             mode: diff < 0 ? "reduce" : "increase",
             delta: Math.abs(diff),
             choice: firstOther as PendingCalRealloc["choice"],
+            prevVal,
           },
         }));
+      } else {
+        setPendingCal((p) => ({ ...p, [mk]: null }));
       }
     }
   }
@@ -403,7 +418,16 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
                     </Select>
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => applySlotRealloc(mk)}>Confirm reallocation</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setPending((prev) => ({ ...prev, [mk]: null }))}>Cancel</Button>
+                      <Button size="sm" variant="ghost" onClick={() => {
+                        const cur = pending[mk];
+                        if (cur) {
+                          setLocal((prev) => ({
+                            ...prev,
+                            [mk]: { ...(prev[mk] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }), [cur.macro]: cur.prevVal, calories: cur.prevCalories },
+                          }));
+                        }
+                        setPending((prev) => ({ ...prev, [mk]: null }));
+                      }}>Cancel</Button>
                     </div>
                   </div>
                 );
@@ -442,7 +466,16 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
                     </Select>
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => applySlotCalRealloc(mk)}>Confirm reallocation</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setPendingCal((prev) => ({ ...prev, [mk]: null }))}>Cancel</Button>
+                      <Button size="sm" variant="ghost" onClick={() => {
+                        const cur = pendingCal[mk];
+                        if (cur) {
+                          setLocal((prev) => ({
+                            ...prev,
+                            [mk]: { ...(prev[mk] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }), calories: cur.prevVal },
+                          }));
+                        }
+                        setPendingCal((prev) => ({ ...prev, [mk]: null }));
+                      }}>Cancel</Button>
                     </div>
                   </div>
                 );
