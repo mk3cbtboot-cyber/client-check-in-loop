@@ -188,7 +188,11 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
       [mk]: { ...(prev[mk] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }), [field]: v },
     }));
     if (field === "protein_g" || field === "carbs_g" || field === "fat_g") {
-      const diffG = v - oldVal;
+      const existing = pending[mk];
+      // Preserve original prior value across consecutive keystrokes on the same field.
+      const prevVal = existing && existing.macro === field ? existing.prevVal : oldVal;
+      const prevCalories = existing && existing.macro === field ? existing.prevCalories : (prevSlot.calories || 0);
+      const diffG = v - prevVal;
       if (diffG !== 0) {
         const deltaCal = Math.abs(diffG) * KCAL_PER_G[field];
         const slotIndex = MEAL_KEYS.indexOf(mk);
@@ -201,14 +205,19 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
             mode: diffG < 0 ? "reduce" : "increase",
             delta: deltaCal,
             choice: "split",
+            prevVal,
+            prevCalories,
           },
         }));
+      } else {
+        setPending((p) => ({ ...p, [mk]: null as unknown as PendingRealloc }));
       }
     } else if (field === "calories") {
-      const diff = v - oldVal;
+      const existing = pendingCal[mk];
+      const prevVal = existing ? existing.prevVal : oldVal;
+      const diff = v - prevVal;
       if (diff !== 0) {
         const slotIndex = MEAL_KEYS.indexOf(mk);
-        // default choice = first other active slot
         const otherKeys = MEAL_KEYS.slice(0, meals).filter((k) => k !== mk);
         const firstOther = otherKeys[0] ?? "split";
         setPendingCal((p) => ({
@@ -219,8 +228,11 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
             mode: diff < 0 ? "reduce" : "increase",
             delta: Math.abs(diff),
             choice: firstOther as PendingCalRealloc["choice"],
+            prevVal,
           },
         }));
+      } else {
+        setPendingCal((p) => ({ ...p, [mk]: null as unknown as PendingCalRealloc }));
       }
     }
   }
