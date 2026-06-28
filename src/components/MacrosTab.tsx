@@ -160,6 +160,11 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
     setWeightInput(initialWeight);
   }, [initialWeight]);
 
+  useEffect(() => {
+    onLiveMacrosChange?.(adjusted);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adjusted?.calories, adjusted?.protein_g, adjusted?.carbs_g, adjusted?.fat_g]);
+
   const heightDisplay = heightCm == null
     ? "not set"
     : heightUnit === "ftin"
