@@ -568,9 +568,28 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
                     </button>
                   ))}
                 </div>
-                <Button size="sm" onClick={handleConfirmReallocation} disabled={saving}>
-                  {saving ? "Saving…" : "Confirm reallocation"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleConfirmReallocation} disabled={saving}>
+                    {saving ? "Saving…" : "Confirm reallocation"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      if (adjusted && baseline && reduction) {
+                        const next = { ...adjusted, [reduction.field]: baseline[reduction.field] };
+                        if (reduction.field !== "calories") {
+                          next.calories = round(next.protein_g * 4 + next.carbs_g * 4 + next.fat_g * 9);
+                        }
+                        setAdjusted(next);
+                      }
+                      setReduction(null);
+                      setSelectedOption(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
             );
           })()}
