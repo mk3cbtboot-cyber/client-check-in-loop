@@ -142,7 +142,11 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
   const [adjusted, setAdjusted] = useState<MacroSet | null>(initialAdjusted);
   const [baseline, setBaseline] = useState<MacroSet | null>(initialAdjusted);
   const [reduction, setReduction] = useState<
-    { field: "protein_g" | "carbs_g" | "fat_g"; freed: number } | null
+    {
+      field: "protein_g" | "carbs_g" | "fat_g" | "calories";
+      freed: number;
+      mode: "reduce" | "increase";
+    } | null
   >(null);
   const [selectedOption, setSelectedOption] = useState<
     "protein" | "carbs" | "fat" | "split" | "remove" | null
@@ -247,7 +251,21 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
       if (baseline && v < baseVal) {
         const perGram = field === "fat_g" ? 9 : 4;
         const freed = round((baseVal - v) * perGram);
-        setReduction({ field, freed });
+        setReduction({ field, freed, mode: "reduce" });
+        setSelectedOption(null);
+      } else {
+        setReduction(null);
+        setSelectedOption(null);
+      }
+    } else if (field === "calories") {
+      const baseVal = baseline ? baseline.calories : 0;
+      if (baseline && v !== baseVal) {
+        const freed = Math.abs(round(baseVal - v));
+        setReduction({
+          field: "calories",
+          freed,
+          mode: v < baseVal ? "reduce" : "increase",
+        });
         setSelectedOption(null);
       } else {
         setReduction(null);
@@ -259,19 +277,22 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
   function applyReallocation(option: "protein" | "carbs" | "fat" | "split" | "remove") {
     if (!adjusted || !reduction) return;
     const next = { ...adjusted };
+    const sign = reduction.field === "calories" && reduction.mode === "reduce" ? -1 : 1;
     if (option === "protein") {
-      next.protein_g = round(next.protein_g + reduction.freed / 4);
+      next.protein_g = round(next.protein_g + (sign * reduction.freed) / 4);
     } else if (option === "carbs") {
-      next.carbs_g = round(next.carbs_g + reduction.freed / 4);
+      next.carbs_g = round(next.carbs_g + (sign * reduction.freed) / 4);
     } else if (option === "fat") {
-      next.fat_g = round(next.fat_g + reduction.freed / 9);
+      next.fat_g = round(next.fat_g + (sign * reduction.freed) / 9);
     } else if (option === "split") {
-      const third = reduction.freed / 3;
+      const third = (sign * reduction.freed) / 3;
       next.protein_g = round(next.protein_g + third / 4);
       next.carbs_g = round(next.carbs_g + third / 4);
       next.fat_g = round(next.fat_g + third / 9);
     }
-    next.calories = round(next.protein_g * 4 + next.carbs_g * 4 + next.fat_g * 9);
+    if (reduction.field !== "calories") {
+      next.calories = round(next.protein_g * 4 + next.carbs_g * 4 + next.fat_g * 9);
+    }
     setAdjusted(next);
     setSelectedOption(option);
   }
@@ -493,41 +514,60 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
             </div>
           </div>
 
-          {reduction && (
-            <div className="rounded-md border border-dashed p-3 space-y-3 bg-muted/30">
-              <p className="text-sm">
-                You freed up <span className="font-semibold">{reduction.freed}</span> calories by reducing{" "}
-                {reduction.field === "protein_g" ? "protein" : reduction.field === "carbs_g" ? "carbs" : "fat"}.
-                Where would you like to reallocate them?
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {([
+          {reduction && (() => {
+            const isCalories = reduction.field === "calories";
+            const isIncrease = reduction.mode === "increase";
+            const verb = isIncrease ? "Add to" : "Reduce";
+            const signChar = isIncrease ? "+" : "−";
+            const headline = isCalories
+              ? isIncrease
+                ? <>You added <span className="font-semibold">{reduction.freed}</span> kcal. Where would you like to allocate them?</>
+                : <>You reduced calories by <span className="font-semibold">{reduction.freed}</span> kcal. Which macro should absorb this reduction?</>
+              : <>You freed up <span className="font-semibold">{reduction.freed}</span> calories by reducing {reduction.field === "protein_g" ? "protein" : reduction.field === "carbs_g" ? "carbs" : "fat"}. Where would you like to reallocate them?</>;
+            const options: ReadonlyArray<readonly [
+              "protein" | "carbs" | "fat" | "split" | "remove",
+              string,
+              string,
+            ]> = isCalories
+              ? [
+                  ["protein", `${verb} Protein`, `${signChar}${round(reduction.freed / 4)} g protein`],
+                  ["carbs", `${verb} Carbs`, `${signChar}${round(reduction.freed / 4)} g carbs`],
+                  ["fat", `${verb} Fat`, `${signChar}${round(reduction.freed / 9)} g fat`],
+                  ["split", "Split evenly", `${signChar}${round((reduction.freed / 3) / 4)} g protein, ${signChar}${round((reduction.freed / 3) / 4)} g carbs, ${signChar}${round((reduction.freed / 3) / 9)} g fat`],
+                ]
+              : [
                   ["protein", "Add to Protein", `+${round(reduction.freed / 4)} g protein`],
                   ["carbs", "Add to Carbs", `+${round(reduction.freed / 4)} g carbs`],
                   ["fat", "Add to Fat", `+${round(reduction.freed / 9)} g fat`],
                   ["split", "Split evenly", `+${round((reduction.freed / 3) / 4)} g protein, +${round((reduction.freed / 3) / 4)} g carbs, +${round((reduction.freed / 3) / 9)} g fat`],
                   ["remove", "Remove from total", `−${reduction.freed} kcal`],
-                ] as const).map(([key, label, sub]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => applyReallocation(key)}
-                    className={`text-left rounded border p-2 transition-colors ${
-                      selectedOption === key
-                        ? "border-primary bg-primary/10"
-                        : "hover:bg-accent"
-                    }`}
-                  >
-                    <p className="text-sm font-medium">{label}</p>
-                    <p className="text-xs text-muted-foreground">{sub}</p>
-                  </button>
-                ))}
+                ];
+            return (
+              <div className="rounded-md border border-dashed p-3 space-y-3 bg-muted/30">
+                <p className="text-sm">{headline}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {options.map(([key, label, sub]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => applyReallocation(key)}
+                      className={`text-left rounded border p-2 transition-colors ${
+                        selectedOption === key
+                          ? "border-primary bg-primary/10"
+                          : "hover:bg-accent"
+                      }`}
+                    >
+                      <p className="text-sm font-medium">{label}</p>
+                      <p className="text-xs text-muted-foreground">{sub}</p>
+                    </button>
+                  ))}
+                </div>
+                <Button size="sm" onClick={handleConfirmReallocation} disabled={saving}>
+                  {saving ? "Saving…" : "Confirm reallocation"}
+                </Button>
               </div>
-              <Button size="sm" onClick={handleConfirmReallocation} disabled={saving}>
-                {saving ? "Saving…" : "Confirm reallocation"}
-              </Button>
-            </div>
-          )}
+            );
+          })()}
 
           <div className="flex items-center gap-3">
             <Button
