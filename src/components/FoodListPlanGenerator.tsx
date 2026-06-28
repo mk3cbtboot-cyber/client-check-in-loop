@@ -115,6 +115,7 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
             fat_g: macros.fat_g,
           },
           meals_per_day: meals,
+          macro_allocation: macroAllocation ?? null,
           exclusions,
           preferences,
         },
