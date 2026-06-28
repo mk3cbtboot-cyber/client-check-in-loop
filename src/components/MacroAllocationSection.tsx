@@ -102,10 +102,14 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
   async function handleMealsChange(v: string) {
     const n = Number(v);
     setMeals(n);
-    setLocal(evenSplit(macros, n));
-    const { error } = await supabase.from("clients").update({ meals_per_day: n } as never).eq("id", clientId);
+    const split = evenSplit(macros, n);
+    setLocal(split);
+    const { error } = await supabase
+      .from("clients")
+      .update({ meals_per_day: n, macro_allocation: split } as never)
+      .eq("id", clientId);
     if (error) { toast.error("Failed to save meals per day"); return; }
-    onClientPatched?.({ meals_per_day: n });
+    onClientPatched?.({ meals_per_day: n, macro_allocation: split });
   }
 
   function updateField(mk: MealKey, field: keyof SlotMacros, raw: string) {
