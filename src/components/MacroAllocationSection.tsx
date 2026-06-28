@@ -180,6 +180,7 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
   const [pending, setPending] = useState<Record<string, PendingRealloc | null>>({});
   const [pendingCal, setPendingCal] = useState<Record<string, PendingCalRealloc | null>>({});
   const [pendingRecv, setPendingRecv] = useState<Record<string, PendingRecv | null>>({});
+  const [recvConfirm, setRecvConfirm] = useState<{ mk: MealKey; allocated: number; target: number } | null>(null);
 
   const MACRO_LABEL: Record<ReallocMacro, string> = {
     protein_g: "protein",
@@ -620,7 +621,16 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
                       </div>
                     )}
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => applySlotRecv(mk)} disabled={!matches}>Confirm allocation</Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (p.choice === "custom" && allocated !== p.delta) {
+                            setRecvConfirm({ mk, allocated, target: p.delta });
+                          } else {
+                            applySlotRecv(mk);
+                          }
+                        }}
+                      >Confirm allocation</Button>
                       <Button size="sm" variant="ghost" onClick={() => setPendingRecv((prev) => ({ ...prev, [mk]: null }))}>Cancel</Button>
                     </div>
                   </div>
@@ -702,6 +712,30 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
               }}
             >
               Confirm and save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!recvConfirm} onOpenChange={(o) => { if (!o) setRecvConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Allocation doesn't match target</AlertDialogTitle>
+            <AlertDialogDescription>
+              {recvConfirm && (recvConfirm.allocated < recvConfirm.target
+                ? `You've allocated ${recvConfirm.allocated} of ${recvConfirm.target} calories. ${recvConfirm.target - recvConfirm.allocated} calories are unallocated and will not be assigned to any macro. Save anyway?`
+                : `You've allocated ${recvConfirm.allocated} of ${recvConfirm.target} calories — ${recvConfirm.allocated - recvConfirm.target} over the target. This will increase the meal's total calories. Save anyway?`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go back</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (recvConfirm) applySlotRecv(recvConfirm.mk);
+                setRecvConfirm(null);
+              }}
+            >
+              Save anyway
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
