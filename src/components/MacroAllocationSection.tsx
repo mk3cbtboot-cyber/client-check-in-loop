@@ -149,13 +149,82 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     onClientPatched?.({ meals_per_day: n, macro_allocation: split });
   }
 
+  type ReallocMacro = "protein_g" | "carbs_g" | "fat_g";
+  interface PendingRealloc {
+    mk: MealKey;
+    slotIndex: number;
+    macro: ReallocMacro;
+    mode: "reduce" | "increase";
+    delta: number; // absolute calorie delta
+    choice: "protein" | "carbs" | "fat" | "split" | "total";
+  }
+  const [pending, setPending] = useState<Record<string, PendingRealloc | null>>({});
+
+  const MACRO_LABEL: Record<ReallocMacro, string> = {
+    protein_g: "protein",
+    carbs_g: "carbs",
+    fat_g: "fat",
+  };
+  const KCAL_PER_G: Record<ReallocMacro, number> = { protein_g: 4, carbs_g: 4, fat_g: 9 };
+
   function updateField(mk: MealKey, field: keyof SlotMacros, raw: string) {
     const n = Number(raw);
     const v = Number.isFinite(n) ? n : 0;
+    const prevSlot = local[mk] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+    const oldVal = prevSlot[field] || 0;
     setLocal((prev) => ({
       ...prev,
       [mk]: { ...(prev[mk] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }), [field]: v },
     }));
+    if (field === "protein_g" || field === "carbs_g" || field === "fat_g") {
+      const diffG = v - oldVal;
+      if (diffG !== 0) {
+        const deltaCal = Math.abs(diffG) * KCAL_PER_G[field];
+        const slotIndex = MEAL_KEYS.indexOf(mk);
+        setPending((p) => ({
+          ...p,
+          [mk]: {
+            mk,
+            slotIndex,
+            macro: field,
+            mode: diffG < 0 ? "reduce" : "increase",
+            delta: deltaCal,
+            choice: "split",
+          },
+        }));
+      }
+    }
+  }
+
+  function applySlotRealloc(mk: MealKey) {
+    const p = pending[mk];
+    if (!p) return;
+    setLocal((prev) => {
+      const s = { ...(prev[mk] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }) };
+      const sign = p.mode === "reduce" ? 1 : 1; // "Add to X" always adds grams; for reduce we add freed cals, for increase spec says same options
+      const cals = p.delta;
+      const addG = (m: ReallocMacro, c: number) => {
+        s[m] = Math.max(0, Math.round((s[m] || 0) + (c / KCAL_PER_G[m]) * sign));
+      };
+      if (p.choice === "protein") addG("protein_g", cals);
+      else if (p.choice === "carbs") addG("carbs_g", cals);
+      else if (p.choice === "fat") addG("fat_g", cals);
+      else if (p.choice === "split") {
+        const third = cals / 3;
+        addG("protein_g", third);
+        addG("carbs_g", third);
+        addG("fat_g", third);
+      } else if (p.choice === "total") {
+        // "Remove from total" (reduce) or "Add to total" (increase): adjust calories
+        s.calories = Math.max(0, Math.round((s.calories || 0) + (p.mode === "reduce" ? -cals : cals)));
+      }
+      // Recompute calories from macros if we touched macros (not total option)
+      if (p.choice !== "total") {
+        s.calories = Math.round((s.protein_g || 0) * 4 + (s.carbs_g || 0) * 4 + (s.fat_g || 0) * 9);
+      }
+      return { ...prev, [mk]: s };
+    });
+    setPending((prev) => ({ ...prev, [mk]: null }));
   }
 
   const totals = useMemo(() => {
