@@ -173,6 +173,7 @@ export default function Dashboard() {
   const [recipes, setRecipes] = useState<Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]>>({});
   const [weeklyAcks, setWeeklyAcks] = useState<Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]>>({});
   const [waterStreaks, setWaterStreaks] = useState<Record<string, number>>({});
+  const [liveMacros, setLiveMacros] = useState<Record<string, { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null>>({});
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
