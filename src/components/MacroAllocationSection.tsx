@@ -45,14 +45,26 @@ const MEAL_KEYS: MealKey[] = ["meal_1", "meal_2", "meal_3", "meal_4", "meal_5"];
 
 function evenSplit(macros: MacroSet | null, meals: number): Allocation {
   const out: Allocation = {};
-  if (!macros) return out;
+  if (!macros || meals <= 0) return out;
+  const fields: (keyof SlotMacros)[] = ["calories", "protein_g", "carbs_g", "fat_g"];
+  const totals: Record<keyof SlotMacros, number> = {
+    calories: macros.calories || 0,
+    protein_g: macros.protein_g || 0,
+    carbs_g: macros.carbs_g || 0,
+    fat_g: macros.fat_g || 0,
+  };
   for (let i = 0; i < meals; i += 1) {
-    out[MEAL_KEYS[i]] = {
-      calories: Math.round((macros.calories || 0) / meals),
-      protein_g: Math.round((macros.protein_g || 0) / meals),
-      carbs_g: Math.round((macros.carbs_g || 0) / meals),
-      fat_g: Math.round((macros.fat_g || 0) / meals),
-    };
+    out[MEAL_KEYS[i]] = { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+  }
+  for (const f of fields) {
+    const per = Math.round(totals[f] / meals);
+    for (let i = 0; i < meals; i += 1) {
+      (out[MEAL_KEYS[i]] as SlotMacros)[f] = per;
+    }
+    const remainder = totals[f] - per * meals;
+    if (remainder !== 0) {
+      (out[MEAL_KEYS[0]] as SlotMacros)[f] = per + remainder;
+    }
   }
   return out;
 }
@@ -90,10 +102,14 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
   async function handleMealsChange(v: string) {
     const n = Number(v);
     setMeals(n);
-    setLocal(evenSplit(macros, n));
-    const { error } = await supabase.from("clients").update({ meals_per_day: n } as never).eq("id", clientId);
+    const split = evenSplit(macros, n);
+    setLocal(split);
+    const { error } = await supabase
+      .from("clients")
+      .update({ meals_per_day: n, macro_allocation: split } as never)
+      .eq("id", clientId);
     if (error) { toast.error("Failed to save meals per day"); return; }
-    onClientPatched?.({ meals_per_day: n });
+    onClientPatched?.({ meals_per_day: n, macro_allocation: split });
   }
 
   function updateField(mk: MealKey, field: keyof SlotMacros, raw: string) {
