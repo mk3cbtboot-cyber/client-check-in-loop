@@ -503,8 +503,9 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {([
                   ["protein", "Add to Protein", `+${round(reduction.freed / 4)} g protein`],
+                  ["carbs", "Add to Carbs", `+${round(reduction.freed / 4)} g carbs`],
                   ["fat", "Add to Fat", `+${round(reduction.freed / 9)} g fat`],
-                  ["split", "Split evenly", `+${round((reduction.freed / 2) / 4)} g protein, +${round((reduction.freed / 2) / 9)} g fat`],
+                  ["split", "Split evenly", `+${round((reduction.freed / 3) / 4)} g protein, +${round((reduction.freed / 3) / 4)} g carbs, +${round((reduction.freed / 3) / 9)} g fat`],
                   ["remove", "Remove from total", `−${reduction.freed} kcal`],
                 ] as const).map(([key, label, sub]) => (
                   <button
