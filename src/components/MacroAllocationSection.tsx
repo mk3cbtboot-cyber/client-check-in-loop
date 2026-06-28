@@ -172,7 +172,10 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     mk: MealKey;
     slotIndex: number;
     delta: number; // calories received
-    choice: "protein" | "carbs" | "fat" | "split";
+    choice: "protein" | "carbs" | "fat" | "split" | "custom";
+    customP?: number;
+    customC?: number;
+    customF?: number;
   }
   const [pending, setPending] = useState<Record<string, PendingRealloc | null>>({});
   const [pendingCal, setPendingCal] = useState<Record<string, PendingCalRealloc | null>>({});
