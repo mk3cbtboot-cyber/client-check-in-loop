@@ -28,8 +28,6 @@ function extractJson(raw: string): Record<string, unknown> {
     return JSON.parse(s);
   }
 }
-  return { breakfast: [], morning_snack: [], lunch: [], afternoon_snack: [], dinner: [] } as Record<SlotKey, unknown[]>;
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
