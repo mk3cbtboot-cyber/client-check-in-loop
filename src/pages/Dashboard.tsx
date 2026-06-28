@@ -173,6 +173,7 @@ export default function Dashboard() {
   const [recipes, setRecipes] = useState<Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]>>({});
   const [weeklyAcks, setWeeklyAcks] = useState<Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]>>({});
   const [waterStreaks, setWaterStreaks] = useState<Record<string, number>>({});
+  const [liveMacros, setLiveMacros] = useState<Record<string, { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null>>({});
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -2239,18 +2240,20 @@ export default function Dashboard() {
                             setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
                           }}
                           onGoToProfile={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "overview" } as typeof x) : x)))}
+                          onLiveMacrosChange={(live) => setLiveMacros((m) => ({ ...m, [client.id]: live }))}
                         />
                         {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                           <>
                             <MacroAllocationSection
                               clientId={client.id}
-                              macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
+                              macros={liveMacros[client.id] ?? (client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
                               mealsPerDay={Number((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)}
                               allocation={(client as unknown as { macro_allocation?: Record<string, { calories: number; protein_g: number; carbs_g: number; fat_g: number }> | null }).macro_allocation ?? null}
                               onClientPatched={(patch) => {
                                 setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
                               }}
                             />
+
                             <FoodListPlanGenerator
                               clientId={client.id}
                               macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}

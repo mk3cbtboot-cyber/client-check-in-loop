@@ -59,6 +59,7 @@ interface Props {
   onChanged?: (patch: Partial<ClientLike>) => void;
   onGoToProfile?: () => void;
   onAfterSave?: (saved: MacroSet) => void;
+  onLiveMacrosChange?: (live: MacroSet | null) => void;
 }
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
@@ -114,7 +115,7 @@ function calcMacros(
   };
 }
 
-export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, onAfterSave }: Props) {
+export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, onAfterSave, onLiveMacrosChange }: Props) {
   const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">(
     client.weight_unit === "lbs" ? "lbs" : "kg",
   );
@@ -158,6 +159,11 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
   useEffect(() => {
     setWeightInput(initialWeight);
   }, [initialWeight]);
+
+  useEffect(() => {
+    onLiveMacrosChange?.(adjusted);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adjusted?.calories, adjusted?.protein_g, adjusted?.carbs_g, adjusted?.fat_g]);
 
   const heightDisplay = heightCm == null
     ? "not set"
