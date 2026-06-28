@@ -142,7 +142,11 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
   const [adjusted, setAdjusted] = useState<MacroSet | null>(initialAdjusted);
   const [baseline, setBaseline] = useState<MacroSet | null>(initialAdjusted);
   const [reduction, setReduction] = useState<
-    { field: "protein_g" | "carbs_g" | "fat_g"; freed: number } | null
+    {
+      field: "protein_g" | "carbs_g" | "fat_g" | "calories";
+      freed: number;
+      mode: "reduce" | "increase";
+    } | null
   >(null);
   const [selectedOption, setSelectedOption] = useState<
     "protein" | "carbs" | "fat" | "split" | "remove" | null
