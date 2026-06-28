@@ -115,7 +115,7 @@ function calcMacros(
   };
 }
 
-export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, onAfterSave }: Props) {
+export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, onAfterSave, onLiveMacrosChange }: Props) {
   const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">(
     client.weight_unit === "lbs" ? "lbs" : "kg",
   );
