@@ -15,6 +15,20 @@ function emptyList() {
   return { breakfast: [], morning_snack: [], lunch: [], afternoon_snack: [], dinner: [] } as Record<SlotKey, unknown[]>;
 }
 
+function extractJson(raw: string): Record<string, unknown> {
+  let s = (raw ?? "").replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  const start = s.search(/[\{\[]/);
+  const open = s[start];
+  const close = open === "[" ? "]" : "}";
+  const end = s.lastIndexOf(close);
+  if (start === -1 || end === -1) throw new Error("No JSON found");
+  s = s.substring(start, end + 1);
+  try { return JSON.parse(s); } catch {
+    s = s.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
+    return JSON.parse(s);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -100,6 +114,7 @@ Generate the food list now. Return JSON only.`;
           { role: "user", content: userPrompt },
         ],
         response_format: { type: "json_object" },
+        max_tokens: 8000,
       }),
     });
 
@@ -113,8 +128,11 @@ Generate the food list now. Return JSON only.`;
     const data = await res.json();
     const content: string = data?.choices?.[0]?.message?.content ?? "";
     let parsed: Record<string, unknown> = {};
-    try { parsed = JSON.parse(content); } catch {
-      return new Response(JSON.stringify({ error: "AI returned invalid JSON" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    try {
+      parsed = extractJson(content);
+    } catch (err) {
+      console.error("JSON parse failed. Raw content:", content?.slice(0, 2000));
+      return new Response(JSON.stringify({ error: "AI returned invalid JSON", detail: err instanceof Error ? err.message : String(err) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const CATS = new Set(["Protein", "Carbs", "Veg", "Fat"]);
