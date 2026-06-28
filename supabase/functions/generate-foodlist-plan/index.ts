@@ -25,8 +25,12 @@ function extractJson(raw: string): Record<string, unknown> {
   if (start === -1 || end === -1) throw new Error("No JSON found");
   s = s.substring(start, end + 1);
   try { return JSON.parse(s); } catch {
-    s = s.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
-    return JSON.parse(s);
+    try {
+      const fixed = s.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
+      return JSON.parse(fixed);
+    } catch {
+      return JSON.parse(jsonrepair(s));
+    }
   }
 }
 
