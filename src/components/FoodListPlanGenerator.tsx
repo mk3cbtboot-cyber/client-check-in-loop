@@ -71,6 +71,8 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
 
   const [exclusionsText, setExclusionsText] = useState("");
   const [preferences, setPreferences] = useState("");
+  const defaultMeals = [3, 4, 5].includes(Number(mealsPerDay)) ? Number(mealsPerDay) : 3;
+  const [meals, setMeals] = useState<number>(defaultMeals);
 
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewList, setReviewList] = useState<FoodList>(emptyList());
@@ -80,11 +82,11 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
     if (formOpen) {
       setExclusionsText((foodExclusions ?? []).join(", "));
       setPreferences("");
+      setMeals(defaultMeals);
     }
-  }, [formOpen, foodExclusions]);
+  }, [formOpen, foodExclusions, defaultMeals]);
 
   const hasMacros = !!macros && Number(macros.calories) > 0;
-  const meals = [3, 4, 5].includes(Number(mealsPerDay)) ? Number(mealsPerDay) : 3;
 
   async function handleGenerate() {
     if (!hasMacros || !macros) return;
