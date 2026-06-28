@@ -177,8 +177,14 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
 
             <div className="space-y-1">
               <Label className="text-xs">Meals per day</Label>
-              <div className="text-sm font-medium">{meals}</div>
-              <p className="text-xs text-muted-foreground">Edit on the Overview tab.</p>
+              <Select value={String(meals)} onValueChange={(v) => setMeals(Number(v))}>
+                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="3">3</SelectItem>
+                  <SelectItem value="4">4</SelectItem>
+                  <SelectItem value="5">5</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1">
