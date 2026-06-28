@@ -229,8 +229,50 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
       </div>
 
       <div>
-        <Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save allocation"}</Button>
+        <Button
+          onClick={() => {
+            const baseline = evenSplit(macros, meals);
+            let differs = false;
+            for (let i = 0; i < meals; i += 1) {
+              const a = local[MEAL_KEYS[i]] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+              const b = baseline[MEAL_KEYS[i]] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+              if (
+                a.calories !== b.calories ||
+                a.protein_g !== b.protein_g ||
+                a.carbs_g !== b.carbs_g ||
+                a.fat_g !== b.fat_g
+              ) { differs = true; break; }
+            }
+            if (differs) setConfirmOpen(true);
+            else handleSave();
+          }}
+          disabled={saving}
+        >
+          {saving ? "Saving…" : "Save allocation"}
+        </Button>
       </div>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save custom macro allocation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You've changed one or more per-meal values from the even split. These custom allocations will be used to generate this client's meal plan. Make sure the values are clinically appropriate before proceeding.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setConfirmOpen(false);
+                await handleSave();
+              }}
+            >
+              Confirm and save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
