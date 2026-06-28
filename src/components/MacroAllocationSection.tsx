@@ -106,15 +106,11 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
   useEffect(() => { setMeals(defaultMeals); }, [defaultMeals]);
 
 
-  // When macros change (e.g. saved) and no saved allocation, refresh evenly.
+  // When macros, allocation, or meals count change, fill any missing slots from the even split.
   useEffect(() => {
-    if (!hasAnyValues(allocation, meals)) {
-      setLocal(evenSplit(macros, meals));
-    } else {
-      setLocal(allocation as Allocation);
-    }
+    setLocal(mergeWithEvenSplit(allocation, macros, meals));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [macros?.calories, macros?.protein_g, macros?.carbs_g, macros?.fat_g, allocation]);
+  }, [macros?.calories, macros?.protein_g, macros?.carbs_g, macros?.fat_g, allocation, meals]);
 
   async function handleMealsChange(v: string) {
     const n = Number(v);
