@@ -95,7 +95,7 @@ function mergeWithEvenSplit(a: Allocation | null, macros: MacroSet | null, meals
   return out;
 }
 
-export default function MacroAllocationSection({ clientId, macros, mealsPerDay, allocation, onClientPatched }: Props) {
+export default function MacroAllocationSection({ clientId, macros, mealsPerDay, allocation, resetSignal, onClientPatched }: Props) {
   const defaultMeals = [3, 4, 5].includes(Number(mealsPerDay)) ? Number(mealsPerDay) : 3;
   const [meals, setMeals] = useState<number>(defaultMeals);
   const [local, setLocal] = useState<Allocation>(() =>
@@ -117,6 +117,24 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     setLocal(evenSplit(macros, meals));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [macros?.calories, macros?.protein_g, macros?.carbs_g, macros?.fat_g]);
+
+  // Macros were just saved by the practitioner: force even split and persist,
+  // overwriting any prior per-slot customisations.
+  useEffect(() => {
+    if (resetSignal === undefined || resetSignal === 0) return;
+    const split = evenSplit(macros, meals);
+    setLocal(split);
+    (async () => {
+      const { error } = await supabase
+        .from("clients")
+        .update({ macro_allocation: split } as never)
+        .eq("id", clientId);
+      if (error) { toast.error("Failed to reset allocation"); return; }
+      onClientPatched?.({ macro_allocation: split });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetSignal]);
+
 
   async function handleMealsChange(v: string) {
     const n = Number(v);
