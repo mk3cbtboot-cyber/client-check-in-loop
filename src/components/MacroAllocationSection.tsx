@@ -621,7 +621,16 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
                       </div>
                     )}
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => applySlotRecv(mk)} disabled={!matches}>Confirm allocation</Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (p.choice === "custom" && allocated !== p.delta) {
+                            setRecvConfirm({ mk, allocated, target: p.delta });
+                          } else {
+                            applySlotRecv(mk);
+                          }
+                        }}
+                      >Confirm allocation</Button>
                       <Button size="sm" variant="ghost" onClick={() => setPendingRecv((prev) => ({ ...prev, [mk]: null }))}>Cancel</Button>
                     </div>
                   </div>
