@@ -172,19 +172,7 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
           </p>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label>Meals per day</Label>
-            <Select value={String(meals)} onValueChange={handleMealsChange}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="3">3</SelectItem>
-                <SelectItem value="4">4</SelectItem>
-                <SelectItem value="5">5</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <div className="space-y-1">
 
         <div className="space-y-1">
           <Label>Food exclusions</Label>
