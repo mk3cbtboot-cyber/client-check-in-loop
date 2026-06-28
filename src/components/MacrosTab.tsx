@@ -149,6 +149,7 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
   >(null);
   const [shared, setShared] = useState<boolean>(!!client.macros_shared);
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     setWeightInput(initialWeight);
