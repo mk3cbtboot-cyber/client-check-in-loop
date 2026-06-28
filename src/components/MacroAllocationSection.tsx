@@ -316,6 +316,10 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
         addG("protein_g", third);
         addG("carbs_g", third);
         addG("fat_g", third);
+      } else if (p.choice === "custom") {
+        s.protein_g = Math.max(0, Math.round((Number(s.protein_g) || 0) + (Number(p.customP) || 0)));
+        s.carbs_g = Math.max(0, Math.round((Number(s.carbs_g) || 0) + (Number(p.customC) || 0)));
+        s.fat_g = Math.max(0, Math.round((Number(s.fat_g) || 0) + (Number(p.customF) || 0)));
       }
       // Recompute calories from macros so totals stay consistent.
       s.calories = Math.round((s.protein_g || 0) * 4 + (s.carbs_g || 0) * 4 + (s.fat_g || 0) * 9);
