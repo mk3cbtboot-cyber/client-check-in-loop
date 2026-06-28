@@ -1,4 +1,5 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { jsonrepair } from "npm:jsonrepair@3.8.0";
 import { usdaMacros } from "../_shared/usda.ts";
 
 
