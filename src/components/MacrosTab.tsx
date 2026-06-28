@@ -145,7 +145,7 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
     { field: "protein_g" | "carbs_g" | "fat_g"; freed: number } | null
   >(null);
   const [selectedOption, setSelectedOption] = useState<
-    "protein" | "fat" | "split" | "remove" | null
+    "protein" | "carbs" | "fat" | "split" | "remove" | null
   >(null);
   const [shared, setShared] = useState<boolean>(!!client.macros_shared);
   const [saving, setSaving] = useState(false);
@@ -256,17 +256,20 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
     }
   }
 
-  function applyReallocation(option: "protein" | "fat" | "split" | "remove") {
+  function applyReallocation(option: "protein" | "carbs" | "fat" | "split" | "remove") {
     if (!adjusted || !reduction) return;
     const next = { ...adjusted };
     if (option === "protein") {
       next.protein_g = round(next.protein_g + reduction.freed / 4);
+    } else if (option === "carbs") {
+      next.carbs_g = round(next.carbs_g + reduction.freed / 4);
     } else if (option === "fat") {
       next.fat_g = round(next.fat_g + reduction.freed / 9);
     } else if (option === "split") {
-      const half = reduction.freed / 2;
-      next.protein_g = round(next.protein_g + half / 4);
-      next.fat_g = round(next.fat_g + half / 9);
+      const third = reduction.freed / 3;
+      next.protein_g = round(next.protein_g + third / 4);
+      next.carbs_g = round(next.carbs_g + third / 4);
+      next.fat_g = round(next.fat_g + third / 9);
     }
     next.calories = round(next.protein_g * 4 + next.carbs_g * 4 + next.fat_g * 9);
     setAdjusted(next);
@@ -500,8 +503,9 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {([
                   ["protein", "Add to Protein", `+${round(reduction.freed / 4)} g protein`],
+                  ["carbs", "Add to Carbs", `+${round(reduction.freed / 4)} g carbs`],
                   ["fat", "Add to Fat", `+${round(reduction.freed / 9)} g fat`],
-                  ["split", "Split evenly", `+${round((reduction.freed / 2) / 4)} g protein, +${round((reduction.freed / 2) / 9)} g fat`],
+                  ["split", "Split evenly", `+${round((reduction.freed / 3) / 4)} g protein, +${round((reduction.freed / 3) / 4)} g carbs, +${round((reduction.freed / 3) / 9)} g fat`],
                   ["remove", "Remove from total", `−${reduction.freed} kcal`],
                 ] as const).map(([key, label, sub]) => (
                   <button
