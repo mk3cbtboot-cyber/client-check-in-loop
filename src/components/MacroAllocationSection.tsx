@@ -158,7 +158,15 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     delta: number; // absolute calorie delta
     choice: "protein" | "carbs" | "fat" | "split" | "total";
   }
+  interface PendingCalRealloc {
+    mk: MealKey;
+    slotIndex: number;
+    mode: "reduce" | "increase";
+    delta: number; // absolute calorie delta
+    choice: MealKey | "split" | "total";
+  }
   const [pending, setPending] = useState<Record<string, PendingRealloc | null>>({});
+  const [pendingCal, setPendingCal] = useState<Record<string, PendingCalRealloc | null>>({});
 
   const MACRO_LABEL: Record<ReallocMacro, string> = {
     protein_g: "protein",
@@ -193,7 +201,59 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
           },
         }));
       }
+    } else if (field === "calories") {
+      const diff = v - oldVal;
+      if (diff !== 0) {
+        const slotIndex = MEAL_KEYS.indexOf(mk);
+        // default choice = first other active slot
+        const otherKeys = MEAL_KEYS.slice(0, meals).filter((k) => k !== mk);
+        const firstOther = otherKeys[0] ?? "split";
+        setPendingCal((p) => ({
+          ...p,
+          [mk]: {
+            mk,
+            slotIndex,
+            mode: diff < 0 ? "reduce" : "increase",
+            delta: Math.abs(diff),
+            choice: firstOther as PendingCalRealloc["choice"],
+          },
+        }));
+      }
     }
+  }
+
+  function applySlotCalRealloc(mk: MealKey) {
+    const p = pendingCal[mk];
+    if (!p) return;
+    const otherKeys = MEAL_KEYS.slice(0, meals).filter((k) => k !== mk);
+    setLocal((prev) => {
+      const next = { ...prev };
+      const ensure = (k: MealKey) => ({ ...(next[k] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }) });
+      const cals = p.delta;
+      // sign applied to OTHER slots: reduce-source => add to others; increase-source => remove from others
+      const sign = p.mode === "reduce" ? 1 : -1;
+      if (p.choice === "total") {
+        // adjust source slot's calories only (already changed); no other slot changes.
+        return next;
+      }
+      if (p.choice === "split") {
+        if (otherKeys.length === 0) return next;
+        const per = cals / otherKeys.length;
+        for (const k of otherKeys) {
+          const s = ensure(k);
+          s.calories = Math.max(0, Math.round((s.calories || 0) + sign * per));
+          next[k] = s;
+        }
+        return next;
+      }
+      // single target meal
+      const tk = p.choice as MealKey;
+      const s = ensure(tk);
+      s.calories = Math.max(0, Math.round((s.calories || 0) + sign * cals));
+      next[tk] = s;
+      return next;
+    });
+    setPendingCal((prev) => ({ ...prev, [mk]: null }));
   }
 
   function applySlotRealloc(mk: MealKey) {
