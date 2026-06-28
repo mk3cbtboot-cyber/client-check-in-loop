@@ -2240,16 +2240,17 @@ export default function Dashboard() {
                           onGoToProfile={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "overview" } as typeof x) : x)))}
                         />
                         {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
-                          <div className="flex flex-wrap items-center justify-end gap-2">
-                            <FoodListPlanGenerator
-                              clientId={client.id}
-                              macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
-                              mealsPerDay={Number((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)}
-                              foodExclusions={(client as unknown as { food_exclusions?: string[] | null }).food_exclusions ?? null}
-                              existingList={(client as unknown as { food_list?: unknown }).food_list}
-                              onSaved={load}
-                            />
-                          </div>
+                          <FoodListPlanGenerator
+                            clientId={client.id}
+                            macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
+                            mealsPerDay={Number((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)}
+                            foodExclusions={(client as unknown as { food_exclusions?: string[] | null }).food_exclusions ?? null}
+                            existingList={(client as unknown as { food_list?: unknown }).food_list}
+                            onSaved={load}
+                            onClientPatched={(patch) => {
+                              setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
+                            }}
+                          />
                         )}
                       </TabsContent>
 
@@ -2270,7 +2271,12 @@ export default function Dashboard() {
                                   initialMealsPerDay={(client as unknown as { meals_per_day?: number }).meals_per_day ?? 3}
                                   planFormat={client.plan_format as "food_list" | "food_list_generated"}
                                   macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
-                                  onGoToMacros={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "macros" } as typeof x) : x)))}
+                                  onGoToMacros={() => {
+                                    setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "macros" } as typeof x) : x)));
+                                    setTimeout(() => {
+                                      document.getElementById("generate-meal-plan-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                    }, 150);
+                                  }}
                                 />
                               </div>
                             )

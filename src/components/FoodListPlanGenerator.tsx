@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,7 +25,6 @@ type FoodList = Record<SlotKey, FoodItem[]>;
 interface MacroSet { calories: number; protein_g: number; carbs_g: number; fat_g: number }
 
 const CATEGORIES: FoodCategoryKind[] = ["Protein", "Carbs", "Veg", "Fat", "Other"];
-const SLOT_ORDER: SlotKey[] = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
 
 function emptyList(): FoodList {
   return { breakfast: [], morning_snack: [], lunch: [], afternoon_snack: [], dinner: [] };
@@ -56,6 +56,8 @@ function normalizeList(raw: unknown): FoodList {
   };
 }
 
+export const GENERATE_MEAL_PLAN_SECTION_ID = "generate-meal-plan-section";
+
 interface Props {
   clientId: string;
   macros: MacroSet | null;
@@ -63,34 +65,50 @@ interface Props {
   foodExclusions: string[] | null;
   existingList: unknown;
   onSaved?: () => void;
+  onClientPatched?: (patch: { meals_per_day?: number; food_exclusions?: string[] }) => void;
 }
 
-export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, foodExclusions, existingList, onSaved }: Props) {
-  const [formOpen, setFormOpen] = useState(false);
+export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, foodExclusions, existingList, onSaved, onClientPatched }: Props) {
   const [generating, setGenerating] = useState(false);
 
-  const [exclusionsText, setExclusionsText] = useState("");
-  const [preferences, setPreferences] = useState("");
   const defaultMeals = [3, 4, 5].includes(Number(mealsPerDay)) ? Number(mealsPerDay) : 3;
   const [meals, setMeals] = useState<number>(defaultMeals);
+  const [exclusionsText, setExclusionsText] = useState((foodExclusions ?? []).join(", "));
+  const [preferences, setPreferences] = useState("");
 
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewList, setReviewList] = useState<FoodList>(emptyList());
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
 
-  useEffect(() => {
-    if (formOpen) {
-      setExclusionsText((foodExclusions ?? []).join(", "));
-      setPreferences("");
-      setMeals(defaultMeals);
-    }
-  }, [formOpen, foodExclusions, defaultMeals]);
+  useEffect(() => { setMeals(defaultMeals); }, [defaultMeals]);
+  useEffect(() => { setExclusionsText((foodExclusions ?? []).join(", ")); }, [foodExclusions]);
 
   const hasMacros = !!macros && Number(macros.calories) > 0;
 
+  async function handleMealsChange(v: string) {
+    const n = Number(v);
+    setMeals(n);
+    const { error } = await supabase.from("clients").update({ meals_per_day: n } as never).eq("id", clientId);
+    if (error) { toast.error("Failed to save meals per day"); return; }
+    onClientPatched?.({ meals_per_day: n });
+  }
+
+  function parseExclusions(text: string): string[] {
+    return text.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+  }
+
+  async function persistExclusions() {
+    const arr = parseExclusions(exclusionsText);
+    const { error } = await supabase.from("clients").update({ food_exclusions: arr } as never).eq("id", clientId);
+    if (error) { toast.error("Failed to save exclusions"); return; }
+    onClientPatched?.({ food_exclusions: arr });
+  }
+
   async function handleGenerate() {
     if (!hasMacros || !macros) return;
-    const exclusions = exclusionsText.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    const exclusions = parseExclusions(exclusionsText);
+    // Persist exclusion edits to the client record as well
+    await persistExclusions();
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-foodlist-plan", {
@@ -111,7 +129,6 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
         return;
       }
       setReviewList(normalizeList(data.food_list));
-      setFormOpen(false);
       setReviewOpen(true);
     } catch (e) {
       console.error(e);
@@ -146,77 +163,66 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
 
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setFormOpen(true)}>
-        <Sparkles className="h-3 w-3 mr-1" /> Generate Meal Plan
-      </Button>
+      <Card id={GENERATE_MEAL_PLAN_SECTION_ID} className="p-4 space-y-4 scroll-mt-20">
+        <div>
+          <p className="font-medium">Generate Meal Plan</p>
+          <p className="text-xs text-muted-foreground">
+            Generate a full food list per meal slot using the client's macros, exclusions, and preferences.
+          </p>
+        </div>
 
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Generate Meal Plan</DialogTitle>
-            <DialogDescription>
-              Generate a full food list per meal slot using the client's macros, exclusions, and preferences.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="rounded-md border p-3 space-y-1">
-              <div className="text-xs font-semibold">Macro targets</div>
-              {hasMacros && macros ? (
-                <div className="grid grid-cols-4 gap-2 text-xs">
-                  <div><div className="text-muted-foreground">Cal</div><div className="font-medium">{macros.calories}</div></div>
-                  <div><div className="text-muted-foreground">Protein</div><div className="font-medium">{macros.protein_g} g</div></div>
-                  <div><div className="text-muted-foreground">Carbs</div><div className="font-medium">{macros.carbs_g} g</div></div>
-                  <div><div className="text-muted-foreground">Fat</div><div className="font-medium">{macros.fat_g} g</div></div>
-                </div>
-              ) : (
-                <p className="text-xs text-destructive">
-                  No macro targets saved for this client. Go to the Macros tab to calculate them first.
-                </p>
-              )}
-            </div>
+        {!hasMacros && (
+          <p className="text-xs text-destructive rounded-md border border-destructive/30 bg-destructive/5 p-2">
+            No macro targets saved for this client. Calculate and save macros above first.
+          </p>
+        )}
 
-            <div className="space-y-1">
-              <Label className="text-xs">Meals per day</Label>
-              <Select value={String(meals)} onValueChange={(v) => setMeals(Number(v))}>
-                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="3">3</SelectItem>
-                  <SelectItem value="4">4</SelectItem>
-                  <SelectItem value="5">5</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Food exclusions</Label>
-              <Textarea
-                value={exclusionsText}
-                onChange={(e) => setExclusionsText(e.target.value)}
-                placeholder="Comma-separated (e.g. peanuts, shellfish, dairy)"
-                className="min-h-[60px] text-xs"
-              />
-              <p className="text-xs text-muted-foreground">Edits here apply to this generation only.</p>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">Additional preferences (optional)</Label>
-              <Textarea
-                value={preferences}
-                onChange={(e) => setPreferences(e.target.value)}
-                placeholder='e.g. "high fibre", "no red meat", "Mediterranean style", "easy to prepare"'
-                className="min-h-[60px] text-xs"
-              />
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label>Meals per day</Label>
+            <Select value={String(meals)} onValueChange={handleMealsChange}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="3">3</SelectItem>
+                <SelectItem value="4">4</SelectItem>
+                <SelectItem value="5">5</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
-            <Button onClick={handleGenerate} disabled={!hasMacros || generating}>
-              {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
-              {generating ? "Generating…" : "Generate"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+
+        <div className="space-y-1">
+          <Label>Food exclusions</Label>
+          <Textarea
+            value={exclusionsText}
+            onChange={(e) => setExclusionsText(e.target.value)}
+            onBlur={() => { void persistExclusions(); }}
+            placeholder="Comma-separated (e.g. peanuts, shellfish, dairy)"
+            className="min-h-[60px]"
+          />
+          <p className="text-xs text-muted-foreground">
+            Edits here also update the client's saved exclusions.
+          </p>
+        </div>
+
+        <div className="space-y-1">
+          <Label>Additional preferences (optional)</Label>
+          <Textarea
+            value={preferences}
+            onChange={(e) => setPreferences(e.target.value)}
+            placeholder='e.g. "high fibre", "no red meat", "Mediterranean style", "easy to prepare"'
+            className="min-h-[60px]"
+          />
+          <p className="text-xs text-muted-foreground">Not saved between sessions.</p>
+        </div>
+
+        <div>
+          <Button onClick={handleGenerate} disabled={!hasMacros || generating}>
+            {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Sparkles className="h-3 w-3 mr-1" />}
+            {generating ? "Generating…" : "Generate"}
+          </Button>
+        </div>
+      </Card>
 
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
