@@ -173,8 +173,6 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
         )}
 
         <div className="space-y-1">
-
-        <div className="space-y-1">
           <Label>Food exclusions</Label>
           <Textarea
             value={exclusionsText}
