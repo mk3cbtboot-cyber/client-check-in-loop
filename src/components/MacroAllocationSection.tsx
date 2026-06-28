@@ -315,6 +315,39 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
                   <Input type="number" value={s.fat_g} onChange={(e) => updateField(mk, "fat_g", e.target.value)} className="h-8" />
                 </div>
               </div>
+              {pending[mk] && (() => {
+                const p = pending[mk]!;
+                const mealNum = i + 1;
+                const isReduce = p.mode === "reduce";
+                return (
+                  <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
+                    <p className="text-xs">
+                      {isReduce
+                        ? `You freed up ${p.delta} calories in Meal ${mealNum} by reducing ${MACRO_LABEL[p.macro]}. Where would you like to reallocate them?`
+                        : `You added ${p.delta} calories to Meal ${mealNum}. Where would you like to allocate them?`}
+                    </p>
+                    <Select
+                      value={p.choice}
+                      onValueChange={(v) =>
+                        setPending((prev) => ({ ...prev, [mk]: { ...p, choice: v as PendingRealloc["choice"] } }))
+                      }
+                    >
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="protein">Add to Protein</SelectItem>
+                        <SelectItem value="carbs">Add to Carbs</SelectItem>
+                        <SelectItem value="fat">Add to Fat</SelectItem>
+                        <SelectItem value="split">Split evenly</SelectItem>
+                        <SelectItem value="total">{isReduce ? "Remove from total" : "Add to total"}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => applySlotRealloc(mk)}>Confirm reallocation</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setPending((prev) => ({ ...prev, [mk]: null }))}>Cancel</Button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
