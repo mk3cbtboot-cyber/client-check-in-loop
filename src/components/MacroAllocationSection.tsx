@@ -73,6 +73,7 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     hasAnyValues(allocation, defaultMeals) ? (allocation as Allocation) : evenSplit(macros, defaultMeals)
   );
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => { setMeals(defaultMeals); }, [defaultMeals]);
 
