@@ -32,6 +32,7 @@ interface Props {
   macros: MacroSet | null;
   mealsPerDay: number;
   allocation: Allocation | null;
+  resetSignal?: number;
   onClientPatched?: (patch: { meals_per_day?: number; macro_allocation?: Allocation }) => void;
 }
 
