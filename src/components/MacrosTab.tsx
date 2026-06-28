@@ -5,6 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -139,6 +149,7 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
   >(null);
   const [shared, setShared] = useState<boolean>(!!client.macros_shared);
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     setWeightInput(initialWeight);
@@ -515,8 +526,23 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
           )}
 
           <div className="flex items-center gap-3">
-            <Button onClick={handleSave} disabled={saving}>
-
+            <Button
+              onClick={() => {
+                if (!adjusted) return;
+                const differs =
+                  !calculated ||
+                  adjusted.calories !== calculated.calories ||
+                  adjusted.protein_g !== calculated.protein_g ||
+                  adjusted.carbs_g !== calculated.carbs_g ||
+                  adjusted.fat_g !== calculated.fat_g;
+                if (differs && calculated) {
+                  setConfirmOpen(true);
+                } else {
+                  handleSave();
+                }
+              }}
+              disabled={saving}
+            >
               {saving ? "Saving…" : "Save"}
             </Button>
             {calculated && (
@@ -529,6 +555,28 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
               </button>
             )}
           </div>
+
+          <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Save custom macro targets?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You've changed one or more values from the calculated results. These custom targets will be used to generate this client's meal plan. Make sure the values are clinically appropriate before proceeding.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    setConfirmOpen(false);
+                    await handleSave();
+                  }}
+                >
+                  Confirm and save
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </Card>
       )}
 
