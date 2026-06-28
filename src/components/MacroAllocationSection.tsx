@@ -78,16 +78,33 @@ function hasAnyValues(a: Allocation | null, meals: number): boolean {
   return false;
 }
 
+function mergeWithEvenSplit(a: Allocation | null, macros: MacroSet | null, meals: number): Allocation {
+  const split = evenSplit(macros, meals);
+  if (!a) return split;
+  const out: Allocation = {};
+  for (let i = 0; i < meals; i += 1) {
+    const mk = MEAL_KEYS[i];
+    const saved = a[mk];
+    if (saved && (saved.calories || saved.protein_g || saved.carbs_g || saved.fat_g)) {
+      out[mk] = saved;
+    } else {
+      out[mk] = split[mk] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+    }
+  }
+  return out;
+}
+
 export default function MacroAllocationSection({ clientId, macros, mealsPerDay, allocation, onClientPatched }: Props) {
   const defaultMeals = [3, 4, 5].includes(Number(mealsPerDay)) ? Number(mealsPerDay) : 3;
   const [meals, setMeals] = useState<number>(defaultMeals);
   const [local, setLocal] = useState<Allocation>(() =>
-    hasAnyValues(allocation, defaultMeals) ? (allocation as Allocation) : evenSplit(macros, defaultMeals)
+    mergeWithEvenSplit(allocation, macros, defaultMeals)
   );
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => { setMeals(defaultMeals); }, [defaultMeals]);
+
 
   // When macros change (e.g. saved) and no saved allocation, refresh evenly.
   useEffect(() => {
