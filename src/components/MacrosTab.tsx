@@ -59,6 +59,7 @@ interface Props {
   onChanged?: (patch: Partial<ClientLike>) => void;
   onGoToProfile?: () => void;
   onAfterSave?: (saved: MacroSet) => void;
+  onLiveMacrosChange?: (live: MacroSet | null) => void;
 }
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
