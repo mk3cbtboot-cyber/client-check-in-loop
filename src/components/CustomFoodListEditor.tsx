@@ -174,7 +174,7 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
           Your meal plan will appear here once it's been generated. Go to the Macros / MPG tab to calculate your client's macros and generate their meal plan.
         </p>
         {onGoToMacros && (
-          <Button size="sm" onClick={onGoToMacros}>Go to Macros / MPG</Button>
+          <Button size="sm" onClick={onGoToMacros}>Generate Meal Plan</Button>
         )}
       </div>
     );
