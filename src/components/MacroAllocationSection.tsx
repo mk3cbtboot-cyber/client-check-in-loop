@@ -426,7 +426,7 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Calories</Label>
-                  <Input type="number" value={s.calories} onChange={(e) => updateField(mk, "calories", e.target.value)} className="h-8" />
+                  <Input type="number" value={Number(s.calories) || 0} onChange={(e) => updateField(mk, "calories", e.target.value)} className="h-8" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Protein (g)</Label>
