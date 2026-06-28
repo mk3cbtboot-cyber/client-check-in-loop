@@ -446,10 +446,10 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
           <p className="font-medium">Results</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {([
-              ["Calories", adjusted.calories, "kcal"],
-              ["Protein", adjusted.protein_g, "g"],
-              ["Carbs", adjusted.carbs_g, "g"],
-              ["Fat", adjusted.fat_g, "g"],
+              ["Calories", calculated?.calories ?? adjusted.calories, "kcal"],
+              ["Protein", calculated?.protein_g ?? adjusted.protein_g, "g"],
+              ["Carbs", calculated?.carbs_g ?? adjusted.carbs_g, "g"],
+              ["Fat", calculated?.fat_g ?? adjusted.fat_g, "g"],
             ] as const).map(([label, v, unit]) => (
               <div key={label} className="rounded border p-3 text-center">
                 <p className="text-xs uppercase text-muted-foreground">{label}</p>
