@@ -158,7 +158,15 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     delta: number; // absolute calorie delta
     choice: "protein" | "carbs" | "fat" | "split" | "total";
   }
+  interface PendingCalRealloc {
+    mk: MealKey;
+    slotIndex: number;
+    mode: "reduce" | "increase";
+    delta: number; // absolute calorie delta
+    choice: MealKey | "split" | "total";
+  }
   const [pending, setPending] = useState<Record<string, PendingRealloc | null>>({});
+  const [pendingCal, setPendingCal] = useState<Record<string, PendingCalRealloc | null>>({});
 
   const MACRO_LABEL: Record<ReallocMacro, string> = {
     protein_g: "protein",
@@ -193,7 +201,59 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
           },
         }));
       }
+    } else if (field === "calories") {
+      const diff = v - oldVal;
+      if (diff !== 0) {
+        const slotIndex = MEAL_KEYS.indexOf(mk);
+        // default choice = first other active slot
+        const otherKeys = MEAL_KEYS.slice(0, meals).filter((k) => k !== mk);
+        const firstOther = otherKeys[0] ?? "split";
+        setPendingCal((p) => ({
+          ...p,
+          [mk]: {
+            mk,
+            slotIndex,
+            mode: diff < 0 ? "reduce" : "increase",
+            delta: Math.abs(diff),
+            choice: firstOther as PendingCalRealloc["choice"],
+          },
+        }));
+      }
     }
+  }
+
+  function applySlotCalRealloc(mk: MealKey) {
+    const p = pendingCal[mk];
+    if (!p) return;
+    const otherKeys = MEAL_KEYS.slice(0, meals).filter((k) => k !== mk);
+    setLocal((prev) => {
+      const next = { ...prev };
+      const ensure = (k: MealKey) => ({ ...(next[k] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }) });
+      const cals = p.delta;
+      // sign applied to OTHER slots: reduce-source => add to others; increase-source => remove from others
+      const sign = p.mode === "reduce" ? 1 : -1;
+      if (p.choice === "total") {
+        // adjust source slot's calories only (already changed); no other slot changes.
+        return next;
+      }
+      if (p.choice === "split") {
+        if (otherKeys.length === 0) return next;
+        const per = cals / otherKeys.length;
+        for (const k of otherKeys) {
+          const s = ensure(k);
+          s.calories = Math.max(0, Math.round((s.calories || 0) + sign * per));
+          next[k] = s;
+        }
+        return next;
+      }
+      // single target meal
+      const tk = p.choice as MealKey;
+      const s = ensure(tk);
+      s.calories = Math.max(0, Math.round((s.calories || 0) + sign * cals));
+      next[tk] = s;
+      return next;
+    });
+    setPendingCal((prev) => ({ ...prev, [mk]: null }));
   }
 
   function applySlotRealloc(mk: MealKey) {
@@ -344,6 +404,45 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => applySlotRealloc(mk)}>Confirm reallocation</Button>
                       <Button size="sm" variant="ghost" onClick={() => setPending((prev) => ({ ...prev, [mk]: null }))}>Cancel</Button>
+                    </div>
+                  </div>
+                );
+              })()}
+              {pendingCal[mk] && (() => {
+                const p = pendingCal[mk]!;
+                const mealNum = i + 1;
+                const isReduce = p.mode === "reduce";
+                const otherKeys = MEAL_KEYS.slice(0, meals).filter((k) => k !== mk);
+                return (
+                  <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
+                    <p className="text-xs">
+                      {isReduce
+                        ? `You freed up ${p.delta} calories from Meal ${mealNum}. Where would you like to add them?`
+                        : `You added ${p.delta} calories to Meal ${mealNum}. Where should these come from?`}
+                    </p>
+                    <Select
+                      value={p.choice}
+                      onValueChange={(v) =>
+                        setPendingCal((prev) => ({ ...prev, [mk]: { ...p, choice: v as PendingCalRealloc["choice"] } }))
+                      }
+                    >
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {otherKeys.map((k) => {
+                          const idx = MEAL_KEYS.indexOf(k) + 1;
+                          return (
+                            <SelectItem key={k} value={k}>
+                              {isReduce ? `Add to Meal ${idx}` : `Remove from Meal ${idx}`}
+                            </SelectItem>
+                          );
+                        })}
+                        <SelectItem value="split">Split evenly across other meals</SelectItem>
+                        <SelectItem value="total">{isReduce ? "Remove from daily total" : "Add to daily total"}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => applySlotCalRealloc(mk)}>Confirm reallocation</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setPendingCal((prev) => ({ ...prev, [mk]: null }))}>Cancel</Button>
                     </div>
                   </div>
                 );
