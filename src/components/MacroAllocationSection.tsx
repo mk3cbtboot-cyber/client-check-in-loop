@@ -9,6 +9,16 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 type MealKey = "meal_1" | "meal_2" | "meal_3" | "meal_4" | "meal_5";
@@ -63,6 +73,7 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     hasAnyValues(allocation, defaultMeals) ? (allocation as Allocation) : evenSplit(macros, defaultMeals)
   );
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => { setMeals(defaultMeals); }, [defaultMeals]);
 
@@ -218,8 +229,50 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
       </div>
 
       <div>
-        <Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save allocation"}</Button>
+        <Button
+          onClick={() => {
+            const baseline = evenSplit(macros, meals);
+            let differs = false;
+            for (let i = 0; i < meals; i += 1) {
+              const a = local[MEAL_KEYS[i]] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+              const b = baseline[MEAL_KEYS[i]] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+              if (
+                a.calories !== b.calories ||
+                a.protein_g !== b.protein_g ||
+                a.carbs_g !== b.carbs_g ||
+                a.fat_g !== b.fat_g
+              ) { differs = true; break; }
+            }
+            if (differs) setConfirmOpen(true);
+            else handleSave();
+          }}
+          disabled={saving}
+        >
+          {saving ? "Saving…" : "Save allocation"}
+        </Button>
       </div>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save custom macro allocation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You've changed one or more per-meal values from the even split. These custom allocations will be used to generate this client's meal plan. Make sure the values are clinically appropriate before proceeding.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setConfirmOpen(false);
+                await handleSave();
+              }}
+            >
+              Confirm and save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
