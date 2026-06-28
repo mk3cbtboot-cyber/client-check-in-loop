@@ -531,6 +531,35 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
                   </div>
                 );
               })()}
+              {pendingRecv[mk] && (() => {
+                const p = pendingRecv[mk]!;
+                const mealNum = i + 1;
+                return (
+                  <div className="mt-2 rounded-md border border-sky-300 bg-sky-50 dark:bg-sky-950/30 p-3 space-y-2">
+                    <p className="text-xs">
+                      {`Meal ${mealNum} received ${p.delta} extra calories. How would you like to allocate them within this meal?`}
+                    </p>
+                    <Select
+                      value={p.choice}
+                      onValueChange={(v) =>
+                        setPendingRecv((prev) => ({ ...prev, [mk]: { ...p, choice: v as PendingRecv["choice"] } }))
+                      }
+                    >
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="protein">Add to Protein</SelectItem>
+                        <SelectItem value="carbs">Add to Carbs</SelectItem>
+                        <SelectItem value="fat">Add to Fat</SelectItem>
+                        <SelectItem value="split">Split evenly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => applySlotRecv(mk)}>Confirm allocation</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setPendingRecv((prev) => ({ ...prev, [mk]: null }))}>Cancel</Button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
