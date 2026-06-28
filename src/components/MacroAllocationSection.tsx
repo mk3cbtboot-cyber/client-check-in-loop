@@ -172,7 +172,10 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     mk: MealKey;
     slotIndex: number;
     delta: number; // calories received
-    choice: "protein" | "carbs" | "fat" | "split";
+    choice: "protein" | "carbs" | "fat" | "split" | "custom";
+    customP?: number;
+    customC?: number;
+    customF?: number;
   }
   const [pending, setPending] = useState<Record<string, PendingRealloc | null>>({});
   const [pendingCal, setPendingCal] = useState<Record<string, PendingCalRealloc | null>>({});
@@ -313,6 +316,10 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
         addG("protein_g", third);
         addG("carbs_g", third);
         addG("fat_g", third);
+      } else if (p.choice === "custom") {
+        s.protein_g = Math.max(0, Math.round((Number(s.protein_g) || 0) + (Number(p.customP) || 0)));
+        s.carbs_g = Math.max(0, Math.round((Number(s.carbs_g) || 0) + (Number(p.customC) || 0)));
+        s.fat_g = Math.max(0, Math.round((Number(s.fat_g) || 0) + (Number(p.customF) || 0)));
       }
       // Recompute calories from macros so totals stay consistent.
       s.calories = Math.round((s.protein_g || 0) * 4 + (s.carbs_g || 0) * 4 + (s.fat_g || 0) * 9);
@@ -534,6 +541,19 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
               {pendingRecv[mk] && (() => {
                 const p = pendingRecv[mk]!;
                 const mealNum = i + 1;
+                const cP = (Number(p.customP) || 0) * 4;
+                const cC = (Number(p.customC) || 0) * 4;
+                const cF = (Number(p.customF) || 0) * 9;
+                const allocated = cP + cC + cF;
+                const matches = p.choice === "custom" ? allocated === p.delta : true;
+                const totalCls =
+                  p.choice !== "custom"
+                    ? "text-muted-foreground"
+                    : allocated === p.delta
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : allocated > p.delta
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-muted-foreground";
                 return (
                   <div className="mt-2 rounded-md border border-sky-300 bg-sky-50 dark:bg-sky-950/30 p-3 space-y-2">
                     <p className="text-xs">
@@ -551,10 +571,56 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
                         <SelectItem value="carbs">Add to Carbs</SelectItem>
                         <SelectItem value="fat">Add to Fat</SelectItem>
                         <SelectItem value="split">Split evenly</SelectItem>
+                        <SelectItem value="custom">Custom</SelectItem>
                       </SelectContent>
                     </Select>
+                    {p.choice === "custom" && (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Protein (g)</Label>
+                            <Input
+                              type="number"
+                              value={Number(p.customP) || 0}
+                              onChange={(e) =>
+                                setPendingRecv((prev) => ({ ...prev, [mk]: { ...p, customP: Number(e.target.value) || 0 } }))
+                              }
+                              className="h-8"
+                            />
+                            <p className="text-[10px] text-muted-foreground">{cP} kcal</p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Carbs (g)</Label>
+                            <Input
+                              type="number"
+                              value={Number(p.customC) || 0}
+                              onChange={(e) =>
+                                setPendingRecv((prev) => ({ ...prev, [mk]: { ...p, customC: Number(e.target.value) || 0 } }))
+                              }
+                              className="h-8"
+                            />
+                            <p className="text-[10px] text-muted-foreground">{cC} kcal</p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Fat (g)</Label>
+                            <Input
+                              type="number"
+                              value={Number(p.customF) || 0}
+                              onChange={(e) =>
+                                setPendingRecv((prev) => ({ ...prev, [mk]: { ...p, customF: Number(e.target.value) || 0 } }))
+                              }
+                              className="h-8"
+                            />
+                            <p className="text-[10px] text-muted-foreground">{cF} kcal</p>
+                          </div>
+                        </div>
+                        <p className={`text-xs font-medium ${totalCls}`}>
+                          Allocated: {allocated} of {p.delta} calories.
+                        </p>
+                      </div>
+                    )}
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => applySlotRecv(mk)}>Confirm allocation</Button>
+                      <Button size="sm" onClick={() => applySlotRecv(mk)} disabled={!matches}>Confirm allocation</Button>
                       <Button size="sm" variant="ghost" onClick={() => setPendingRecv((prev) => ({ ...prev, [mk]: null }))}>Cancel</Button>
                     </div>
                   </div>
