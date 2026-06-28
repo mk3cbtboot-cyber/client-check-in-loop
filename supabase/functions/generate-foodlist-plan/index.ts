@@ -100,6 +100,7 @@ Generate the food list now. Return JSON only.`;
           { role: "user", content: userPrompt },
         ],
         response_format: { type: "json_object" },
+        max_tokens: 8000,
       }),
     });
 
@@ -113,8 +114,11 @@ Generate the food list now. Return JSON only.`;
     const data = await res.json();
     const content: string = data?.choices?.[0]?.message?.content ?? "";
     let parsed: Record<string, unknown> = {};
-    try { parsed = JSON.parse(content); } catch {
-      return new Response(JSON.stringify({ error: "AI returned invalid JSON" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    try {
+      parsed = extractJson(content);
+    } catch (err) {
+      console.error("JSON parse failed. Raw content:", content?.slice(0, 2000));
+      return new Response(JSON.stringify({ error: "AI returned invalid JSON", detail: err instanceof Error ? err.message : String(err) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const CATS = new Set(["Protein", "Carbs", "Veg", "Fat"]);
