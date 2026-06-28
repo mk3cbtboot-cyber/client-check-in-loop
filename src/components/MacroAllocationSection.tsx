@@ -157,6 +157,8 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     mode: "reduce" | "increase";
     delta: number; // absolute calorie delta
     choice: "protein" | "carbs" | "fat" | "split" | "total";
+    prevVal: number; // prior macro grams value
+    prevCalories: number; // prior calories value
   }
   interface PendingCalRealloc {
     mk: MealKey;
@@ -164,6 +166,7 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     mode: "reduce" | "increase";
     delta: number; // absolute calorie delta
     choice: MealKey | "split" | "total";
+    prevVal: number; // prior calories value
   }
   const [pending, setPending] = useState<Record<string, PendingRealloc | null>>({});
   const [pendingCal, setPendingCal] = useState<Record<string, PendingCalRealloc | null>>({});
