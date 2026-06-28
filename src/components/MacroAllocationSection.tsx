@@ -248,6 +248,7 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     const p = pendingCal[mk];
     if (!p) return;
     const otherKeys = MEAL_KEYS.slice(0, meals).filter((k) => k !== mk);
+    const recipients: { k: MealKey; delta: number }[] = [];
     setLocal((prev) => {
       const next = { ...prev };
       const ensure = (k: MealKey) => ({ ...(next[k] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }) });
@@ -255,7 +256,6 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
       // sign applied to OTHER slots: reduce-source => add to others; increase-source => remove from others
       const sign = p.mode === "reduce" ? 1 : -1;
       if (p.choice === "total") {
-        // adjust source slot's calories only (already changed); no other slot changes.
         return next;
       }
       if (p.choice === "split") {
@@ -263,20 +263,64 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
         const per = cals / otherKeys.length;
         for (const k of otherKeys) {
           const s = ensure(k);
-          s.calories = Math.max(0, Math.round((s.calories || 0) + sign * per));
+          const before = Number(s.calories) || 0;
+          const after = Math.max(0, Math.round(before + sign * per));
+          s.calories = after;
           next[k] = s;
+          if (p.mode === "reduce") recipients.push({ k, delta: after - before });
         }
         return next;
       }
       // single target meal
       const tk = p.choice as MealKey;
       const s = ensure(tk);
-      s.calories = Math.max(0, Math.round((s.calories || 0) + sign * cals));
+      const before = Number(s.calories) || 0;
+      const after = Math.max(0, Math.round(before + sign * cals));
+      s.calories = after;
       next[tk] = s;
+      if (p.mode === "reduce") recipients.push({ k: tk, delta: after - before });
       return next;
     });
     setPendingCal((prev) => ({ ...prev, [mk]: null }));
+    // Queue receive-allocation prompts for recipients that actually gained calories.
+    if (recipients.length > 0) {
+      setPendingRecv((prev) => {
+        const out = { ...prev };
+        for (const r of recipients) {
+          if (r.delta > 0) {
+            out[r.k] = { mk: r.k, slotIndex: MEAL_KEYS.indexOf(r.k), delta: r.delta, choice: "split" };
+          }
+        }
+        return out;
+      });
+    }
   }
+
+  function applySlotRecv(mk: MealKey) {
+    const p = pendingRecv[mk];
+    if (!p) return;
+    setLocal((prev) => {
+      const s = { ...(prev[mk] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }) };
+      const cals = p.delta;
+      const addG = (m: ReallocMacro, c: number) => {
+        s[m] = Math.max(0, Math.round((Number(s[m]) || 0) + c / KCAL_PER_G[m]));
+      };
+      if (p.choice === "protein") addG("protein_g", cals);
+      else if (p.choice === "carbs") addG("carbs_g", cals);
+      else if (p.choice === "fat") addG("fat_g", cals);
+      else if (p.choice === "split") {
+        const third = cals / 3;
+        addG("protein_g", third);
+        addG("carbs_g", third);
+        addG("fat_g", third);
+      }
+      // Recompute calories from macros so totals stay consistent.
+      s.calories = Math.round((s.protein_g || 0) * 4 + (s.carbs_g || 0) * 4 + (s.fat_g || 0) * 9);
+      return { ...prev, [mk]: s };
+    });
+    setPendingRecv((prev) => ({ ...prev, [mk]: null }));
+  }
+
 
   function applySlotRealloc(mk: MealKey) {
     const p = pending[mk];
