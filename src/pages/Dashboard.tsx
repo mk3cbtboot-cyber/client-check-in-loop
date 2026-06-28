@@ -2240,17 +2240,29 @@ export default function Dashboard() {
                           onGoToProfile={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "overview" } as typeof x) : x)))}
                         />
                         {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
-                          <FoodListPlanGenerator
-                            clientId={client.id}
-                            macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
-                            mealsPerDay={Number((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)}
-                            foodExclusions={(client as unknown as { food_exclusions?: string[] | null }).food_exclusions ?? null}
-                            existingList={(client as unknown as { food_list?: unknown }).food_list}
-                            onSaved={load}
-                            onClientPatched={(patch) => {
-                              setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
-                            }}
-                          />
+                          <>
+                            <MacroAllocationSection
+                              clientId={client.id}
+                              macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
+                              mealsPerDay={Number((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)}
+                              allocation={(client as unknown as { macro_allocation?: Record<string, { calories: number; protein_g: number; carbs_g: number; fat_g: number }> | null }).macro_allocation ?? null}
+                              onClientPatched={(patch) => {
+                                setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
+                              }}
+                            />
+                            <FoodListPlanGenerator
+                              clientId={client.id}
+                              macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
+                              mealsPerDay={Number((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)}
+                              foodExclusions={(client as unknown as { food_exclusions?: string[] | null }).food_exclusions ?? null}
+                              existingList={(client as unknown as { food_list?: unknown }).food_list}
+                              macroAllocation={(client as unknown as { macro_allocation?: Record<string, { calories: number; protein_g: number; carbs_g: number; fat_g: number }> | null }).macro_allocation ?? null}
+                              onSaved={load}
+                              onClientPatched={(patch) => {
+                                setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
+                              }}
+                            />
+                          </>
                         )}
                       </TabsContent>
 
