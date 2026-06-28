@@ -109,11 +109,8 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
 
   function totalClass(total: number, target: number): string {
     if (!target) return "text-muted-foreground";
-    const diff = Math.abs(total - target);
-    const pct = diff / target;
-    if (diff <= 5) return "text-emerald-600 dark:text-emerald-400";
-    if (pct <= 0.10) return "text-amber-600 dark:text-amber-400";
-    return "text-red-600 dark:text-red-400";
+    if (total > target) return "text-red-600 dark:text-red-400";
+    return "text-emerald-600 dark:text-emerald-400";
   }
 
   async function handleSave() {
