@@ -140,7 +140,31 @@ Deno.serve(async (req) => {
       afternoon_snack: "Afternoon Snack (snack)",
       dinner: "Dinner (main)",
     };
-    const activeDesc = activeSlots.map((s, i) => `${i + 1}. ${s} — ${slotLabelMap[s]}`).join("\n");
+
+    const MEAL_KEYS = ["meal_1", "meal_2", "meal_3", "meal_4", "meal_5"] as const;
+    const allocRaw = (body?.macro_allocation ?? null) as Record<string, { calories?: number; protein_g?: number; carbs_g?: number; fat_g?: number }> | null;
+    function perMealTarget(i: number) {
+      const fromAlloc = allocRaw?.[MEAL_KEYS[i]];
+      if (fromAlloc && [fromAlloc.calories, fromAlloc.protein_g, fromAlloc.carbs_g, fromAlloc.fat_g].some((v) => Number(v) > 0)) {
+        return {
+          calories: Math.round(Number(fromAlloc.calories ?? 0)),
+          protein_g: Math.round(Number(fromAlloc.protein_g ?? 0)),
+          carbs_g: Math.round(Number(fromAlloc.carbs_g ?? 0)),
+          fat_g: Math.round(Number(fromAlloc.fat_g ?? 0)),
+        };
+      }
+      return {
+        calories: Math.round(calories / meals_per_day),
+        protein_g: Math.round(protein_g / meals_per_day),
+        carbs_g: Math.round(carbs_g / meals_per_day),
+        fat_g: Math.round(fat_g / meals_per_day),
+      };
+    }
+
+    const activeDesc = activeSlots.map((s, i) => {
+      const t = perMealTarget(i);
+      return `${i + 1}. ${s} — ${slotLabelMap[s]} — target ~${t.calories} kcal (P ${t.protein_g}g / C ${t.carbs_g}g / F ${t.fat_g}g)`;
+    }).join("\n");
 
     const systemPrompt = `You are a clinical nutrition assistant generating a daily food list for one client.
 
@@ -159,7 +183,7 @@ RULES:
 - Specific named foods only — "Chicken Breast", "Turkey Breast", "White Fish (cod, haddock)", "Brown Rice (cooked)" — NEVER generic terms like "Poultry", "Grain", "Vegetables".
 - Portion is grams, formatted as "<number>g" (e.g. "120g"). Cooked weights for proteins and carbs.
 - EXCEPTION: For oils and liquid fats (olive oil, coconut oil, avocado oil, sesame oil, flaxseed oil, butter, ghee, etc.), use teaspoons formatted as "<number> tsp" (e.g. "2 tsp") instead of grams. All other foods, including solid fats like nuts, seeds, and avocado, remain in grams.
-- Snack slots receive roughly half the macros of a main meal. Distribute remaining macros evenly across main meals so totals across one option per category per slot approximate the daily macro targets.
+- Match the PER-MEAL macro targets provided for each slot. Portion sizes within a slot should be sized so that choosing one option per category in that slot approximates that slot's macro target.
 - Snack slots typically need only Protein + Carbs (or Protein + Fat) — Veg/Fat optional for snacks; main meals should always include all four categories.
 - Strictly exclude any food on the exclusions list (including variants).
 - Honour the practitioner's additional preferences.`;
@@ -171,7 +195,7 @@ RULES:
 - Fat: ${fat_g} g
 
 Meals per day: ${meals_per_day}
-Active slots (in order):
+Active slots (in order) with per-meal targets:
 ${activeDesc}
 
 Food exclusions (do not use any of these or close variants): ${exclusions.length ? exclusions.join(", ") : "(none)"}

@@ -246,6 +246,7 @@ export type Database = {
           lunch_protein_category: string | null
           lunch_protein_grams: number | null
           lunch_veg_grams: number | null
+          macro_allocation: Json | null
           macro_goal: string | null
           macros: Json | null
           macros_adjusted: Json | null
@@ -351,6 +352,7 @@ export type Database = {
           lunch_protein_category?: string | null
           lunch_protein_grams?: number | null
           lunch_veg_grams?: number | null
+          macro_allocation?: Json | null
           macro_goal?: string | null
           macros?: Json | null
           macros_adjusted?: Json | null
@@ -456,6 +458,7 @@ export type Database = {
           lunch_protein_category?: string | null
           lunch_protein_grams?: number | null
           lunch_veg_grams?: number | null
+          macro_allocation?: Json | null
           macro_goal?: string | null
           macros?: Json | null
           macros_adjusted?: Json | null
