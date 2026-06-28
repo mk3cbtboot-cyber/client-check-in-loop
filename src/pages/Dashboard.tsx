@@ -81,6 +81,7 @@ import CustomFoodListEditor from "@/components/CustomFoodListEditor";
 import RecipePlanAssignments from "@/components/RecipePlanAssignments";
 import FoodListDocImport from "@/components/FoodListDocImport";
 import FoodListPlanGenerator from "@/components/FoodListPlanGenerator";
+import MacroAllocationSection from "@/components/MacroAllocationSection";
 import RecipesDocImport from "@/components/RecipesDocImport";
 
 
