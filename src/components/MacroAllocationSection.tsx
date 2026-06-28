@@ -210,7 +210,7 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
           },
         }));
       } else {
-        setPending((p) => ({ ...p, [mk]: null as unknown as PendingRealloc }));
+        setPending((p) => ({ ...p, [mk]: null }));
       }
     } else if (field === "calories") {
       const existing = pendingCal[mk];
@@ -232,7 +232,7 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
           },
         }));
       } else {
-        setPendingCal((p) => ({ ...p, [mk]: null as unknown as PendingCalRealloc }));
+        setPendingCal((p) => ({ ...p, [mk]: null }));
       }
     }
   }
