@@ -514,41 +514,60 @@ export function MacrosTab({ client, latestWeightKg, onChanged, onGoToProfile, on
             </div>
           </div>
 
-          {reduction && (
-            <div className="rounded-md border border-dashed p-3 space-y-3 bg-muted/30">
-              <p className="text-sm">
-                You freed up <span className="font-semibold">{reduction.freed}</span> calories by reducing{" "}
-                {reduction.field === "protein_g" ? "protein" : reduction.field === "carbs_g" ? "carbs" : "fat"}.
-                Where would you like to reallocate them?
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {([
+          {reduction && (() => {
+            const isCalories = reduction.field === "calories";
+            const isIncrease = reduction.mode === "increase";
+            const verb = isIncrease ? "Add to" : "Reduce";
+            const signChar = isIncrease ? "+" : "−";
+            const headline = isCalories
+              ? isIncrease
+                ? <>You added <span className="font-semibold">{reduction.freed}</span> kcal. Where would you like to allocate them?</>
+                : <>You reduced calories by <span className="font-semibold">{reduction.freed}</span> kcal. Which macro should absorb this reduction?</>
+              : <>You freed up <span className="font-semibold">{reduction.freed}</span> calories by reducing {reduction.field === "protein_g" ? "protein" : reduction.field === "carbs_g" ? "carbs" : "fat"}. Where would you like to reallocate them?</>;
+            const options: ReadonlyArray<readonly [
+              "protein" | "carbs" | "fat" | "split" | "remove",
+              string,
+              string,
+            ]> = isCalories
+              ? [
+                  ["protein", `${verb} Protein`, `${signChar}${round(reduction.freed / 4)} g protein`],
+                  ["carbs", `${verb} Carbs`, `${signChar}${round(reduction.freed / 4)} g carbs`],
+                  ["fat", `${verb} Fat`, `${signChar}${round(reduction.freed / 9)} g fat`],
+                  ["split", "Split evenly", `${signChar}${round((reduction.freed / 3) / 4)} g protein, ${signChar}${round((reduction.freed / 3) / 4)} g carbs, ${signChar}${round((reduction.freed / 3) / 9)} g fat`],
+                ]
+              : [
                   ["protein", "Add to Protein", `+${round(reduction.freed / 4)} g protein`],
                   ["carbs", "Add to Carbs", `+${round(reduction.freed / 4)} g carbs`],
                   ["fat", "Add to Fat", `+${round(reduction.freed / 9)} g fat`],
                   ["split", "Split evenly", `+${round((reduction.freed / 3) / 4)} g protein, +${round((reduction.freed / 3) / 4)} g carbs, +${round((reduction.freed / 3) / 9)} g fat`],
                   ["remove", "Remove from total", `−${reduction.freed} kcal`],
-                ] as const).map(([key, label, sub]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => applyReallocation(key)}
-                    className={`text-left rounded border p-2 transition-colors ${
-                      selectedOption === key
-                        ? "border-primary bg-primary/10"
-                        : "hover:bg-accent"
-                    }`}
-                  >
-                    <p className="text-sm font-medium">{label}</p>
-                    <p className="text-xs text-muted-foreground">{sub}</p>
-                  </button>
-                ))}
+                ];
+            return (
+              <div className="rounded-md border border-dashed p-3 space-y-3 bg-muted/30">
+                <p className="text-sm">{headline}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {options.map(([key, label, sub]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => applyReallocation(key)}
+                      className={`text-left rounded border p-2 transition-colors ${
+                        selectedOption === key
+                          ? "border-primary bg-primary/10"
+                          : "hover:bg-accent"
+                      }`}
+                    >
+                      <p className="text-sm font-medium">{label}</p>
+                      <p className="text-xs text-muted-foreground">{sub}</p>
+                    </button>
+                  ))}
+                </div>
+                <Button size="sm" onClick={handleConfirmReallocation} disabled={saving}>
+                  {saving ? "Saving…" : "Confirm reallocation"}
+                </Button>
               </div>
-              <Button size="sm" onClick={handleConfirmReallocation} disabled={saving}>
-                {saving ? "Saving…" : "Confirm reallocation"}
-              </Button>
-            </div>
-          )}
+            );
+          })()}
 
           <div className="flex items-center gap-3">
             <Button
