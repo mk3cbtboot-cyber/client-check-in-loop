@@ -58,21 +58,25 @@ function normalizeList(raw: unknown): FoodList {
 
 export const GENERATE_MEAL_PLAN_SECTION_ID = "generate-meal-plan-section";
 
+type MealKey = "meal_1" | "meal_2" | "meal_3" | "meal_4" | "meal_5";
+type Allocation = Partial<Record<MealKey, { calories: number; protein_g: number; carbs_g: number; fat_g: number }>>;
+
 interface Props {
   clientId: string;
   macros: MacroSet | null;
   mealsPerDay: number;
   foodExclusions: string[] | null;
   existingList: unknown;
+  macroAllocation?: Allocation | null;
   onSaved?: () => void;
   onClientPatched?: (patch: { meals_per_day?: number; food_exclusions?: string[] }) => void;
 }
 
-export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, foodExclusions, existingList, onSaved, onClientPatched }: Props) {
+export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, foodExclusions, existingList, macroAllocation, onSaved, onClientPatched }: Props) {
   const [generating, setGenerating] = useState(false);
 
   const defaultMeals = [3, 4, 5].includes(Number(mealsPerDay)) ? Number(mealsPerDay) : 3;
-  const [meals, setMeals] = useState<number>(defaultMeals);
+  const meals = defaultMeals;
   const [exclusionsText, setExclusionsText] = useState((foodExclusions ?? []).join(", "));
   const [preferences, setPreferences] = useState("");
 
@@ -80,18 +84,9 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
   const [reviewList, setReviewList] = useState<FoodList>(emptyList());
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
 
-  useEffect(() => { setMeals(defaultMeals); }, [defaultMeals]);
   useEffect(() => { setExclusionsText((foodExclusions ?? []).join(", ")); }, [foodExclusions]);
 
   const hasMacros = !!macros && Number(macros.calories) > 0;
-
-  async function handleMealsChange(v: string) {
-    const n = Number(v);
-    setMeals(n);
-    const { error } = await supabase.from("clients").update({ meals_per_day: n } as never).eq("id", clientId);
-    if (error) { toast.error("Failed to save meals per day"); return; }
-    onClientPatched?.({ meals_per_day: n });
-  }
 
   function parseExclusions(text: string): string[] {
     return text.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
