@@ -16,20 +16,91 @@ function emptyList() {
   return { breakfast: [], morning_snack: [], lunch: [], afternoon_snack: [], dinner: [] } as Record<SlotKey, unknown[]>;
 }
 
-function extractJson(raw: string): Record<string, unknown> {
-  let s = (raw ?? "").replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+function stripJsonWrapper(raw: string) {
+  return (raw ?? "").replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+}
+
+function extractJsonCandidate(raw: string) {
+  let s = stripJsonWrapper(raw);
   const start = s.search(/[\{\[]/);
+  if (start === -1) throw new Error("No JSON found");
   const open = s[start];
   const close = open === "[" ? "]" : "}";
   const end = s.lastIndexOf(close);
   if (start === -1 || end === -1) throw new Error("No JSON found");
-  s = s.substring(start, end + 1);
+  return s.substring(start, end + 1);
+}
+
+function getStringField(block: string, field: "name" | "portion" | "category") {
+  const match = block.match(new RegExp(`"${field}"\\s*:\\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`, "i"));
+  if (!match) return "";
+  try {
+    return JSON.parse(`"${match[1]}"`);
+  } catch {
+    return match[1];
+  }
+}
+
+function parseFoodObject(block: string) {
+  try {
+    return JSON.parse(block) as Record<string, unknown>;
+  } catch {
+    try {
+      return JSON.parse(jsonrepair(block)) as Record<string, unknown>;
+    } catch {
+      const name = getStringField(block, "name");
+      const portion = getStringField(block, "portion");
+      const category = getStringField(block, "category");
+      return name ? { name, portion, category } : null;
+    }
+  }
+}
+
+function recoverSlotArrays(raw: string, activeSlots: readonly SlotKey[]) {
+  const source = stripJsonWrapper(raw);
+  const escapedSlots = activeSlots.map((slot) => slot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const keyRegex = new RegExp(`['"]?(${escapedSlots.join("|")})['"]?\\s*:`, "g");
+  const matches = Array.from(source.matchAll(keyRegex)).map((match) => ({
+    slot: match[1] as SlotKey,
+    index: match.index ?? 0,
+  }));
+  const recovered: Record<string, unknown[]> = {};
+
+  for (let i = 0; i < matches.length; i += 1) {
+    const { slot, index } = matches[i];
+    const nextKeyIndex = matches[i + 1]?.index ?? source.length;
+    const arrayStart = source.indexOf("[", index);
+    if (arrayStart === -1 || arrayStart > nextKeyIndex) continue;
+
+    // Use the text until the next slot key rather than trusting the closing bracket.
+    // This recovers outputs like: } installs,"lunch": [ ...
+    const segment = source.slice(arrayStart + 1, nextKeyIndex);
+    const objects = segment.match(/\{[^{}]*\}/g) ?? [];
+    recovered[slot] = objects
+      .map(parseFoodObject)
+      .filter((item): item is Record<string, unknown> => Boolean(item?.name));
+  }
+
+  return recovered;
+}
+
+function extractJson(raw: string, activeSlots: readonly SlotKey[]): Record<string, unknown> {
+  let s = extractJsonCandidate(raw);
   try { return JSON.parse(s); } catch {
     try {
       const fixed = s.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
       return JSON.parse(fixed);
-    } catch {
-      return JSON.parse(jsonrepair(s));
+    } catch (fixedError) {
+      try {
+        return JSON.parse(jsonrepair(s));
+      } catch {
+        const recovered = recoverSlotArrays(raw, activeSlots);
+        if (activeSlots.some((slot) => Array.isArray(recovered[slot]) && recovered[slot].length > 0)) {
+          console.warn("Recovered malformed AI JSON using slot-array parser", fixedError instanceof Error ? fixedError.message : String(fixedError));
+          return recovered;
+        }
+        throw fixedError;
+      }
     }
   }
 }
@@ -134,7 +205,7 @@ Generate the food list now. Return JSON only.`;
     const content: string = data?.choices?.[0]?.message?.content ?? "";
     let parsed: Record<string, unknown> = {};
     try {
-      parsed = extractJson(content);
+      parsed = extractJson(content, activeSlots);
     } catch (err) {
       console.error("JSON parse failed. Raw content:", content?.slice(0, 2000));
       return new Response(JSON.stringify({ error: "AI returned invalid JSON", detail: err instanceof Error ? err.message : String(err) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
