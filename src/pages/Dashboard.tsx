@@ -2238,11 +2238,6 @@ export default function Dashboard() {
                             setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
                           }}
                           onGoToProfile={() => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: "overview" } as typeof x) : x)))}
-                          onAfterSave={(saved) => {
-                            if (client.system_mode === "own_practice" && client.plan_format === "food_list_generated") {
-                              void autoGenerateFoodListPlan(client.id, saved);
-                            }
-                          }}
                         />
                         {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                           <div className="flex flex-wrap items-center justify-end gap-2">
