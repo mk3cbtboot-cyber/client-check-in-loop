@@ -9,6 +9,16 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 type MealKey = "meal_1" | "meal_2" | "meal_3" | "meal_4" | "meal_5";
