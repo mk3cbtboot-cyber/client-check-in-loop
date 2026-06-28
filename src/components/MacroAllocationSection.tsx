@@ -408,6 +408,45 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
                   </div>
                 );
               })()}
+              {pendingCal[mk] && (() => {
+                const p = pendingCal[mk]!;
+                const mealNum = i + 1;
+                const isReduce = p.mode === "reduce";
+                const otherKeys = MEAL_KEYS.slice(0, meals).filter((k) => k !== mk);
+                return (
+                  <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2">
+                    <p className="text-xs">
+                      {isReduce
+                        ? `You freed up ${p.delta} calories from Meal ${mealNum}. Where would you like to add them?`
+                        : `You added ${p.delta} calories to Meal ${mealNum}. Where should these come from?`}
+                    </p>
+                    <Select
+                      value={p.choice}
+                      onValueChange={(v) =>
+                        setPendingCal((prev) => ({ ...prev, [mk]: { ...p, choice: v as PendingCalRealloc["choice"] } }))
+                      }
+                    >
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {otherKeys.map((k) => {
+                          const idx = MEAL_KEYS.indexOf(k) + 1;
+                          return (
+                            <SelectItem key={k} value={k}>
+                              {isReduce ? `Add to Meal ${idx}` : `Remove from Meal ${idx}`}
+                            </SelectItem>
+                          );
+                        })}
+                        <SelectItem value="split">Split evenly across other meals</SelectItem>
+                        <SelectItem value="total">{isReduce ? "Remove from daily total" : "Add to daily total"}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => applySlotCalRealloc(mk)}>Confirm reallocation</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setPendingCal((prev) => ({ ...prev, [mk]: null }))}>Cancel</Button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
