@@ -716,6 +716,30 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!recvConfirm} onOpenChange={(o) => { if (!o) setRecvConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Allocation doesn't match target</AlertDialogTitle>
+            <AlertDialogDescription>
+              {recvConfirm && (recvConfirm.allocated < recvConfirm.target
+                ? `You've allocated ${recvConfirm.allocated} of ${recvConfirm.target} calories. ${recvConfirm.target - recvConfirm.allocated} calories are unallocated and will not be assigned to any macro. Save anyway?`
+                : `You've allocated ${recvConfirm.allocated} of ${recvConfirm.target} calories — ${recvConfirm.allocated - recvConfirm.target} over the target. This will increase the meal's total calories. Save anyway?`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go back</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (recvConfirm) applySlotRecv(recvConfirm.mk);
+                setRecvConfirm(null);
+              }}
+            >
+              Save anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
