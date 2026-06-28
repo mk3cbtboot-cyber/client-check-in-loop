@@ -466,7 +466,16 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
                     </Select>
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => applySlotCalRealloc(mk)}>Confirm reallocation</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setPendingCal((prev) => ({ ...prev, [mk]: null }))}>Cancel</Button>
+                      <Button size="sm" variant="ghost" onClick={() => {
+                        const cur = pendingCal[mk];
+                        if (cur) {
+                          setLocal((prev) => ({
+                            ...prev,
+                            [mk]: { ...(prev[mk] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }), calories: cur.prevVal },
+                          }));
+                        }
+                        setPendingCal((prev) => ({ ...prev, [mk]: null }));
+                      }}>Cancel</Button>
                     </div>
                   </div>
                 );
