@@ -78,26 +78,39 @@ function hasAnyValues(a: Allocation | null, meals: number): boolean {
   return false;
 }
 
+function mergeWithEvenSplit(a: Allocation | null, macros: MacroSet | null, meals: number): Allocation {
+  const split = evenSplit(macros, meals);
+  if (!a) return split;
+  const out: Allocation = {};
+  for (let i = 0; i < meals; i += 1) {
+    const mk = MEAL_KEYS[i];
+    const saved = a[mk];
+    if (saved && (saved.calories || saved.protein_g || saved.carbs_g || saved.fat_g)) {
+      out[mk] = saved;
+    } else {
+      out[mk] = split[mk] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+    }
+  }
+  return out;
+}
+
 export default function MacroAllocationSection({ clientId, macros, mealsPerDay, allocation, onClientPatched }: Props) {
   const defaultMeals = [3, 4, 5].includes(Number(mealsPerDay)) ? Number(mealsPerDay) : 3;
   const [meals, setMeals] = useState<number>(defaultMeals);
   const [local, setLocal] = useState<Allocation>(() =>
-    hasAnyValues(allocation, defaultMeals) ? (allocation as Allocation) : evenSplit(macros, defaultMeals)
+    mergeWithEvenSplit(allocation, macros, defaultMeals)
   );
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => { setMeals(defaultMeals); }, [defaultMeals]);
 
-  // When macros change (e.g. saved) and no saved allocation, refresh evenly.
+
+  // When macros, allocation, or meals count change, fill any missing slots from the even split.
   useEffect(() => {
-    if (!hasAnyValues(allocation, meals)) {
-      setLocal(evenSplit(macros, meals));
-    } else {
-      setLocal(allocation as Allocation);
-    }
+    setLocal(mergeWithEvenSplit(allocation, macros, meals));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [macros?.calories, macros?.protein_g, macros?.carbs_g, macros?.fat_g, allocation]);
+  }, [macros?.calories, macros?.protein_g, macros?.carbs_g, macros?.fat_g, allocation, meals]);
 
   async function handleMealsChange(v: string) {
     const n = Number(v);
