@@ -192,7 +192,7 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
           <Textarea
             value={preferences}
             onChange={(e) => setPreferences(e.target.value)}
-            placeholder='e.g. "high fibre", "no red meat", "Mediterranean style", "easy to prepare"'
+            placeholder='e.g. "high fibre", "Mediterranean style", "easy to prepare"'
             className="min-h-[60px]"
           />
           <p className="text-xs text-muted-foreground">Not saved between sessions.</p>
