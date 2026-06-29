@@ -79,6 +79,7 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
   const meals = defaultMeals;
   const [exclusionsText, setExclusionsText] = useState((foodExclusions ?? []).join(", "));
   const [preferences, setPreferences] = useState("");
+  const [debugTargets, setDebugTargets] = useState<Array<{ slot: string; slot_index: number; calories: number; protein_g: number; carbs_g: number; fat_g: number }> | null>(null);
 
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewList, setReviewList] = useState<FoodList>(emptyList());
@@ -124,6 +125,7 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
         toast.error(data?.error || "Failed to generate meal plan. Please try again.");
         return;
       }
+      if (Array.isArray(data?.debug_targets)) setDebugTargets(data.debug_targets);
       setReviewList(normalizeList(data.food_list));
       setReviewOpen(true);
     } catch (e) {
@@ -204,6 +206,17 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
             {generating ? "Generating…" : "Generate"}
           </Button>
         </div>
+
+        {import.meta.env.DEV && debugTargets && debugTargets.length > 0 && (
+          <div className="rounded border border-dashed p-2 font-mono text-xs whitespace-pre-wrap">
+            <div className="font-semibold mb-1">Generation targets used:</div>
+            {debugTargets.map((t) => (
+              <div key={t.slot_index}>
+                Meal {t.slot_index + 1} ({t.slot}) — Protein: {t.protein_g}g | Carbs: {t.carbs_g}g | Fat: {t.fat_g}g | Calories: {t.calories}
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
