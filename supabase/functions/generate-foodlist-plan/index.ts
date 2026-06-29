@@ -49,14 +49,28 @@ function fatPortionString(name: string, targetFatG: number): { portion: string; 
   return { portion: fmtPortionG(targetFatG / 0.5), grams: roundPortionG(targetFatG / 0.5) }; // approx; replaced after USDA lookup
 }
 
+// Foods typically eaten raw — skip the "cooked" suffix on USDA lookups.
+const RAW_FOODS = /\b(cucumber|tomato|tomatoes|lettuce|spinach|arugula|rocket|bell pepper|peppers?|carrot sticks?|celery|radish|onion|avocado|olives?|salad)\b/i;
+
+function cookedSearchTerm(name: string, category: "Protein" | "Carbs" | "Veg" | "Fat"): string {
+  const clean = name.trim();
+  if (!clean) return clean;
+  if (category === "Fat") return clean; // oils/nuts/avocado — leave as-is
+  if (/\bcooked\b/i.test(clean)) return clean;
+  if (category === "Veg" && RAW_FOODS.test(clean)) return clean;
+  if (category === "Protein" && /\begg/i.test(clean)) return "eggs, whole, cooked, scrambled";
+  return `${clean}, cooked`;
+}
+
 async function findUSDAFood(
   candidates: string[],
   used: Set<string>,
+  category: "Protein" | "Carbs" | "Veg" | "Fat",
 ): Promise<{ name: string; per100: Macros } | null> {
   for (const cand of candidates) {
     const key = canon(cand);
     if (!key || used.has(key)) continue;
-    const per100 = await usdaMacros(cand, "100g").catch(() => null);
+    const per100 = await usdaMacros(cookedSearchTerm(cand, category), "100g").catch(() => null);
     if (per100) return { name: cand, per100 };
   }
   return null;
@@ -65,6 +79,14 @@ async function findUSDAFood(
 const VEG_POOL = [
   "Broccoli", "Spinach", "Zucchini", "Bell Peppers", "Cucumber",
   "Tomato", "Asparagus", "Green Beans", "Kale", "Cauliflower",
+];
+
+// Meal 1 is always breakfast — proteins limited to eggs.
+const EGG_PROTEIN_POOL = [
+  "Whole Eggs, scrambled",
+  "Whole Eggs, boiled",
+  "Egg Whites, cooked",
+  "Whole Eggs, poached",
 ];
 
 async function aiCandidatesForSlot(
@@ -242,12 +264,16 @@ Deno.serve(async (req) => {
       }
       // Always include VEG_POOL as fallback candidates (filtered by used)
       cands.veg = [...(cands.veg ?? []), ...VEG_POOL];
+      // Meal 1 is always breakfast — restrict protein to eggs only.
+      if (i === 0) {
+        cands.protein = [...EGG_PROTEIN_POOL];
+      }
       const items: FoodItem[] = [];
 
 
       // PROTEIN — always one
       if (target.protein_g > 0) {
-        const found = await findUSDAFood(cands.protein ?? [], usedProtein);
+        const found = await findUSDAFood(cands.protein ?? [], usedProtein, "Protein");
         if (found) {
           const grams = roundPortionG((target.protein_g * 100) / Math.max(1, found.per100.protein_g));
           const factor = grams / 100;
@@ -264,7 +290,7 @@ Deno.serve(async (req) => {
             },
           });
         } else {
-          const fallbackName = (cands.protein ?? []).find((n) => !usedProtein.has(canon(n))) ?? "Chicken Breast";
+          const fallbackName = (cands.protein ?? []).find((n) => !usedProtein.has(canon(n))) ?? (i === 0 ? "Whole Eggs, scrambled" : "Chicken Breast, cooked");
           const portion = fmtPortionG((target.protein_g * 100) / 30); // assume ~30g protein per 100g
           const est = await aiEstimateMacros(apiKey, fallbackName, portion);
           usedProtein.add(canon(fallbackName));
@@ -274,7 +300,7 @@ Deno.serve(async (req) => {
 
       // CARBS — only if allocation > 0
       if (target.carbs_g > 0) {
-        const found = await findUSDAFood(cands.carbs ?? [], usedCarbs);
+        const found = await findUSDAFood(cands.carbs ?? [], usedCarbs, "Carbs");
         if (found) {
           const grams = roundPortionG((target.carbs_g * 100) / Math.max(1, found.per100.carbs_g));
           const factor = grams / 100;
@@ -302,7 +328,7 @@ Deno.serve(async (req) => {
       // VEG — include 2 vegetables, avoid repeats across slots
       const vegCount = 2;
       for (let v = 0; v < vegCount; v += 1) {
-        const found = await findUSDAFood(cands.veg ?? [], usedVeg);
+        const found = await findUSDAFood(cands.veg ?? [], usedVeg, "Veg");
         const grams = 100;
         if (found) {
           const factor = grams / 100;
@@ -329,7 +355,7 @@ Deno.serve(async (req) => {
 
       // FAT — only if allocation > 0
       if (target.fat_g > 0) {
-        const found = await findUSDAFood(cands.fat ?? [], usedFat);
+        const found = await findUSDAFood(cands.fat ?? [], usedFat, "Fat");
         if (found) {
           if (isOilName(found.name)) {
             const tsp = Math.max(1, Math.round(target.fat_g / 4.5));
