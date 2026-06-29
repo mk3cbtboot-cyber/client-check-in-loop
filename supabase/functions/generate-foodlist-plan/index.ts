@@ -80,6 +80,14 @@ function densityMacroKey(category: Category): keyof Macros {
   return "calories";
 }
 
+const WRONG_FORM_TERMS = /\b(dried|dehydrated|flour|powder|jerky|vegetarian|snack|imitation|substitute|extract|concentrate)\b/i;
+
+function isWrongForm(description: string, category: Category, candidateName: string): boolean {
+  if (WRONG_FORM_TERMS.test(description)) return true;
+  if (category === "Fat" && !isOilName(candidateName) && /\boil\b/i.test(description)) return true;
+  return false;
+}
+
 async function findUSDAFood(
   candidates: string[],
   used: Set<string>,
@@ -91,25 +99,29 @@ async function findUSDAFood(
     const key = canon(cand);
     if (!key || used.has(key)) continue;
     const list = await usdaCandidates(cookedSearchTerm(cand, category)).catch(() => []);
-    const rejected: Array<{ desc: string; value: number }> = [];
+    const rejected: Array<{ desc: string; value: number; reason: string }> = [];
     for (const item of list) {
+      if (isWrongForm(item.description, category, cand)) {
+        rejected.push({ desc: item.description, value: 0, reason: "wrong-form" });
+        continue;
+      }
       const value = Number(item.per100[macroKey] ?? 0);
       if (category === "Veg" || value >= threshold) {
         if (rejected.length > 0) {
-          console.log(`[density] "${cand}" (${category}): rejected ${rejected.length} low-density entries before accepting "${item.description}" (${macroKey}=${value}g/100g)`);
-          for (const r of rejected) console.log(`  rejected: "${r.desc}" (${macroKey}=${r.value}g/100g, threshold ${threshold})`);
+          console.log(`[usda] "${cand}" (${category}): rejected ${rejected.length} entries before accepting "${item.description}" (${macroKey}=${value}g/100g)`);
+          for (const r of rejected) console.log(`  rejected (${r.reason}): "${r.desc}" (${macroKey}=${r.value}g/100g, threshold ${threshold})`);
         } else {
-          console.log(`[density] "${cand}" (${category}): accepted "${item.description}" (${macroKey}=${value}g/100g)`);
+          console.log(`[usda] "${cand}" (${category}): accepted "${item.description}" (${macroKey}=${value}g/100g)`);
         }
         return { name: cand, per100: item.per100, usdaDescription: item.description };
       }
-      rejected.push({ desc: item.description, value });
+      rejected.push({ desc: item.description, value, reason: "low-density" });
     }
     if (rejected.length > 0) {
-      console.log(`[density] "${cand}" (${category}): no USDA entry met threshold ${threshold}g/100g, rejected ${rejected.length} entries — falling back to next candidate`);
-      for (const r of rejected) console.log(`  rejected: "${r.desc}" (${macroKey}=${r.value}g/100g)`);
+      console.log(`[usda] "${cand}" (${category}): no valid USDA entry, rejected ${rejected.length} entries — falling back to next candidate`);
+      for (const r of rejected) console.log(`  rejected (${r.reason}): "${r.desc}" (${macroKey}=${r.value}g/100g)`);
     } else {
-      console.log(`[density] "${cand}" (${category}): no USDA results`);
+      console.log(`[usda] "${cand}" (${category}): no USDA results`);
     }
   }
   return null;
