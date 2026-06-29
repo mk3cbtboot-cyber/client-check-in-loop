@@ -58,7 +58,7 @@ function cookedSearchTerm(name: string, category: "Protein" | "Carbs" | "Veg" | 
   if (category === "Fat") return clean; // oils/nuts/avocado — leave as-is
   if (/\bcooked\b/i.test(clean)) return clean;
   if (category === "Veg" && RAW_FOODS.test(clean)) return clean;
-  if (category === "Protein" && /\begg/i.test(clean)) return "eggs, whole, cooked, scrambled";
+  if (category === "Protein" && /\begg/i.test(clean)) return "eggs, whole, cooked";
   return `${clean}, cooked`;
 }
 
@@ -82,12 +82,8 @@ const VEG_POOL = [
 ];
 
 // Meal 1 is always breakfast — proteins limited to eggs.
-const EGG_PROTEIN_POOL = [
-  "Whole Eggs, scrambled",
-  "Whole Eggs, boiled",
-  "Egg Whites, cooked",
-  "Whole Eggs, poached",
-];
+// Meal 1 is always breakfast — protein is always eggs.
+const EGG_PROTEIN_POOL = ["Eggs"];
 
 async function aiCandidatesForSlot(
   apiKey: string,
@@ -290,7 +286,7 @@ Deno.serve(async (req) => {
             },
           });
         } else {
-          const fallbackName = (cands.protein ?? []).find((n) => !usedProtein.has(canon(n))) ?? (i === 0 ? "Whole Eggs, scrambled" : "Chicken Breast, cooked");
+          const fallbackName = (cands.protein ?? []).find((n) => !usedProtein.has(canon(n))) ?? (i === 0 ? "Eggs" : "Chicken Breast, cooked");
           const portion = fmtPortionG((target.protein_g * 100) / 30); // assume ~30g protein per 100g
           const est = await aiEstimateMacros(apiKey, fallbackName, portion);
           usedProtein.add(canon(fallbackName));
