@@ -303,7 +303,7 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
         const out = { ...prev };
         for (const r of recipients) {
           if (r.delta > 0) {
-            out[r.k] = { mk: r.k, slotIndex: MEAL_KEYS.indexOf(r.k), delta: r.delta, choice: "split" };
+            out[r.k] = { mk: r.k, slotIndex: MEAL_KEYS.indexOf(r.k), delta: r.delta, choice: "custom" };
           }
         }
         return out;
@@ -313,7 +313,7 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     if (p.mode === "reduce") {
       setPendingSend((prev) => ({
         ...prev,
-        [mk]: { mk, slotIndex: MEAL_KEYS.indexOf(mk), delta: p.delta, choice: "split" },
+        [mk]: { mk, slotIndex: MEAL_KEYS.indexOf(mk), delta: p.delta, choice: "custom" },
       }));
     }
   }
