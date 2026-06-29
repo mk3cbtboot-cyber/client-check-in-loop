@@ -340,9 +340,10 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
         s.carbs_g = Math.max(0, Math.round((Number(s.carbs_g) || 0) - (Number(p.customC) || 0)));
         s.fat_g = Math.max(0, Math.round((Number(s.fat_g) || 0) - (Number(p.customF) || 0)));
       }
-      // Recompute calories from macros so totals stay consistent.
-      s.calories = Math.round((s.protein_g || 0) * 4 + (s.carbs_g || 0) * 4 + (s.fat_g || 0) * 9);
+      // Calories were already adjusted by the calorie-reallocation step that
+      // queued this prompt; do NOT recompute from macros (rounding drift).
       return { ...prev, [mk]: s };
+
     });
     setPendingSend((prev) => ({ ...prev, [mk]: null }));
   }
@@ -369,9 +370,10 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
         s.carbs_g = Math.max(0, Math.round((Number(s.carbs_g) || 0) + (Number(p.customC) || 0)));
         s.fat_g = Math.max(0, Math.round((Number(s.fat_g) || 0) + (Number(p.customF) || 0)));
       }
-      // Recompute calories from macros so totals stay consistent.
-      s.calories = Math.round((s.protein_g || 0) * 4 + (s.carbs_g || 0) * 4 + (s.fat_g || 0) * 9);
+      // Calories already include the received delta from the calorie-reallocation
+      // step; do NOT recompute from macros (rounding drift would shift it).
       return { ...prev, [mk]: s };
+
     });
     setPendingRecv((prev) => ({ ...prev, [mk]: null }));
   }
