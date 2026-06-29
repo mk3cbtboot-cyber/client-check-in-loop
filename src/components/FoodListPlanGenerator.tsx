@@ -127,6 +127,7 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
         return;
       }
       if (Array.isArray(data?.debug_targets)) setDebugTargets(data.debug_targets);
+      if (Array.isArray(data?.debug_foods)) setDebugFoods(data.debug_foods);
       setReviewList(normalizeList(data.food_list));
       setReviewOpen(true);
     } catch (e) {
