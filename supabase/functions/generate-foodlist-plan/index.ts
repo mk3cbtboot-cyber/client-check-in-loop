@@ -49,14 +49,28 @@ function fatPortionString(name: string, targetFatG: number): { portion: string; 
   return { portion: fmtPortionG(targetFatG / 0.5), grams: roundPortionG(targetFatG / 0.5) }; // approx; replaced after USDA lookup
 }
 
+// Foods typically eaten raw — skip the "cooked" suffix on USDA lookups.
+const RAW_FOODS = /\b(cucumber|tomato|tomatoes|lettuce|spinach|arugula|rocket|bell pepper|peppers?|carrot sticks?|celery|radish|onion|avocado|olives?|salad)\b/i;
+
+function cookedSearchTerm(name: string, category: "Protein" | "Carbs" | "Veg" | "Fat"): string {
+  const clean = name.trim();
+  if (!clean) return clean;
+  if (category === "Fat") return clean; // oils/nuts/avocado — leave as-is
+  if (/\bcooked\b/i.test(clean)) return clean;
+  if (category === "Veg" && RAW_FOODS.test(clean)) return clean;
+  if (category === "Protein" && /\begg/i.test(clean)) return "eggs, whole, cooked, scrambled";
+  return `${clean}, cooked`;
+}
+
 async function findUSDAFood(
   candidates: string[],
   used: Set<string>,
+  category: "Protein" | "Carbs" | "Veg" | "Fat",
 ): Promise<{ name: string; per100: Macros } | null> {
   for (const cand of candidates) {
     const key = canon(cand);
     if (!key || used.has(key)) continue;
-    const per100 = await usdaMacros(cand, "100g").catch(() => null);
+    const per100 = await usdaMacros(cookedSearchTerm(cand, category), "100g").catch(() => null);
     if (per100) return { name: cand, per100 };
   }
   return null;
@@ -65,6 +79,14 @@ async function findUSDAFood(
 const VEG_POOL = [
   "Broccoli", "Spinach", "Zucchini", "Bell Peppers", "Cucumber",
   "Tomato", "Asparagus", "Green Beans", "Kale", "Cauliflower",
+];
+
+// Meal 1 is always breakfast — proteins limited to eggs.
+const EGG_PROTEIN_POOL = [
+  "Whole Eggs, scrambled",
+  "Whole Eggs, boiled",
+  "Egg Whites, cooked",
+  "Whole Eggs, poached",
 ];
 
 async function aiCandidatesForSlot(
