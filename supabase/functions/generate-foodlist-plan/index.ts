@@ -376,7 +376,19 @@ Deno.serve(async (req) => {
       }
 
       out[slot] = items;
+
+      // Progressively grow excluded lists for next slot's prompt.
+      for (const it of items) {
+        const cleanName = it.name.replace(/\s*\(estimated\)\s*$/i, "").trim();
+        if (it.category === "Protein" || it.category === "Carbs") {
+          if (!excludedFoods.includes(cleanName)) excludedFoods.push(cleanName);
+        }
+        if (it.category === "Fat") {
+          if (!usedFatNames.includes(cleanName)) usedFatNames.push(cleanName);
+        }
+      }
     }
+
 
     return new Response(JSON.stringify({ ok: true, food_list: out }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
