@@ -82,12 +82,8 @@ const VEG_POOL = [
 ];
 
 // Meal 1 is always breakfast — proteins limited to eggs.
-const EGG_PROTEIN_POOL = [
-  "Whole Eggs, scrambled",
-  "Whole Eggs, boiled",
-  "Egg Whites, cooked",
-  "Whole Eggs, poached",
-];
+// Meal 1 is always breakfast — protein is always eggs.
+const EGG_PROTEIN_POOL = ["Eggs"];
 
 async function aiCandidatesForSlot(
   apiKey: string,
