@@ -887,6 +887,30 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!sendConfirm} onOpenChange={(o) => { if (!o) setSendConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reduction doesn't match target</AlertDialogTitle>
+            <AlertDialogDescription>
+              {sendConfirm && (sendConfirm.allocated < sendConfirm.target
+                ? `You've removed ${sendConfirm.allocated} of ${sendConfirm.target} calories. ${sendConfirm.target - sendConfirm.allocated} calories will remain unaccounted for. Save anyway?`
+                : `You've removed ${sendConfirm.allocated} of ${sendConfirm.target} calories — ${sendConfirm.allocated - sendConfirm.target} over the target. This will further reduce the meal's total calories. Save anyway?`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go back</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (sendConfirm) applySlotSend(sendConfirm.mk);
+                setSendConfirm(null);
+              }}
+            >
+              Save anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
