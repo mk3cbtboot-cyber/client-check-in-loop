@@ -177,10 +177,21 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     customC?: number;
     customF?: number;
   }
+  interface PendingSend {
+    mk: MealKey;
+    slotIndex: number;
+    delta: number; // calories lost (absolute)
+    choice: "protein" | "carbs" | "fat" | "split" | "custom";
+    customP?: number;
+    customC?: number;
+    customF?: number;
+  }
   const [pending, setPending] = useState<Record<string, PendingRealloc | null>>({});
   const [pendingCal, setPendingCal] = useState<Record<string, PendingCalRealloc | null>>({});
   const [pendingRecv, setPendingRecv] = useState<Record<string, PendingRecv | null>>({});
+  const [pendingSend, setPendingSend] = useState<Record<string, PendingSend | null>>({});
   const [recvConfirm, setRecvConfirm] = useState<{ mk: MealKey; allocated: number; target: number } | null>(null);
+  const [sendConfirm, setSendConfirm] = useState<{ mk: MealKey; allocated: number; target: number } | null>(null);
 
   const MACRO_LABEL: Record<ReallocMacro, string> = {
     protein_g: "protein",
@@ -298,6 +309,42 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
         return out;
       });
     }
+    // Queue send-reduction prompt for the source meal that lost calories.
+    if (p.mode === "reduce") {
+      setPendingSend((prev) => ({
+        ...prev,
+        [mk]: { mk, slotIndex: MEAL_KEYS.indexOf(mk), delta: p.delta, choice: "split" },
+      }));
+    }
+  }
+
+  function applySlotSend(mk: MealKey) {
+    const p = pendingSend[mk];
+    if (!p) return;
+    setLocal((prev) => {
+      const s = { ...(prev[mk] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }) };
+      const cals = p.delta;
+      const subG = (m: ReallocMacro, c: number) => {
+        s[m] = Math.max(0, Math.round((Number(s[m]) || 0) - c / KCAL_PER_G[m]));
+      };
+      if (p.choice === "protein") subG("protein_g", cals);
+      else if (p.choice === "carbs") subG("carbs_g", cals);
+      else if (p.choice === "fat") subG("fat_g", cals);
+      else if (p.choice === "split") {
+        const third = cals / 3;
+        subG("protein_g", third);
+        subG("carbs_g", third);
+        subG("fat_g", third);
+      } else if (p.choice === "custom") {
+        s.protein_g = Math.max(0, Math.round((Number(s.protein_g) || 0) - (Number(p.customP) || 0)));
+        s.carbs_g = Math.max(0, Math.round((Number(s.carbs_g) || 0) - (Number(p.customC) || 0)));
+        s.fat_g = Math.max(0, Math.round((Number(s.fat_g) || 0) - (Number(p.customF) || 0)));
+      }
+      // Recompute calories from macros so totals stay consistent.
+      s.calories = Math.round((s.protein_g || 0) * 4 + (s.carbs_g || 0) * 4 + (s.fat_g || 0) * 9);
+      return { ...prev, [mk]: s };
+    });
+    setPendingSend((prev) => ({ ...prev, [mk]: null }));
   }
 
   function applySlotRecv(mk: MealKey) {
@@ -636,6 +683,106 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
                   </div>
                 );
               })()}
+              {pendingSend[mk] && (() => {
+                const p = pendingSend[mk]!;
+                const mealNum = i + 1;
+                const cP = (Number(p.customP) || 0) * 4;
+                const cC = (Number(p.customC) || 0) * 4;
+                const cF = (Number(p.customF) || 0) * 9;
+                const allocated = cP + cC + cF;
+                const totalCls =
+                  p.choice !== "custom"
+                    ? "text-muted-foreground"
+                    : allocated === p.delta
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : allocated > p.delta
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-muted-foreground";
+                const gP = (p.delta / 4).toFixed(1);
+                const gC = (p.delta / 4).toFixed(1);
+                const gF = (p.delta / 9).toFixed(1);
+                const gS = (p.delta / 3).toFixed(1);
+                return (
+                  <div className="mt-2 rounded-md border border-rose-300 bg-rose-50 dark:bg-rose-950/30 p-3 space-y-2">
+                    <p className="text-xs">
+                      {`Meal ${mealNum} lost ${p.delta} calories. Which macro should absorb this reduction?`}
+                    </p>
+                    <Select
+                      value={p.choice}
+                      onValueChange={(v) =>
+                        setPendingSend((prev) => ({ ...prev, [mk]: { ...p, choice: v as PendingSend["choice"] } }))
+                      }
+                    >
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="protein">Remove from Protein (−{gP}g)</SelectItem>
+                        <SelectItem value="carbs">Remove from Carbs (−{gC}g)</SelectItem>
+                        <SelectItem value="fat">Remove from Fat (−{gF}g)</SelectItem>
+                        <SelectItem value="split">Split evenly (−{gS}g each across P/C/F)</SelectItem>
+                        <SelectItem value="custom">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {p.choice === "custom" && (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Protein (g)</Label>
+                            <Input
+                              type="number"
+                              value={Number(p.customP) || 0}
+                              onChange={(e) =>
+                                setPendingSend((prev) => ({ ...prev, [mk]: { ...p, customP: Number(e.target.value) || 0 } }))
+                              }
+                              className="h-8"
+                            />
+                            <p className="text-[10px] text-muted-foreground">{cP} kcal</p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Carbs (g)</Label>
+                            <Input
+                              type="number"
+                              value={Number(p.customC) || 0}
+                              onChange={(e) =>
+                                setPendingSend((prev) => ({ ...prev, [mk]: { ...p, customC: Number(e.target.value) || 0 } }))
+                              }
+                              className="h-8"
+                            />
+                            <p className="text-[10px] text-muted-foreground">{cC} kcal</p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Fat (g)</Label>
+                            <Input
+                              type="number"
+                              value={Number(p.customF) || 0}
+                              onChange={(e) =>
+                                setPendingSend((prev) => ({ ...prev, [mk]: { ...p, customF: Number(e.target.value) || 0 } }))
+                              }
+                              className="h-8"
+                            />
+                            <p className="text-[10px] text-muted-foreground">{cF} kcal</p>
+                          </div>
+                        </div>
+                        <p className={`text-xs font-medium ${totalCls}`}>
+                          Allocated: {allocated} of {p.delta} calories.
+                        </p>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (p.choice === "custom" && allocated !== p.delta) {
+                            setSendConfirm({ mk, allocated, target: p.delta });
+                          } else {
+                            applySlotSend(mk);
+                          }
+                        }}
+                      >Confirm reduction</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setPendingSend((prev) => ({ ...prev, [mk]: null }))}>Cancel</Button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
@@ -733,6 +880,30 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
               onClick={() => {
                 if (recvConfirm) applySlotRecv(recvConfirm.mk);
                 setRecvConfirm(null);
+              }}
+            >
+              Save anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!sendConfirm} onOpenChange={(o) => { if (!o) setSendConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reduction doesn't match target</AlertDialogTitle>
+            <AlertDialogDescription>
+              {sendConfirm && (sendConfirm.allocated < sendConfirm.target
+                ? `You've removed ${sendConfirm.allocated} of ${sendConfirm.target} calories. ${sendConfirm.target - sendConfirm.allocated} calories will remain unaccounted for. Save anyway?`
+                : `You've removed ${sendConfirm.allocated} of ${sendConfirm.target} calories — ${sendConfirm.allocated - sendConfirm.target} over the target. This will further reduce the meal's total calories. Save anyway?`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go back</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (sendConfirm) applySlotSend(sendConfirm.mk);
+                setSendConfirm(null);
               }}
             >
               Save anyway
