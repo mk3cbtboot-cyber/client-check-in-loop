@@ -65,15 +65,21 @@ function cleanName(name: string): string {
 
 const cache = new Map<string, Macros | null>();
 
+const PROCESSED_TERMS = /\b(protein powder|whey|isolate|concentrate|supplement|shake|protein bar|powder|fortified|enriched)\b/i;
+
 async function searchFdc(apiKey: string, query: string): Promise<Macros | null> {
-  const url = `${FDC_API}/foods/search?api_key=${encodeURIComponent(apiKey)}&query=${encodeURIComponent(query)}&pageSize=1&dataType=${encodeURIComponent("Foundation,SR Legacy")}`;
+  const url = `${FDC_API}/foods/search?api_key=${encodeURIComponent(apiKey)}&query=${encodeURIComponent(query)}&pageSize=10&dataType=${encodeURIComponent("Foundation,SR Legacy")}`;
   const res = await fetch(url);
   if (!res.ok) {
     console.error("USDA search failed", res.status, await res.text());
     return null;
   }
   const data = await res.json();
-  const food = Array.isArray(data?.foods) && data.foods.length > 0 ? data.foods[0] : null;
+  const foods: any[] = Array.isArray(data?.foods) ? data.foods : [];
+  const food = foods.find((f) => {
+    const desc = String(f?.description ?? "");
+    return desc && !PROCESSED_TERMS.test(desc);
+  }) ?? null;
   if (!food) return null;
   const nutrients: Array<{ nutrientId?: number; value?: number }> = Array.isArray(food.foodNutrients) ? food.foodNutrients : [];
   const find = (id: number) => {
