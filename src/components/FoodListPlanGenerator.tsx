@@ -125,6 +125,7 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
         toast.error(data?.error || "Failed to generate meal plan. Please try again.");
         return;
       }
+      if (Array.isArray(data?.debug_targets)) setDebugTargets(data.debug_targets);
       setReviewList(normalizeList(data.food_list));
       setReviewOpen(true);
     } catch (e) {
