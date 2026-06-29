@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
 
       // CARBS — only if allocation > 0
       if (target.carbs_g > 0) {
-        const found = await findUSDAFood(cands.carbs ?? [], usedCarbs);
+        const found = await findUSDAFood(cands.carbs ?? [], usedCarbs, "Carbs");
         if (found) {
           const grams = roundPortionG((target.carbs_g * 100) / Math.max(1, found.per100.carbs_g));
           const factor = grams / 100;
