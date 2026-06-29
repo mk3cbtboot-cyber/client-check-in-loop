@@ -58,7 +58,7 @@ function cookedSearchTerm(name: string, category: "Protein" | "Carbs" | "Veg" | 
   if (category === "Fat") return clean; // oils/nuts/avocado — leave as-is
   if (/\bcooked\b/i.test(clean)) return clean;
   if (category === "Veg" && RAW_FOODS.test(clean)) return clean;
-  if (category === "Protein" && /\begg/i.test(clean)) return "eggs, whole, cooked, scrambled";
+  if (category === "Protein" && /\begg/i.test(clean)) return "eggs, whole, cooked";
   return `${clean}, cooked`;
 }
 
