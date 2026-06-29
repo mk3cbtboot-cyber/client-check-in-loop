@@ -62,31 +62,47 @@ async function findUSDAFood(
   return null;
 }
 
-async function aiCandidates(
+const VEG_POOL = [
+  "Broccoli", "Spinach", "Zucchini", "Bell Peppers", "Cucumber",
+  "Tomato", "Asparagus", "Green Beans", "Kale", "Cauliflower",
+];
+
+async function aiCandidatesForSlot(
   apiKey: string,
   params: {
-    slotsDesc: string;
+    slotKey: string;
+    slotLabel: string;
+    slotIndex: number;
+    totalSlots: number;
+    target: { calories: number; protein_g: number; carbs_g: number; fat_g: number };
+    excludedFoods: string[];
+    usedFats: string[];
     exclusions: string[];
     preferences: string;
   },
-): Promise<Record<SlotKey, { protein: string[]; carbs: string[]; veg: string[]; fat: string[] }>> {
-  const system = `You produce ranked food candidate lists for a daily meal plan. Use whole, specific foods (no protein powders, bars, packaged sauces). Return ONLY JSON.`;
-  const user = `For each meal slot below, list 6 ranked candidate foods per macro category. Each candidate is a specific named food (e.g. "Chicken Breast", "Brown Rice", "Broccoli", "Olive Oil"). Avoid generic terms. Respect exclusions.
+): Promise<{ protein: string[]; carbs: string[]; veg: string[]; fat: string[] }> {
+  const system = `You produce ranked food candidate lists for a single meal slot. Use whole, specific foods (no protein powders, bars, packaged sauces). Return ONLY JSON.`;
+  const fatRotationHint = params.usedFats.length > 0
+    ? `Rotate fat sources across slots. These fats were already used in earlier slots: ${params.usedFats.join(", ")}. Use a DIFFERENT fat source here (e.g. if Olive Oil was used, prefer Avocado, Coconut Oil, Ghee, Butter, Nuts, or Seeds).`
+    : `Pick one whole-food fat source (e.g. Olive Oil, Avocado, Coconut Oil, Ghee, Butter, Almonds, Walnuts).`;
+  const user = `Meal slot ${params.slotIndex + 1} of ${params.totalSlots}: ${params.slotKey} (${params.slotLabel})
+Target: ~${params.target.calories} kcal, P ${params.target.protein_g}g / C ${params.target.carbs_g}g / F ${params.target.fat_g}g
 
-Slots (in order):
-${params.slotsDesc}
+List 6 ranked candidate foods per macro category. Each candidate is a specific named food (e.g. "Chicken Breast", "Brown Rice", "Broccoli", "Olive Oil"). Avoid generic terms.
 
-Exclusions: ${params.exclusions.length ? params.exclusions.join(", ") : "(none)"}
+Do not use any of the following foods in this slot: ${params.excludedFoods.length ? params.excludedFoods.join(", ") : "(none)"}
+
+${fatRotationHint}
+
+Dietary exclusions (never suggest): ${params.exclusions.length ? params.exclusions.join(", ") : "(none)"}
 Additional preferences: ${params.preferences || "(none)"}
 
-Return JSON of this exact shape (omit keys for slots not in the list):
+Return JSON of this exact shape:
 {
-  "<slot_key>": {
-    "protein": ["...","...","...","...","...","..."],
-    "carbs":   ["...","...","...","...","...","..."],
-    "veg":     ["...","...","...","...","...","..."],
-    "fat":     ["...","...","...","...","...","..."]
-  }
+  "protein": ["...","...","...","...","...","..."],
+  "carbs":   ["...","...","...","...","...","..."],
+  "veg":     ["...","...","...","...","...","..."],
+  "fat":     ["...","...","...","...","...","..."]
 }`;
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -95,18 +111,25 @@ Return JSON of this exact shape (omit keys for slots not in the list):
       model: "google/gemini-2.5-flash",
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
       response_format: { type: "json_object" },
-      max_tokens: 4000,
+      max_tokens: 1500,
     }),
   });
   if (!res.ok) throw new Error(`AI candidate fetch failed: ${res.status}`);
   const data = await res.json();
   const content: string = data?.choices?.[0]?.message?.content ?? "{}";
   try {
-    return JSON.parse(content);
+    const parsed = JSON.parse(content);
+    return {
+      protein: Array.isArray(parsed.protein) ? parsed.protein : [],
+      carbs: Array.isArray(parsed.carbs) ? parsed.carbs : [],
+      veg: Array.isArray(parsed.veg) ? parsed.veg : [],
+      fat: Array.isArray(parsed.fat) ? parsed.fat : [],
+    };
   } catch {
-    return {} as Record<SlotKey, { protein: string[]; carbs: string[]; veg: string[]; fat: string[] }>;
+    return { protein: [], carbs: [], veg: [], fat: [] };
   }
 }
+
 
 async function aiEstimateMacros(apiKey: string, name: string, portion: string): Promise<Macros | null> {
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -188,30 +211,39 @@ Deno.serve(async (req) => {
       breakfast: "Breakfast", morning_snack: "Morning Snack", lunch: "Lunch",
       afternoon_snack: "Afternoon Snack", dinner: "Dinner",
     };
-    const slotsDesc = activeSlots.map((s, i) => {
-      const t = perMealTarget(i);
-      return `- ${s} (${slotLabelMap[s]}): ~${t.calories} kcal, P ${t.protein_g}g / C ${t.carbs_g}g / F ${t.fat_g}g`;
-    }).join("\n");
-
-    let candidatesBySlot: Record<string, { protein: string[]; carbs: string[]; veg: string[]; fat: string[] }> = {};
-    try {
-      candidatesBySlot = await aiCandidates(apiKey, { slotsDesc, exclusions, preferences });
-    } catch (e) {
-      console.error("aiCandidates failed", e);
-    }
 
     const usedProtein = new Set<string>();
     const usedCarbs = new Set<string>();
     const usedFat = new Set<string>();
     const usedVeg = new Set<string>();
+    const excludedFoods: string[] = []; // protein + carb names used in earlier slots
+    const usedFatNames: string[] = [];
 
     const out = emptyList() as Record<SlotKey, FoodItem[]>;
 
     for (let i = 0; i < activeSlots.length; i += 1) {
       const slot = activeSlots[i];
       const target = perMealTarget(i);
-      const cands = candidatesBySlot[slot] ?? { protein: [], carbs: [], veg: [], fat: [] };
+      let cands: { protein: string[]; carbs: string[]; veg: string[]; fat: string[] } = { protein: [], carbs: [], veg: [], fat: [] };
+      try {
+        cands = await aiCandidatesForSlot(apiKey, {
+          slotKey: slot,
+          slotLabel: slotLabelMap[slot],
+          slotIndex: i,
+          totalSlots: activeSlots.length,
+          target,
+          excludedFoods,
+          usedFats: usedFatNames,
+          exclusions,
+          preferences,
+        });
+      } catch (e) {
+        console.error("aiCandidatesForSlot failed", slot, e);
+      }
+      // Always include VEG_POOL as fallback candidates (filtered by used)
+      cands.veg = [...(cands.veg ?? []), ...VEG_POOL];
       const items: FoodItem[] = [];
+
 
       // PROTEIN — always one
       if (target.protein_g > 0) {
@@ -344,7 +376,19 @@ Deno.serve(async (req) => {
       }
 
       out[slot] = items;
+
+      // Progressively grow excluded lists for next slot's prompt.
+      for (const it of items) {
+        const cleanName = it.name.replace(/\s*\(estimated\)\s*$/i, "").trim();
+        if (it.category === "Protein" || it.category === "Carbs") {
+          if (!excludedFoods.includes(cleanName)) excludedFoods.push(cleanName);
+        }
+        if (it.category === "Fat") {
+          if (!usedFatNames.includes(cleanName)) usedFatNames.push(cleanName);
+        }
+      }
     }
+
 
     return new Response(JSON.stringify({ ok: true, food_list: out }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
