@@ -309,6 +309,42 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
         return out;
       });
     }
+    // Queue send-reduction prompt for the source meal that lost calories.
+    if (p.mode === "reduce") {
+      setPendingSend((prev) => ({
+        ...prev,
+        [mk]: { mk, slotIndex: MEAL_KEYS.indexOf(mk), delta: p.delta, choice: "split" },
+      }));
+    }
+  }
+
+  function applySlotSend(mk: MealKey) {
+    const p = pendingSend[mk];
+    if (!p) return;
+    setLocal((prev) => {
+      const s = { ...(prev[mk] ?? { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }) };
+      const cals = p.delta;
+      const subG = (m: ReallocMacro, c: number) => {
+        s[m] = Math.max(0, Math.round((Number(s[m]) || 0) - c / KCAL_PER_G[m]));
+      };
+      if (p.choice === "protein") subG("protein_g", cals);
+      else if (p.choice === "carbs") subG("carbs_g", cals);
+      else if (p.choice === "fat") subG("fat_g", cals);
+      else if (p.choice === "split") {
+        const third = cals / 3;
+        subG("protein_g", third);
+        subG("carbs_g", third);
+        subG("fat_g", third);
+      } else if (p.choice === "custom") {
+        s.protein_g = Math.max(0, Math.round((Number(s.protein_g) || 0) - (Number(p.customP) || 0)));
+        s.carbs_g = Math.max(0, Math.round((Number(s.carbs_g) || 0) - (Number(p.customC) || 0)));
+        s.fat_g = Math.max(0, Math.round((Number(s.fat_g) || 0) - (Number(p.customF) || 0)));
+      }
+      // Recompute calories from macros so totals stay consistent.
+      s.calories = Math.round((s.protein_g || 0) * 4 + (s.carbs_g || 0) * 4 + (s.fat_g || 0) * 9);
+      return { ...prev, [mk]: s };
+    });
+    setPendingSend((prev) => ({ ...prev, [mk]: null }));
   }
 
   function applySlotRecv(mk: MealKey) {
