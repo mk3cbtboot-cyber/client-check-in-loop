@@ -415,7 +415,7 @@ Deno.serve(async (req) => {
     }
 
 
-    return new Response(JSON.stringify({ ok: true, food_list: out }), {
+    return new Response(JSON.stringify({ ok: true, food_list: out, debug_targets: debugTargets }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
