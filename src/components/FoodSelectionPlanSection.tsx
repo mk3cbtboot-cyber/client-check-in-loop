@@ -91,25 +91,6 @@ interface SlotProps {
 }
 
 function SlotSelector({ token, slotKey, label, foods, initial, onSaved }: SlotProps) {
-  const [sel, setSel] = useState<Record<CategoryKey, string | null>>({
-    protein: initial.protein ?? null,
-    carbs: initial.carbs ?? null,
-    veg: initial.veg ?? null,
-    fat: initial.fat ?? null,
-  });
-  const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
-
-  useEffect(() => {
-    setSel({
-      protein: initial.protein ?? null,
-      carbs: initial.carbs ?? null,
-      veg: initial.veg ?? null,
-      fat: initial.fat ?? null,
-    });
-    setDirty(false);
-  }, [slotKey]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const grouped = useMemo(() => {
     const out: Record<CategoryKey, FoodItem[]> = { protein: [], carbs: [], veg: [], fat: [] };
     for (const f of foods) {
@@ -118,6 +99,51 @@ function SlotSelector({ token, slotKey, label, foods, initial, onSaved }: SlotPr
     }
     return out;
   }, [foods]);
+
+  // Auto-select the only option in any category with exactly one food and no prior selection.
+  const buildAutoSel = (): Record<CategoryKey, string | null> => {
+    const next: Record<CategoryKey, string | null> = {
+      protein: initial.protein ?? null,
+      carbs: initial.carbs ?? null,
+      veg: initial.veg ?? null,
+      fat: initial.fat ?? null,
+    };
+    for (const cat of ["protein", "carbs", "veg", "fat"] as CategoryKey[]) {
+      if (!next[cat] && grouped[cat].length === 1) {
+        next[cat] = foodKey(grouped[cat][0]);
+      }
+    }
+    return next;
+  };
+
+  const [sel, setSel] = useState<Record<CategoryKey, string | null>>(buildAutoSel);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  // On slot/foods change, recompute auto-selections and silently persist when newly filled.
+  useEffect(() => {
+    const next = buildAutoSel();
+    setSel(next);
+    setDirty(false);
+    const autoFilled =
+      (!initial.protein && next.protein) ||
+      (!initial.carbs && next.carbs) ||
+      (!initial.veg && next.veg) ||
+      (!initial.fat && next.fat);
+    if (autoFilled) {
+      supabase.functions.invoke("save-food-selections", {
+        body: { token, slot_key: slotKey, selections: next },
+      }).then(({ data, error }) => {
+        if (error || data?.error) return;
+        onSaved({
+          protein: next.protein ?? null,
+          carbs: next.carbs ?? null,
+          veg: next.veg ?? null,
+          fat: next.fat ?? null,
+        });
+      });
+    }
+  }, [slotKey, foods]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const empty = foods.length === 0;
 
