@@ -328,7 +328,7 @@ Deno.serve(async (req) => {
       // VEG — include 2 vegetables, avoid repeats across slots
       const vegCount = 2;
       for (let v = 0; v < vegCount; v += 1) {
-        const found = await findUSDAFood(cands.veg ?? [], usedVeg);
+        const found = await findUSDAFood(cands.veg ?? [], usedVeg, "Veg");
         const grams = 100;
         if (found) {
           const factor = grams / 100;
