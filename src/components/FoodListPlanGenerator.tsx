@@ -206,6 +206,17 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
             {generating ? "Generating…" : "Generate"}
           </Button>
         </div>
+
+        {import.meta.env.DEV && debugTargets && debugTargets.length > 0 && (
+          <div className="rounded border border-dashed p-2 font-mono text-xs whitespace-pre-wrap">
+            <div className="font-semibold mb-1">Generation targets used:</div>
+            {debugTargets.map((t) => (
+              <div key={t.slot_index}>
+                Meal {t.slot_index + 1} ({t.slot}) — Protein: {t.protein_g}g | Carbs: {t.carbs_g}g | Fat: {t.fat_g}g | Calories: {t.calories}
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
