@@ -313,7 +313,7 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     if (p.mode === "reduce") {
       setPendingSend((prev) => ({
         ...prev,
-        [mk]: { mk, slotIndex: MEAL_KEYS.indexOf(mk), delta: p.delta, choice: "split" },
+        [mk]: { mk, slotIndex: MEAL_KEYS.indexOf(mk), delta: p.delta, choice: "custom" },
       }));
     }
   }
