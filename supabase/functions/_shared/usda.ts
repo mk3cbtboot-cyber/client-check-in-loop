@@ -3,6 +3,7 @@
 // Falls back to null on any failure so callers can use AI estimation.
 
 export type Macros = { calories: number; protein_g: number; carbs_g: number; fat_g: number };
+export type UsdaCandidate = { description: string; per100: Macros };
 
 const FDC_API = "https://api.nal.usda.gov/fdc/v1";
 
@@ -12,49 +13,32 @@ export function portionToGrams(portion: string, name: string): number | null {
   const p = (portion || "").trim().toLowerCase();
   if (!p) return null;
 
-  // Pure grams
   const g = p.match(/^([\d.]+)\s*g(?:ram)?s?\b/);
   if (g) return parseFloat(g[1]);
 
-  // Number + unit
   const m = p.match(/^([\d.]+)\s*([a-z]+)/);
   if (!m) return null;
   const n = parseFloat(m[1]);
   const unit = m[2];
 
-  // Approximate gram weights per common unit. Oils ≈ 4.5g/tsp, 13.6g/tbsp.
   const isOil = /\b(oil|butter|ghee|tallow|lard)\b/i.test(name);
   switch (unit) {
-    case "tsp":
-    case "teaspoon":
-    case "teaspoons":
+    case "tsp": case "teaspoon": case "teaspoons":
       return n * (isOil ? 4.5 : 5);
-    case "tbsp":
-    case "tablespoon":
-    case "tablespoons":
+    case "tbsp": case "tablespoon": case "tablespoons":
       return n * (isOil ? 13.6 : 15);
-    case "cup":
-    case "cups":
+    case "cup": case "cups":
       return n * 240;
-    case "oz":
-    case "ounce":
-    case "ounces":
+    case "oz": case "ounce": case "ounces":
       return n * 28.35;
-    case "ml":
-      return n;
-    case "kg":
-      return n * 1000;
-    case "lb":
-    case "lbs":
-    case "pound":
-    case "pounds":
+    case "ml": return n;
+    case "kg": return n * 1000;
+    case "lb": case "lbs": case "pound": case "pounds":
       return n * 453.6;
-    default:
-      return null;
+    default: return null;
   }
 }
 
-// Strip parentheticals + extra qualifiers so the search query is the core food name.
 function cleanName(name: string): string {
   return name
     .replace(/\([^)]*\)/g, " ")
@@ -63,31 +47,17 @@ function cleanName(name: string): string {
     .trim();
 }
 
-const cache = new Map<string, Macros | null>();
+const candidateCache = new Map<string, UsdaCandidate[]>();
 
 const PROCESSED_TERMS = /\b(protein powder|whey|isolate|concentrate|supplement|shake|protein bar|powder|fortified|enriched)\b/i;
 
-async function searchFdc(apiKey: string, query: string): Promise<Macros | null> {
-  const url = `${FDC_API}/foods/search?api_key=${encodeURIComponent(apiKey)}&query=${encodeURIComponent(query)}&pageSize=10&dataType=${encodeURIComponent("Foundation,SR Legacy")}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    console.error("USDA search failed", res.status, await res.text());
-    return null;
-  }
-  const data = await res.json();
-  const foods: any[] = Array.isArray(data?.foods) ? data.foods : [];
-  const food = foods.find((f) => {
-    const desc = String(f?.description ?? "");
-    return desc && !PROCESSED_TERMS.test(desc);
-  }) ?? null;
-  if (!food) return null;
-  const nutrients: Array<{ nutrientId?: number; value?: number }> = Array.isArray(food.foodNutrients) ? food.foodNutrients : [];
+function extractMacros(food: any): Macros {
+  const nutrients: Array<{ nutrientId?: number; value?: number }> = Array.isArray(food?.foodNutrients) ? food.foodNutrients : [];
   const find = (id: number) => {
     const f = nutrients.find((x) => Number(x?.nutrientId) === id);
     const v = Number(f?.value);
     return Number.isFinite(v) ? v : 0;
   };
-  // Values are per 100g.
   return {
     calories: find(1008),
     protein_g: find(1003),
@@ -96,25 +66,48 @@ async function searchFdc(apiKey: string, query: string): Promise<Macros | null> 
   };
 }
 
-// Lookup USDA macros for a name + portion. Returns null on miss/error.
-export async function usdaMacros(name: string, portion: string): Promise<Macros | null> {
-  const apiKey = Deno.env.get("USDA_FDC_API_KEY");
-  if (!apiKey) return null;
-  const cleaned = cleanName(name);
-  if (!cleaned) return null;
-
-  let per100: Macros | null | undefined = cache.get(cleaned.toLowerCase());
-  if (per100 === undefined) {
-    try {
-      per100 = await searchFdc(apiKey, cleaned);
-    } catch (e) {
-      console.error("USDA fetch error", e);
-      per100 = null;
-    }
-    cache.set(cleaned.toLowerCase(), per100);
+async function searchFdcAll(apiKey: string, query: string): Promise<UsdaCandidate[]> {
+  const url = `${FDC_API}/foods/search?api_key=${encodeURIComponent(apiKey)}&query=${encodeURIComponent(query)}&pageSize=10&dataType=${encodeURIComponent("Foundation,SR Legacy")}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    console.error("USDA search failed", res.status, await res.text());
+    return [];
   }
-  if (!per100) return null;
+  const data = await res.json();
+  const foods: any[] = Array.isArray(data?.foods) ? data.foods : [];
+  return foods
+    .filter((f) => {
+      const desc = String(f?.description ?? "");
+      return desc && !PROCESSED_TERMS.test(desc);
+    })
+    .map((f) => ({ description: String(f.description), per100: extractMacros(f) }));
+}
 
+// Return all whole-food USDA candidates (per 100g) for a search term.
+export async function usdaCandidates(name: string): Promise<UsdaCandidate[]> {
+  const apiKey = Deno.env.get("USDA_FDC_API_KEY");
+  if (!apiKey) return [];
+  const cleaned = cleanName(name);
+  if (!cleaned) return [];
+  const cacheKey = cleaned.toLowerCase();
+  const cached = candidateCache.get(cacheKey);
+  if (cached) return cached;
+  let list: UsdaCandidate[] = [];
+  try {
+    list = await searchFdcAll(apiKey, cleaned);
+  } catch (e) {
+    console.error("USDA fetch error", e);
+    list = [];
+  }
+  candidateCache.set(cacheKey, list);
+  return list;
+}
+
+// Backward-compatible single-result lookup.
+export async function usdaMacros(name: string, portion: string): Promise<Macros | null> {
+  const list = await usdaCandidates(name);
+  const per100 = list[0]?.per100 ?? null;
+  if (!per100) return null;
   const grams = portionToGrams(portion, name) ?? 100;
   const factor = grams / 100;
   return {

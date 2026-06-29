@@ -80,6 +80,7 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
   const [exclusionsText, setExclusionsText] = useState((foodExclusions ?? []).join(", "));
   const [preferences, setPreferences] = useState("");
   const [debugTargets, setDebugTargets] = useState<Array<{ slot: string; slot_index: number; calories: number; protein_g: number; carbs_g: number; fat_g: number }> | null>(null);
+  const [debugFoods, setDebugFoods] = useState<Array<{ slot: string; slot_index: number; name: string; category: string; usda_description?: string; density_macro?: string; density_value?: number; portion: string; estimated: boolean }> | null>(null);
 
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewList, setReviewList] = useState<FoodList>(emptyList());
@@ -126,6 +127,7 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
         return;
       }
       if (Array.isArray(data?.debug_targets)) setDebugTargets(data.debug_targets);
+      if (Array.isArray(data?.debug_foods)) setDebugFoods(data.debug_foods);
       setReviewList(normalizeList(data.food_list));
       setReviewOpen(true);
     } catch (e) {
@@ -208,13 +210,29 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
         </div>
 
         {import.meta.env.DEV && debugTargets && debugTargets.length > 0 && (
-          <div className="rounded border border-dashed p-2 font-mono text-xs whitespace-pre-wrap">
-            <div className="font-semibold mb-1">Generation targets used:</div>
-            {debugTargets.map((t) => (
-              <div key={t.slot_index}>
-                Meal {t.slot_index + 1} ({t.slot}) — Protein: {t.protein_g}g | Carbs: {t.carbs_g}g | Fat: {t.fat_g}g | Calories: {t.calories}
+          <div className="rounded border border-dashed p-2 font-mono text-xs whitespace-pre-wrap space-y-2">
+            <div>
+              <div className="font-semibold mb-1">Generation targets used:</div>
+              {debugTargets.map((t) => (
+                <div key={t.slot_index}>
+                  Meal {t.slot_index + 1} ({t.slot}) — Protein: {t.protein_g}g | Carbs: {t.carbs_g}g | Fat: {t.fat_g}g | Calories: {t.calories}
+                </div>
+              ))}
+            </div>
+            {debugFoods && debugFoods.length > 0 && (
+              <div>
+                <div className="font-semibold mb-1">USDA values per food:</div>
+                {debugFoods.map((f, idx) => (
+                  <div key={idx}>
+                    Meal {f.slot_index + 1} — {f.name} [{f.category}] |{" "}
+                    {f.estimated
+                      ? "USDA: (estimated, no match)"
+                      : `USDA: "${f.usda_description}" (${f.density_value}g ${f.density_macro} per 100g)`}{" "}
+                    | Portion: {f.portion}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
       </Card>
