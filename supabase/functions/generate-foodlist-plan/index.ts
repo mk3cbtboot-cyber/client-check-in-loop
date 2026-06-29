@@ -1,7 +1,5 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { jsonrepair } from "npm:jsonrepair@3.8.0";
-import { usdaMacros } from "../_shared/usda.ts";
-
+import { usdaMacros, type Macros } from "../_shared/usda.ts";
 
 const SLOT_KEYS = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"] as const;
 type SlotKey = (typeof SLOT_KEYS)[number];
@@ -16,92 +14,125 @@ function emptyList() {
   return { breakfast: [], morning_snack: [], lunch: [], afternoon_snack: [], dinner: [] } as Record<SlotKey, unknown[]>;
 }
 
-function stripJsonWrapper(raw: string) {
-  return (raw ?? "").replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+type FoodItem = {
+  name: string;
+  portion: string;
+  category: "Protein" | "Carbs" | "Veg" | "Fat";
+  est_macros?: Macros;
+};
+
+function canon(name: string): string {
+  return name.toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z]+/g, " ").trim();
 }
 
-function extractJsonCandidate(raw: string) {
-  let s = stripJsonWrapper(raw);
-  const start = s.search(/[\{\[]/);
-  if (start === -1) throw new Error("No JSON found");
-  const open = s[start];
-  const close = open === "[" ? "]" : "}";
-  const end = s.lastIndexOf(close);
-  if (start === -1 || end === -1) throw new Error("No JSON found");
-  return s.substring(start, end + 1);
+function roundPortionG(g: number): number {
+  if (g <= 0) return 0;
+  if (g < 20) return Math.max(5, Math.round(g));
+  if (g < 100) return Math.round(g / 5) * 5;
+  return Math.round(g / 10) * 10;
 }
 
-function getStringField(block: string, field: "name" | "portion" | "category") {
-  const match = block.match(new RegExp(`"${field}"\\s*:\\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`, "i"));
-  if (!match) return "";
+function fmtPortionG(g: number): string {
+  return `${roundPortionG(g)}g`;
+}
+
+function isOilName(name: string): boolean {
+  return /\b(oil|ghee)\b/i.test(name);
+}
+
+function fatPortionString(name: string, targetFatG: number): { portion: string; grams: number } {
+  if (isOilName(name)) {
+    // 1 tsp oil ≈ 4.5g
+    const tsp = Math.max(1, Math.round(targetFatG / 4.5));
+    return { portion: `${tsp} tsp`, grams: tsp * 4.5 };
+  }
+  return { portion: fmtPortionG(targetFatG / 0.5), grams: roundPortionG(targetFatG / 0.5) }; // approx; replaced after USDA lookup
+}
+
+async function findUSDAFood(
+  candidates: string[],
+  used: Set<string>,
+): Promise<{ name: string; per100: Macros } | null> {
+  for (const cand of candidates) {
+    const key = canon(cand);
+    if (!key || used.has(key)) continue;
+    const per100 = await usdaMacros(cand, "100g").catch(() => null);
+    if (per100) return { name: cand, per100 };
+  }
+  return null;
+}
+
+async function aiCandidates(
+  apiKey: string,
+  params: {
+    slotsDesc: string;
+    exclusions: string[];
+    preferences: string;
+  },
+): Promise<Record<SlotKey, { protein: string[]; carbs: string[]; veg: string[]; fat: string[] }>> {
+  const system = `You produce ranked food candidate lists for a daily meal plan. Use whole, specific foods (no protein powders, bars, packaged sauces). Return ONLY JSON.`;
+  const user = `For each meal slot below, list 6 ranked candidate foods per macro category. Each candidate is a specific named food (e.g. "Chicken Breast", "Brown Rice", "Broccoli", "Olive Oil"). Avoid generic terms. Respect exclusions.
+
+Slots (in order):
+${params.slotsDesc}
+
+Exclusions: ${params.exclusions.length ? params.exclusions.join(", ") : "(none)"}
+Additional preferences: ${params.preferences || "(none)"}
+
+Return JSON of this exact shape (omit keys for slots not in the list):
+{
+  "<slot_key>": {
+    "protein": ["...","...","...","...","...","..."],
+    "carbs":   ["...","...","...","...","...","..."],
+    "veg":     ["...","...","...","...","...","..."],
+    "fat":     ["...","...","...","...","...","..."]
+  }
+}`;
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+      response_format: { type: "json_object" },
+      max_tokens: 4000,
+    }),
+  });
+  if (!res.ok) throw new Error(`AI candidate fetch failed: ${res.status}`);
+  const data = await res.json();
+  const content: string = data?.choices?.[0]?.message?.content ?? "{}";
   try {
-    return JSON.parse(`"${match[1]}"`);
+    return JSON.parse(content);
   } catch {
-    return match[1];
+    return {} as Record<SlotKey, { protein: string[]; carbs: string[]; veg: string[]; fat: string[] }>;
   }
 }
 
-function parseFoodObject(block: string) {
+async function aiEstimateMacros(apiKey: string, name: string, portion: string): Promise<Macros | null> {
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: `Return ONLY JSON {"calories":number,"protein_g":number,"carbs_g":number,"fat_g":number} for the given food + portion. Cooked weights unless noted. Integers.` },
+        { role: "user", content: `${name} — ${portion}` },
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
   try {
-    return JSON.parse(block) as Record<string, unknown>;
+    const o = JSON.parse(data?.choices?.[0]?.message?.content ?? "{}");
+    return {
+      calories: Math.round(Number(o.calories) || 0),
+      protein_g: Math.round(Number(o.protein_g) || 0),
+      carbs_g: Math.round(Number(o.carbs_g) || 0),
+      fat_g: Math.round(Number(o.fat_g) || 0),
+    };
   } catch {
-    try {
-      return JSON.parse(jsonrepair(block)) as Record<string, unknown>;
-    } catch {
-      const name = getStringField(block, "name");
-      const portion = getStringField(block, "portion");
-      const category = getStringField(block, "category");
-      return name ? { name, portion, category } : null;
-    }
-  }
-}
-
-function recoverSlotArrays(raw: string, activeSlots: readonly SlotKey[]) {
-  const source = stripJsonWrapper(raw);
-  const escapedSlots = activeSlots.map((slot) => slot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const keyRegex = new RegExp(`['"]?(${escapedSlots.join("|")})['"]?\\s*:`, "g");
-  const matches = Array.from(source.matchAll(keyRegex)).map((match) => ({
-    slot: match[1] as SlotKey,
-    index: match.index ?? 0,
-  }));
-  const recovered: Record<string, unknown[]> = {};
-
-  for (let i = 0; i < matches.length; i += 1) {
-    const { slot, index } = matches[i];
-    const nextKeyIndex = matches[i + 1]?.index ?? source.length;
-    const arrayStart = source.indexOf("[", index);
-    if (arrayStart === -1 || arrayStart > nextKeyIndex) continue;
-
-    // Use the text until the next slot key rather than trusting the closing bracket.
-    // This recovers outputs like: } installs,"lunch": [ ...
-    const segment = source.slice(arrayStart + 1, nextKeyIndex);
-    const objects = segment.match(/\{[^{}]*\}/g) ?? [];
-    recovered[slot] = objects
-      .map(parseFoodObject)
-      .filter((item): item is Record<string, unknown> => Boolean(item?.name));
-  }
-
-  return recovered;
-}
-
-function extractJson(raw: string, activeSlots: readonly SlotKey[]): Record<string, unknown> {
-  let s = extractJsonCandidate(raw);
-  try { return JSON.parse(s); } catch {
-    try {
-      const fixed = s.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
-      return JSON.parse(fixed);
-    } catch (fixedError) {
-      try {
-        return JSON.parse(jsonrepair(s));
-      } catch {
-        const recovered = recoverSlotArrays(raw, activeSlots);
-        if (activeSlots.some((slot) => Array.isArray(recovered[slot]) && recovered[slot].length > 0)) {
-          console.warn("Recovered malformed AI JSON using slot-array parser", fixedError instanceof Error ? fixedError.message : String(fixedError));
-          return recovered;
-        }
-        throw fixedError;
-      }
-    }
+    return null;
   }
 }
 
@@ -131,15 +162,7 @@ Deno.serve(async (req) => {
       ? body.exclusions.map((x: unknown) => String(x ?? "").trim()).filter((x: string) => x.length > 0)
       : [];
     const preferences = typeof body?.preferences === "string" ? body.preferences.trim() : "";
-
     const activeSlots = slotsForMeals(meals_per_day);
-    const slotLabelMap: Record<SlotKey, string> = {
-      breakfast: "Breakfast (main)",
-      morning_snack: "Morning Snack (snack)",
-      lunch: "Lunch (main)",
-      afternoon_snack: "Afternoon Snack (snack)",
-      dinner: "Dinner (main)",
-    };
 
     const MEAL_KEYS = ["meal_1", "meal_2", "meal_3", "meal_4", "meal_5"] as const;
     const allocRaw = (body?.macro_allocation ?? null) as Record<string, { calories?: number; protein_g?: number; carbs_g?: number; fat_g?: number }> | null;
@@ -161,102 +184,166 @@ Deno.serve(async (req) => {
       };
     }
 
-    const activeDesc = activeSlots.map((s, i) => {
+    const slotLabelMap: Record<SlotKey, string> = {
+      breakfast: "Breakfast", morning_snack: "Morning Snack", lunch: "Lunch",
+      afternoon_snack: "Afternoon Snack", dinner: "Dinner",
+    };
+    const slotsDesc = activeSlots.map((s, i) => {
       const t = perMealTarget(i);
-      return `${i + 1}. ${s} — ${slotLabelMap[s]} — target ~${t.calories} kcal (P ${t.protein_g}g / C ${t.carbs_g}g / F ${t.fat_g}g)`;
+      return `- ${s} (${slotLabelMap[s]}): ~${t.calories} kcal, P ${t.protein_g}g / C ${t.carbs_g}g / F ${t.fat_g}g`;
     }).join("\n");
 
-    const systemPrompt = `You are a clinical nutrition assistant generating a daily food list for one client.
-
-OUTPUT FORMAT: Respond ONLY with JSON of this exact shape (omit keys for slots that are NOT in the active list):
-{
-  "breakfast": [{"name": string, "portion": string, "category": "Protein"|"Carbs"|"Veg"|"Fat"}],
-  "morning_snack": [...],
-  "lunch": [...],
-  "afternoon_snack": [...],
-  "dinner": [...]
-}
-
-RULES:
-- Use ONLY whole, unprocessed foods (no protein powders, no bars, no packaged sauces).
-- For each active meal slot, provide 3–4 specific food options per category (Protein, Carbs, Veg, Fat). Each option is a separate array entry with the same category value.
-- Specific named foods only — "Chicken Breast", "Turkey Breast", "White Fish (cod, haddock)", "Brown Rice (cooked)" — NEVER generic terms like "Poultry", "Grain", "Vegetables".
-- Portion is grams, formatted as "<number>g" (e.g. "120g"). Cooked weights for proteins and carbs.
-- EXCEPTION: For oils and liquid fats (olive oil, coconut oil, avocado oil, sesame oil, flaxseed oil, butter, ghee, etc.), use teaspoons formatted as "<number> tsp" (e.g. "2 tsp") instead of grams. All other foods, including solid fats like nuts, seeds, and avocado, remain in grams.
-- Match the PER-MEAL macro targets provided for each slot. Portion sizes within a slot should be sized so that choosing one option per category in that slot approximates that slot's macro target.
-- Snack slots typically need only Protein + Carbs (or Protein + Fat) — Veg/Fat optional for snacks; main meals should always include all four categories.
-- Strictly exclude any food on the exclusions list (including variants).
-- Honour the practitioner's additional preferences.`;
-
-    const userPrompt = `Daily macro targets:
-- Calories: ${calories} kcal
-- Protein: ${protein_g} g
-- Carbs: ${carbs_g} g
-- Fat: ${fat_g} g
-
-Meals per day: ${meals_per_day}
-Active slots (in order) with per-meal targets:
-${activeDesc}
-
-Food exclusions (do not use any of these or close variants): ${exclusions.length ? exclusions.join(", ") : "(none)"}
-
-Additional preferences: ${preferences || "(none)"}
-
-Generate the food list now. Return JSON only.`;
-
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        response_format: { type: "json_object" },
-        max_tokens: 8000,
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("AI gateway error", res.status, text);
-      if (res.status === 429) return new Response(JSON.stringify({ error: "Rate limit, please retry shortly." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (res.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      return new Response(JSON.stringify({ error: "AI generation failed" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const data = await res.json();
-    const content: string = data?.choices?.[0]?.message?.content ?? "";
-    let parsed: Record<string, unknown> = {};
+    let candidatesBySlot: Record<string, { protein: string[]; carbs: string[]; veg: string[]; fat: string[] }> = {};
     try {
-      parsed = extractJson(content, activeSlots);
-    } catch (err) {
-      console.error("JSON parse failed. Raw content:", content?.slice(0, 2000));
-      return new Response(JSON.stringify({ error: "AI returned invalid JSON", detail: err instanceof Error ? err.message : String(err) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      candidatesBySlot = await aiCandidates(apiKey, { slotsDesc, exclusions, preferences });
+    } catch (e) {
+      console.error("aiCandidates failed", e);
     }
 
-    const CATS = new Set(["Protein", "Carbs", "Veg", "Fat"]);
-    const out = emptyList();
-    for (const slot of activeSlots) {
-      const arr = Array.isArray(parsed[slot]) ? (parsed[slot] as unknown[]) : [];
-      out[slot] = arr.map((x) => {
-        const o = (x ?? {}) as Record<string, unknown>;
-        const cat = String(o.category ?? "");
-        return {
-          name: String(o.name ?? "").trim(),
-          portion: String(o.portion ?? "").trim(),
-          category: CATS.has(cat) ? cat : "Other",
-        };
-      }).filter((it) => it.name.length > 0);
-    }
+    const usedProtein = new Set<string>();
+    const usedCarbs = new Set<string>();
+    const usedFat = new Set<string>();
+    const usedVeg = new Set<string>();
 
-    // Enrich each food item with USDA-derived macros (per portion).
-    for (const slot of activeSlots) {
-      const list = out[slot] as Array<{ name: string; portion: string; category: string; est_macros?: unknown }>;
-      await Promise.all(list.map(async (item) => {
-        const m = await usdaMacros(item.name, item.portion).catch(() => null);
-        if (m) item.est_macros = m;
-      }));
+    const out = emptyList() as Record<SlotKey, FoodItem[]>;
+
+    for (let i = 0; i < activeSlots.length; i += 1) {
+      const slot = activeSlots[i];
+      const target = perMealTarget(i);
+      const cands = candidatesBySlot[slot] ?? { protein: [], carbs: [], veg: [], fat: [] };
+      const items: FoodItem[] = [];
+
+      // PROTEIN — always one
+      if (target.protein_g > 0) {
+        const found = await findUSDAFood(cands.protein ?? [], usedProtein);
+        if (found) {
+          const grams = roundPortionG((target.protein_g * 100) / Math.max(1, found.per100.protein_g));
+          const factor = grams / 100;
+          usedProtein.add(canon(found.name));
+          items.push({
+            name: found.name,
+            portion: fmtPortionG(grams),
+            category: "Protein",
+            est_macros: {
+              calories: Math.round(found.per100.calories * factor),
+              protein_g: Math.round(found.per100.protein_g * factor),
+              carbs_g: Math.round(found.per100.carbs_g * factor),
+              fat_g: Math.round(found.per100.fat_g * factor),
+            },
+          });
+        } else {
+          const fallbackName = (cands.protein ?? []).find((n) => !usedProtein.has(canon(n))) ?? "Chicken Breast";
+          const portion = fmtPortionG((target.protein_g * 100) / 30); // assume ~30g protein per 100g
+          const est = await aiEstimateMacros(apiKey, fallbackName, portion);
+          usedProtein.add(canon(fallbackName));
+          items.push({ name: `${fallbackName} (estimated)`, portion, category: "Protein", est_macros: est ?? undefined });
+        }
+      }
+
+      // CARBS — only if allocation > 0
+      if (target.carbs_g > 0) {
+        const found = await findUSDAFood(cands.carbs ?? [], usedCarbs);
+        if (found) {
+          const grams = roundPortionG((target.carbs_g * 100) / Math.max(1, found.per100.carbs_g));
+          const factor = grams / 100;
+          usedCarbs.add(canon(found.name));
+          items.push({
+            name: found.name,
+            portion: fmtPortionG(grams),
+            category: "Carbs",
+            est_macros: {
+              calories: Math.round(found.per100.calories * factor),
+              protein_g: Math.round(found.per100.protein_g * factor),
+              carbs_g: Math.round(found.per100.carbs_g * factor),
+              fat_g: Math.round(found.per100.fat_g * factor),
+            },
+          });
+        } else {
+          const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n))) ?? "Brown Rice (cooked)";
+          const portion = fmtPortionG((target.carbs_g * 100) / 25);
+          const est = await aiEstimateMacros(apiKey, fallbackName, portion);
+          usedCarbs.add(canon(fallbackName));
+          items.push({ name: `${fallbackName} (estimated)`, portion, category: "Carbs", est_macros: est ?? undefined });
+        }
+      }
+
+      // VEG — include 2 vegetables, avoid repeats across slots
+      const vegCount = 2;
+      for (let v = 0; v < vegCount; v += 1) {
+        const found = await findUSDAFood(cands.veg ?? [], usedVeg);
+        const grams = 100;
+        if (found) {
+          const factor = grams / 100;
+          usedVeg.add(canon(found.name));
+          items.push({
+            name: found.name,
+            portion: fmtPortionG(grams),
+            category: "Veg",
+            est_macros: {
+              calories: Math.round(found.per100.calories * factor),
+              protein_g: Math.round(found.per100.protein_g * factor),
+              carbs_g: Math.round(found.per100.carbs_g * factor),
+              fat_g: Math.round(found.per100.fat_g * factor),
+            },
+          });
+        } else {
+          const fallbackName = (cands.veg ?? []).find((n) => !usedVeg.has(canon(n)));
+          if (!fallbackName) break;
+          const est = await aiEstimateMacros(apiKey, fallbackName, `${grams}g`);
+          usedVeg.add(canon(fallbackName));
+          items.push({ name: `${fallbackName} (estimated)`, portion: `${grams}g`, category: "Veg", est_macros: est ?? undefined });
+        }
+      }
+
+      // FAT — only if allocation > 0
+      if (target.fat_g > 0) {
+        const found = await findUSDAFood(cands.fat ?? [], usedFat);
+        if (found) {
+          if (isOilName(found.name)) {
+            const tsp = Math.max(1, Math.round(target.fat_g / 4.5));
+            const grams = tsp * 4.5;
+            const factor = grams / 100;
+            usedFat.add(canon(found.name));
+            items.push({
+              name: found.name,
+              portion: `${tsp} tsp`,
+              category: "Fat",
+              est_macros: {
+                calories: Math.round(found.per100.calories * factor),
+                protein_g: Math.round(found.per100.protein_g * factor),
+                carbs_g: Math.round(found.per100.carbs_g * factor),
+                fat_g: Math.round(found.per100.fat_g * factor),
+              },
+            });
+          } else {
+            const grams = roundPortionG((target.fat_g * 100) / Math.max(1, found.per100.fat_g));
+            const factor = grams / 100;
+            usedFat.add(canon(found.name));
+            items.push({
+              name: found.name,
+              portion: fmtPortionG(grams),
+              category: "Fat",
+              est_macros: {
+                calories: Math.round(found.per100.calories * factor),
+                protein_g: Math.round(found.per100.protein_g * factor),
+                carbs_g: Math.round(found.per100.carbs_g * factor),
+                fat_g: Math.round(found.per100.fat_g * factor),
+              },
+            });
+          }
+        } else {
+          const fallbackName = (cands.fat ?? []).find((n) => !usedFat.has(canon(n))) ?? "Olive Oil";
+          const isOil = isOilName(fallbackName);
+          const portion = isOil
+            ? `${Math.max(1, Math.round(target.fat_g / 4.5))} tsp`
+            : fatPortionString(fallbackName, target.fat_g).portion;
+          const est = await aiEstimateMacros(apiKey, fallbackName, portion);
+          usedFat.add(canon(fallbackName));
+          items.push({ name: `${fallbackName} (estimated)`, portion, category: "Fat", est_macros: est ?? undefined });
+        }
+      }
+
+      out[slot] = items;
     }
 
     return new Response(JSON.stringify({ ok: true, food_list: out }), {
