@@ -210,13 +210,29 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
         </div>
 
         {import.meta.env.DEV && debugTargets && debugTargets.length > 0 && (
-          <div className="rounded border border-dashed p-2 font-mono text-xs whitespace-pre-wrap">
-            <div className="font-semibold mb-1">Generation targets used:</div>
-            {debugTargets.map((t) => (
-              <div key={t.slot_index}>
-                Meal {t.slot_index + 1} ({t.slot}) — Protein: {t.protein_g}g | Carbs: {t.carbs_g}g | Fat: {t.fat_g}g | Calories: {t.calories}
+          <div className="rounded border border-dashed p-2 font-mono text-xs whitespace-pre-wrap space-y-2">
+            <div>
+              <div className="font-semibold mb-1">Generation targets used:</div>
+              {debugTargets.map((t) => (
+                <div key={t.slot_index}>
+                  Meal {t.slot_index + 1} ({t.slot}) — Protein: {t.protein_g}g | Carbs: {t.carbs_g}g | Fat: {t.fat_g}g | Calories: {t.calories}
+                </div>
+              ))}
+            </div>
+            {debugFoods && debugFoods.length > 0 && (
+              <div>
+                <div className="font-semibold mb-1">USDA values per food:</div>
+                {debugFoods.map((f, idx) => (
+                  <div key={idx}>
+                    Meal {f.slot_index + 1} — {f.name} [{f.category}] |{" "}
+                    {f.estimated
+                      ? "USDA: (estimated, no match)"
+                      : `USDA: "${f.usda_description}" (${f.density_value}g ${f.density_macro} per 100g)`}{" "}
+                    | Portion: {f.portion}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
       </Card>
