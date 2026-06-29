@@ -79,6 +79,7 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
   const meals = defaultMeals;
   const [exclusionsText, setExclusionsText] = useState((foodExclusions ?? []).join(", "));
   const [preferences, setPreferences] = useState("");
+  const [debugTargets, setDebugTargets] = useState<Array<{ slot: string; slot_index: number; calories: number; protein_g: number; carbs_g: number; fat_g: number }> | null>(null);
 
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewList, setReviewList] = useState<FoodList>(emptyList());
