@@ -286,7 +286,7 @@ Deno.serve(async (req) => {
             },
           });
         } else {
-          const fallbackName = (cands.protein ?? []).find((n) => !usedProtein.has(canon(n))) ?? (i === 0 ? "Whole Eggs, scrambled" : "Chicken Breast, cooked");
+          const fallbackName = (cands.protein ?? []).find((n) => !usedProtein.has(canon(n))) ?? (i === 0 ? "Eggs" : "Chicken Breast, cooked");
           const portion = fmtPortionG((target.protein_g * 100) / 30); // assume ~30g protein per 100g
           const est = await aiEstimateMacros(apiKey, fallbackName, portion);
           usedProtein.add(canon(fallbackName));
