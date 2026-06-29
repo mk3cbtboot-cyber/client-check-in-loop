@@ -238,10 +238,13 @@ Deno.serve(async (req) => {
     const usedFatNames: string[] = [];
 
     const out = emptyList() as Record<SlotKey, FoodItem[]>;
+    const debugTargets: Array<{ slot: string; slot_index: number; calories: number; protein_g: number; carbs_g: number; fat_g: number }> = [];
 
     for (let i = 0; i < activeSlots.length; i += 1) {
       const slot = activeSlots[i];
       const target = perMealTarget(i);
+      console.log(`[generate-foodlist-plan] Slot ${i + 1} (${slot}): protein=${target.protein_g}g carbs=${target.carbs_g}g fat=${target.fat_g}g calories=${target.calories}`);
+      debugTargets.push({ slot, slot_index: i, ...target });
       let cands: { protein: string[]; carbs: string[]; veg: string[]; fat: string[] } = { protein: [], carbs: [], veg: [], fat: [] };
       try {
         cands = await aiCandidatesForSlot(apiKey, {
