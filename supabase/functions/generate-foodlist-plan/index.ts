@@ -264,12 +264,16 @@ Deno.serve(async (req) => {
       }
       // Always include VEG_POOL as fallback candidates (filtered by used)
       cands.veg = [...(cands.veg ?? []), ...VEG_POOL];
+      // Meal 1 is always breakfast — restrict protein to eggs only.
+      if (i === 0) {
+        cands.protein = [...EGG_PROTEIN_POOL];
+      }
       const items: FoodItem[] = [];
 
 
       // PROTEIN — always one
       if (target.protein_g > 0) {
-        const found = await findUSDAFood(cands.protein ?? [], usedProtein);
+        const found = await findUSDAFood(cands.protein ?? [], usedProtein, "Protein");
         if (found) {
           const grams = roundPortionG((target.protein_g * 100) / Math.max(1, found.per100.protein_g));
           const factor = grams / 100;
