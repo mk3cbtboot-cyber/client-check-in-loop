@@ -355,7 +355,7 @@ Deno.serve(async (req) => {
 
       // FAT — only if allocation > 0
       if (target.fat_g > 0) {
-        const found = await findUSDAFood(cands.fat ?? [], usedFat);
+        const found = await findUSDAFood(cands.fat ?? [], usedFat, "Fat");
         if (found) {
           if (isOilName(found.name)) {
             const tsp = Math.max(1, Math.round(target.fat_g / 4.5));
