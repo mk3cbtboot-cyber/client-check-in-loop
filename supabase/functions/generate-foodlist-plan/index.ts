@@ -211,30 +211,39 @@ Deno.serve(async (req) => {
       breakfast: "Breakfast", morning_snack: "Morning Snack", lunch: "Lunch",
       afternoon_snack: "Afternoon Snack", dinner: "Dinner",
     };
-    const slotsDesc = activeSlots.map((s, i) => {
-      const t = perMealTarget(i);
-      return `- ${s} (${slotLabelMap[s]}): ~${t.calories} kcal, P ${t.protein_g}g / C ${t.carbs_g}g / F ${t.fat_g}g`;
-    }).join("\n");
-
-    let candidatesBySlot: Record<string, { protein: string[]; carbs: string[]; veg: string[]; fat: string[] }> = {};
-    try {
-      candidatesBySlot = await aiCandidates(apiKey, { slotsDesc, exclusions, preferences });
-    } catch (e) {
-      console.error("aiCandidates failed", e);
-    }
 
     const usedProtein = new Set<string>();
     const usedCarbs = new Set<string>();
     const usedFat = new Set<string>();
     const usedVeg = new Set<string>();
+    const excludedFoods: string[] = []; // protein + carb names used in earlier slots
+    const usedFatNames: string[] = [];
 
     const out = emptyList() as Record<SlotKey, FoodItem[]>;
 
     for (let i = 0; i < activeSlots.length; i += 1) {
       const slot = activeSlots[i];
       const target = perMealTarget(i);
-      const cands = candidatesBySlot[slot] ?? { protein: [], carbs: [], veg: [], fat: [] };
+      let cands: { protein: string[]; carbs: string[]; veg: string[]; fat: string[] } = { protein: [], carbs: [], veg: [], fat: [] };
+      try {
+        cands = await aiCandidatesForSlot(apiKey, {
+          slotKey: slot,
+          slotLabel: slotLabelMap[slot],
+          slotIndex: i,
+          totalSlots: activeSlots.length,
+          target,
+          excludedFoods,
+          usedFats: usedFatNames,
+          exclusions,
+          preferences,
+        });
+      } catch (e) {
+        console.error("aiCandidatesForSlot failed", slot, e);
+      }
+      // Always include VEG_POOL as fallback candidates (filtered by used)
+      cands.veg = [...(cands.veg ?? []), ...VEG_POOL];
       const items: FoodItem[] = [];
+
 
       // PROTEIN — always one
       if (target.protein_g > 0) {
