@@ -177,10 +177,21 @@ export default function MacroAllocationSection({ clientId, macros, mealsPerDay, 
     customC?: number;
     customF?: number;
   }
+  interface PendingSend {
+    mk: MealKey;
+    slotIndex: number;
+    delta: number; // calories lost (absolute)
+    choice: "protein" | "carbs" | "fat" | "split" | "custom";
+    customP?: number;
+    customC?: number;
+    customF?: number;
+  }
   const [pending, setPending] = useState<Record<string, PendingRealloc | null>>({});
   const [pendingCal, setPendingCal] = useState<Record<string, PendingCalRealloc | null>>({});
   const [pendingRecv, setPendingRecv] = useState<Record<string, PendingRecv | null>>({});
+  const [pendingSend, setPendingSend] = useState<Record<string, PendingSend | null>>({});
   const [recvConfirm, setRecvConfirm] = useState<{ mk: MealKey; allocated: number; target: number } | null>(null);
+  const [sendConfirm, setSendConfirm] = useState<{ mk: MealKey; allocated: number; target: number } | null>(null);
 
   const MACRO_LABEL: Record<ReallocMacro, string> = {
     protein_g: "protein",
