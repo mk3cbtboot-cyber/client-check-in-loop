@@ -463,7 +463,7 @@ Deno.serve(async (req) => {
           const fallbackName = (cands.veg ?? []).find((n) => !usedVeg.has(canon(n)));
           if (!fallbackName) break;
           const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-          if (est) subtract(est);
+          if (est) { subtract(est); addActual(est); }
           usedVeg.add(canon(fallbackName));
           items.push({ name: `${fallbackName} (estimated)`, portion, category: "Veg", est_macros: est ?? undefined });
           pushDebugEstimated(slot, i, fallbackName, "Veg", portion);
@@ -596,7 +596,7 @@ Deno.serve(async (req) => {
               portion = fmtPortionG((remainingProtein * 100) / 30);
             }
             const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-            if (est) subtract(est);
+            if (est) { subtract(est); addActual(est); }
             usedProtein.add(canon(fallbackName));
             items.push({ name: `${fallbackName} (estimated)`, portion, category: "Protein", est_macros: est ?? undefined });
             pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
@@ -627,7 +627,7 @@ Deno.serve(async (req) => {
             const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n))) ?? "Brown Rice (cooked)";
             const portion = fmtPortionG((remainingCarbs * 100) / 25);
             const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-            if (est) subtract(est);
+            if (est) { subtract(est); addActual(est); }
             usedCarbs.add(canon(fallbackName));
             items.push({ name: `${fallbackName} (estimated)`, portion, category: "Carbs", est_macros: est ?? undefined });
             pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
@@ -662,7 +662,7 @@ Deno.serve(async (req) => {
             ? `${Math.max(1, Math.round(remainingFat / 4.5))} tsp`
             : fmtPortionG(remainingFat / 0.5);
           const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-          if (est) subtract(est);
+          if (est) { subtract(est); addActual(est); }
           usedFat.add(canon(fallbackName));
           items.push({ name: `${fallbackName} (estimated)`, portion, category: "Fat", est_macros: est ?? undefined });
           pushDebugEstimated(slot, i, fallbackName, "Fat", portion);
