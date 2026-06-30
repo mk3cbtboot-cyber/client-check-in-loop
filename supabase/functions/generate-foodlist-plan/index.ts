@@ -522,44 +522,50 @@ Deno.serve(async (req) => {
           pushDebugFromUsda(slot, i, "Liquid Egg Whites", "Protein", LIQUID_PER100, "Liquid Egg Whites (hard-coded, per 100g)", `${liquidGrams}g`);
         }
         usedProtein.add(canon("Eggs"));
-      } else if (remainingProtein > 0) {
-        const found = await findUSDAFood(cands.protein ?? [], usedProtein, "Protein");
-        if (found) {
-          let grams = roundPortionG((Math.max(0, remainingProtein) * 100) / Math.max(1, found.per100.protein_g));
-          let portion: string;
-          if (isEggName(found.name)) {
-            const count = Math.max(1, Math.round(grams / 50));
-            grams = count * 50;
-            portion = `${count} ${count === 1 ? "egg" : "eggs"}`;
-          } else {
-            portion = fmtPortionG(grams);
-          }
-          const contrib = contributionAt(found.per100, grams);
-          subtract(contrib);
-          usedProtein.add(canon(found.name));
-          items.push({ name: found.name, portion, category: "Protein", est_macros: contrib });
-          pushDebugFromUsda(slot, i, found.name, "Protein", found.per100, found.usdaDescription, portion);
-        } else {
-          const fallbackName = (cands.protein ?? []).find((n) => !usedProtein.has(canon(n))) ?? "Chicken Breast, cooked";
-          let portion: string;
-          if (isEggName(fallbackName)) {
-            const count = Math.max(1, Math.round(remainingProtein / 6));
-            portion = `${count} ${count === 1 ? "egg" : "eggs"}`;
-          } else {
-            portion = fmtPortionG((remainingProtein * 100) / 30);
-          }
-          const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-          if (est) subtract(est);
-          usedProtein.add(canon(fallbackName));
-          items.push({ name: `${fallbackName} (estimated)`, portion, category: "Protein", est_macros: est ?? undefined });
-          pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
-        }
-      }
+      } else {
+        // Pre-fetch the carb candidate to detect legume pairing before sizing protein.
+        const carbFound = remainingCarbs > 0
+          ? await findUSDAFood(cands.carbs ?? [], usedCarbs, "Carbs")
+          : null;
+        const carbIsLegume = !!carbFound && (
+          LEGUME_PAIR_RE.test(carbFound.name) || LEGUME_PAIR_RE.test(carbFound.usdaDescription)
+        );
 
-      // Step 4 — CARBS sized to remaining carbs.
-      if (remainingCarbs > 0) {
-        const found = await findUSDAFood(cands.carbs ?? [], usedCarbs, "Carbs");
-        if (found) {
+        const placeProtein = async (candidates: string[]) => {
+          const found = await findUSDAFood(candidates, usedProtein, "Protein");
+          if (found) {
+            let grams = roundPortionG((Math.max(0, remainingProtein) * 100) / Math.max(1, found.per100.protein_g));
+            let portion: string;
+            if (isEggName(found.name)) {
+              const count = Math.max(1, Math.round(grams / 50));
+              grams = count * 50;
+              portion = `${count} ${count === 1 ? "egg" : "eggs"}`;
+            } else {
+              portion = fmtPortionG(grams);
+            }
+            const contrib = contributionAt(found.per100, grams);
+            subtract(contrib);
+            usedProtein.add(canon(found.name));
+            items.push({ name: found.name, portion, category: "Protein", est_macros: contrib });
+            pushDebugFromUsda(slot, i, found.name, "Protein", found.per100, found.usdaDescription, portion);
+          } else {
+            const fallbackName = candidates.find((n) => !usedProtein.has(canon(n))) ?? "Chicken Breast, cooked";
+            let portion: string;
+            if (isEggName(fallbackName)) {
+              const count = Math.max(1, Math.round(remainingProtein / 6));
+              portion = `${count} ${count === 1 ? "egg" : "eggs"}`;
+            } else {
+              portion = fmtPortionG((remainingProtein * 100) / 30);
+            }
+            const est = await aiEstimateMacros(apiKey, fallbackName, portion);
+            if (est) subtract(est);
+            usedProtein.add(canon(fallbackName));
+            items.push({ name: `${fallbackName} (estimated)`, portion, category: "Protein", est_macros: est ?? undefined });
+            pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
+          }
+        };
+
+        const placeCarbFromFound = (found: { name: string; per100: Macros; usdaDescription: string }) => {
           const grams = roundPortionG((Math.max(0, remainingCarbs) * 100) / Math.max(1, found.per100.carbs_g));
           const portion = fmtPortionG(grams);
           const contrib = contributionAt(found.per100, grams);
@@ -567,16 +573,30 @@ Deno.serve(async (req) => {
           usedCarbs.add(canon(found.name));
           items.push({ name: found.name, portion, category: "Carbs", est_macros: contrib });
           pushDebugFromUsda(slot, i, found.name, "Carbs", found.per100, found.usdaDescription, portion);
+        };
+
+        if (carbIsLegume && carbFound) {
+          // Legume pairing — Step 1: size legume to carb target, subtract ALL macros (incl. protein).
+          placeCarbFromFound(carbFound);
+          // Step 2/3 — force lean protein sized to REMAINING protein.
+          if (remainingProtein > 0) await placeProtein(LEAN_PROTEIN_POOL);
         } else {
-          const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n))) ?? "Brown Rice (cooked)";
-          const portion = fmtPortionG((remainingCarbs * 100) / 25);
-          const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-          if (est) subtract(est);
-          usedCarbs.add(canon(fallbackName));
-          items.push({ name: `${fallbackName} (estimated)`, portion, category: "Carbs", est_macros: est ?? undefined });
-          pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
+          // Standard order: protein first, then carbs.
+          if (remainingProtein > 0) await placeProtein(cands.protein ?? []);
+          if (carbFound) {
+            placeCarbFromFound(carbFound);
+          } else if (remainingCarbs > 0) {
+            const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n))) ?? "Brown Rice (cooked)";
+            const portion = fmtPortionG((remainingCarbs * 100) / 25);
+            const est = await aiEstimateMacros(apiKey, fallbackName, portion);
+            if (est) subtract(est);
+            usedCarbs.add(canon(fallbackName));
+            items.push({ name: `${fallbackName} (estimated)`, portion, category: "Carbs", est_macros: est ?? undefined });
+            pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
+          }
         }
       }
+
 
       // Step 5 — FAT sized to remaining fat.
       if (remainingFat > (i === 0 ? 3 : 0)) {
