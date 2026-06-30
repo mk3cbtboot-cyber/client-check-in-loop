@@ -332,149 +332,166 @@ Deno.serve(async (req) => {
       }
       const items: FoodItem[] = [];
 
-      // PROTEIN
-      if (target.protein_g > 0) {
-        const found = await findUSDAFood(cands.protein ?? [], usedProtein, "Protein");
-        if (found) {
-          const grams = roundPortionG((target.protein_g * 100) / Math.max(1, found.per100.protein_g));
-          const factor = grams / 100;
-          const portion = fmtPortionG(grams);
-          usedProtein.add(canon(found.name));
-          items.push({
-            name: found.name,
-            portion,
-            category: "Protein",
-            est_macros: {
-              calories: Math.round(found.per100.calories * factor),
-              protein_g: Math.round(found.per100.protein_g * factor),
-              carbs_g: Math.round(found.per100.carbs_g * factor),
-              fat_g: Math.round(found.per100.fat_g * factor),
-            },
-          });
-          pushDebugFromUsda(slot, i, found.name, "Protein", found.per100, found.usdaDescription, portion);
-        } else {
-          const fallbackName = (cands.protein ?? []).find((n) => !usedProtein.has(canon(n))) ?? (i === 0 ? "Eggs" : "Chicken Breast, cooked");
-          const portion = fmtPortionG((target.protein_g * 100) / 30);
-          const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-          usedProtein.add(canon(fallbackName));
-          items.push({ name: `${fallbackName} (estimated)`, portion, category: "Protein", est_macros: est ?? undefined });
-          pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
-        }
-      }
+      // Running totals — every food contributes to all three macros and reduces all remaining targets.
+      let remainingProtein = target.protein_g;
+      let remainingCarbs = target.carbs_g;
+      let remainingFat = target.fat_g;
 
-      // CARBS
-      if (target.carbs_g > 0) {
-        const found = await findUSDAFood(cands.carbs ?? [], usedCarbs, "Carbs");
-        if (found) {
-          const grams = roundPortionG((target.carbs_g * 100) / Math.max(1, found.per100.carbs_g));
-          const factor = grams / 100;
-          const portion = fmtPortionG(grams);
-          usedCarbs.add(canon(found.name));
-          items.push({
-            name: found.name,
-            portion,
-            category: "Carbs",
-            est_macros: {
-              calories: Math.round(found.per100.calories * factor),
-              protein_g: Math.round(found.per100.protein_g * factor),
-              carbs_g: Math.round(found.per100.carbs_g * factor),
-              fat_g: Math.round(found.per100.fat_g * factor),
-            },
-          });
-          pushDebugFromUsda(slot, i, found.name, "Carbs", found.per100, found.usdaDescription, portion);
-        } else {
-          const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n))) ?? "Brown Rice (cooked)";
-          const portion = fmtPortionG((target.carbs_g * 100) / 25);
-          const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-          usedCarbs.add(canon(fallbackName));
-          items.push({ name: `${fallbackName} (estimated)`, portion, category: "Carbs", est_macros: est ?? undefined });
-          pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
-        }
-      }
+      const contributionAt = (per100: Macros, grams: number): Macros => {
+        const factor = grams / 100;
+        return {
+          calories: Math.round(per100.calories * factor),
+          protein_g: Math.round(per100.protein_g * factor),
+          carbs_g: Math.round(per100.carbs_g * factor),
+          fat_g: Math.round(per100.fat_g * factor),
+        };
+      };
+      const subtract = (m: Macros) => {
+        remainingProtein -= m.protein_g;
+        remainingCarbs -= m.carbs_g;
+        remainingFat -= m.fat_g;
+      };
+      const isEggName = (n: string) => /\begg/i.test(n);
 
-      // VEG — 2 vegetables, no density check
+      // Step 2 — VEG first (fixed 100g, 2 servings).
       const vegCount = 2;
       for (let v = 0; v < vegCount; v += 1) {
         const found = await findUSDAFood(cands.veg ?? [], usedVeg, "Veg");
         const grams = 100;
         const portion = fmtPortionG(grams);
         if (found) {
-          const factor = grams / 100;
           usedVeg.add(canon(found.name));
-          items.push({
-            name: found.name,
-            portion,
-            category: "Veg",
-            est_macros: {
-              calories: Math.round(found.per100.calories * factor),
-              protein_g: Math.round(found.per100.protein_g * factor),
-              carbs_g: Math.round(found.per100.carbs_g * factor),
-              fat_g: Math.round(found.per100.fat_g * factor),
-            },
-          });
+          const contrib = contributionAt(found.per100, grams);
+          subtract(contrib);
+          items.push({ name: found.name, portion, category: "Veg", est_macros: contrib });
           pushDebugFromUsda(slot, i, found.name, "Veg", found.per100, found.usdaDescription, portion);
         } else {
           const fallbackName = (cands.veg ?? []).find((n) => !usedVeg.has(canon(n)));
           if (!fallbackName) break;
           const est = await aiEstimateMacros(apiKey, fallbackName, portion);
+          if (est) subtract(est);
           usedVeg.add(canon(fallbackName));
           items.push({ name: `${fallbackName} (estimated)`, portion, category: "Veg", est_macros: est ?? undefined });
           pushDebugEstimated(slot, i, fallbackName, "Veg", portion);
         }
       }
 
-      // FAT
-      if (target.fat_g > 0) {
+      // Step 3 — PROTEIN sized to remaining protein.
+      if (remainingProtein > 0) {
+        const found = await findUSDAFood(cands.protein ?? [], usedProtein, "Protein");
+        if (found) {
+          let grams = roundPortionG((Math.max(0, remainingProtein) * 100) / Math.max(1, found.per100.protein_g));
+          let portion: string;
+          if (isEggName(found.name)) {
+            const count = Math.max(1, Math.round(grams / 50));
+            grams = count * 50;
+            portion = `${count} ${count === 1 ? "egg" : "eggs"}`;
+          } else {
+            portion = fmtPortionG(grams);
+          }
+          const contrib = contributionAt(found.per100, grams);
+          subtract(contrib);
+          usedProtein.add(canon(found.name));
+          items.push({ name: found.name, portion, category: "Protein", est_macros: contrib });
+          pushDebugFromUsda(slot, i, found.name, "Protein", found.per100, found.usdaDescription, portion);
+        } else {
+          const fallbackName = (cands.protein ?? []).find((n) => !usedProtein.has(canon(n))) ?? (i === 0 ? "Eggs" : "Chicken Breast, cooked");
+          let portion: string;
+          if (isEggName(fallbackName)) {
+            const count = Math.max(1, Math.round(remainingProtein / 6));
+            portion = `${count} ${count === 1 ? "egg" : "eggs"}`;
+          } else {
+            portion = fmtPortionG((remainingProtein * 100) / 30);
+          }
+          const est = await aiEstimateMacros(apiKey, fallbackName, portion);
+          if (est) subtract(est);
+          usedProtein.add(canon(fallbackName));
+          items.push({ name: `${fallbackName} (estimated)`, portion, category: "Protein", est_macros: est ?? undefined });
+          pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
+        }
+      }
+
+      // Step 4 — CARBS sized to remaining carbs.
+      if (remainingCarbs > 0) {
+        const found = await findUSDAFood(cands.carbs ?? [], usedCarbs, "Carbs");
+        if (found) {
+          const grams = roundPortionG((Math.max(0, remainingCarbs) * 100) / Math.max(1, found.per100.carbs_g));
+          const portion = fmtPortionG(grams);
+          const contrib = contributionAt(found.per100, grams);
+          subtract(contrib);
+          usedCarbs.add(canon(found.name));
+          items.push({ name: found.name, portion, category: "Carbs", est_macros: contrib });
+          pushDebugFromUsda(slot, i, found.name, "Carbs", found.per100, found.usdaDescription, portion);
+        } else {
+          const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n))) ?? "Brown Rice (cooked)";
+          const portion = fmtPortionG((remainingCarbs * 100) / 25);
+          const est = await aiEstimateMacros(apiKey, fallbackName, portion);
+          if (est) subtract(est);
+          usedCarbs.add(canon(fallbackName));
+          items.push({ name: `${fallbackName} (estimated)`, portion, category: "Carbs", est_macros: est ?? undefined });
+          pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
+        }
+      }
+
+      // Step 5 — FAT sized to remaining fat.
+      if (remainingFat > 0) {
         const found = await findUSDAFood(cands.fat ?? [], usedFat, "Fat");
         if (found) {
+          let grams: number;
+          let portion: string;
           if (isOilName(found.name)) {
-            const tsp = Math.max(1, Math.round(target.fat_g / 4.5));
-            const grams = tsp * 4.5;
-            const factor = grams / 100;
-            const portion = `${tsp} tsp`;
-            usedFat.add(canon(found.name));
-            items.push({
-              name: found.name,
-              portion,
-              category: "Fat",
-              est_macros: {
-                calories: Math.round(found.per100.calories * factor),
-                protein_g: Math.round(found.per100.protein_g * factor),
-                carbs_g: Math.round(found.per100.carbs_g * factor),
-                fat_g: Math.round(found.per100.fat_g * factor),
-              },
-            });
-            pushDebugFromUsda(slot, i, found.name, "Fat", found.per100, found.usdaDescription, portion);
+            const tsp = Math.max(1, Math.round(remainingFat / 4.5));
+            grams = tsp * 4.5;
+            portion = `${tsp} tsp`;
           } else {
-            const grams = roundPortionG((target.fat_g * 100) / Math.max(1, found.per100.fat_g));
-            const factor = grams / 100;
-            const portion = fmtPortionG(grams);
-            usedFat.add(canon(found.name));
-            items.push({
-              name: found.name,
-              portion,
-              category: "Fat",
-              est_macros: {
-                calories: Math.round(found.per100.calories * factor),
-                protein_g: Math.round(found.per100.protein_g * factor),
-                carbs_g: Math.round(found.per100.carbs_g * factor),
-                fat_g: Math.round(found.per100.fat_g * factor),
-              },
-            });
-            pushDebugFromUsda(slot, i, found.name, "Fat", found.per100, found.usdaDescription, portion);
+            grams = roundPortionG((Math.max(0, remainingFat) * 100) / Math.max(1, found.per100.fat_g));
+            portion = fmtPortionG(grams);
           }
+          const contrib = contributionAt(found.per100, grams);
+          subtract(contrib);
+          usedFat.add(canon(found.name));
+          items.push({ name: found.name, portion, category: "Fat", est_macros: contrib });
+          pushDebugFromUsda(slot, i, found.name, "Fat", found.per100, found.usdaDescription, portion);
         } else {
           const fallbackName = (cands.fat ?? []).find((n) => !usedFat.has(canon(n))) ?? "Olive Oil";
           const isOil = isOilName(fallbackName);
           const portion = isOil
-            ? `${Math.max(1, Math.round(target.fat_g / 4.5))} tsp`
-            : fmtPortionG(target.fat_g / 0.5);
+            ? `${Math.max(1, Math.round(remainingFat / 4.5))} tsp`
+            : fmtPortionG(remainingFat / 0.5);
           const est = await aiEstimateMacros(apiKey, fallbackName, portion);
+          if (est) subtract(est);
           usedFat.add(canon(fallbackName));
           items.push({ name: `${fallbackName} (estimated)`, portion, category: "Fat", est_macros: est ?? undefined });
           pushDebugEstimated(slot, i, fallbackName, "Fat", portion);
         }
       }
+
+      // Step 6 — Validate: sum actual contributions and log variance vs target.
+      const actual = items.reduce(
+        (acc, it) => {
+          const m = it.est_macros;
+          if (!m) return acc;
+          return {
+            calories: acc.calories + (m.calories || 0),
+            protein_g: acc.protein_g + (m.protein_g || 0),
+            carbs_g: acc.carbs_g + (m.carbs_g || 0),
+            fat_g: acc.fat_g + (m.fat_g || 0),
+          };
+        },
+        { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+      );
+      const variance = {
+        protein_g: actual.protein_g - target.protein_g,
+        carbs_g: actual.carbs_g - target.carbs_g,
+        fat_g: actual.fat_g - target.fat_g,
+      };
+      const fmtDelta = (n: number) => `${n >= 0 ? "+" : ""}${n}`;
+      const varianceLine = `Meal ${i + 1} — Target: P${target.protein_g}g C${target.carbs_g}g F${target.fat_g}g | Actual: P${actual.protein_g}g C${actual.carbs_g}g F${actual.fat_g}g | Variance: P${fmtDelta(variance.protein_g)}g C${fmtDelta(variance.carbs_g)}g F${fmtDelta(variance.fat_g)}g`;
+      console.log(`[generate-foodlist-plan] ${varianceLine}`);
+      debugFoods.push({
+        slot, slot_index: i, name: varianceLine, category: "Protein",
+        portion: "", estimated: false,
+      });
 
       out[slot] = items;
 
