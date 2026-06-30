@@ -80,7 +80,7 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
   const [exclusionsText, setExclusionsText] = useState((foodExclusions ?? []).join(", "));
   const [preferences, setPreferences] = useState("");
   const [debugTargets, setDebugTargets] = useState<Array<{ slot: string; slot_index: number; calories: number; protein_g: number; carbs_g: number; fat_g: number }> | null>(null);
-  const [debugFoods, setDebugFoods] = useState<Array<{ slot: string; slot_index: number; name?: string; category: string; usdaName?: string; usda_description?: string; density_macro?: string; density_value?: number; portion: string; estimated: boolean }> | null>(null);
+  const [debugFoods, setDebugFoods] = useState<Array<{ slot: string; slot_index: number; name?: string; category: string; usdaName?: string; usda_description?: string; density_macro?: string; density_value?: number; portion: string; estimated: boolean; variance?: boolean }> | null>(null);
 
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewList, setReviewList] = useState<FoodList>(emptyList());
@@ -227,6 +227,9 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
               <div>
                 <div className="font-semibold mb-1">USDA values per food:</div>
                 {debugFoods.map((f, idx) => {
+                  if (f.variance) {
+                    return <div key={idx} className="mt-1">{f.name}</div>;
+                  }
                   const usdaName = debugUsdaName(f);
                   if (!f.name || !usdaName) return null;
                   return (
