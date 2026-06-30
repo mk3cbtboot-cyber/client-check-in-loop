@@ -368,7 +368,7 @@ Deno.serve(async (req) => {
         remainingCarbs -= m.carbs_g;
         remainingFat -= m.fat_g;
       };
-      const isEggName = (n: string) => /\begg/i.test(n);
+      // isEggName is defined at module scope.
 
       // Step 2 — VEG first (fixed 100g, 2 servings).
       const vegCount = 2;
