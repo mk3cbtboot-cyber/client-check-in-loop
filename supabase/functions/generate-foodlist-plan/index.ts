@@ -80,16 +80,25 @@ function densityMacroKey(category: Category): keyof Macros {
   return "calories";
 }
 
-const WRONG_FORM_TERMS = /\b(dried|dehydrated|flour|powder|jerky|vegetarian|snack|imitation|substitute|extract|concentrate|souffl[eé]|casserole|stew|soup|salad|stir[- ]fry|curry|pie|baked dish|bake|mashed|canned|pickled|frozen meal|mixed dish|with sauce|stuffed)\b/i;
+const WRONG_FORM_TERMS = /\b(dried|dehydrated|flour|powder|jerky|vegetarian|snack|snacks|imitation|substitute|extract|concentrate|souffl[eé]|casserole|stew|soup|salad|stir[- ]fry|curry|pie|baked dish|bake|mashed|canned|pickled|frozen meal|mixed dish|with sauce|stuffed|babyfood|strained|rice cake)\b/i;
 
 const DRY_STAPLE_RE = /\b(oat|oats|oatmeal|rice|lentil|lentils|bean|beans|chickpea|chickpeas|quinoa|barley|farro|bulgur|millet|pea|peas|legume|legumes)\b/i;
+
+const BREAD_NAME_RE = /\b(bread|sourdough|bagel|baguette|ciabatta|focaccia|pita|tortilla|toast|roll|bun|loaf|brioche)\b/i;
 
 function isWrongForm(description: string, category: Category, candidateName: string): boolean {
   if (WRONG_FORM_TERMS.test(description)) return true;
   if (category === "Fat" && !isOilName(candidateName) && /\boil\b/i.test(description)) return true;
   if (DRY_STAPLE_RE.test(candidateName) && /\bdry\b/i.test(description)) return true;
+  // Reject "bread" entries (e.g. "bread, oatmeal") unless the target food is itself a bread.
+  if (!BREAD_NAME_RE.test(candidateName) && /\bbread\b/i.test(description)) return true;
   return false;
 }
+
+// Hard-coded macros for eggs (USDA Egg, whole, raw, large per 100g).
+const EGG_PER100: Macros = { calories: 143, protein_g: 12.6, carbs_g: 0.6, fat_g: 9.5 };
+const EGG_USDA_DESC = "Egg, whole, raw, large (hard-coded)";
+const isEggName = (n: string) => /\begg/i.test(n);
 
 async function findUSDAFood(
   candidates: string[],
