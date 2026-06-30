@@ -669,27 +669,21 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Step 6 — Validate: sum actual contributions and log variance vs target.
-      const actual = items.reduce(
-        (acc, it) => {
-          const m = it.est_macros;
-          if (!m) return acc;
-          return {
-            calories: acc.calories + (m.calories || 0),
-            protein_g: acc.protein_g + (m.protein_g || 0),
-            carbs_g: acc.carbs_g + (m.carbs_g || 0),
-            fat_g: acc.fat_g + (m.fat_g || 0),
-          };
-        },
-        { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-      );
+      // Step 6 — Validate: use live `actual` accumulator (includes hard-coded foods
+      // — Whole Egg, Egg White, Liquid Egg Whites, Oats — and AI estimates).
+      const actualRounded = {
+        calories: Math.round(actual.calories),
+        protein_g: Math.round(actual.protein_g * 10) / 10,
+        carbs_g: Math.round(actual.carbs_g * 10) / 10,
+        fat_g: Math.round(actual.fat_g * 10) / 10,
+      };
       const variance = {
-        protein_g: actual.protein_g - target.protein_g,
-        carbs_g: actual.carbs_g - target.carbs_g,
-        fat_g: actual.fat_g - target.fat_g,
+        protein_g: Math.round((actualRounded.protein_g - target.protein_g) * 10) / 10,
+        carbs_g: Math.round((actualRounded.carbs_g - target.carbs_g) * 10) / 10,
+        fat_g: Math.round((actualRounded.fat_g - target.fat_g) * 10) / 10,
       };
       const fmtDelta = (n: number) => `${n >= 0 ? "+" : ""}${n}`;
-      const varianceLine = `Meal ${i + 1} — Target: P${target.protein_g}g C${target.carbs_g}g F${target.fat_g}g | Actual: P${actual.protein_g}g C${actual.carbs_g}g F${actual.fat_g}g | Variance: P${fmtDelta(variance.protein_g)}g C${fmtDelta(variance.carbs_g)}g F${fmtDelta(variance.fat_g)}g`;
+      const varianceLine = `Meal ${i + 1} — Target: P${target.protein_g}g C${target.carbs_g}g F${target.fat_g}g | Actual: P${actualRounded.protein_g}g C${actualRounded.carbs_g}g F${actualRounded.fat_g}g | Variance: P${fmtDelta(variance.protein_g)}g C${fmtDelta(variance.carbs_g)}g F${fmtDelta(variance.fat_g)}g`;
       console.log(`[generate-foodlist-plan] ${varianceLine}`);
       debugFoods.push({
         slot, slot_index: i, name: varianceLine, category: "Protein",
