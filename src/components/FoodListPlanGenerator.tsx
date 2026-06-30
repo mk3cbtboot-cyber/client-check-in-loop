@@ -80,7 +80,7 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
   const [exclusionsText, setExclusionsText] = useState((foodExclusions ?? []).join(", "));
   const [preferences, setPreferences] = useState("");
   const [debugTargets, setDebugTargets] = useState<Array<{ slot: string; slot_index: number; calories: number; protein_g: number; carbs_g: number; fat_g: number }> | null>(null);
-  const [debugFoods, setDebugFoods] = useState<Array<{ slot: string; slot_index: number; name: string; category: string; usda_description?: string; density_macro?: string; density_value?: number; portion: string; estimated: boolean }> | null>(null);
+  const [debugFoods, setDebugFoods] = useState<Array<{ slot: string; slot_index: number; name?: string; category: string; usdaName?: string; usda_description?: string; density_macro?: string; density_value?: number; portion: string; estimated: boolean }> | null>(null);
 
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewList, setReviewList] = useState<FoodList>(emptyList());
@@ -92,6 +92,16 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
 
   function parseExclusions(text: string): string[] {
     return text.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+  }
+
+  function shouldRenderDebugFood(f: { name?: string; usdaName?: string; usda_description?: string; estimated?: boolean }): boolean {
+    if (!f.name) return false;
+    if (f.estimated) return true;
+    return Boolean(f.usdaName ?? f.usda_description);
+  }
+
+  function debugUsdaName(f: { usdaName?: string; usda_description?: string }): string {
+    return f.usdaName ?? f.usda_description ?? "";
   }
 
   async function persistExclusions() {
@@ -222,12 +232,12 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
             {debugFoods && debugFoods.length > 0 && (
               <div>
                 <div className="font-semibold mb-1">USDA values per food:</div>
-                {debugFoods.map((f, idx) => (
+                {debugFoods.filter(shouldRenderDebugFood).map((f, idx) => (
                   <div key={idx}>
                     Meal {f.slot_index + 1} — {f.name} [{f.category}] |{" "}
                     {f.estimated
                       ? "USDA: (estimated, no match)"
-                      : `USDA: "${f.usda_description}" (${f.density_value}g ${f.density_macro} per 100g)`}{" "}
+                      : `USDA: "${debugUsdaName(f)}" (${f.density_value}g ${f.density_macro} per 100g)`}{" "}
                     | Portion: {f.portion}
                   </div>
                 ))}
