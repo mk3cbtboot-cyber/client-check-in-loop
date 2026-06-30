@@ -410,6 +410,7 @@ Deno.serve(async (req) => {
       let remainingProtein = target.protein_g;
       let remainingCarbs = target.carbs_g;
       let remainingFat = target.fat_g;
+      let proteinWasFatty = false;
 
       // Actual accumulator — raw (unrounded) contributions, including hard-coded foods
       // (Whole Egg, Egg White, Liquid Egg Whites, Oats) and USDA-fetched foods alike.
@@ -602,7 +603,18 @@ Deno.serve(async (req) => {
         const placeProtein = async (candidates: string[]) => {
           const found = await findUSDAFood(candidates, usedProtein, "Protein");
           if (found) {
-            let grams = roundPortionG((Math.max(0, remainingProtein) * 100) / Math.max(1, found.per100.protein_g));
+            const fatPer100 = Number(found.per100.fat_g ?? 0);
+            const proteinPer100 = Math.max(1, found.per100.protein_g);
+            let grams: number;
+            if (fatPer100 > 7) {
+              proteinWasFatty = true;
+              const fromProtein = (Math.max(0, remainingProtein) * 100) / proteinPer100;
+              const fromFat = (Math.max(0, remainingFat) * 100) / fatPer100;
+              grams = roundPortionG(Math.min(fromProtein, fromFat));
+              console.log(`[generate-foodlist-plan] fatty-protein cap on "${found.name}" (fat ${fatPer100}g/100g): fromProtein=${fromProtein.toFixed(1)}g fromFat=${fromFat.toFixed(1)}g → ${grams}g`);
+            } else {
+              grams = roundPortionG((Math.max(0, remainingProtein) * 100) / proteinPer100);
+            }
             let portion: string;
             if (isEggName(found.name)) {
               const count = Math.max(1, Math.round(grams / 50));
@@ -667,7 +679,7 @@ Deno.serve(async (req) => {
 
 
       // Step 5 — FAT sized to remaining fat.
-      if (remainingFat > (i === 0 ? 3 : 0)) {
+      if (remainingFat > (i === 0 || proteinWasFatty ? 3 : 0)) {
         const found = await findUSDAFood(cands.fat ?? [], usedFat, "Fat");
         if (found) {
           let grams: number;
