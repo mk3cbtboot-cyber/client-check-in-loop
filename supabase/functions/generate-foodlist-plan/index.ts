@@ -681,7 +681,9 @@ Deno.serve(async (req) => {
       // Step 5 — FAT sized to remaining fat.
       if (remainingFat > (i === 0 || proteinWasFatty ? 3 : 0)) {
         const found = await findUSDAFood(cands.fat ?? [], usedFat, "Fat");
-        if (found) {
+        const foundFatPer100 = Number(found?.per100?.fat_g ?? 0);
+        const foundValid = !!found && Number.isFinite(foundFatPer100) && foundFatPer100 > 0;
+        if (foundValid && found) {
           let grams: number;
           let portion: string;
           if (isOilName(found.name)) {
@@ -689,7 +691,7 @@ Deno.serve(async (req) => {
             grams = tsp * 4.5;
             portion = `${tsp} tsp`;
           } else {
-            grams = roundPortionG((Math.max(0, remainingFat) * 100) / Math.max(1, found.per100.fat_g));
+            grams = roundPortionG((Math.max(0, remainingFat) * 100) / foundFatPer100);
             portion = fmtPortionG(grams);
           }
           const contrib = contributionAt(found.per100, grams);
@@ -698,16 +700,30 @@ Deno.serve(async (req) => {
           items.push({ name: found.name, portion, category: "Fat", est_macros: contrib });
           pushDebugFromUsda(slot, i, found.name, "Fat", found.per100, found.usdaDescription, portion);
         } else {
-          const fallbackName = (cands.fat ?? []).find((n) => !usedFat.has(canon(n))) ?? "Olive Oil";
-          const isOil = isOilName(fallbackName);
-          const portion = isOil
-            ? `${Math.max(1, Math.round(remainingFat / 4.5))} tsp`
-            : fmtPortionG(remainingFat / 0.5);
-          const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-          if (est) { subtract(est); addActual(est); }
-          usedFat.add(canon(fallbackName));
-          items.push({ name: `${fallbackName} (estimated)`, portion, category: "Fat", est_macros: est ?? undefined });
-          pushDebugEstimated(slot, i, fallbackName, "Fat", portion);
+          if (found && !foundValid) {
+            console.log(`[generate-foodlist-plan] Fat USDA result for "${found.name}" had invalid fat density (${foundFatPer100}g/100g) — falling back to AI estimate.`);
+          }
+          const fallbackName = (cands.fat ?? []).find((n) => !usedFat.has(canon(n))) ?? null;
+          if (!fallbackName) {
+            console.log(`[generate-foodlist-plan] Skipping fat source for ${slot}: no valid USDA match and no fallback candidate available.`);
+            pushDebugEstimated(slot, i, "(fat source skipped — no valid candidate)", "Fat", "—");
+          } else {
+            const isOil = isOilName(fallbackName);
+            const portion = isOil
+              ? `${Math.max(1, Math.round(remainingFat / 4.5))} tsp`
+              : fmtPortionG(remainingFat / 0.5);
+            const est = await aiEstimateMacros(apiKey, fallbackName, portion);
+            if (est) {
+              subtract(est);
+              addActual(est);
+              usedFat.add(canon(fallbackName));
+              items.push({ name: `${fallbackName} (estimated)`, portion, category: "Fat", est_macros: est });
+              pushDebugEstimated(slot, i, fallbackName, "Fat", portion);
+            } else {
+              console.log(`[generate-foodlist-plan] Skipping fat source for ${slot}: AI estimate failed for "${fallbackName}".`);
+              pushDebugEstimated(slot, i, `(fat source skipped — estimate failed for ${fallbackName})`, "Fat", "—");
+            }
+          }
         }
       }
 
