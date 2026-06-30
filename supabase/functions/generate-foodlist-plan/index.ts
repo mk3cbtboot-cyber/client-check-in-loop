@@ -560,6 +560,36 @@ Deno.serve(async (req) => {
           pushDebugFromUsda(slot, i, "Liquid Egg Whites", "Protein", LIQUID_PER100, "Liquid Egg Whites (hard-coded, per 100g)", `${liquidGrams}g`);
         }
         usedProtein.add(canon("Eggs"));
+
+        // Meal 1 carb source — always Oats, hard-coded (no AI call).
+        if (remainingCarbs > 0) {
+          const rawGrams = (remainingCarbs / OATS_PER100.carbs_g) * 100;
+          const oatsGrams = Math.max(5, Math.round(rawGrams / 5) * 5);
+          const factor = oatsGrams / 100;
+          const oatsContrib = {
+            calories: Math.round(OATS_PER100.calories * factor),
+            protein_g: Math.round(OATS_PER100.protein_g * factor * 10) / 10,
+            carbs_g: Math.round(OATS_PER100.carbs_g * factor * 10) / 10,
+            fat_g: Math.round(OATS_PER100.fat_g * factor * 10) / 10,
+          };
+          remainingProtein -= OATS_PER100.protein_g * factor;
+          remainingCarbs -= OATS_PER100.carbs_g * factor;
+          remainingFat -= OATS_PER100.fat_g * factor;
+          addActual({
+            calories: OATS_PER100.calories * factor,
+            protein_g: OATS_PER100.protein_g * factor,
+            carbs_g: OATS_PER100.carbs_g * factor,
+            fat_g: OATS_PER100.fat_g * factor,
+          });
+          items.push({
+            name: "Oats",
+            portion: `${oatsGrams}g`,
+            category: "Carbs",
+            est_macros: oatsContrib,
+          });
+          pushDebugFromUsda(slot, i, "Oats", "Carbs", OATS_PER100, OATS_USDA_DESC, `${oatsGrams}g`);
+          usedCarbs.add(canon("Oats"));
+        }
       } else {
         // Pre-fetch the carb candidate to detect legume pairing before sizing protein.
         const carbFound = remainingCarbs > 0
