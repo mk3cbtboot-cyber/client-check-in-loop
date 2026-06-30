@@ -110,6 +110,11 @@ async function findUSDAFood(
   for (const cand of candidates) {
     const key = canon(cand);
     if (!key || used.has(key)) continue;
+    // Hard-coded egg lookup — bypass USDA search.
+    if (category === "Protein" && isEggName(cand)) {
+      console.log(`[usda] "${cand}" (Protein): using hard-coded egg macros (12.6g protein per 100g)`);
+      return { name: cand, per100: EGG_PER100, usdaDescription: EGG_USDA_DESC };
+    }
     const list = await usdaCandidates(cookedSearchTerm(cand, category)).catch(() => []);
     const rejected: Array<{ desc: string; value: number; reason: string }> = [];
     for (const item of list) {
