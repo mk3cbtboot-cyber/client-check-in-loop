@@ -80,11 +80,40 @@ function densityMacroKey(category: Category): keyof Macros {
   return "calories";
 }
 
-const WRONG_FORM_TERMS = /\b(dried|dehydrated|flour|powder|jerky|vegetarian|snack|snacks|imitation|substitute|extract|concentrate|souffl[eé]|casserole|stew|soup|salad|stir[- ]fry|curry|pie|baked dish|bake|mashed|canned|pickled|frozen meal|mixed dish|with sauce|stuffed|babyfood|strained|rice cake)\b/i;
+const WRONG_FORM_TERMS = /\b(dried|dehydrated|flour|powder|jerky|vegetarian|snack|snacks|imitation|substitute|extract|concentrate|souffl[eé]|casserole|stew|soup|salad|stir[- ]fry|curry|pie|baked dish|bake|mashed|canned|pickled|frozen meal|frozen|mixed dish|with sauce|stuffed|babyfood|strained|rice cake|cookies|puffs)\b/i;
 
 const DRY_STAPLE_RE = /\b(oat|oats|oatmeal|rice|lentil|lentils|bean|beans|chickpea|chickpeas|quinoa|barley|farro|bulgur|millet|pea|peas|legume|legumes)\b/i;
 
 const BREAD_NAME_RE = /\b(bread|sourdough|bagel|baguette|ciabatta|focaccia|pita|tortilla|toast|roll|bun|loaf|brioche)\b/i;
+
+// Legumes & grains that should always resolve to a cooked form — never raw / "mature seeds".
+const LEGUME_GRAIN_RE = /\b(black bean|kidney bean|chickpea|chickpeas|lentil|lentils|rice|quinoa|oat|oats|oatmeal|bean|beans)\b/i;
+
+// Map a candidate food name to keyword(s) that MUST appear in any accepted USDA result description.
+function primaryKeywords(name: string): string[] {
+  const lower = name.toLowerCase().trim();
+  if (!lower) return [];
+  if (/sweet ?potato/.test(lower)) return ["sweet potato", "sweetpotato"];
+  if (/oatmeal|\boats?\b/.test(lower)) return ["oat"];
+  if (/chickpea|garbanzo/.test(lower)) return ["chickpea", "garbanzo"];
+  if (/black bean/.test(lower)) return ["black bean"];
+  if (/kidney bean/.test(lower)) return ["kidney bean"];
+  const STOP = new Set([
+    "raw","cooked","fresh","organic","grass","fed","wild","skinless","boneless",
+    "ground","whole","large","small","sliced","diced","with","and","lean","fillet",
+    "fillets","steak","steaks","breast","thigh","leg","cut","cuts",
+  ]);
+  const tokens = lower.replace(/[^a-z\s]/g, " ").split(/\s+/).filter((t) => t && !STOP.has(t));
+  if (tokens.length === 0) return [lower];
+  return [tokens[tokens.length - 1]];
+}
+
+function matchesPrimaryKeyword(description: string, candidateName: string): boolean {
+  const d = description.toLowerCase();
+  const keys = primaryKeywords(candidateName);
+  if (keys.length === 0) return true;
+  return keys.some((k) => d.includes(k));
+}
 
 function isWrongForm(description: string, category: Category, candidateName: string): boolean {
   if (WRONG_FORM_TERMS.test(description)) return true;
@@ -92,6 +121,8 @@ function isWrongForm(description: string, category: Category, candidateName: str
   if (DRY_STAPLE_RE.test(candidateName) && /\bdry\b/i.test(description)) return true;
   // Reject "bread" entries (e.g. "bread, oatmeal") unless the target food is itself a bread.
   if (!BREAD_NAME_RE.test(candidateName) && /\bbread\b/i.test(description)) return true;
+  // Reject raw / "mature seeds" forms for legumes and grains — they must be cooked.
+  if (LEGUME_GRAIN_RE.test(candidateName) && /\b(raw|mature seeds)\b/i.test(description)) return true;
   return false;
 }
 
