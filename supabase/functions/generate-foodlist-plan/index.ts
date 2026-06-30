@@ -359,7 +359,26 @@ Deno.serve(async (req) => {
     const debugTargets: Array<{ slot: string; slot_index: number; calories: number; protein_g: number; carbs_g: number; fat_g: number }> = [];
     const debugFoods: DebugFood[] = [];
 
+    const VALID_CATEGORIES: Category[] = ["Protein", "Carbs", "Veg", "Fat"];
+    function isValidFoodEntry(name: unknown, category: unknown, per100?: Macros | null): boolean {
+      if (typeof name !== "string" || !name.trim()) return false;
+      if (typeof category !== "string" || !VALID_CATEGORIES.includes(category as Category)) return false;
+      if (per100) {
+        const key = densityMacroKey(category as Category);
+        const density = Number(per100[key] ?? 0);
+        if (!Number.isFinite(density) || density <= 0) return false;
+      }
+      return true;
+    }
     function pushDebugFromUsda(slot: string, slotIndex: number, name: string, category: Category, per100: Macros, usdaDescription: string, portion: string) {
+      if (!isValidFoodEntry(name, category, per100)) {
+        console.log(`[generate-foodlist-plan] discarding invalid USDA debug entry: name="${name}" category="${category}" usda="${usdaDescription}"`);
+        return;
+      }
+      if (typeof usdaDescription !== "string" || !usdaDescription.trim()) {
+        console.log(`[generate-foodlist-plan] discarding USDA debug entry with missing description: name="${name}"`);
+        return;
+      }
       const key = densityMacroKey(category);
       const macroLabel = category === "Protein" ? "protein" : category === "Carbs" ? "carbs" : category === "Fat" ? "fat" : "calories";
       debugFoods.push({
@@ -372,7 +391,19 @@ Deno.serve(async (req) => {
       });
     }
     function pushDebugEstimated(slot: string, slotIndex: number, name: string, category: Category, portion: string) {
+      if (!isValidFoodEntry(name, category)) {
+        console.log(`[generate-foodlist-plan] discarding invalid estimated debug entry: name="${name}" category="${category}"`);
+        return;
+      }
       debugFoods.push({ slot, slot_index: slotIndex, name, category, portion, estimated: true });
+    }
+    function pushItem(items: FoodItem[], item: FoodItem, per100?: Macros | null): boolean {
+      if (!isValidFoodEntry(item?.name, item?.category, per100 ?? null)) {
+        console.log(`[generate-foodlist-plan] discarding invalid food item: name="${item?.name}" category="${item?.category}"`);
+        return false;
+      }
+      items.push(item);
+      return true;
     }
 
     // Pre-fetch AI candidates for every slot in parallel — biggest wall-clock win.
