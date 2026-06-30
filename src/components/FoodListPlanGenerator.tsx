@@ -227,6 +227,9 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
               <div>
                 <div className="font-semibold mb-1">USDA values per food:</div>
                 {debugFoods.map((f, idx) => {
+                  if (f.variance) {
+                    return <div key={idx} className="mt-1">{f.name}</div>;
+                  }
                   const usdaName = debugUsdaName(f);
                   if (!f.name || !usdaName) return null;
                   return (
