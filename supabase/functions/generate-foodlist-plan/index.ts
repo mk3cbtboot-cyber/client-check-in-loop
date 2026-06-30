@@ -363,7 +363,7 @@ Deno.serve(async (req) => {
     function isValidFoodEntry(name: unknown, category: unknown, per100?: Macros | null): boolean {
       if (typeof name !== "string" || !name.trim()) return false;
       if (typeof category !== "string" || !VALID_CATEGORIES.includes(category as Category)) return false;
-      if (per100) {
+      if (per100 && category !== "Veg") {
         const key = densityMacroKey(category as Category);
         const density = Number(per100[key] ?? 0);
         if (!Number.isFinite(density) || density <= 0) return false;
