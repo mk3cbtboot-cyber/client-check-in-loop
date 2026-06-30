@@ -545,6 +545,12 @@ Deno.serve(async (req) => {
           remainingProtein -= LIQUID_PER100.protein_g * factor;
           remainingCarbs -= LIQUID_PER100.carbs_g * factor;
           remainingFat -= LIQUID_PER100.fat_g * factor;
+          addActual({
+            calories: LIQUID_PER100.calories * factor,
+            protein_g: LIQUID_PER100.protein_g * factor,
+            carbs_g: LIQUID_PER100.carbs_g * factor,
+            fat_g: LIQUID_PER100.fat_g * factor,
+          });
           items.push({
             name: "Liquid Egg Whites",
             portion: `${liquidGrams}g`,
