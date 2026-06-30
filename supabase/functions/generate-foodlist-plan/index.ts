@@ -219,6 +219,8 @@ Target: ~${params.target.calories} kcal, P ${params.target.protein_g}g / C ${par
 
 List 6 ranked candidate foods per macro category. Each candidate is a specific named food (e.g. "Chicken Breast", "Brown Rice", "Broccoli", "Olive Oil"). Avoid generic terms.
 
+For vegetables, use simple names only — one or two words maximum. Do not append preparation descriptors such as "sticks", "strips", "florets", "diced", "sliced", "chopped", or "pieces" to vegetable names. Use "Carrots" not "Carrot Sticks". Use "Bell Peppers" not "Bell Pepper Strips". Simple names produce accurate USDA matches.
+
 Do not use any of the following foods in this slot: ${params.excludedFoods.length ? params.excludedFoods.join(", ") : "(none)"}
 
 ${fatRotationHint}
