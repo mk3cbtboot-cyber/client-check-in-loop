@@ -196,6 +196,10 @@ const VEG_POOL = [
 
 const EGG_PROTEIN_POOL = ["Eggs"];
 
+// Legume detector — when the chosen carb source is a legume, pair it with a lean protein.
+const LEGUME_PAIR_RE = /\b(black beans?|kidney beans?|chickpeas?|garbanzos?|lentils?|pinto beans?|cannellini( beans?)?|navy beans?)\b/i;
+const LEAN_PROTEIN_POOL = ["Chicken Breast", "Turkey Breast", "Cod", "Haddock"];
+
 async function aiCandidatesForSlot(
   apiKey: string,
   params: {
