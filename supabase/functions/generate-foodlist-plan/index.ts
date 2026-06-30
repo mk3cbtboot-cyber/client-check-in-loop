@@ -573,7 +573,7 @@ Deno.serve(async (req) => {
       }
 
       // Step 5 — FAT sized to remaining fat.
-      if (remainingFat > 0) {
+      if (remainingFat > (i === 0 ? 3 : 0)) {
         const found = await findUSDAFood(cands.fat ?? [], usedFat, "Fat");
         if (found) {
           let grams: number;
