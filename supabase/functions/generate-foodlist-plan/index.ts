@@ -153,6 +153,10 @@ async function findUSDAFood(
         rejected.push({ desc: item.description, value: 0, reason: "wrong-form" });
         continue;
       }
+      if (!matchesPrimaryKeyword(item.description, cand)) {
+        rejected.push({ desc: item.description, value: 0, reason: "primary-keyword-missing" });
+        continue;
+      }
       const value = Number(item.per100[macroKey] ?? 0);
       if (category === "Veg" || value >= threshold) {
         if (rejected.length > 0) {
