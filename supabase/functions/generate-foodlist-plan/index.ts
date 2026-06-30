@@ -367,27 +367,33 @@ Deno.serve(async (req) => {
       debugFoods.push({ slot, slot_index: slotIndex, name, category, portion, estimated: true });
     }
 
+    // Pre-fetch AI candidates for every slot in parallel — biggest wall-clock win.
+    const candidatesPerSlot = await Promise.all(
+      activeSlots.map((slot, i) =>
+        aiCandidatesForSlot(apiKey, {
+          slotKey: slot,
+          slotLabel: slotLabelMap[slot],
+          slotIndex: i,
+          totalSlots: activeSlots.length,
+          target: perMealTarget(i),
+          excludedFoods,           // empty at this point — kept for prompt shape
+          usedFats: usedFatNames,  // empty at this point — kept for prompt shape
+          exclusions,
+          preferences,
+        }).catch((e) => {
+          console.error("aiCandidatesForSlot failed", slot, e);
+          return { protein: [], carbs: [], veg: [], fat: [] };
+        }),
+      ),
+    );
+
     for (let i = 0; i < activeSlots.length; i += 1) {
       const slot = activeSlots[i];
       const target = perMealTarget(i);
       console.log(`[generate-foodlist-plan] Slot ${i + 1} (${slot}): protein=${target.protein_g}g carbs=${target.carbs_g}g fat=${target.fat_g}g calories=${target.calories}`);
       debugTargets.push({ slot, slot_index: i, ...target });
-      let cands: { protein: string[]; carbs: string[]; veg: string[]; fat: string[] } = { protein: [], carbs: [], veg: [], fat: [] };
-      try {
-        cands = await aiCandidatesForSlot(apiKey, {
-          slotKey: slot,
-          slotLabel: slotLabelMap[slot],
-          slotIndex: i,
-          totalSlots: activeSlots.length,
-          target,
-          excludedFoods,
-          usedFats: usedFatNames,
-          exclusions,
-          preferences,
-        });
-      } catch (e) {
-        console.error("aiCandidatesForSlot failed", slot, e);
-      }
+      const cands = candidatesPerSlot[i];
+
       cands.veg = [...(cands.veg ?? []), ...VEG_POOL];
       if (i === 0) {
         cands.protein = [...EGG_PROTEIN_POOL];
