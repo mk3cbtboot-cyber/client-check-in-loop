@@ -777,9 +777,9 @@ Deno.serve(async (req) => {
       const varianceLine = `Meal ${i + 1} — Target: P${target.protein_g}g C${target.carbs_g}g F${target.fat_g}g | Actual: P${actualRounded.protein_g}g C${actualRounded.carbs_g}g F${actualRounded.fat_g}g | Variance: P${fmtDelta(variance.protein_g)}g C${fmtDelta(variance.carbs_g)}g F${fmtDelta(variance.fat_g)}g`;
       console.log(`[generate-foodlist-plan] ${varianceLine}`);
       debugFoods.push({
-        slot, slot_index: i, name: varianceLine, category: "Protein",
-        portion: "", estimated: false,
-      });
+        slot, slot_index: i, name: varianceLine, category: "Variance",
+        portion: "", estimated: false, variance: true,
+      } as never);
 
       out[slot] = items;
 
