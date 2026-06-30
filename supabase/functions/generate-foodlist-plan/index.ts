@@ -411,13 +411,33 @@ Deno.serve(async (req) => {
       let remainingCarbs = target.carbs_g;
       let remainingFat = target.fat_g;
 
-      const contributionAt = (per100: Macros, grams: number): Macros => {
+      // Actual accumulator — raw (unrounded) contributions, including hard-coded foods
+      // (Whole Egg, Egg White, Liquid Egg Whites, Oats) and USDA-fetched foods alike.
+      const actual = { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+      const addActual = (m: Macros) => {
+        actual.calories += m.calories || 0;
+        actual.protein_g += m.protein_g || 0;
+        actual.carbs_g += m.carbs_g || 0;
+        actual.fat_g += m.fat_g || 0;
+      };
+      const rawContributionAt = (per100: Macros, grams: number): Macros => {
         const factor = grams / 100;
         return {
-          calories: Math.round(per100.calories * factor),
-          protein_g: Math.round(per100.protein_g * factor),
-          carbs_g: Math.round(per100.carbs_g * factor),
-          fat_g: Math.round(per100.fat_g * factor),
+          calories: per100.calories * factor,
+          protein_g: per100.protein_g * factor,
+          carbs_g: per100.carbs_g * factor,
+          fat_g: per100.fat_g * factor,
+        };
+      };
+
+      const contributionAt = (per100: Macros, grams: number): Macros => {
+        const raw = rawContributionAt(per100, grams);
+        addActual(raw);
+        return {
+          calories: Math.round(raw.calories),
+          protein_g: Math.round(raw.protein_g),
+          carbs_g: Math.round(raw.carbs_g),
+          fat_g: Math.round(raw.fat_g),
         };
       };
       const subtract = (m: Macros) => {
