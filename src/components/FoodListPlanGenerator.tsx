@@ -94,14 +94,8 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
     return text.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
   }
 
-  function shouldRenderDebugFood(f: { name?: string; usdaName?: string; usda_description?: string; estimated?: boolean }): boolean {
-    if (!f.name) return false;
-    if (f.estimated) return true;
-    return Boolean(f.usdaName ?? f.usda_description);
-  }
-
-  function debugUsdaName(f: { usdaName?: string; usda_description?: string }): string {
-    return f.usdaName ?? f.usda_description ?? "";
+  function debugUsdaName(f: { usdaName?: string; usda_description?: string }): string | undefined {
+    return f.usdaName ?? f.usda_description;
   }
 
   async function persistExclusions() {
@@ -232,15 +226,19 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
             {debugFoods && debugFoods.length > 0 && (
               <div>
                 <div className="font-semibold mb-1">USDA values per food:</div>
-                {debugFoods.filter(shouldRenderDebugFood).map((f, idx) => (
-                  <div key={idx}>
-                    Meal {f.slot_index + 1} — {f.name} [{f.category}] |{" "}
-                    {f.estimated
-                      ? "USDA: (estimated, no match)"
-                      : `USDA: "${debugUsdaName(f)}" (${f.density_value}g ${f.density_macro} per 100g)`}{" "}
-                    | Portion: {f.portion}
-                  </div>
-                ))}
+                {debugFoods.map((f, idx) => {
+                  const usdaName = debugUsdaName(f);
+                  if (!f.name || !usdaName) return null;
+                  return (
+                    <div key={idx}>
+                      Meal {f.slot_index + 1} — {f.name} [{f.category}] |{" "}
+                      {f.estimated
+                        ? `USDA: "${usdaName}" (estimated)`
+                        : `USDA: "${usdaName}" (${f.density_value}g ${f.density_macro} per 100g)`}{" "}
+                      | Portion: {f.portion}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
