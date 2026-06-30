@@ -445,7 +445,78 @@ Deno.serve(async (req) => {
       }
 
       // Step 3 — PROTEIN sized to remaining protein.
-      if (remainingProtein > 0) {
+      if (i === 0) {
+        // Meal 1 — dynamic egg formula. Three line items: Whole Egg, Egg White, Liquid Egg Whites.
+        // Hard-coded macros (no USDA calls).
+        const WHOLE = { protein_g: 6.3, carbs_g: 0.3, fat_g: 4.75, calories: 70 }; // per 50g egg
+        const WHITE = { protein_g: 3.6, carbs_g: 0.1, fat_g: 0.05, calories: 17 }; // per 33g white
+        const LIQUID_PER100 = { protein_g: 11, carbs_g: 0.7, fat_g: 0.2, calories: 52 };
+
+        // Step 1 — whole egg count from fat budget.
+        let wholeCount = Math.floor(Math.max(0, target.fat_g) / 4.75);
+        wholeCount = Math.min(wholeCount, 3);
+        wholeCount = Math.max(wholeCount, 1);
+
+        // Step 2 — subtract whole eggs.
+        const wholeContrib = {
+          calories: Math.round(WHOLE.calories * wholeCount),
+          protein_g: Math.round(WHOLE.protein_g * wholeCount * 10) / 10,
+          carbs_g: Math.round(WHOLE.carbs_g * wholeCount * 10) / 10,
+          fat_g: Math.round(WHOLE.fat_g * wholeCount * 100) / 100,
+        };
+        remainingProtein -= WHOLE.protein_g * wholeCount;
+        remainingCarbs -= WHOLE.carbs_g * wholeCount;
+        remainingFat -= WHOLE.fat_g * wholeCount;
+        items.push({
+          name: "Whole Egg",
+          portion: `${wholeCount} ${wholeCount === 1 ? "egg" : "eggs"}`,
+          category: "Protein",
+          est_macros: wholeContrib,
+        });
+        pushDebugFromUsda(slot, i, "Whole Egg", "Protein", { calories: 143, protein_g: 12.6, carbs_g: 0.6, fat_g: 9.5 }, "Whole Egg (hard-coded, 50g)", `${wholeCount} ${wholeCount === 1 ? "egg" : "eggs"}`);
+
+        // Step 3 — subtract same number of egg whites.
+        const whiteContrib = {
+          calories: Math.round(WHITE.calories * wholeCount),
+          protein_g: Math.round(WHITE.protein_g * wholeCount * 10) / 10,
+          carbs_g: Math.round(WHITE.carbs_g * wholeCount * 10) / 10,
+          fat_g: Math.round(WHITE.fat_g * wholeCount * 100) / 100,
+        };
+        remainingProtein -= WHITE.protein_g * wholeCount;
+        remainingCarbs -= WHITE.carbs_g * wholeCount;
+        remainingFat -= WHITE.fat_g * wholeCount;
+        items.push({
+          name: "Egg White",
+          portion: `${wholeCount} ${wholeCount === 1 ? "egg white" : "egg whites"}`,
+          category: "Protein",
+          est_macros: whiteContrib,
+        });
+        pushDebugFromUsda(slot, i, "Egg White", "Protein", { calories: 52, protein_g: 11, carbs_g: 0.7, fat_g: 0.2 }, "Egg White (hard-coded, 33g)", `${wholeCount} ${wholeCount === 1 ? "egg white" : "egg whites"}`);
+
+        // Step 4 — liquid egg whites fill remaining protein.
+        const rawLiquid = Math.max(0, remainingProtein) / 11 * 100;
+        const liquidGrams = Math.max(0, Math.round(rawLiquid / 5) * 5);
+        if (liquidGrams > 0) {
+          const factor = liquidGrams / 100;
+          const liquidContrib = {
+            calories: Math.round(LIQUID_PER100.calories * factor),
+            protein_g: Math.round(LIQUID_PER100.protein_g * factor * 10) / 10,
+            carbs_g: Math.round(LIQUID_PER100.carbs_g * factor * 10) / 10,
+            fat_g: Math.round(LIQUID_PER100.fat_g * factor * 100) / 100,
+          };
+          remainingProtein -= LIQUID_PER100.protein_g * factor;
+          remainingCarbs -= LIQUID_PER100.carbs_g * factor;
+          remainingFat -= LIQUID_PER100.fat_g * factor;
+          items.push({
+            name: "Liquid Egg Whites",
+            portion: `${liquidGrams}g`,
+            category: "Protein",
+            est_macros: liquidContrib,
+          });
+          pushDebugFromUsda(slot, i, "Liquid Egg Whites", "Protein", LIQUID_PER100, "Liquid Egg Whites (hard-coded, per 100g)", `${liquidGrams}g`);
+        }
+        usedProtein.add(canon("Eggs"));
+      } else if (remainingProtein > 0) {
         const found = await findUSDAFood(cands.protein ?? [], usedProtein, "Protein");
         if (found) {
           let grams = roundPortionG((Math.max(0, remainingProtein) * 100) / Math.max(1, found.per100.protein_g));
@@ -463,7 +534,7 @@ Deno.serve(async (req) => {
           items.push({ name: found.name, portion, category: "Protein", est_macros: contrib });
           pushDebugFromUsda(slot, i, found.name, "Protein", found.per100, found.usdaDescription, portion);
         } else {
-          const fallbackName = (cands.protein ?? []).find((n) => !usedProtein.has(canon(n))) ?? (i === 0 ? "Eggs" : "Chicken Breast, cooked");
+          const fallbackName = (cands.protein ?? []).find((n) => !usedProtein.has(canon(n))) ?? "Chicken Breast, cooked";
           let portion: string;
           if (isEggName(fallbackName)) {
             const count = Math.max(1, Math.round(remainingProtein / 6));
