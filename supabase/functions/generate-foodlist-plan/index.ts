@@ -411,13 +411,33 @@ Deno.serve(async (req) => {
       let remainingCarbs = target.carbs_g;
       let remainingFat = target.fat_g;
 
-      const contributionAt = (per100: Macros, grams: number): Macros => {
+      // Actual accumulator — raw (unrounded) contributions, including hard-coded foods
+      // (Whole Egg, Egg White, Liquid Egg Whites, Oats) and USDA-fetched foods alike.
+      const actual = { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
+      const addActual = (m: Macros) => {
+        actual.calories += m.calories || 0;
+        actual.protein_g += m.protein_g || 0;
+        actual.carbs_g += m.carbs_g || 0;
+        actual.fat_g += m.fat_g || 0;
+      };
+      const rawContributionAt = (per100: Macros, grams: number): Macros => {
         const factor = grams / 100;
         return {
-          calories: Math.round(per100.calories * factor),
-          protein_g: Math.round(per100.protein_g * factor),
-          carbs_g: Math.round(per100.carbs_g * factor),
-          fat_g: Math.round(per100.fat_g * factor),
+          calories: per100.calories * factor,
+          protein_g: per100.protein_g * factor,
+          carbs_g: per100.carbs_g * factor,
+          fat_g: per100.fat_g * factor,
+        };
+      };
+
+      const contributionAt = (per100: Macros, grams: number): Macros => {
+        const raw = rawContributionAt(per100, grams);
+        addActual(raw);
+        return {
+          calories: Math.round(raw.calories),
+          protein_g: Math.round(raw.protein_g),
+          carbs_g: Math.round(raw.carbs_g),
+          fat_g: Math.round(raw.fat_g),
         };
       };
       const subtract = (m: Macros) => {
@@ -443,7 +463,7 @@ Deno.serve(async (req) => {
           const fallbackName = (cands.veg ?? []).find((n) => !usedVeg.has(canon(n)));
           if (!fallbackName) break;
           const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-          if (est) subtract(est);
+          if (est) { subtract(est); addActual(est); }
           usedVeg.add(canon(fallbackName));
           items.push({ name: `${fallbackName} (estimated)`, portion, category: "Veg", est_macros: est ?? undefined });
           pushDebugEstimated(slot, i, fallbackName, "Veg", portion);
@@ -473,6 +493,12 @@ Deno.serve(async (req) => {
         remainingProtein -= WHOLE.protein_g * wholeCount;
         remainingCarbs -= WHOLE.carbs_g * wholeCount;
         remainingFat -= WHOLE.fat_g * wholeCount;
+        addActual({
+          calories: WHOLE.calories * wholeCount,
+          protein_g: WHOLE.protein_g * wholeCount,
+          carbs_g: WHOLE.carbs_g * wholeCount,
+          fat_g: WHOLE.fat_g * wholeCount,
+        });
         items.push({
           name: "Whole Egg",
           portion: `${wholeCount} ${wholeCount === 1 ? "egg" : "eggs"}`,
@@ -491,6 +517,12 @@ Deno.serve(async (req) => {
         remainingProtein -= WHITE.protein_g * wholeCount;
         remainingCarbs -= WHITE.carbs_g * wholeCount;
         remainingFat -= WHITE.fat_g * wholeCount;
+        addActual({
+          calories: WHITE.calories * wholeCount,
+          protein_g: WHITE.protein_g * wholeCount,
+          carbs_g: WHITE.carbs_g * wholeCount,
+          fat_g: WHITE.fat_g * wholeCount,
+        });
         items.push({
           name: "Egg White",
           portion: `${wholeCount} ${wholeCount === 1 ? "egg white" : "egg whites"}`,
@@ -513,6 +545,12 @@ Deno.serve(async (req) => {
           remainingProtein -= LIQUID_PER100.protein_g * factor;
           remainingCarbs -= LIQUID_PER100.carbs_g * factor;
           remainingFat -= LIQUID_PER100.fat_g * factor;
+          addActual({
+            calories: LIQUID_PER100.calories * factor,
+            protein_g: LIQUID_PER100.protein_g * factor,
+            carbs_g: LIQUID_PER100.carbs_g * factor,
+            fat_g: LIQUID_PER100.fat_g * factor,
+          });
           items.push({
             name: "Liquid Egg Whites",
             portion: `${liquidGrams}g`,
@@ -558,7 +596,7 @@ Deno.serve(async (req) => {
               portion = fmtPortionG((remainingProtein * 100) / 30);
             }
             const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-            if (est) subtract(est);
+            if (est) { subtract(est); addActual(est); }
             usedProtein.add(canon(fallbackName));
             items.push({ name: `${fallbackName} (estimated)`, portion, category: "Protein", est_macros: est ?? undefined });
             pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
@@ -589,7 +627,7 @@ Deno.serve(async (req) => {
             const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n))) ?? "Brown Rice (cooked)";
             const portion = fmtPortionG((remainingCarbs * 100) / 25);
             const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-            if (est) subtract(est);
+            if (est) { subtract(est); addActual(est); }
             usedCarbs.add(canon(fallbackName));
             items.push({ name: `${fallbackName} (estimated)`, portion, category: "Carbs", est_macros: est ?? undefined });
             pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
@@ -624,34 +662,28 @@ Deno.serve(async (req) => {
             ? `${Math.max(1, Math.round(remainingFat / 4.5))} tsp`
             : fmtPortionG(remainingFat / 0.5);
           const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-          if (est) subtract(est);
+          if (est) { subtract(est); addActual(est); }
           usedFat.add(canon(fallbackName));
           items.push({ name: `${fallbackName} (estimated)`, portion, category: "Fat", est_macros: est ?? undefined });
           pushDebugEstimated(slot, i, fallbackName, "Fat", portion);
         }
       }
 
-      // Step 6 — Validate: sum actual contributions and log variance vs target.
-      const actual = items.reduce(
-        (acc, it) => {
-          const m = it.est_macros;
-          if (!m) return acc;
-          return {
-            calories: acc.calories + (m.calories || 0),
-            protein_g: acc.protein_g + (m.protein_g || 0),
-            carbs_g: acc.carbs_g + (m.carbs_g || 0),
-            fat_g: acc.fat_g + (m.fat_g || 0),
-          };
-        },
-        { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-      );
+      // Step 6 — Validate: use live `actual` accumulator (includes hard-coded foods
+      // — Whole Egg, Egg White, Liquid Egg Whites, Oats — and AI estimates).
+      const actualRounded = {
+        calories: Math.round(actual.calories),
+        protein_g: Math.round(actual.protein_g * 10) / 10,
+        carbs_g: Math.round(actual.carbs_g * 10) / 10,
+        fat_g: Math.round(actual.fat_g * 10) / 10,
+      };
       const variance = {
-        protein_g: actual.protein_g - target.protein_g,
-        carbs_g: actual.carbs_g - target.carbs_g,
-        fat_g: actual.fat_g - target.fat_g,
+        protein_g: Math.round((actualRounded.protein_g - target.protein_g) * 10) / 10,
+        carbs_g: Math.round((actualRounded.carbs_g - target.carbs_g) * 10) / 10,
+        fat_g: Math.round((actualRounded.fat_g - target.fat_g) * 10) / 10,
       };
       const fmtDelta = (n: number) => `${n >= 0 ? "+" : ""}${n}`;
-      const varianceLine = `Meal ${i + 1} — Target: P${target.protein_g}g C${target.carbs_g}g F${target.fat_g}g | Actual: P${actual.protein_g}g C${actual.carbs_g}g F${actual.fat_g}g | Variance: P${fmtDelta(variance.protein_g)}g C${fmtDelta(variance.carbs_g)}g F${fmtDelta(variance.fat_g)}g`;
+      const varianceLine = `Meal ${i + 1} — Target: P${target.protein_g}g C${target.carbs_g}g F${target.fat_g}g | Actual: P${actualRounded.protein_g}g C${actualRounded.carbs_g}g F${actualRounded.fat_g}g | Variance: P${fmtDelta(variance.protein_g)}g C${fmtDelta(variance.carbs_g)}g F${fmtDelta(variance.fat_g)}g`;
       console.log(`[generate-foodlist-plan] ${varianceLine}`);
       debugFoods.push({
         slot, slot_index: i, name: varianceLine, category: "Protein",
