@@ -599,7 +599,6 @@ Deno.serve(async (req) => {
           LEGUME_PAIR_RE.test(carbFound.name) || LEGUME_PAIR_RE.test(carbFound.usdaDescription)
         );
 
-        let proteinWasFatty = false;
         const placeProtein = async (candidates: string[]) => {
           const found = await findUSDAFood(candidates, usedProtein, "Protein");
           if (found) {
