@@ -493,6 +493,12 @@ Deno.serve(async (req) => {
         remainingProtein -= WHOLE.protein_g * wholeCount;
         remainingCarbs -= WHOLE.carbs_g * wholeCount;
         remainingFat -= WHOLE.fat_g * wholeCount;
+        addActual({
+          calories: WHOLE.calories * wholeCount,
+          protein_g: WHOLE.protein_g * wholeCount,
+          carbs_g: WHOLE.carbs_g * wholeCount,
+          fat_g: WHOLE.fat_g * wholeCount,
+        });
         items.push({
           name: "Whole Egg",
           portion: `${wholeCount} ${wholeCount === 1 ? "egg" : "eggs"}`,
