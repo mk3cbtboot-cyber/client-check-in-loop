@@ -225,6 +225,8 @@ List 6 ranked candidate foods per macro category. Each candidate is a specific n
 
 For vegetables, use simple names only — one or two words maximum. Do not append preparation descriptors such as "sticks", "strips", "florets", "diced", "sliced", "chopped", or "pieces" to vegetable names. Use "Carrots" not "Carrot Sticks". Use "Bell Peppers" not "Bell Pepper Strips". Simple names produce accurate USDA matches.
 
+Do not suggest brand names, proprietary foods, or specialty product names. Use only generic, USDA-compatible names that have a realistic chance of matching a USDA Foundation or SR Legacy entry. Examples: instead of "Ezekiel bread" use "whole grain bread"; instead of "Weetabix" use "whole wheat cereal"; skip items like "Quest bar" entirely. No trademarked or branded products.
+
 Do not use any of the following foods in this slot: ${params.excludedFoods.length ? params.excludedFoods.join(", ") : "(none)"}
 
 ${fatRotationHint}
