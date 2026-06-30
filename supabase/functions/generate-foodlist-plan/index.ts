@@ -599,10 +599,22 @@ Deno.serve(async (req) => {
           LEGUME_PAIR_RE.test(carbFound.name) || LEGUME_PAIR_RE.test(carbFound.usdaDescription)
         );
 
+        let proteinWasFatty = false;
         const placeProtein = async (candidates: string[]) => {
           const found = await findUSDAFood(candidates, usedProtein, "Protein");
           if (found) {
-            let grams = roundPortionG((Math.max(0, remainingProtein) * 100) / Math.max(1, found.per100.protein_g));
+            const fatPer100 = Number(found.per100.fat_g ?? 0);
+            const proteinPer100 = Math.max(1, found.per100.protein_g);
+            let grams: number;
+            if (fatPer100 > 7) {
+              proteinWasFatty = true;
+              const fromProtein = (Math.max(0, remainingProtein) * 100) / proteinPer100;
+              const fromFat = (Math.max(0, remainingFat) * 100) / fatPer100;
+              grams = roundPortionG(Math.min(fromProtein, fromFat));
+              console.log(`[generate-foodlist-plan] fatty-protein cap on "${found.name}" (fat ${fatPer100}g/100g): fromProtein=${fromProtein.toFixed(1)}g fromFat=${fromFat.toFixed(1)}g → ${grams}g`);
+            } else {
+              grams = roundPortionG((Math.max(0, remainingProtein) * 100) / proteinPer100);
+            }
             let portion: string;
             if (isEggName(found.name)) {
               const count = Math.max(1, Math.round(grams / 50));
