@@ -517,6 +517,12 @@ Deno.serve(async (req) => {
         remainingProtein -= WHITE.protein_g * wholeCount;
         remainingCarbs -= WHITE.carbs_g * wholeCount;
         remainingFat -= WHITE.fat_g * wholeCount;
+        addActual({
+          calories: WHITE.calories * wholeCount,
+          protein_g: WHITE.protein_g * wholeCount,
+          carbs_g: WHITE.carbs_g * wholeCount,
+          fat_g: WHITE.fat_g * wholeCount,
+        });
         items.push({
           name: "Egg White",
           portion: `${wholeCount} ${wholeCount === 1 ? "egg white" : "egg whites"}`,
