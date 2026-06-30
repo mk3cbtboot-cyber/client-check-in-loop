@@ -131,6 +131,11 @@ const EGG_PER100: Macros = { calories: 143, protein_g: 12.6, carbs_g: 0.6, fat_g
 const EGG_USDA_DESC = "Egg, whole, raw, large (hard-coded)";
 const isEggName = (n: string) => /\begg/i.test(n);
 
+// Hard-coded macros for oats (per 100g dry weight).
+const OATS_PER100: Macros = { calories: 389, protein_g: 13.2, carbs_g: 67.7, fat_g: 6.5 };
+const OATS_USDA_DESC = "Oats, dry (hard-coded)";
+const isOatsName = (n: string) => /\b(oats?|oatmeal)\b/i.test(n);
+
 async function findUSDAFood(
   candidates: string[],
   used: Set<string>,
@@ -145,6 +150,11 @@ async function findUSDAFood(
     if (category === "Protein" && isEggName(cand)) {
       console.log(`[usda] "${cand}" (Protein): using hard-coded egg macros (12.6g protein per 100g)`);
       return { name: cand, per100: EGG_PER100, usdaDescription: EGG_USDA_DESC };
+    }
+    // Hard-coded oats lookup — bypass USDA search.
+    if (category === "Carbs" && isOatsName(cand)) {
+      console.log(`[usda] "${cand}" (Carbs): using hard-coded oats macros (67.7g carbs per 100g dry)`);
+      return { name: "Oats", per100: OATS_PER100, usdaDescription: OATS_USDA_DESC };
     }
     const list = await usdaCandidates(cookedSearchTerm(cand, category)).catch(() => []);
     const rejected: Array<{ desc: string; value: number; reason: string }> = [];
