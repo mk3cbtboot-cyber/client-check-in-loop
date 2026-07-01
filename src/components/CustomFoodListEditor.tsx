@@ -51,6 +51,11 @@ function normalizeList(raw: unknown): FoodList {
     const n = Number(v);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   };
+  const numOpt = (v: unknown): number | undefined => {
+    if (v === undefined || v === null || v === "") return undefined;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : undefined;
+  };
   const slot = (v: unknown): FoodItem[] =>
     Array.isArray(v)
       ? v.map((x) => {
@@ -63,6 +68,9 @@ function normalizeList(raw: unknown): FoodList {
             est_protein_g: num(o.est_protein_g),
             est_carbs_g: num(o.est_carbs_g),
             est_fat_g: num(o.est_fat_g),
+            density_protein_per_100g: numOpt(o.density_protein_per_100g),
+            density_carbs_per_100g: numOpt(o.density_carbs_per_100g),
+            density_fat_per_100g: numOpt(o.density_fat_per_100g),
           };
         })
       : [];
