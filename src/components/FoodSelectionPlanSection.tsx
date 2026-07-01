@@ -37,6 +37,10 @@ export function foodKey(f: FoodItem): string {
   return `${f.name}${f.portion ? ` · ${f.portion}` : ""}`;
 }
 
+function stripEstimated(name: string): string {
+  return (name ?? "").replace(/\s*\(estimated\)\s*$/i, "").trim();
+}
+
 export function categorize(food: FoodItem): CategoryKey | null {
   const raw = (food.category ?? "").trim().toLowerCase();
   for (const c of CATEGORY_DEFS) {
