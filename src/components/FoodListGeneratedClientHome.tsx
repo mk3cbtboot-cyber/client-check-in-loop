@@ -19,6 +19,10 @@ interface RecipeOption {
 
 const ALL_SLOTS: SlotKey[] = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
 
+function stripEstimated(name: string): string {
+  return (name ?? "").replace(/\s*\(estimated\)\s*$/i, "").trim();
+}
+
 const CATEGORY_LABEL: Record<CategoryKey, string> = {
   protein: "Protein",
   carbs: "Carbs",
