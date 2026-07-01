@@ -504,98 +504,15 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Step 3 — PROTEIN sized to remaining protein.
+      // Step 3 — sizing order per slot: carbs → protein → fat (veggies already done above).
       if (i === 0) {
-        // Meal 1 — dynamic egg formula. Three line items: Whole Egg, Egg White, Liquid Egg Whites.
+        // Meal 1 — order: Oats first, then dynamic egg formula.
         // Hard-coded macros (no USDA calls).
         const WHOLE = { protein_g: 6.3, carbs_g: 0.3, fat_g: 4.75, calories: 70 }; // per 50g egg
         const WHITE = { protein_g: 3.6, carbs_g: 0.1, fat_g: 0.05, calories: 17 }; // per 33g white
         const LIQUID_PER100 = { protein_g: 11, carbs_g: 0.7, fat_g: 0.2, calories: 52 };
 
-        // Step 1 — whole egg count from fat budget.
-        let wholeCount = Math.floor(Math.max(0, target.fat_g) / 4.75);
-        wholeCount = Math.min(wholeCount, 3);
-        wholeCount = Math.max(wholeCount, 1);
-
-        // Step 2 — subtract whole eggs.
-        const wholeContrib = {
-          calories: Math.round(WHOLE.calories * wholeCount),
-          protein_g: Math.round(WHOLE.protein_g * wholeCount * 10) / 10,
-          carbs_g: Math.round(WHOLE.carbs_g * wholeCount * 10) / 10,
-          fat_g: Math.round(WHOLE.fat_g * wholeCount * 100) / 100,
-        };
-        remainingProtein -= WHOLE.protein_g * wholeCount;
-        remainingCarbs -= WHOLE.carbs_g * wholeCount;
-        remainingFat -= WHOLE.fat_g * wholeCount;
-        addActual({
-          calories: WHOLE.calories * wholeCount,
-          protein_g: WHOLE.protein_g * wholeCount,
-          carbs_g: WHOLE.carbs_g * wholeCount,
-          fat_g: WHOLE.fat_g * wholeCount,
-        });
-        items.push({
-          name: "Whole Egg",
-          portion: `${wholeCount} ${wholeCount === 1 ? "egg" : "eggs"}`,
-          category: "Protein",
-          est_macros: wholeContrib,
-        });
-        pushDebugFromUsda(slot, i, "Whole Egg", "Protein", { calories: 143, protein_g: 12.6, carbs_g: 0.6, fat_g: 9.5 }, "Whole Egg (hard-coded, 50g)", `${wholeCount} ${wholeCount === 1 ? "egg" : "eggs"}`);
-
-        // Step 3 — subtract same number of egg whites.
-        const whiteContrib = {
-          calories: Math.round(WHITE.calories * wholeCount),
-          protein_g: Math.round(WHITE.protein_g * wholeCount * 10) / 10,
-          carbs_g: Math.round(WHITE.carbs_g * wholeCount * 10) / 10,
-          fat_g: Math.round(WHITE.fat_g * wholeCount * 100) / 100,
-        };
-        remainingProtein -= WHITE.protein_g * wholeCount;
-        remainingCarbs -= WHITE.carbs_g * wholeCount;
-        remainingFat -= WHITE.fat_g * wholeCount;
-        addActual({
-          calories: WHITE.calories * wholeCount,
-          protein_g: WHITE.protein_g * wholeCount,
-          carbs_g: WHITE.carbs_g * wholeCount,
-          fat_g: WHITE.fat_g * wholeCount,
-        });
-        items.push({
-          name: "Egg White",
-          portion: `${wholeCount} ${wholeCount === 1 ? "egg white" : "egg whites"}`,
-          category: "Protein",
-          est_macros: whiteContrib,
-        });
-        pushDebugFromUsda(slot, i, "Egg White", "Protein", { calories: 52, protein_g: 11, carbs_g: 0.7, fat_g: 0.2 }, "Egg White (hard-coded, 33g)", `${wholeCount} ${wholeCount === 1 ? "egg white" : "egg whites"}`);
-
-        // Step 4 — liquid egg whites fill remaining protein.
-        const rawLiquid = Math.max(0, remainingProtein) / 11 * 100;
-        const liquidGrams = Math.max(0, Math.round(rawLiquid / 5) * 5);
-        if (liquidGrams > 0) {
-          const factor = liquidGrams / 100;
-          const liquidContrib = {
-            calories: Math.round(LIQUID_PER100.calories * factor),
-            protein_g: Math.round(LIQUID_PER100.protein_g * factor * 10) / 10,
-            carbs_g: Math.round(LIQUID_PER100.carbs_g * factor * 10) / 10,
-            fat_g: Math.round(LIQUID_PER100.fat_g * factor * 100) / 100,
-          };
-          remainingProtein -= LIQUID_PER100.protein_g * factor;
-          remainingCarbs -= LIQUID_PER100.carbs_g * factor;
-          remainingFat -= LIQUID_PER100.fat_g * factor;
-          addActual({
-            calories: LIQUID_PER100.calories * factor,
-            protein_g: LIQUID_PER100.protein_g * factor,
-            carbs_g: LIQUID_PER100.carbs_g * factor,
-            fat_g: LIQUID_PER100.fat_g * factor,
-          });
-          items.push({
-            name: "Liquid Egg Whites",
-            portion: `${liquidGrams}g`,
-            category: "Protein",
-            est_macros: liquidContrib,
-          });
-          pushDebugFromUsda(slot, i, "Liquid Egg Whites", "Protein", LIQUID_PER100, "Liquid Egg Whites (hard-coded, per 100g)", `${liquidGrams}g`);
-        }
-        usedProtein.add(canon("Eggs"));
-
-        // Meal 1 carb source — always Oats, hard-coded (no AI call).
+        // Meal 1 carb source — always Oats, sized FIRST from remaining carbs (after veggies).
         if (remainingCarbs > 0) {
           const rawGrams = (remainingCarbs / OATS_PER100.carbs_g) * 100;
           const oatsGrams = Math.max(5, Math.round(rawGrams / 5) * 5);
@@ -624,7 +541,12 @@ Deno.serve(async (req) => {
           pushDebugFromUsda(slot, i, "Oats", "Carbs", OATS_PER100, OATS_USDA_DESC, `${oatsGrams}g`);
           usedCarbs.add(canon("Oats"));
         }
-      } else {
+
+        // Step 1 — whole egg count from REMAINING fat budget (after veggies + oats).
+        let wholeCount = Math.floor(Math.max(0, remainingFat) / 4.75);
+        wholeCount = Math.min(wholeCount, 3);
+        wholeCount = Math.max(wholeCount, 1);
+
         // Pre-fetch the carb candidate to detect legume pairing before sizing protein.
         const carbFound = remainingCarbs > 0
           ? await findUSDAFood(cands.carbs ?? [], usedCarbs, "Carbs")
