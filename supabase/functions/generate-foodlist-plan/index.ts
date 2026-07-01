@@ -504,16 +504,46 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Step 3 — PROTEIN sized to remaining protein.
+      // Step 3 — sizing order per slot: carbs → protein → fat (veggies already done above).
       if (i === 0) {
-        // Meal 1 — dynamic egg formula. Three line items: Whole Egg, Egg White, Liquid Egg Whites.
+        // Meal 1 — order: Oats first, then dynamic egg formula.
         // Hard-coded macros (no USDA calls).
         const WHOLE = { protein_g: 6.3, carbs_g: 0.3, fat_g: 4.75, calories: 70 }; // per 50g egg
         const WHITE = { protein_g: 3.6, carbs_g: 0.1, fat_g: 0.05, calories: 17 }; // per 33g white
         const LIQUID_PER100 = { protein_g: 11, carbs_g: 0.7, fat_g: 0.2, calories: 52 };
 
-        // Step 1 — whole egg count from fat budget.
-        let wholeCount = Math.floor(Math.max(0, target.fat_g) / 4.75);
+        // Meal 1 carb source — always Oats, sized FIRST from remaining carbs (after veggies).
+        if (remainingCarbs > 0) {
+          const rawGrams = (remainingCarbs / OATS_PER100.carbs_g) * 100;
+          const oatsGrams = Math.max(5, Math.round(rawGrams / 5) * 5);
+          const factor = oatsGrams / 100;
+          const oatsContrib = {
+            calories: Math.round(OATS_PER100.calories * factor),
+            protein_g: Math.round(OATS_PER100.protein_g * factor * 10) / 10,
+            carbs_g: Math.round(OATS_PER100.carbs_g * factor * 10) / 10,
+            fat_g: Math.round(OATS_PER100.fat_g * factor * 10) / 10,
+          };
+          remainingProtein -= OATS_PER100.protein_g * factor;
+          remainingCarbs -= OATS_PER100.carbs_g * factor;
+          remainingFat -= OATS_PER100.fat_g * factor;
+          addActual({
+            calories: OATS_PER100.calories * factor,
+            protein_g: OATS_PER100.protein_g * factor,
+            carbs_g: OATS_PER100.carbs_g * factor,
+            fat_g: OATS_PER100.fat_g * factor,
+          });
+          items.push({
+            name: "Oats",
+            portion: `${oatsGrams}g`,
+            category: "Carbs",
+            est_macros: oatsContrib,
+          });
+          pushDebugFromUsda(slot, i, "Oats", "Carbs", OATS_PER100, OATS_USDA_DESC, `${oatsGrams}g`);
+          usedCarbs.add(canon("Oats"));
+        }
+
+        // Step 1 — whole egg count from REMAINING fat budget (after veggies + oats).
+        let wholeCount = Math.floor(Math.max(0, remainingFat) / 4.75);
         wholeCount = Math.min(wholeCount, 3);
         wholeCount = Math.max(wholeCount, 1);
 
@@ -594,37 +624,9 @@ Deno.serve(async (req) => {
           pushDebugFromUsda(slot, i, "Liquid Egg Whites", "Protein", LIQUID_PER100, "Liquid Egg Whites (hard-coded, per 100g)", `${liquidGrams}g`);
         }
         usedProtein.add(canon("Eggs"));
-
-        // Meal 1 carb source — always Oats, hard-coded (no AI call).
-        if (remainingCarbs > 0) {
-          const rawGrams = (remainingCarbs / OATS_PER100.carbs_g) * 100;
-          const oatsGrams = Math.max(5, Math.round(rawGrams / 5) * 5);
-          const factor = oatsGrams / 100;
-          const oatsContrib = {
-            calories: Math.round(OATS_PER100.calories * factor),
-            protein_g: Math.round(OATS_PER100.protein_g * factor * 10) / 10,
-            carbs_g: Math.round(OATS_PER100.carbs_g * factor * 10) / 10,
-            fat_g: Math.round(OATS_PER100.fat_g * factor * 10) / 10,
-          };
-          remainingProtein -= OATS_PER100.protein_g * factor;
-          remainingCarbs -= OATS_PER100.carbs_g * factor;
-          remainingFat -= OATS_PER100.fat_g * factor;
-          addActual({
-            calories: OATS_PER100.calories * factor,
-            protein_g: OATS_PER100.protein_g * factor,
-            carbs_g: OATS_PER100.carbs_g * factor,
-            fat_g: OATS_PER100.fat_g * factor,
-          });
-          items.push({
-            name: "Oats",
-            portion: `${oatsGrams}g`,
-            category: "Carbs",
-            est_macros: oatsContrib,
-          });
-          pushDebugFromUsda(slot, i, "Oats", "Carbs", OATS_PER100, OATS_USDA_DESC, `${oatsGrams}g`);
-          usedCarbs.add(canon("Oats"));
-        }
       } else {
+
+
         // Pre-fetch the carb candidate to detect legume pairing before sizing protein.
         const carbFound = remainingCarbs > 0
           ? await findUSDAFood(cands.carbs ?? [], usedCarbs, "Carbs")
@@ -694,8 +696,8 @@ Deno.serve(async (req) => {
           // Step 2/3 — force lean protein sized to REMAINING protein.
           if (remainingProtein > 0) await placeProtein(LEAN_PROTEIN_POOL);
         } else {
-          // Standard order: protein first, then carbs.
-          if (remainingProtein > 0) await placeProtein(cands.protein ?? []);
+          // Standard order: carbs first (subtract all macros incl. protein), then protein
+          // sized to what remains — prevents protein overage from carb-side protein.
           if (carbFound) {
             placeCarbFromFound(carbFound);
           } else if (remainingCarbs > 0) {
@@ -707,6 +709,7 @@ Deno.serve(async (req) => {
             items.push({ name: `${fallbackName} (estimated)`, portion, category: "Carbs", est_macros: est ?? undefined });
             pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
           }
+          if (remainingProtein > 0) await placeProtein(cands.protein ?? []);
         }
       }
 
