@@ -787,7 +787,17 @@ Deno.serve(async (req) => {
         portion: "", estimated: false, variance: true,
       } as never);
 
-      out[slot] = items;
+      out[slot] = items.map((it) => {
+        const m = it.est_macros;
+        const rest: Record<string, unknown> = { name: it.name, portion: it.portion, category: it.category };
+        if (m) {
+          rest.est_calories = Math.round(Number(m.calories) || 0);
+          rest.est_protein_g = Math.round((Number(m.protein_g) || 0) * 10) / 10;
+          rest.est_carbs_g = Math.round((Number(m.carbs_g) || 0) * 10) / 10;
+          rest.est_fat_g = Math.round((Number(m.fat_g) || 0) * 10) / 10;
+        }
+        return rest as typeof it;
+      });
 
       for (const it of items) {
         const cleanName = it.name.replace(/\s*\(estimated\)\s*$/i, "").trim();
