@@ -158,7 +158,7 @@ function GeneratedSlotSection({ token, slotKey, label, selectedFoods, hasAnySele
               <ul className="text-sm space-y-1">
                 {selectedFoods.map(({ cat, food }) => (
                   <li key={cat}>
-                    <span className="font-medium">{food.name}</span>
+                    <span className="font-medium">{stripEstimated(food.name)}</span>
                     {food.portion ? <> · {food.portion}</> : null}
                     <span className="text-muted-foreground"> · {CATEGORY_LABEL[cat]}</span>
                   </li>
