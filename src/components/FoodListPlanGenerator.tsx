@@ -166,7 +166,25 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
 
   async function doSave() {
     setConfirmReplaceOpen(false);
-    const { error } = await supabase.from("clients").update({ food_list: reviewList } as never).eq("id", clientId);
+    // Build client_food_selections so every generated food (including vegetables)
+    // is auto-selected and available on the client's Home tab without needing to
+    // visit My Plan first.
+    const slotKeys: SlotKey[] = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
+    const selections: Record<string, { protein: string | null; carbs: string | null; veg: string | null; fat: string | null }> = {};
+    for (const slot of slotKeys) {
+      const items = reviewList[slot] ?? [];
+      const s: { protein: string | null; carbs: string | null; veg: string | null; fat: string | null } = { protein: null, carbs: null, veg: null, fat: null };
+      for (const it of items) {
+        const cat = String(it.category ?? "").toLowerCase();
+        const key = `${it.name}${it.portion ? ` · ${it.portion}` : ""}`;
+        if (cat === "protein" && !s.protein) s.protein = key;
+        else if ((cat === "carbs" || cat === "carb" || cat === "starch" || cat === "starches") && !s.carbs) s.carbs = key;
+        else if ((cat === "veg" || cat === "vegetable" || cat === "vegetables") && !s.veg) s.veg = key;
+        else if ((cat === "fat" || cat === "fats" || cat === "oil" || cat === "oils") && !s.fat) s.fat = key;
+      }
+      selections[slot] = s;
+    }
+    const { error } = await supabase.from("clients").update({ food_list: reviewList, client_food_selections: selections } as never).eq("id", clientId);
     if (error) { toast.error("Failed to save meal plan"); return; }
     setReviewOpen(false);
     toast.success("Meal plan saved.");
