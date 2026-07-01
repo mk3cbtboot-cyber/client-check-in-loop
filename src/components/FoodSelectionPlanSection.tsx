@@ -213,7 +213,7 @@ function SlotSelector({ token, slotKey, label, foods, initial, onSaved }: SlotPr
                             : "border-input hover:bg-accent",
                         )}
                       >
-                        <p className="text-sm font-medium">{f.name}</p>
+                        <p className="text-sm font-medium">{stripEstimated(f.name)}</p>
                         {f.portion && <p className="text-xs text-muted-foreground">{f.portion}</p>}
                       </button>
                     );
