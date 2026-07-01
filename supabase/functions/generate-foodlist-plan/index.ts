@@ -227,6 +227,8 @@ For vegetables, use simple names only — one or two words maximum. Do not appen
 
 Do not suggest brand names, proprietary foods, or specialty product names. Use only generic, USDA-compatible names that have a realistic chance of matching a USDA Foundation or SR Legacy entry. Examples: instead of "Ezekiel bread" use "whole grain bread"; instead of "Weetabix" use "whole wheat cereal"; skip items like "Quest bar" entirely. No trademarked or branded products.
 
+Do NOT suggest pork or any pork cut as a protein source. This includes pork loin, pork tenderloin, pork chops, pork belly, pork shoulder, ham, bacon, prosciutto, pancetta, or any other pork-derived meat. Never include these in the "protein" list.
+
 Do not use any of the following foods in this slot: ${params.excludedFoods.length ? params.excludedFoods.join(", ") : "(none)"}
 
 ${fatRotationHint}
