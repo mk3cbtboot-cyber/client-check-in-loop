@@ -9,6 +9,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { Pencil, Trash2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
@@ -425,78 +428,86 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
         </ul>
       )}
 
-      {showForm && (
-        <div className="space-y-2 rounded border bg-muted/30 p-2">
-          <div className="space-y-1">
-            <Label className="text-xs">Food name</Label>
-            <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} placeholder="e.g. Chicken breast" className="h-8" />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Portion ({eggMode ? "egg count" : "grams"})</Label>
-            <Input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={eggMode ? 1 : 1}
-              value={draftPortionNum}
-              onChange={(e) => onPortionChange(e.target.value)}
-              placeholder={eggMode ? "e.g. 2" : "e.g. 150"}
-              className="h-8"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Category</Label>
-            <Select value={draftCategory} onValueChange={(v) => setDraftCategory(v as FoodCategoryKind)}>
-              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
+      <Dialog
+        open={showForm}
+        onOpenChange={(o) => { if (!o) resetDraft(); }}
+      >
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingIndex != null ? "Edit food" : "Add food"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
             <div className="space-y-1">
-              <Label className="text-xs">Protein (g)</Label>
+              <Label className="text-xs">Food name</Label>
+              <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} placeholder="e.g. Chicken breast" className="h-8" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Portion ({eggMode ? "egg count" : "grams"})</Label>
               <Input
-                type="number" inputMode="decimal" min={0} step={0.1}
-                value={draftProtein}
-                onChange={(e) => { setDraftProtein(e.target.value); setMacrosDirty(true); }}
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step={eggMode ? 1 : 1}
+                value={draftPortionNum}
+                onChange={(e) => onPortionChange(e.target.value)}
+                placeholder={eggMode ? "e.g. 2" : "e.g. 150"}
                 className="h-8"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Carbs (g)</Label>
-              <Input
-                type="number" inputMode="decimal" min={0} step={0.1}
-                value={draftCarbs}
-                onChange={(e) => { setDraftCarbs(e.target.value); setMacrosDirty(true); }}
-                className="h-8"
-              />
+              <Label className="text-xs">Category</Label>
+              <Select value={draftCategory} onValueChange={(v) => setDraftCategory(v as FoodCategoryKind)}>
+                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Protein (g)</Label>
+                <Input
+                  type="number" inputMode="decimal" min={0} step={0.1}
+                  value={draftProtein}
+                  onChange={(e) => { setDraftProtein(e.target.value); setMacrosDirty(true); }}
+                  className="h-8"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Carbs (g)</Label>
+                <Input
+                  type="number" inputMode="decimal" min={0} step={0.1}
+                  value={draftCarbs}
+                  onChange={(e) => { setDraftCarbs(e.target.value); setMacrosDirty(true); }}
+                  className="h-8"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Fat (g)</Label>
+                <Input
+                  type="number" inputMode="decimal" min={0} step={0.1}
+                  value={draftFat}
+                  onChange={(e) => { setDraftFat(e.target.value); setMacrosDirty(true); }}
+                  className="h-8"
+                />
+              </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Fat (g)</Label>
-              <Input
-                type="number" inputMode="decimal" min={0} step={0.1}
-                value={draftFat}
-                onChange={(e) => { setDraftFat(e.target.value); setMacrosDirty(true); }}
-                className="h-8"
-              />
+              <Label className="text-xs">Calories</Label>
+              <Input value={Math.round(draftCalories)} readOnly disabled className="h-8" />
             </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Calories</Label>
-            <Input value={Math.round(draftCalories)} readOnly disabled className="h-8" />
-          </div>
-          <div className="flex items-center justify-end gap-2 pt-1">
-            <Button size="sm" variant="ghost" onClick={resetDraft} className="h-7">
+          <DialogFooter>
+            <Button size="sm" variant="ghost" onClick={resetDraft} className="h-8">
               <X className="h-3 w-3 mr-1" /> Cancel
             </Button>
-            <Button size="sm" onClick={saveDraft} className="h-7" disabled={estimating}>
+            <Button size="sm" onClick={saveDraft} className="h-8" disabled={estimating}>
               {estimating ? "Estimating…" : editingIndex != null ? "Save" : "Add"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          </div>
-        </div>
-      )}
 
       <div className="space-y-1">
         <Label className="text-xs">Notes (optional)</Label>
