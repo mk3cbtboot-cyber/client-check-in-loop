@@ -19,6 +19,10 @@ interface RecipeOption {
 
 const ALL_SLOTS: SlotKey[] = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
 
+function stripEstimated(name: string): string {
+  return (name ?? "").replace(/\s*\(estimated\)\s*$/i, "").trim();
+}
+
 const CATEGORY_LABEL: Record<CategoryKey, string> = {
   protein: "Protein",
   carbs: "Carbs",
@@ -158,7 +162,7 @@ function GeneratedSlotSection({ token, slotKey, label, selectedFoods, hasAnySele
               <ul className="text-sm space-y-1">
                 {selectedFoods.map(({ cat, food }) => (
                   <li key={cat}>
-                    <span className="font-medium">{food.name}</span>
+                    <span className="font-medium">{stripEstimated(food.name)}</span>
                     {food.portion ? <> · {food.portion}</> : null}
                     <span className="text-muted-foreground"> · {CATEGORY_LABEL[cat]}</span>
                   </li>
