@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
 
 type FoodCategoryKind = "Protein" | "Carbs" | "Veg" | "Fat" | "Other";
-interface FoodItem { name: string; portion: string; category: FoodCategoryKind }
+interface FoodItem { name: string; portion: string; category: FoodCategoryKind; est_calories?: number; est_protein_g?: number; est_carbs_g?: number; est_fat_g?: number }
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 type FoodList = Record<SlotKey, FoodItem[]>;
 
