@@ -216,8 +216,8 @@ async function aiCandidatesForSlot(
 ): Promise<{ protein: string[]; carbs: string[]; veg: string[]; fat: string[] }> {
   const system = `You produce ranked food candidate lists for a single meal slot. Use whole, specific foods (no protein powders, bars, packaged sauces). Do not choose any of the following: beef jerky, protein bars, deli meats, processed meats, canned fish in sauce, or any food that comes pre-packaged or heavily processed. Choose only whole, unprocessed foods — fresh meat, fish, poultry, eggs, vegetables, whole grains, legumes, nuts, seeds, and natural oils. Return ONLY JSON.`;
   const fatRotationHint = params.usedFats.length > 0
-    ? `Rotate fat sources across slots. These fats were already used in earlier slots: ${params.usedFats.join(", ")}. Use a DIFFERENT fat source here (e.g. if Olive Oil was used, prefer Avocado, Coconut Oil, Ghee, Butter, Nuts, or Seeds).`
-    : `Pick one whole-food fat source (e.g. Olive Oil, Avocado, Coconut Oil, Ghee, Butter, Almonds, Walnuts).`;
+    ? `Rotate fat sources across slots. These fats were already used in earlier slots: ${params.usedFats.join(", ")}. Use a DIFFERENT fat source here (e.g. if Olive Oil was used, prefer Avocado Oil, Coconut Oil, or Avocado). Do NOT suggest nuts or seeds (almonds, cashews, walnuts, pecans, pistachios, peanuts, sunflower seeds, pumpkin seeds, etc.) as a fat source — they add unaccounted protein and carbohydrates. Preferred fat sources are oils (olive oil, avocado oil, coconut oil) and avocado.`
+    : `Pick one whole-food fat source. Preferred fat sources are oils (olive oil, avocado oil, coconut oil) and avocado. Do NOT suggest nuts or seeds (almonds, cashews, walnuts, pecans, pistachios, peanuts, sunflower seeds, pumpkin seeds, etc.) as a fat source — they add unaccounted protein and carbohydrates.`;
   const user = `Meal slot ${params.slotIndex + 1} of ${params.totalSlots}: ${params.slotKey} (${params.slotLabel})
 Target: ~${params.target.calories} kcal, P ${params.target.protein_g}g / C ${params.target.carbs_g}g / F ${params.target.fat_g}g
 
