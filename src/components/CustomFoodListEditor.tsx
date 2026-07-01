@@ -23,6 +23,9 @@ export interface FoodItem {
   est_protein_g?: number;
   est_carbs_g?: number;
   est_fat_g?: number;
+  density_protein_per_100g?: number;
+  density_carbs_per_100g?: number;
+  density_fat_per_100g?: number;
 }
 export type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 export type FoodList = Record<SlotKey, FoodItem[]>;
