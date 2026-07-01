@@ -544,8 +544,8 @@ Deno.serve(async (req) => {
           usedCarbs.add(canon("Oats"));
         }
 
-        // Step 1 — whole egg count from REMAINING fat budget (after veggies + oats).
-        let wholeCount = Math.floor(Math.max(0, remainingFat) / 4.75);
+        // Step 1 — whole egg count from the slot's original fat target.
+        let wholeCount = Math.floor(Math.max(0, target.fat_g) / 4.75);
         wholeCount = Math.min(wholeCount, 3);
         wholeCount = Math.max(wholeCount, 1);
 
