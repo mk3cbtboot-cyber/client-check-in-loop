@@ -229,6 +229,10 @@ Do not suggest brand names, proprietary foods, or specialty product names. Use o
 
 Do NOT suggest pork or any pork cut as a protein source. This includes pork loin, pork tenderloin, pork chops, pork belly, pork shoulder, ham, bacon, prosciutto, pancetta, or any other pork-derived meat. Never include these in the "protein" list.
 
+${params.slotIndex === 0
+  ? `Eggs and egg-based proteins (whole eggs, egg whites, liquid eggs, omelettes, frittatas, etc.) are permitted as a protein source for this slot (Meal 1 / breakfast).`
+  : `Do NOT suggest eggs or any egg-based protein (whole eggs, egg whites, liquid eggs, omelettes, frittatas, egg-based dishes, etc.) as a protein source. Eggs are only valid for Meal 1 (breakfast). For this slot, select from fish, poultry, or other lean proteins only. Never include eggs in the "protein" list.`}
+
 Do not use any of the following foods in this slot: ${params.excludedFoods.length ? params.excludedFoods.join(", ") : "(none)"}
 
 ${fatRotationHint}
