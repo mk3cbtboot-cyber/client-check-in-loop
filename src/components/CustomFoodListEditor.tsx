@@ -158,7 +158,6 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
   const used: MacroSet = visible.reduce(
     (acc, key) => {
       for (const it of list[key]) {
-        acc.calories += Number(it.est_calories) || 0;
         acc.protein_g += Number(it.est_protein_g) || 0;
         acc.carbs_g += Number(it.est_carbs_g) || 0;
         acc.fat_g += Number(it.est_fat_g) || 0;
@@ -167,6 +166,8 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     },
     { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 } as MacroSet,
   );
+  used.calories = used.protein_g * 4 + used.carbs_g * 4 + used.fat_g * 9;
+
 
   const isEmpty = visible.every((k) => list[k].length === 0);
   const showGenPrompt = planFormat === "food_list_generated" && isEmpty;
