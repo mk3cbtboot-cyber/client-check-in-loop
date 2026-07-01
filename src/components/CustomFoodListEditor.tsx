@@ -246,12 +246,27 @@ interface SlotPanelProps {
   onNoteBlur: (value: string) => void;
 }
 
+function parsePortion(portion: string): { num: string; unit: string } {
+  const m = String(portion ?? "").match(/^\s*(\d+(?:\.\d+)?)\s*(.*)$/);
+  if (!m) return { num: "", unit: "" };
+  return { num: m[1], unit: m[2].trim() };
+}
+function isEggItem(name: string, category: FoodCategoryKind): boolean {
+  return category === "Protein" && /\begg/i.test(name);
+}
+
 function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur }: SlotPanelProps) {
   const [adding, setAdding] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draftName, setDraftName] = useState("");
-  const [draftPortion, setDraftPortion] = useState("");
+  const [draftPortionNum, setDraftPortionNum] = useState("");
+  const [draftPortionUnit, setDraftPortionUnit] = useState("g");
   const [draftCategory, setDraftCategory] = useState<FoodCategoryKind>("Protein");
+  const [draftProtein, setDraftProtein] = useState("0");
+  const [draftCarbs, setDraftCarbs] = useState("0");
+  const [draftFat, setDraftFat] = useState("0");
+  const [macrosDirty, setMacrosDirty] = useState(false);
+  const [densities, setDensities] = useState<{ p?: number; c?: number; f?: number }>({});
   const [confirmRemoveIdx, setConfirmRemoveIdx] = useState<number | null>(null);
   const [localNote, setLocalNote] = useState(note);
 
@@ -261,55 +276,103 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     setAdding(false);
     setEditingIndex(null);
     setDraftName("");
-    setDraftPortion("");
+    setDraftPortionNum("");
+    setDraftPortionUnit("g");
     setDraftCategory("Protein");
+    setDraftProtein("0");
+    setDraftCarbs("0");
+    setDraftFat("0");
+    setMacrosDirty(false);
+    setDensities({});
   }
 
   function startAdd() {
-    setEditingIndex(null);
-    setDraftName("");
-    setDraftPortion("");
-    setDraftCategory("Protein");
+    resetDraft();
+    setDraftPortionUnit("g");
     setAdding(true);
   }
 
   function startEdit(idx: number) {
     const it = items[idx];
+    const { num, unit } = parsePortion(it.portion);
     setAdding(false);
     setEditingIndex(idx);
     setDraftName(it.name);
-    setDraftPortion(it.portion);
+    setDraftPortionNum(num);
+    setDraftPortionUnit(unit || (isEggItem(it.name, it.category) ? "eggs" : "g"));
     setDraftCategory(it.category);
+    setDraftProtein(String(Number(it.est_protein_g ?? 0)));
+    setDraftCarbs(String(Number(it.est_carbs_g ?? 0)));
+    setDraftFat(String(Number(it.est_fat_g ?? 0)));
+    setMacrosDirty(false);
+    setDensities({
+      p: it.density_protein_per_100g,
+      c: it.density_carbs_per_100g,
+      f: it.density_fat_per_100g,
+    });
   }
 
   const [estimating, setEstimating] = useState(false);
 
+  const round1 = (n: number) => Math.round(n * 10) / 10;
+
+  function onPortionChange(v: string) {
+    setDraftPortionNum(v);
+    if (macrosDirty) return;
+    const grams = Number(v);
+    if (!Number.isFinite(grams) || grams < 0) return;
+    // Only auto-recalc when USDA densities exist and unit represents grams (not egg count).
+    const unitIsGrams = draftPortionUnit === "" || /^g\b|^grams?$/i.test(draftPortionUnit);
+    if (!unitIsGrams) return;
+    if (densities.p !== undefined) setDraftProtein(String(round1((densities.p / 100) * grams)));
+    if (densities.c !== undefined) setDraftCarbs(String(round1((densities.c / 100) * grams)));
+    if (densities.f !== undefined) setDraftFat(String(round1((densities.f / 100) * grams)));
+  }
+
+  const draftCalories =
+    (Number(draftProtein) || 0) * 4 +
+    (Number(draftCarbs) || 0) * 4 +
+    (Number(draftFat) || 0) * 9;
+
   async function saveDraft() {
     const name = draftName.trim();
-    const portion = draftPortion.trim();
+    const portionNum = draftPortionNum.trim();
     if (!name) { toast.error("Food name is required"); return; }
-    if (!portion) { toast.error("Portion is required"); return; }
-    setEstimating(true);
+    if (!portionNum) { toast.error("Portion is required"); return; }
+    const unit = draftPortionUnit.trim() || (isEggItem(name, draftCategory) ? "eggs" : "g");
+    const portion = `${portionNum}${unit === "eggs" ? " eggs" : unit === "g" ? "g" : ` ${unit}`}`;
+
     const existing = editingIndex != null ? items[editingIndex] : null;
-    const nameOrPortionChanged = !existing || existing.name !== name || existing.portion !== portion;
+    const macrosProvided =
+      Number(draftProtein) > 0 || Number(draftCarbs) > 0 || Number(draftFat) > 0 || macrosDirty;
+
     let est = {
-      est_calories: existing?.est_calories ?? 0,
-      est_protein_g: existing?.est_protein_g ?? 0,
-      est_carbs_g: existing?.est_carbs_g ?? 0,
-      est_fat_g: existing?.est_fat_g ?? 0,
+      est_protein_g: Number(draftProtein) || 0,
+      est_carbs_g: Number(draftCarbs) || 0,
+      est_fat_g: Number(draftFat) || 0,
     };
-    if (nameOrPortionChanged) {
-      est = await estimateFoodMacros(name, portion);
+    // Legacy add flow: if no macros entered and it's a new item, estimate via AI.
+    if (!existing && !macrosProvided) {
+      setEstimating(true);
+      const e = await estimateFoodMacros(name, portion);
+      est = { est_protein_g: e.est_protein_g, est_carbs_g: e.est_carbs_g, est_fat_g: e.est_fat_g };
+      setEstimating(false);
     }
-    const next: FoodItem = { name, portion, category: draftCategory, ...est };
-    let updated: FoodItem[];
-    if (editingIndex != null) {
-      updated = items.map((it, i) => (i === editingIndex ? next : it));
-    } else {
-      updated = [...items, next];
-    }
+    const est_calories = est.est_protein_g * 4 + est.est_carbs_g * 4 + est.est_fat_g * 9;
+    const next: FoodItem = {
+      name,
+      portion,
+      category: draftCategory,
+      est_calories,
+      ...est,
+      density_protein_per_100g: densities.p,
+      density_carbs_per_100g: densities.c,
+      density_fat_per_100g: densities.f,
+    };
+    const updated = editingIndex != null
+      ? items.map((it, i) => (i === editingIndex ? next : it))
+      : [...items, next];
     onItemsChange(updated);
-    setEstimating(false);
     resetDraft();
   }
 
@@ -320,6 +383,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
   }
 
   const showForm = adding || editingIndex != null;
+  const eggMode = isEggItem(draftName, draftCategory);
 
   return (
     <div className="rounded-md border p-3 space-y-3 bg-card">
@@ -368,8 +432,17 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
             <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} placeholder="e.g. Chicken breast" className="h-8" />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Portion</Label>
-            <Input value={draftPortion} onChange={(e) => setDraftPortion(e.target.value)} placeholder="e.g. 150g, 1 cup, palm-sized" className="h-8" />
+            <Label className="text-xs">Portion ({eggMode ? "egg count" : "grams"})</Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step={eggMode ? 1 : 1}
+              value={draftPortionNum}
+              onChange={(e) => onPortionChange(e.target.value)}
+              placeholder={eggMode ? "e.g. 2" : "e.g. 150"}
+              className="h-8"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Category</Label>
@@ -379,6 +452,39 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
                 {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Protein (g)</Label>
+              <Input
+                type="number" inputMode="decimal" min={0} step={0.1}
+                value={draftProtein}
+                onChange={(e) => { setDraftProtein(e.target.value); setMacrosDirty(true); }}
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Carbs (g)</Label>
+              <Input
+                type="number" inputMode="decimal" min={0} step={0.1}
+                value={draftCarbs}
+                onChange={(e) => { setDraftCarbs(e.target.value); setMacrosDirty(true); }}
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Fat (g)</Label>
+              <Input
+                type="number" inputMode="decimal" min={0} step={0.1}
+                value={draftFat}
+                onChange={(e) => { setDraftFat(e.target.value); setMacrosDirty(true); }}
+                className="h-8"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Calories</Label>
+            <Input value={Math.round(draftCalories)} readOnly disabled className="h-8" />
           </div>
           <div className="flex items-center justify-end gap-2 pt-1">
             <Button size="sm" variant="ghost" onClick={resetDraft} className="h-7">
