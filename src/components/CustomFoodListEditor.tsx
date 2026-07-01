@@ -193,6 +193,14 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
           Add macro targets on the Macros / MPG tab to track progress here.
         </p>
       )}
+      {!isEmpty && macroAllocation && (
+        <PerMealBreakdown
+          visible={visible}
+          list={list}
+          mealsPerDay={mealsPerDay}
+          allocation={macroAllocation}
+        />
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">Meal Plan</h3>
         <span className="text-xs text-muted-foreground">Meal Plan</span>
