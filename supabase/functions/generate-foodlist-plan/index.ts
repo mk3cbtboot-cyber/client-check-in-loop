@@ -696,8 +696,8 @@ Deno.serve(async (req) => {
           // Step 2/3 — force lean protein sized to REMAINING protein.
           if (remainingProtein > 0) await placeProtein(LEAN_PROTEIN_POOL);
         } else {
-          // Standard order: protein first, then carbs.
-          if (remainingProtein > 0) await placeProtein(cands.protein ?? []);
+          // Standard order: carbs first (subtract all macros incl. protein), then protein
+          // sized to what remains — prevents protein overage from carb-side protein.
           if (carbFound) {
             placeCarbFromFound(carbFound);
           } else if (remainingCarbs > 0) {
@@ -709,6 +709,7 @@ Deno.serve(async (req) => {
             items.push({ name: `${fallbackName} (estimated)`, portion, category: "Carbs", est_macros: est ?? undefined });
             pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
           }
+          if (remainingProtein > 0) await placeProtein(cands.protein ?? []);
         }
       }
 
