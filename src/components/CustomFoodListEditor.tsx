@@ -412,3 +412,101 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     </div>
   );
 }
+
+function varianceColor(diff: number): string {
+  const abs = Math.abs(diff);
+  if (abs <= 3) return "text-green-600 dark:text-green-400";
+  if (abs <= 6) return "text-amber-600 dark:text-amber-400";
+  return "text-red-600 dark:text-red-400";
+}
+
+function slotToMealKey(slot: SlotKey, mealsPerDay: number): MealKey {
+  const orders: Record<number, SlotKey[]> = {
+    3: ["breakfast", "lunch", "dinner"],
+    4: ["breakfast", "lunch", "afternoon_snack", "dinner"],
+    5: ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"],
+  };
+  const order = orders[mealsPerDay] ?? orders[3];
+  const idx = order.indexOf(slot);
+  return (`meal_${(idx >= 0 ? idx : 0) + 1}` as MealKey);
+}
+
+function PerMealBreakdown({
+  visible,
+  list,
+  mealsPerDay,
+  allocation,
+}: {
+  visible: SlotKey[];
+  list: FoodList;
+  mealsPerDay: number;
+  allocation: MacroAllocation;
+}) {
+  const rows = visible.map((slot) => {
+    const items = list[slot];
+    const actual = items.reduce(
+      (acc, it) => {
+        acc.protein_g += Number(it.est_protein_g) || 0;
+        acc.carbs_g += Number(it.est_carbs_g) || 0;
+        acc.fat_g += Number(it.est_fat_g) || 0;
+        return acc;
+      },
+      { protein_g: 0, carbs_g: 0, fat_g: 0 },
+    );
+    const target = allocation[slotToMealKey(slot, mealsPerDay)] ?? { protein_g: 0, carbs_g: 0, fat_g: 0, calories: 0 };
+    return {
+      slot,
+      label: customSlotLabel(slot, mealsPerDay),
+      actual,
+      target,
+    };
+  });
+
+  return (
+    <div className="rounded-md border bg-card">
+      <div className="px-3 py-2 border-b">
+        <h3 className="text-sm font-semibold">Per-meal breakdown</h3>
+        <p className="text-[11px] text-muted-foreground">Actual vs target for each meal slot</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-muted/40">
+            <tr className="text-left">
+              <th className="px-3 py-2 font-medium">Meal</th>
+              <th className="px-2 py-2 font-medium">Protein (g)</th>
+              <th className="px-2 py-2 font-medium">Carbs (g)</th>
+              <th className="px-2 py-2 font-medium">Fat (g)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const cells: Array<{ key: "protein_g" | "carbs_g" | "fat_g" }> = [
+                { key: "protein_g" },
+                { key: "carbs_g" },
+                { key: "fat_g" },
+              ];
+              return (
+                <tr key={r.slot} className="border-t">
+                  <td className="px-3 py-2 font-medium whitespace-nowrap">{r.label}</td>
+                  {cells.map(({ key }) => {
+                    const a = Math.round(r.actual[key]);
+                    const t = Math.round(Number(r.target[key]) || 0);
+                    const diff = a - t;
+                    const sign = diff > 0 ? "+" : "";
+                    return (
+                      <td key={key} className="px-2 py-2 whitespace-nowrap">
+                        <span className="font-medium">{a}</span>
+                        <span className="text-muted-foreground"> / {t}</span>
+                        <span className={`ml-1 font-medium ${varianceColor(diff)}`}>({sign}{diff})</span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
