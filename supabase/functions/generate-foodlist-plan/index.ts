@@ -743,29 +743,26 @@ Deno.serve(async (req) => {
           pushDebugFromUsda(slot, i, found.name, "Fat", found.per100, found.usdaDescription, portion);
         } else {
           if (found && !foundValid) {
-            console.log(`[generate-foodlist-plan] Fat USDA result for "${found.name}" had invalid fat density (${foundFatPer100}g/100g) — falling back to AI estimate.`);
-          }
-          const fallbackName = (cands.fat ?? []).find((n) => !usedFat.has(canon(n))) ?? null;
-          if (!fallbackName) {
-            console.log(`[generate-foodlist-plan] Skipping fat source for ${slot}: no valid USDA match and no fallback candidate available.`);
-            pushDebugEstimated(slot, i, "(fat source skipped — no valid candidate)", "Fat", "—");
+            console.log(`[generate-foodlist-plan] Fat USDA result for "${found.name}" had invalid fat density (${foundFatPer100}g/100g) — falling back to hard-coded olive oil.`);
           } else {
-            const isOil = isOilName(fallbackName);
-            const portion = isOil
-              ? `${Math.max(1, Math.round(remainingFat / 4.5))} tsp`
-              : fmtPortionG(remainingFat / 0.5);
-            const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-            if (est) {
-              subtract(est);
-              addActual(est);
-              usedFat.add(canon(fallbackName));
-              items.push({ name: `${fallbackName} (estimated)`, portion, category: "Fat", est_macros: est });
-              pushDebugEstimated(slot, i, fallbackName, "Fat", portion);
-            } else {
-              console.log(`[generate-foodlist-plan] Skipping fat source for ${slot}: AI estimate failed for "${fallbackName}".`);
-              pushDebugEstimated(slot, i, `(fat source skipped — estimate failed for ${fallbackName})`, "Fat", "—");
-            }
+            console.log(`[generate-foodlist-plan] Fat USDA lookup returned no valid match for ${slot} — falling back to hard-coded olive oil.`);
           }
+          // Hard-coded olive oil fallback — ensures fat target is always met.
+          const OLIVE_OIL_PER100: Macros = { calories: 884, protein_g: 0, carbs_g: 0, fat_g: 100 };
+          const tsp = Math.max(1, Math.round(remainingFat / 4.5));
+          const grams = tsp * 4.5;
+          const portion = `${tsp} tsp`;
+          const contrib = rawContributionAt(OLIVE_OIL_PER100, grams);
+          subtract(contrib);
+          addActual(contrib);
+          usedFat.add(canon("Olive Oil"));
+          items.push({ name: "Olive Oil (estimated)", portion, category: "Fat", est_macros: {
+            calories: Math.round(contrib.calories),
+            protein_g: Math.round(contrib.protein_g),
+            carbs_g: Math.round(contrib.carbs_g),
+            fat_g: Math.round(contrib.fat_g),
+          } });
+          pushDebugEstimated(slot, i, "Olive Oil", "Fat", portion);
         }
       }
 
