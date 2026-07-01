@@ -83,6 +83,9 @@ function normalizeNotes(raw: unknown): FoodListNotes {
   };
 }
 
+type MealKey = "meal_1" | "meal_2" | "meal_3" | "meal_4" | "meal_5";
+type MacroAllocation = Partial<Record<MealKey, { calories: number; protein_g: number; carbs_g: number; fat_g: number }>>;
+
 interface Props {
   clientId: string;
   initialList: unknown;
@@ -90,6 +93,7 @@ interface Props {
   initialMealsPerDay?: number;
   planFormat?: "food_list" | "food_list_generated";
   macros?: MacroSet | null;
+  macroAllocation?: MacroAllocation | null;
   onGoToMacros?: () => void;
 }
 
