@@ -1295,12 +1295,10 @@ export default function ClientPortal() {
                 </Card>
               )}
               {client.plan_format === "food_list_generated" && (
-                <FoodSelectionPlanSection
-                  token={token!}
+                <FoodListGeneratedMyPlan
                   foodList={client.food_list ?? {}}
+                  foodListNotes={client.food_list_notes ?? {}}
                   mealsPerDay={Number(client.meals_per_day ?? 3)}
-                  initialSelections={client.client_food_selections ?? {}}
-                  onSaved={(next) => setClient((prev) => (prev ? { ...prev, client_food_selections: next } : prev))}
                 />
               )}
               {client.plan_format === "recipe" && (
