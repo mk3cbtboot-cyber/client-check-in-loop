@@ -41,7 +41,6 @@ interface Props {
   foodList: Record<string, FoodItem[]>;
   foodListNotes: Record<string, string>;
   mealsPerDay: number;
-  selections: FoodSelections;
   onLogged: () => Promise<void> | void;
 }
 
