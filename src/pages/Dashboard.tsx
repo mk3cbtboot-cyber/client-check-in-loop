@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { X, ArrowLeft, Settings as SettingsIcon, BookOpen, Loader2 } from "lucide-react";
 import RecipeLibrary from "@/components/RecipeLibrary";
 import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
-import { TIERS, tierLabel, tierShowsToggle, defaultSystemMode, type PractitionerTier } from "@/lib/tiers";
+import { TIERS, tierLabel, tierShowsToggle, tierShowsCustom, tierShowsMb, defaultSystemMode, type PractitionerTier } from "@/lib/tiers";
 import {
   DAY_KEYS, DAY_LABELS, defaultOfficeHours, normalizeOfficeHours, checkAvailability,
   type OfficeHours, type DayKey,
