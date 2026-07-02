@@ -2233,7 +2233,7 @@ export default function Dashboard() {
                         </Collapsible>
                       </TabsContent>
 
-                      {tierShowsCustom(tier) && (
+                      {tierShowsCustom(tier) && client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                       <TabsContent value="macros" className="pt-3 space-y-6">
                         <MacrosTab
                           client={client as unknown as Parameters<typeof MacrosTab>[0]["client"]}
