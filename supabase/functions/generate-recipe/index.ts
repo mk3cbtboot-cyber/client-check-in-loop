@@ -27,12 +27,12 @@ Deno.serve(async (req) => {
 Respond ONLY with JSON of shape:
 {"name": string, "default_slot": "breakfast"|"morning_snack"|"lunch"|"afternoon_snack"|"dinner"|"any", "ingredients": [{"food": string, "amount": string}], "method": string, "notes": string}
 
-Method requirements — write detailed, step-by-step instructions a home cook can follow without guessing:
+Method requirements — write detailed, step-by-step instructions for a complete beginner with no prior cooking or knife skills:
 - Numbered steps separated by newlines (e.g. "1. …\\n2. …"). Each step is ONE single action — prep, cook, assemble, or plate.
 - Include specific cooking details where relevant: temperatures (°C), times (minutes), pan type (non-stick, cast iron, sheet pan), heat level (low, medium, medium-high, high).
-- Include prep steps explicitly (e.g. "Pat the salmon dry with paper towel.", "Dice the sweet potato into 2 cm cubes.", "Finely chop the garlic.").
+- Assume the reader has never cut, trimmed, peeled, deveined, or otherwise prepped an ingredient before. For EVERY raw ingredient that needs prep before cooking (cutting, cubing, dicing, slicing, mincing, trimming, peeling, deveining, deseeding, etc.), add an explicit beginner-level step describing exactly how to do it — where to place it on the board, how to hold it safely, knife angle, target size, and what to discard. Examples: "Place the chicken breast flat on a cutting board. Using a sharp knife, slice it lengthways into strips about 2 cm wide, then cut across the strips to make 2 cm cubes.", "Hold the garlic clove flat under the side of your knife and press down firmly to loosen the skin, peel it off, then finely chop by rocking the knife back and forth until the pieces are the size of small grains.", "Stand the bell pepper upright, slice down each of the four sides to remove the flesh from the core, discard the core and seeds, then lay the pieces skin-side down and cut into 1 cm strips."
 - Include seasoning steps inline within the method — do NOT put seasoning in a separate section.
-- Aim for 6–10 steps for a main meal (breakfast, lunch, dinner), or 3–5 steps for a snack.
+- Aim for 8–14 steps for a main meal (breakfast, lunch, dinner), or 4–7 steps for a snack — the extra steps come from spelling out prep.
 - Write in plain, direct language — second person, active voice ("Heat a pan over medium-high heat.", not "The pan should be heated.").
 
 The "notes" field is optional free text for the practitioner (e.g. "Works well for meal prep", "Substitute chicken with turkey if preferred"). Return an empty string if there are no useful notes.`;
