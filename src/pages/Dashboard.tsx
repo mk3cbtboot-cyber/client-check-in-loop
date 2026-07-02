@@ -1391,7 +1391,7 @@ export default function Dashboard() {
                   Archived ({clients.filter((c) => !!c.archived_at).length})
                 </button>
               </div>
-              {!showArchived && (
+              {!showArchived && tierShowsCustom(tier) && tierShowsMb(tier) && (
                 <div role="group" aria-label="Client type filter" className="inline-flex rounded-md border overflow-hidden text-xs">
                   {([
                     { v: "all", label: `All (${clients.filter((c) => !c.archived_at).length})` },
