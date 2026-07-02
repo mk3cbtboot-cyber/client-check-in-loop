@@ -24,7 +24,7 @@ import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
 import MealRecipeSection from "@/components/MealRecipeSection";
 import FoodListClientHome from "@/components/FoodListClientHome";
 import FoodListGeneratedClientHome from "@/components/FoodListGeneratedClientHome";
-import FoodSelectionPlanSection from "@/components/FoodSelectionPlanSection";
+import FoodListGeneratedMyPlan from "@/components/FoodListGeneratedMyPlan";
 import RecipePlanClientHome, { type RecipeAssignment } from "@/components/RecipePlanClientHome";
 
 
@@ -762,7 +762,6 @@ export default function ClientPortal() {
               foodList={client.food_list ?? {}}
               foodListNotes={client.food_list_notes ?? {}}
               mealsPerDay={Number(client.meals_per_day ?? 3)}
-              selections={client.client_food_selections ?? {}}
               onLogged={refresh}
             />
           ) : (
@@ -1296,12 +1295,10 @@ export default function ClientPortal() {
                 </Card>
               )}
               {client.plan_format === "food_list_generated" && (
-                <FoodSelectionPlanSection
-                  token={token!}
+                <FoodListGeneratedMyPlan
                   foodList={client.food_list ?? {}}
+                  foodListNotes={client.food_list_notes ?? {}}
                   mealsPerDay={Number(client.meals_per_day ?? 3)}
-                  initialSelections={client.client_food_selections ?? {}}
-                  onSaved={(next) => setClient((prev) => (prev ? { ...prev, client_food_selections: next } : prev))}
                 />
               )}
               {client.plan_format === "recipe" && (

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
-import { type FoodItem, type FoodSelections, foodKey, categorize, type CategoryKey } from "@/components/FoodSelectionPlanSection";
+import { type FoodItem, categorize, type CategoryKey } from "@/components/FoodSelectionPlanSection";
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 
@@ -41,30 +41,21 @@ interface Props {
   foodList: Record<string, FoodItem[]>;
   foodListNotes: Record<string, string>;
   mealsPerDay: number;
-  selections: FoodSelections;
   onLogged: () => Promise<void> | void;
 }
 
-export default function FoodListGeneratedClientHome({ token, foodList, foodListNotes, mealsPerDay, selections, onLogged }: Props) {
+export default function FoodListGeneratedClientHome({ token, foodList, foodListNotes, mealsPerDay, onLogged }: Props) {
   const slots = ALL_SLOTS.filter((s) => visibleSlotKeys(mealsPerDay).includes(s));
   return (
     <div className="space-y-5">
       {slots.map((s) => {
         const foods = Array.isArray(foodList?.[s]) ? foodList[s] : [];
-        const sel = selections?.[s] ?? {};
         const note = typeof foodListNotes?.[s] === "string" ? foodListNotes[s] : "";
-        // Build "selected" foods list preserving category order.
-        const selectedKeys = new Set(
-          (["protein", "carbs", "veg", "fat"] as CategoryKey[])
-            .map((c) => sel[c])
-            .filter((v): v is string => typeof v === "string" && v.trim().length > 0),
-        );
-        const selectedFoodsByCat: { cat: CategoryKey; food: FoodItem }[] = [];
+        const orderedFoods: { cat: CategoryKey; food: FoodItem }[] = [];
         for (const cat of ["protein", "carbs", "veg", "fat"] as CategoryKey[]) {
-          const key = sel[cat];
-          if (!key) continue;
-          const match = foods.find((f) => foodKey(f) === key && categorize(f) === cat);
-          if (match) selectedFoodsByCat.push({ cat, food: match });
+          for (const f of foods) {
+            if (categorize(f) === cat) orderedFoods.push({ cat, food: f });
+          }
         }
         return (
           <GeneratedSlotSection
@@ -72,8 +63,8 @@ export default function FoodListGeneratedClientHome({ token, foodList, foodListN
             token={token}
             slotKey={s}
             label={customSlotLabel(s, mealsPerDay)}
-            selectedFoods={selectedFoodsByCat}
-            hasAnySelected={selectedKeys.size > 0}
+            selectedFoods={orderedFoods}
+            hasAnySelected={orderedFoods.length > 0}
             note={note}
             onLogged={onLogged}
           />
