@@ -2233,6 +2233,7 @@ export default function Dashboard() {
                         </Collapsible>
                       </TabsContent>
 
+                      {tierShowsCustom(tier) && (
                       <TabsContent value="macros" className="pt-3 space-y-6">
                         <MacrosTab
                           client={client as unknown as Parameters<typeof MacrosTab>[0]["client"]}
