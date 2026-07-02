@@ -1854,12 +1854,11 @@ export default function Dashboard() {
 
 
                     <Tabs defaultValue="overview" className="w-full" value={(client as unknown as { _activeTab?: string })._activeTab ?? undefined} onValueChange={(v) => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: v } as typeof x) : x)))}>
-                      {(() => { const showMacros = tierShowsCustom(tier) && client.system_mode === "own_practice" && client.plan_format === "food_list_generated"; return (
-                      <TabsList className={`grid w-full ${showMacros ? "grid-cols-6" : "grid-cols-5"}`}>
+                      <TabsList className={`grid w-full ${tierShowsCustom(tier) && client.system_mode === "own_practice" && client.plan_format === "food_list_generated" ? "grid-cols-6" : "grid-cols-5"}`}>
                         <TabsTrigger value="overview">Overview</TabsTrigger>
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="progress">Progress</TabsTrigger>
-                        {showMacros && (
+                        {tierShowsCustom(tier) && client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                           <TabsTrigger value="macros">Macros / MPG</TabsTrigger>
                         )}
                         <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
