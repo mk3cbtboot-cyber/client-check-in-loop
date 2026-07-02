@@ -347,6 +347,8 @@ export default function Dashboard() {
         return;
       }
       setTier(t);
+      if (!tierShowsCustom(t)) setTypeFilter("mb");
+      else if (!tierShowsMb(t)) setTypeFilter("custom");
       void loadRef.current();
     };
 
