@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
-import { type FoodItem, type FoodSelections, foodKey, categorize, type CategoryKey } from "@/components/FoodSelectionPlanSection";
+import { type FoodItem, categorize, type CategoryKey } from "@/components/FoodSelectionPlanSection";
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 
