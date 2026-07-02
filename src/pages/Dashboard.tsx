@@ -2279,6 +2279,7 @@ export default function Dashboard() {
                           </>
                         )}
                       </TabsContent>
+                      )}
 
                       <TabsContent value="mealplan" className="pt-3">
                         {client.system_mode === "own_practice" ? (
