@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { X, ArrowLeft, Settings as SettingsIcon, BookOpen, Loader2 } from "lucide-react";
 import RecipeLibrary from "@/components/RecipeLibrary";
 import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
-import { TIERS, tierLabel, tierShowsToggle, defaultSystemMode, type PractitionerTier } from "@/lib/tiers";
+import { TIERS, tierLabel, tierShowsToggle, tierShowsCustom, tierShowsMb, defaultSystemMode, type PractitionerTier } from "@/lib/tiers";
 import {
   DAY_KEYS, DAY_LABELS, defaultOfficeHours, normalizeOfficeHours, checkAvailability,
   type OfficeHours, type DayKey,
@@ -347,6 +347,8 @@ export default function Dashboard() {
         return;
       }
       setTier(t);
+      if (!tierShowsCustom(t)) setTypeFilter("mb");
+      else if (!tierShowsMb(t)) setTypeFilter("custom");
       void loadRef.current();
     };
 
@@ -1078,7 +1080,7 @@ export default function Dashboard() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {!isDetailView && (
+            {!isDetailView && tierShowsCustom(tier) && (
               <Button variant="outline" size="sm" onClick={() => setRecipeLibOpen(true)}>
                 <BookOpen className="h-4 w-4" /> Recipe Library
               </Button>
@@ -1389,7 +1391,7 @@ export default function Dashboard() {
                   Archived ({clients.filter((c) => !!c.archived_at).length})
                 </button>
               </div>
-              {!showArchived && (
+              {!showArchived && tierShowsCustom(tier) && tierShowsMb(tier) && (
                 <div role="group" aria-label="Client type filter" className="inline-flex rounded-md border overflow-hidden text-xs">
                   {([
                     { v: "all", label: `All (${clients.filter((c) => !c.archived_at).length})` },
