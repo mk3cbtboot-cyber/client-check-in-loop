@@ -762,7 +762,7 @@ export default function ClientPortal() {
               foodList={client.food_list ?? {}}
               foodListNotes={client.food_list_notes ?? {}}
               mealsPerDay={Number(client.meals_per_day ?? 3)}
-              selections={client.client_food_selections ?? {}}
+              onLogged={refresh}
               onLogged={refresh}
             />
           ) : (
