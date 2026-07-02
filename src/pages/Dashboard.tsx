@@ -1080,7 +1080,7 @@ export default function Dashboard() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {!isDetailView && (
+            {!isDetailView && tierShowsCustom(tier) && (
               <Button variant="outline" size="sm" onClick={() => setRecipeLibOpen(true)}>
                 <BookOpen className="h-4 w-4" /> Recipe Library
               </Button>
