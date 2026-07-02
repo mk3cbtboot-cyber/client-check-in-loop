@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
       .map((f) => `- ${f.name}${f.portion ? `: ${f.portion}` : ""}${f.category ? ` (${f.category})` : ""}`)
       .join("\n");
 
-    const systemPrompt = `You write practical, beginner-friendly whole-food recipes. You will receive a fixed list of approved foods with portions for one meal slot. You must:
+    const systemPrompt = `You write practical, whole-food recipes for COMPLETE BEGINNERS who have never cooked from scratch before and have no prior knife skills. You will receive a fixed list of approved foods with portions for one meal slot. You must:
 
 - Use ONLY the approved foods listed for this meal slot. Do not introduce other proteins, carbs, vegetables, fats, dairy, or fruit beyond what is provided.
 - Respect the portions provided exactly — do not scale, round, or omit them.
@@ -65,12 +65,16 @@ Deno.serve(async (req) => {
 - Use the practitioner's slot notes (if any) as additional instruction context.
 - Vary the three options meaningfully — different cooking methods, flavour profiles, or preparation styles.
 
-METHOD RULES:
-- Number each step. One clear action per step.
-- Include exact temperatures in both °C and °F where relevant.
-- Include exact timings, visual cues, equipment, and basic safety where relevant.
+METHOD RULES (write for someone who has never turned on a stove):
+- Number each step. One clear action per step (prep, cook, assemble, or plate).
+- NEVER present ingredients as pre-prepped. Do not write "thinly sliced chicken", "diced onion", or "minced garlic" as if it's already done. For EVERY raw ingredient that needs prep before cooking (cutting, cubing, dicing, slicing, mincing, trimming, peeling, deveining, deseeding, checking produce for damage, rinsing, patting dry, etc.), add an explicit beginner-level step describing exactly how to do it — where to place it on the board, how to hold it safely, knife angle, target size, and what to discard. Examples: "Place the chicken breast flat on a cutting board. Using a sharp knife, slice it lengthways into strips about 1 cm wide, then cut across the strips to make bite-sized pieces.", "Hold the garlic clove flat under the side of your knife and press down firmly to loosen the skin, peel it off, then finely chop by rocking the knife back and forth until the pieces are the size of small grains.", "Stand the bell pepper upright, slice down each of the four sides to remove the flesh from the core, discard the core and seeds, then lay the pieces skin-side down and cut into 1 cm strips."
+- Include produce checks (inspect for bruising/damage, rinse under cold water, pat dry) where relevant.
+- Include exact temperatures in BOTH °C and °F, exact timings, visual cues, smell cues, equipment (non-stick pan, cast iron, sheet pan, tongs, spatula), heat level (low/medium/medium-high/high), pan temperature checks (e.g. water droplet test), doneness cues (internal temperature, colour, firmness), resting time, and basic safety (raw-meat board separation, hand washing).
+- Include seasoning inline within the numbered steps — not a separate section.
+- Write in plain, direct language — second person, active voice ("Heat a pan over medium-high heat.", not "The pan should be heated.").
+- Aim for 8–14 steps for a main meal, 4–7 for a snack — extra steps come from spelling out prep.
 
-OUTPUT: Call the provided tool with EXACTLY THREE distinct options. Each option has RECIPE (every approved food with its exact portion, plus seasonings), METHOD (numbered beginner-friendly steps), and NOTES (3-5 short cooking or substitution-friendly tips).`;
+OUTPUT: Call the provided tool with EXACTLY THREE distinct options. Each option has RECIPE (every approved food with its exact portion, plus seasonings), METHOD (numbered beginner-friendly steps as described above), and NOTES (3-5 short cooking or substitution-friendly tips).`;
 
     const userPrompt = `Meal slot: ${slotLabel}\nApproved foods (use exactly):\n${ingredientList}\n\nPractitioner notes for this slot: ${slotNote || "(none)"}\n\nReturn three distinct recipe variations using only these foods.`;
 
