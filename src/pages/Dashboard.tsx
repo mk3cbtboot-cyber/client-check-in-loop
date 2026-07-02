@@ -1854,11 +1854,13 @@ export default function Dashboard() {
 
 
                     <Tabs defaultValue="overview" className="w-full" value={(client as unknown as { _activeTab?: string })._activeTab ?? undefined} onValueChange={(v) => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: v } as typeof x) : x)))}>
-                      <TabsList className="grid w-full grid-cols-6">
+                      <TabsList className={`grid w-full ${tierShowsCustom(tier) ? "grid-cols-6" : "grid-cols-5"}`}>
                         <TabsTrigger value="overview">Overview</TabsTrigger>
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="progress">Progress</TabsTrigger>
-                        <TabsTrigger value="macros">Macros / MPG</TabsTrigger>
+                        {tierShowsCustom(tier) && (
+                          <TabsTrigger value="macros">Macros / MPG</TabsTrigger>
+                        )}
                         <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
                         <TabsTrigger value="messages" className="relative">
                           Messages
@@ -2231,6 +2233,7 @@ export default function Dashboard() {
                         </Collapsible>
                       </TabsContent>
 
+                      {tierShowsCustom(tier) && (
                       <TabsContent value="macros" className="pt-3 space-y-6">
                         <MacrosTab
                           client={client as unknown as Parameters<typeof MacrosTab>[0]["client"]}
@@ -2276,6 +2279,7 @@ export default function Dashboard() {
                           </>
                         )}
                       </TabsContent>
+                      )}
 
                       <TabsContent value="mealplan" className="pt-3">
                         {client.system_mode === "own_practice" ? (
