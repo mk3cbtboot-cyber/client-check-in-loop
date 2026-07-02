@@ -24,7 +24,6 @@ import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
 import MealRecipeSection from "@/components/MealRecipeSection";
 import FoodListClientHome from "@/components/FoodListClientHome";
 import FoodListGeneratedClientHome from "@/components/FoodListGeneratedClientHome";
-import FoodSelectionPlanSection from "@/components/FoodSelectionPlanSection";
 import FoodListGeneratedMyPlan from "@/components/FoodListGeneratedMyPlan";
 import RecipePlanClientHome, { type RecipeAssignment } from "@/components/RecipePlanClientHome";
 
