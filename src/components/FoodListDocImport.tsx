@@ -90,7 +90,7 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
         reader.readAsDataURL(file);
       });
       const { data, error } = await supabase.functions.invoke("parse-foodlist-document", {
-        body: { filename: file.name, mime: file.type || (lower.endsWith(".pdf") ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document"), data_base64 },
+        body: { filename: file.name, mime: file.type || (lower.endsWith(".pdf") ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document"), data_base64, meals_per_day: mealsPerDay },
       });
       if (error || !data?.ok || !data?.food_list) {
         toast.error("We couldn't extract a food list from this document. Check that the document contains a meal plan with foods listed by meal, then try again. You can also add foods manually using the Add food button.");
