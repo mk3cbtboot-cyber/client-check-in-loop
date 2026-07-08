@@ -577,29 +577,14 @@ Deno.serve(async (req) => {
         });
         pushDebugFromUsda(slot, i, "Whole Egg", "Protein", { calories: 143, protein_g: 12.6, carbs_g: 0.6, fat_g: 9.5 }, "Whole Egg (hard-coded, 50g)", `${wholeCount} ${wholeCount === 1 ? "egg" : "eggs"}`);
 
-        // Step 3 — subtract same number of egg whites.
-        const whiteContrib = {
-          calories: Math.round(WHITE.calories * wholeCount),
-          protein_g: Math.round(WHITE.protein_g * wholeCount * 10) / 10,
-          carbs_g: Math.round(WHITE.carbs_g * wholeCount * 10) / 10,
-          fat_g: Math.round(WHITE.fat_g * wholeCount * 100) / 100,
-        };
-        remainingProtein -= WHITE.protein_g * wholeCount;
-        remainingCarbs -= WHITE.carbs_g * wholeCount;
-        remainingFat -= WHITE.fat_g * wholeCount;
-        addActual({
-          calories: WHITE.calories * wholeCount,
-          protein_g: WHITE.protein_g * wholeCount,
-          carbs_g: WHITE.carbs_g * wholeCount,
-          fat_g: WHITE.fat_g * wholeCount,
-        });
-        items.push({
-          name: "Egg White",
-          portion: `${wholeCount} ${wholeCount === 1 ? "egg white" : "egg whites"}`,
-          category: "Protein",
-          est_macros: whiteContrib,
-        });
-        pushDebugFromUsda(slot, i, "Egg White", "Protein", { calories: 52, protein_g: 11, carbs_g: 0.7, fat_g: 0.2 }, "Egg White (hard-coded, 33g)", `${wholeCount} ${wholeCount === 1 ? "egg white" : "egg whites"}`);
+        // Step 3 — (removed) previously subtracted `wholeCount` separate egg whites.
+        // We now fold that protein into the liquid-egg-whites portion below so the
+        // client doesn't buy extra whole eggs just to discard the yolks. Leaving
+        // `remainingProtein` untouched here means Step 4 naturally picks up the
+        // ~3.6g protein per egg white at the 11g/100g liquid density (~33g per
+        // egg white), rounded to the nearest 5g with the rest of the gap.
+
+
 
         // Step 4 — liquid egg whites fill remaining protein.
         const rawLiquid = Math.max(0, remainingProtein) / 11 * 100;
