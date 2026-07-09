@@ -12,7 +12,7 @@ import {
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Pencil, Trash2, Plus, X } from "lucide-react";
+import { Pencil, Trash2, Plus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
 import MacroTracker, { type MacroSet } from "@/components/MacroTracker";
