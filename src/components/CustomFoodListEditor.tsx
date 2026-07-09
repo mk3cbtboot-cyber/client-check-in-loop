@@ -111,10 +111,10 @@ interface Props {
   onGoToMacros?: () => void;
 }
 
-export async function estimateFoodMacros(name: string, portion: string): Promise<{ est_calories: number; est_protein_g: number; est_carbs_g: number; est_fat_g: number }> {
+export async function estimateFoodMacros(name: string, portion: string, category?: FoodCategoryKind): Promise<{ est_calories: number; est_protein_g: number; est_carbs_g: number; est_fat_g: number }> {
   try {
     const { data, error } = await supabase.functions.invoke("estimate-macros", {
-      body: { items: [{ name, portion }] },
+      body: { items: [{ name, portion, ...(category ? { category } : {}) }] },
     });
     if (error) throw error;
     const m = (data as { items?: Array<{ calories?: number; protein_g?: number; carbs_g?: number; fat_g?: number }> })?.items?.[0];
