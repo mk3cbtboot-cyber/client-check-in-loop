@@ -147,7 +147,7 @@ export function densityMacroKey(category: Category): keyof Macros {
   return "calories";
 }
 
-const WRONG_FORM_TERMS = /\b(dried|dehydrated|flour|powder|jerky|vegetarian|snack|snacks|imitation|substitute|extract|concentrate|souffl[eé]|casserole|stew|soup|salad|stir[- ]fry|curry|pie|baked dish|bake|mashed|canned|pickled|frozen meal|frozen|mixed dish|with sauce|stuffed|babyfood|strained|rice cake|cookies|puffs|bagels?|pancakes?)\b/i;
+const WRONG_FORM_TERMS = /\b(dried|dehydrated|flour|powder|jerky|vegetarian|snack|snacks|imitation|substitute|extract|concentrate|souffl[eé]|casserole|stew|soup|salad|stir[- ]fry|curry|pie|baked dish|bake|mashed|canned|pickled|frozen meal|frozen|mixed dish|with sauce|stuffed|babyfood|strained|rice cake|cookies|puffs|bagels?|pancakes?|breaded|battered|coated|crusted|tenders?|nuggets?|patt(?:y|ies)|fingers?|strips|fritters?|croquettes?|wings|popcorn chicken|schnitzel|sausages?|meatballs?|kielbasa|salami|pepperoni|bologna|frankfurter|hot dogs?|luncheon|spread)\b/i;
 
 const DRY_STAPLE_RE = /\b(oat|oats|oatmeal|rice|lentil|lentils|bean|beans|chickpea|chickpeas|quinoa|barley|farro|bulgur|millet|pea|peas|legume|legumes)\b/i;
 
