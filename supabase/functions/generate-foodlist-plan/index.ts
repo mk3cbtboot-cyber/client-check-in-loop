@@ -64,92 +64,10 @@ function fmtPortionG(g: number): string {
   return `${roundPortionG(g)}g`;
 }
 
-function isOilName(name: string): boolean {
-  return /\b(oil|ghee)\b/i.test(name);
-}
+// USDA lookup helpers, category filters, egg/oats hard-codes, and the
+// cooked-search-term/density rules live in ../_shared/usda.ts so the edit-modal
+// macro re-estimate path uses the exact same selection logic.
 
-const RAW_FOODS = /\b(cucumber|tomato|tomatoes|lettuce|spinach|arugula|rocket|bell pepper|peppers?|carrot sticks?|celery|radish|onion|avocado|olives?|salad)\b/i;
-
-function cookedSearchTerm(name: string, category: Category): string {
-  const clean = name.trim();
-  if (!clean) return clean;
-  if (category === "Fat") return clean;
-  if (/\bcooked\b/i.test(clean)) return clean;
-  if (category === "Veg" && RAW_FOODS.test(clean)) return clean;
-  if (category === "Protein" && /\begg/i.test(clean)) return "eggs, whole, cooked";
-  return `${clean}, cooked`;
-}
-
-// Minimum macro density per 100g for the food's primary macro.
-const DENSITY_THRESHOLD: Record<Category, number> = {
-  Protein: 15,
-  Carbs: 15,
-  Fat: 20,
-  Veg: 0,
-};
-
-function densityMacroKey(category: Category): keyof Macros {
-  if (category === "Protein") return "protein_g";
-  if (category === "Carbs") return "carbs_g";
-  if (category === "Fat") return "fat_g";
-  return "calories";
-}
-
-const WRONG_FORM_TERMS = /\b(dried|dehydrated|flour|powder|jerky|vegetarian|snack|snacks|imitation|substitute|extract|concentrate|souffl[eé]|casserole|stew|soup|salad|stir[- ]fry|curry|pie|baked dish|bake|mashed|canned|pickled|frozen meal|frozen|mixed dish|with sauce|stuffed|babyfood|strained|rice cake|cookies|puffs|bagels?|pancakes?)\b/i;
-
-const DRY_STAPLE_RE = /\b(oat|oats|oatmeal|rice|lentil|lentils|bean|beans|chickpea|chickpeas|quinoa|barley|farro|bulgur|millet|pea|peas|legume|legumes)\b/i;
-
-const BREAD_NAME_RE = /\b(bread|sourdough|bagel|baguette|ciabatta|focaccia|pita|tortilla|toast|roll|bun|loaf|brioche)\b/i;
-
-// Legumes & grains that should always resolve to a cooked form — never raw / "mature seeds".
-const LEGUME_GRAIN_RE = /\b(black bean|kidney bean|chickpea|chickpeas|lentil|lentils|rice|quinoa|oat|oats|oatmeal|bean|beans)\b/i;
-
-// Map a candidate food name to keyword(s) that MUST appear in any accepted USDA result description.
-function primaryKeywords(name: string): string[] {
-  const lower = name.toLowerCase().trim();
-  if (!lower) return [];
-  if (/sweet ?potato/.test(lower)) return ["sweet potato", "sweetpotato"];
-  if (/oatmeal|\boats?\b/.test(lower)) return ["oat"];
-  if (/chickpea|garbanzo/.test(lower)) return ["chickpea", "garbanzo"];
-  if (/black bean/.test(lower)) return ["black bean"];
-  if (/kidney bean/.test(lower)) return ["kidney bean"];
-  const STOP = new Set([
-    "raw","cooked","fresh","organic","grass","fed","wild","skinless","boneless",
-    "ground","whole","large","small","sliced","diced","with","and","lean","fillet",
-    "fillets","steak","steaks","breast","thigh","leg","cut","cuts",
-  ]);
-  const tokens = lower.replace(/[^a-z\s]/g, " ").split(/\s+/).filter((t) => t && !STOP.has(t));
-  if (tokens.length === 0) return [lower];
-  return [tokens[tokens.length - 1]];
-}
-
-function matchesPrimaryKeyword(description: string, candidateName: string): boolean {
-  const d = description.toLowerCase();
-  const keys = primaryKeywords(candidateName);
-  if (keys.length === 0) return true;
-  return keys.some((k) => d.includes(k));
-}
-
-function isWrongForm(description: string, category: Category, candidateName: string): boolean {
-  if (WRONG_FORM_TERMS.test(description)) return true;
-  if (category === "Fat" && !isOilName(candidateName) && /\boil\b/i.test(description)) return true;
-  if (DRY_STAPLE_RE.test(candidateName) && /\bdry\b/i.test(description)) return true;
-  // Reject "bread" entries (e.g. "bread, oatmeal") unless the target food is itself a bread.
-  if (!BREAD_NAME_RE.test(candidateName) && /\bbread\b/i.test(description)) return true;
-  // Reject raw / "mature seeds" forms for legumes and grains — they must be cooked.
-  if (LEGUME_GRAIN_RE.test(candidateName) && /\b(raw|mature seeds)\b/i.test(description)) return true;
-  return false;
-}
-
-// Hard-coded macros for eggs (USDA Egg, whole, raw, large per 100g).
-const EGG_PER100: Macros = { calories: 143, protein_g: 12.6, carbs_g: 0.6, fat_g: 9.5 };
-const EGG_USDA_DESC = "Egg, whole, raw, large (hard-coded)";
-const isEggName = (n: string) => /\begg/i.test(n);
-
-// Hard-coded macros for oats (per 100g dry weight).
-const OATS_PER100: Macros = { calories: 389, protein_g: 13.2, carbs_g: 67.7, fat_g: 6.5 };
-const OATS_USDA_DESC = "Oats, dry (hard-coded)";
-const isOatsName = (n: string) => /\b(oats?|oatmeal)\b/i.test(n);
 
 async function findUSDAFood(
   candidates: string[],
