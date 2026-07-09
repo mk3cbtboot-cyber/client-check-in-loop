@@ -223,21 +223,6 @@ export default function RecipePlanAssignments({
   const eligibleRecipes = (slot: SlotKey) =>
     recipes.filter((r) => r.default_slot === slot || r.default_slot === "any");
 
-  const visibleKeys = visibleSlotKeys(mealsPerDay);
-  const used: MacroSet = assignments.reduce<MacroSet>(
-    (acc, a) => {
-      if (!visibleKeys.includes(a.meal_slot)) return acc;
-      const m = a.est_macros;
-      if (!m) return acc;
-      return {
-        calories: acc.calories + (Number(m.calories) || 0),
-        protein_g: acc.protein_g + (Number(m.protein_g) || 0),
-        carbs_g: acc.carbs_g + (Number(m.carbs_g) || 0),
-        fat_g: acc.fat_g + (Number(m.fat_g) || 0),
-      };
-    },
-    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-  );
 
   return (
     <div className="space-y-3">
