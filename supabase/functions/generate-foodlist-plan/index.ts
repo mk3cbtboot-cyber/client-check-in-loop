@@ -1,9 +1,24 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { usdaCandidates, type Macros } from "../_shared/usda.ts";
+import {
+  usdaCandidates,
+  cookedSearchTerm,
+  isWrongForm,
+  matchesPrimaryKeyword,
+  densityMacroKey,
+  DENSITY_THRESHOLD,
+  LEGUME_GRAIN_RE,
+  EGG_PER100,
+  EGG_USDA_DESC,
+  OATS_PER100,
+  OATS_USDA_DESC,
+  isEggName,
+  isOatsName,
+  type Macros,
+  type Category,
+} from "../_shared/usda.ts";
 
 const SLOT_KEYS = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"] as const;
 type SlotKey = (typeof SLOT_KEYS)[number];
-type Category = "Protein" | "Carbs" | "Veg" | "Fat";
 
 function slotsForMeals(n: number): SlotKey[] {
   if (n === 5) return ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
