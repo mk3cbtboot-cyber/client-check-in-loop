@@ -315,6 +315,34 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
       c: it.density_carbs_per_100g,
       f: it.density_fat_per_100g,
     });
+    setOriginalName(it.name);
+  }
+
+  async function onNameBlur() {
+    const name = draftName.trim();
+    if (!name || name === originalName.trim()) return;
+    if (macrosDirty) return;
+    const unitIsGrams = draftPortionUnit === "" || /^g\b|^grams?$/i.test(draftPortionUnit);
+    const grams = Number(draftPortionNum);
+    if (!unitIsGrams || !Number.isFinite(grams) || grams <= 0) {
+      // Can't derive densities without a gram portion; clear stale ones so old food's numbers don't leak.
+      setDensities({});
+      return;
+    }
+    const portion = `${grams}g`;
+    setEstimating(true);
+    const e = await estimateFoodMacros(name, portion);
+    setEstimating(false);
+    if (macrosDirty) return; // practitioner edited during fetch
+    setDraftProtein(String(round1(e.est_protein_g)));
+    setDraftCarbs(String(round1(e.est_carbs_g)));
+    setDraftFat(String(round1(e.est_fat_g)));
+    setDensities({
+      p: (e.est_protein_g / grams) * 100,
+      c: (e.est_carbs_g / grams) * 100,
+      f: (e.est_fat_g / grams) * 100,
+    });
+    setOriginalName(name);
   }
 
   const [estimating, setEstimating] = useState(false);
