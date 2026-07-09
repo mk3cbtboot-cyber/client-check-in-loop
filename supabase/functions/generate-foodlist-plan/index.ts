@@ -13,6 +13,8 @@ import {
   OATS_USDA_DESC,
   isEggName,
   isOatsName,
+  isOilName,
+  isNicheVarietyHit,
   type Macros,
   type Category,
 } from "../_shared/usda.ts";
@@ -91,6 +93,8 @@ async function findUSDAFood(
     }
     const list = await usdaCandidates(cookedSearchTerm(cand, category)).catch(() => []);
     const rejected: Array<{ desc: string; value: number; reason: string }> = [];
+    let nicheFallback: { item: typeof list[number]; value: number } | null = null;
+    let accepted: { item: typeof list[number]; value: number } | null = null;
     for (const item of list) {
       if (isWrongForm(item.description, category, cand)) {
         rejected.push({ desc: item.description, value: 0, reason: "wrong-form" });
@@ -101,17 +105,29 @@ async function findUSDAFood(
         continue;
       }
       const value = Number(item.per100[macroKey] ?? 0);
-      if (category === "Veg" || value >= threshold) {
-        if (rejected.length > 0) {
-          console.log(`[usda] "${cand}" (${category}): rejected ${rejected.length} entries before accepting "${item.description}" (${macroKey}=${value}g/100g)`);
-          for (const r of rejected) console.log(`  rejected (${r.reason}): "${r.desc}" (${macroKey}=${r.value}g/100g, threshold ${threshold})`);
-        } else {
-          console.log(`[usda] "${cand}" (${category}): accepted "${item.description}" (${macroKey}=${value}g/100g)`);
-        }
-        return { name: cand, per100: item.per100, usdaDescription: item.description };
+      if (category !== "Veg" && value < threshold) {
+        rejected.push({ desc: item.description, value, reason: "low-density" });
+        continue;
       }
-      rejected.push({ desc: item.description, value, reason: "low-density" });
+      if (isNicheVarietyHit(item.description, cand)) {
+        if (!nicheFallback) nicheFallback = { item, value };
+        rejected.push({ desc: item.description, value, reason: "niche-variety" });
+        continue;
+      }
+      accepted = { item, value };
+      break;
     }
+    const chosen = accepted ?? nicheFallback;
+    if (chosen) {
+      if (rejected.length > 0) {
+        console.log(`[usda] "${cand}" (${category}): rejected ${rejected.length} entries before accepting "${chosen.item.description}" (${macroKey}=${chosen.value}g/100g)`);
+        for (const r of rejected) console.log(`  rejected (${r.reason}): "${r.desc}" (${macroKey}=${r.value}g/100g, threshold ${threshold})`);
+      } else {
+        console.log(`[usda] "${cand}" (${category}): accepted "${chosen.item.description}" (${macroKey}=${chosen.value}g/100g)`);
+      }
+      return { name: cand, per100: chosen.item.per100, usdaDescription: chosen.item.description };
+    }
+
     if (rejected.length > 0) {
       console.log(`[usda] "${cand}" (${category}): no valid USDA entry, rejected ${rejected.length} entries — falling back to next candidate`);
       for (const r of rejected) console.log(`  rejected (${r.reason}): "${r.desc}" (${macroKey}=${r.value}g/100g)`);

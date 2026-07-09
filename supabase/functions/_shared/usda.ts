@@ -41,9 +41,13 @@ export function portionToGrams(portion: string, name: string): number | null {
 }
 
 function cleanName(name: string): string {
+  // Do NOT strip "cooked" here: cookedSearchTerm intentionally appends
+  // ", cooked" to bias USDA search ranking toward cooked entries. Removing it
+  // would silently revert grain queries (e.g. white rice) to a generic search
+  // that returns raw/dry entries near the top.
   return name
     .replace(/\([^)]*\)/g, " ")
-    .replace(/\b(cooked|raw|fresh|organic|grass[- ]fed|wild|skinless|boneless)\b/gi, " ")
+    .replace(/\b(raw|fresh|organic|grass[- ]fed|wild|skinless|boneless)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -199,6 +203,18 @@ export const OATS_PER100: Macros = { calories: 389, protein_g: 13.2, carbs_g: 67
 export const OATS_USDA_DESC = "Oats, dry (hard-coded)";
 export const isOatsName = (n: string) => /\b(oats?|oatmeal)\b/i.test(n);
 
+// Narrow variety markers that USDA sometimes sorts to the top of a generic
+// staple query (e.g. "white rice, cooked" → "Rice, white, glutinous, cooked").
+// When the input name doesn't explicitly ask for one of these varieties we
+// deprioritize (not reject) hits containing them, so a plain "white rice"
+// resolves to long-/medium-grain rather than glutinous/sticky.
+const NICHE_VARIETY_RE = /\b(glutinous|sticky|sweet rice|wild rice|basmati|jasmine|arborio|risotto|pearled|hulled|pearl barley|puffed)\b/i;
+
+export function isNicheVarietyHit(description: string, candidateName: string): boolean {
+  if (NICHE_VARIETY_RE.test(candidateName)) return false; // user asked for it
+  return NICHE_VARIETY_RE.test(description);
+}
+
 // Pick the best per-100g USDA entry for a single food name + category, applying
 // the same filters the meal-plan generator uses. Returns null when nothing
 // passes so callers can fall back to AI estimation.
@@ -215,16 +231,25 @@ export async function pickUsdaForCategory(
   const threshold = DENSITY_THRESHOLD[category] ?? 0;
   const macroKey = densityMacroKey(category);
   const list = await usdaCandidates(cookedSearchTerm(name, category)).catch(() => []);
+
+  // Two-pass: first accept only non-niche varieties (e.g. long-grain over
+  // glutinous), then fall back to niche hits if nothing else qualifies.
+  let nicheFallback: { per100: Macros; description: string } | null = null;
   for (const item of list) {
     if (isWrongForm(item.description, category, name)) continue;
     if (!matchesPrimaryKeyword(item.description, name)) continue;
     const value = Number(item.per100[macroKey] ?? 0);
-    if (category === "Veg" || category === "Other" || value >= threshold) {
-      return { per100: item.per100, description: item.description };
+    const passesDensity = category === "Veg" || category === "Other" || value >= threshold;
+    if (!passesDensity) continue;
+    if (isNicheVarietyHit(item.description, name)) {
+      if (!nicheFallback) nicheFallback = { per100: item.per100, description: item.description };
+      continue;
     }
+    return { per100: item.per100, description: item.description };
   }
-  return null;
+  return nicheFallback;
 }
+
 
 // Backward-compatible single-result lookup (no category-aware filtering).
 export async function usdaMacros(name: string, portion: string): Promise<Macros | null> {
