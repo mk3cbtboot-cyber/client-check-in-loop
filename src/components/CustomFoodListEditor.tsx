@@ -496,35 +496,50 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
             <div className="grid grid-cols-3 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs">Protein (g)</Label>
-                <Input
-                  type="number" inputMode="decimal" min={0} step={0.1}
-                  value={draftProtein}
-                  onChange={(e) => { setDraftProtein(e.target.value); setMacrosDirty(true); }}
-                  className="h-8"
-                />
+                <div className="relative">
+                  <Input
+                    type="number" inputMode="decimal" min={0} step={0.1}
+                    value={estimating ? "" : draftProtein}
+                    onChange={(e) => { setDraftProtein(e.target.value); setMacrosDirty(true); }}
+                    className="h-8"
+                    disabled={estimating}
+                  />
+                  {estimating && <Loader2 className="h-3 w-3 animate-spin absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />}
+                </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Carbs (g)</Label>
-                <Input
-                  type="number" inputMode="decimal" min={0} step={0.1}
-                  value={draftCarbs}
-                  onChange={(e) => { setDraftCarbs(e.target.value); setMacrosDirty(true); }}
-                  className="h-8"
-                />
+                <div className="relative">
+                  <Input
+                    type="number" inputMode="decimal" min={0} step={0.1}
+                    value={estimating ? "" : draftCarbs}
+                    onChange={(e) => { setDraftCarbs(e.target.value); setMacrosDirty(true); }}
+                    className="h-8"
+                    disabled={estimating}
+                  />
+                  {estimating && <Loader2 className="h-3 w-3 animate-spin absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />}
+                </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Fat (g)</Label>
-                <Input
-                  type="number" inputMode="decimal" min={0} step={0.1}
-                  value={draftFat}
-                  onChange={(e) => { setDraftFat(e.target.value); setMacrosDirty(true); }}
-                  className="h-8"
-                />
+                <div className="relative">
+                  <Input
+                    type="number" inputMode="decimal" min={0} step={0.1}
+                    value={estimating ? "" : draftFat}
+                    onChange={(e) => { setDraftFat(e.target.value); setMacrosDirty(true); }}
+                    className="h-8"
+                    disabled={estimating}
+                  />
+                  {estimating && <Loader2 className="h-3 w-3 animate-spin absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />}
+                </div>
               </div>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Calories</Label>
-              <Input value={Math.round(draftCalories)} readOnly disabled className="h-8" />
+              <div className="relative">
+                <Input value={estimating ? "" : Math.round(draftCalories)} readOnly disabled className="h-8" />
+                {estimating && <Loader2 className="h-3 w-3 animate-spin absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground" />}
+              </div>
             </div>
           </div>
           <DialogFooter>
