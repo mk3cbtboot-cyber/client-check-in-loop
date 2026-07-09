@@ -400,7 +400,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     const grams = Number(draftPortionNum);
     if (nameChanged && !macrosDirty && unitIsGrams && Number.isFinite(grams) && grams > 0) {
       setEstimating(true);
-      const e = await estimateFoodMacros(name, `${grams}g`);
+      const e = await estimateFoodMacros(name, `${grams}g`, draftCategory);
       setEstimating(false);
       est = { est_protein_g: e.est_protein_g, est_carbs_g: e.est_carbs_g, est_fat_g: e.est_fat_g };
       dens = {
