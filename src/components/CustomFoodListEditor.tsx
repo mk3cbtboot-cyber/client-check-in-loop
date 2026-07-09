@@ -111,10 +111,10 @@ interface Props {
   onGoToMacros?: () => void;
 }
 
-export async function estimateFoodMacros(name: string, portion: string): Promise<{ est_calories: number; est_protein_g: number; est_carbs_g: number; est_fat_g: number }> {
+export async function estimateFoodMacros(name: string, portion: string, category?: FoodCategoryKind): Promise<{ est_calories: number; est_protein_g: number; est_carbs_g: number; est_fat_g: number }> {
   try {
     const { data, error } = await supabase.functions.invoke("estimate-macros", {
-      body: { items: [{ name, portion }] },
+      body: { items: [{ name, portion, ...(category ? { category } : {}) }] },
     });
     if (error) throw error;
     const m = (data as { items?: Array<{ calories?: number; protein_g?: number; carbs_g?: number; fat_g?: number }> })?.items?.[0];
@@ -336,7 +336,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     }
     const portion = `${grams}g`;
     setEstimating(true);
-    const e = await estimateFoodMacros(name, portion);
+    const e = await estimateFoodMacros(name, portion, draftCategory);
     setEstimating(false);
     if (macrosDirty) return; // practitioner edited during fetch
     setDraftProtein(String(round1(e.est_protein_g)));
@@ -400,7 +400,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     const grams = Number(draftPortionNum);
     if (nameChanged && !macrosDirty && unitIsGrams && Number.isFinite(grams) && grams > 0) {
       setEstimating(true);
-      const e = await estimateFoodMacros(name, `${grams}g`);
+      const e = await estimateFoodMacros(name, `${grams}g`, draftCategory);
       setEstimating(false);
       est = { est_protein_g: e.est_protein_g, est_carbs_g: e.est_carbs_g, est_fat_g: e.est_fat_g };
       dens = {
@@ -411,7 +411,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     } else if (!existing && !macrosProvided) {
       // Legacy add flow: if no macros entered and it's a new item, estimate via AI.
       setEstimating(true);
-      const e = await estimateFoodMacros(name, portion);
+      const e = await estimateFoodMacros(name, portion, draftCategory);
       setEstimating(false);
       est = { est_protein_g: e.est_protein_g, est_carbs_g: e.est_carbs_g, est_fat_g: e.est_fat_g };
     }

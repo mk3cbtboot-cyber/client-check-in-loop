@@ -1,11 +1,17 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { usdaMacros } from "../_shared/usda.ts";
+import { usdaMacros, usdaMacrosForCategory, type Category } from "../_shared/usda.ts";
 
 
-type Item = { name: string; portion: string };
+type Item = { name: string; portion: string; category?: Category };
 type Macros = { calories: number; protein_g: number; carbs_g: number; fat_g: number };
 
 function zero(): Macros { return { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }; }
+
+const ALLOWED_CATEGORIES: Category[] = ["Protein", "Carbs", "Veg", "Fat", "Other"];
+function normalizeCategory(v: unknown): Category | undefined {
+  if (typeof v !== "string") return undefined;
+  return ALLOWED_CATEGORIES.includes(v as Category) ? (v as Category) : undefined;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -21,7 +27,11 @@ Deno.serve(async (req) => {
     const items: Item[] = Array.isArray(body?.items)
       ? body.items.map((x: unknown) => {
           const o = (x ?? {}) as Record<string, unknown>;
-          return { name: String(o.name ?? "").trim(), portion: String(o.portion ?? "").trim() };
+          return {
+            name: String(o.name ?? "").trim(),
+            portion: String(o.portion ?? "").trim(),
+            category: normalizeCategory(o.category),
+          };
         }).filter((i: Item) => i.name.length > 0)
       : [];
 
@@ -31,9 +41,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Try USDA FoodData Central first for each item; collect indices that miss.
+    // USDA FoodData Central first. When the caller supplies a category we use
+    // the same category-aware selection rules as the meal-plan generator
+    // (cooked search term, raw/dry/mature-seeds rejection, primary-keyword
+    // match, density threshold, egg/oats hard-codes). Without a category we
+    // fall back to the legacy first-hit lookup for backwards compatibility.
     const usdaResults: (Macros | null)[] = await Promise.all(
-      items.map((it) => usdaMacros(it.name, it.portion).catch(() => null)),
+      items.map((it) =>
+        (it.category
+          ? usdaMacrosForCategory(it.name, it.portion, it.category)
+          : usdaMacros(it.name, it.portion)
+        ).catch(() => null),
+      ),
     );
     const missingIdx: number[] = [];
     usdaResults.forEach((r, i) => { if (!r) missingIdx.push(i); });
@@ -100,4 +119,3 @@ async function aiEstimate(apiKey: string, items: Item[]): Promise<Macros[]> {
     };
   });
 }
-
