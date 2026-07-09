@@ -270,6 +270,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
   const [draftFat, setDraftFat] = useState("0");
   const [macrosDirty, setMacrosDirty] = useState(false);
   const [densities, setDensities] = useState<{ p?: number; c?: number; f?: number }>({});
+  const [originalName, setOriginalName] = useState("");
   const [confirmRemoveIdx, setConfirmRemoveIdx] = useState<number | null>(null);
   const [localNote, setLocalNote] = useState(note);
 
@@ -287,6 +288,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     setDraftFat("0");
     setMacrosDirty(false);
     setDensities({});
+    setOriginalName("");
   }
 
   function startAdd() {
@@ -313,6 +315,34 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
       c: it.density_carbs_per_100g,
       f: it.density_fat_per_100g,
     });
+    setOriginalName(it.name);
+  }
+
+  async function onNameBlur() {
+    const name = draftName.trim();
+    if (!name || name === originalName.trim()) return;
+    if (macrosDirty) return;
+    const unitIsGrams = draftPortionUnit === "" || /^g\b|^grams?$/i.test(draftPortionUnit);
+    const grams = Number(draftPortionNum);
+    if (!unitIsGrams || !Number.isFinite(grams) || grams <= 0) {
+      // Can't derive densities without a gram portion; clear stale ones so old food's numbers don't leak.
+      setDensities({});
+      return;
+    }
+    const portion = `${grams}g`;
+    setEstimating(true);
+    const e = await estimateFoodMacros(name, portion);
+    setEstimating(false);
+    if (macrosDirty) return; // practitioner edited during fetch
+    setDraftProtein(String(round1(e.est_protein_g)));
+    setDraftCarbs(String(round1(e.est_carbs_g)));
+    setDraftFat(String(round1(e.est_fat_g)));
+    setDensities({
+      p: (e.est_protein_g / grams) * 100,
+      c: (e.est_carbs_g / grams) * 100,
+      f: (e.est_fat_g / grams) * 100,
+    });
+    setOriginalName(name);
   }
 
   const [estimating, setEstimating] = useState(false);
@@ -439,7 +469,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
           <div className="space-y-2">
             <div className="space-y-1">
               <Label className="text-xs">Food name</Label>
-              <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} placeholder="e.g. Chicken breast" className="h-8" />
+              <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} onBlur={onNameBlur} placeholder="e.g. Chicken breast" className="h-8" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Portion ({eggMode ? "egg count" : "grams"})</Label>
