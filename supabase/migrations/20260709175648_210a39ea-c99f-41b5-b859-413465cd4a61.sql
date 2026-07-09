@@ -1,0 +1,1 @@
+UPDATE public.clients SET plan_format='food_list_generated' WHERE id='ac86dc40-c1ea-416b-8d30-4eec361855fb';
