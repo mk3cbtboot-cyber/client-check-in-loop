@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3.5-flash",
         messages: [
           { role: "system", content: `You categorise food ingredients into a fixed set of recipe-builder categories. Use ONLY these category keys: ${CATEGORIES.join(", ")}.\n\nGuide:\n${CATEGORY_GUIDE}\n\nFor every food provided, return its single best category key. If a food does not clearly fit any category, choose the closest one (never invent new keys).` },
           { role: "user", content: `Categorise these foods:\n${foods.map((f) => `- ${f}`).join("\n")}` },

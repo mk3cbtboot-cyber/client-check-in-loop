@@ -625,7 +625,7 @@ Deno.serve(async (req) => {
           if (lovableKey) {
           console.log("ai_interceptor: before AI gateway fetch");
             console.log("ai_interceptor: gateway_request_body", JSON.stringify({
-              model: "google/gemini-2.5-flash",
+              model: "google/gemini-3.5-flash",
               messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: `CLIENT PLAN DATA:\n${planSummary}\n\nCLIENT QUESTION:\n${body}` },
@@ -638,7 +638,7 @@ Deno.serve(async (req) => {
                 "Authorization": `Bearer ${lovableKey}`,
               },
               body: JSON.stringify({
-                model: "google/gemini-2.5-flash",
+                model: "google/gemini-3.5-flash",
                 messages: [
                   { role: "system", content: systemPrompt },
                   { role: "user", content: `CLIENT PLAN DATA:\n${planSummary}\n\nCLIENT QUESTION:\n${body}` },

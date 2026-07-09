@@ -200,7 +200,7 @@ Return JSON of this exact shape:
     method: "POST",
     headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-3.5-flash",
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
       response_format: { type: "json_object" },
       max_tokens: 1500,
@@ -227,7 +227,7 @@ async function aiEstimateMacros(apiKey: string, name: string, portion: string): 
     method: "POST",
     headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-3.5-flash",
       messages: [
         { role: "system", content: `Return ONLY JSON {"calories":number,"protein_g":number,"carbs_g":number,"fat_g":number} for the given food + portion. Cooked weights unless noted. Integers.` },
         { role: "user", content: `${name} — ${portion}` },

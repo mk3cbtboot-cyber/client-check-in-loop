@@ -92,7 +92,7 @@ async function aiEstimate(apiKey: string, items: Item[]): Promise<Macros[]> {
     method: "POST",
     headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-3.5-flash",
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
       response_format: { type: "json_object" },
     }),
