@@ -41,9 +41,13 @@ export function portionToGrams(portion: string, name: string): number | null {
 }
 
 function cleanName(name: string): string {
+  // Do NOT strip "cooked" here: cookedSearchTerm intentionally appends
+  // ", cooked" to bias USDA search ranking toward cooked entries. Removing it
+  // would silently revert grain queries (e.g. white rice) to a generic search
+  // that returns raw/dry entries near the top.
   return name
     .replace(/\([^)]*\)/g, " ")
-    .replace(/\b(cooked|raw|fresh|organic|grass[- ]fed|wild|skinless|boneless)\b/gi, " ")
+    .replace(/\b(raw|fresh|organic|grass[- ]fed|wild|skinless|boneless)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
