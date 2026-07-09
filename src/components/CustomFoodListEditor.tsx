@@ -288,6 +288,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     setDraftFat("0");
     setMacrosDirty(false);
     setDensities({});
+    setOriginalName("");
   }
 
   function startAdd() {
