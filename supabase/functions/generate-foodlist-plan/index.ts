@@ -128,7 +128,6 @@ async function findUSDAFood(
       return { name: cand, per100: chosen.item.per100, usdaDescription: chosen.item.description };
     }
 
-    }
     if (rejected.length > 0) {
       console.log(`[usda] "${cand}" (${category}): no valid USDA entry, rejected ${rejected.length} entries — falling back to next candidate`);
       for (const r of rejected) console.log(`  rejected (${r.reason}): "${r.desc}" (${macroKey}=${r.value}g/100g)`);
