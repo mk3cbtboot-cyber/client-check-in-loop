@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3.5-flash",
         messages: [{ role: "user", content: userContent }],
         tools: [tool],
         tool_choice: { type: "function", function: { name: "return_food_list" } },

@@ -62,6 +62,7 @@ Deno.serve(async (req) => {
 - Use ONLY the approved foods listed for this meal slot. Do not introduce other proteins, carbs, vegetables, fats, dairy, or fruit beyond what is provided.
 - Respect the portions provided exactly — do not scale, round, or omit them.
 - You MAY add herbs, dried/fresh spices, sea salt, black pepper, garlic, ginger, fresh chili, lemon/lime juice, vinegar, and water. Use seasoning generously so the recipes taste good.
+- ABSOLUTELY DO NOT add any oil, butter, ghee, coconut oil, olive oil, avocado oil, cooking spray, tallow, lard, or ANY other fat/cooking-fat — measured OR "as needed" OR "for the pan" — unless that specific fat appears in the approved foods list above. This applies to all three options equally. If no fat is listed, cook using dry-heat methods (non-stick pan with water/broth splash, oven-bake, grill, steam, poach, air-fry) and say so explicitly in the method.
 - Use the practitioner's slot notes (if any) as additional instruction context.
 - Vary the three options meaningfully — different cooking methods, flavour profiles, or preparation styles.
 
@@ -82,7 +83,7 @@ OUTPUT: Call the provided tool with EXACTLY THREE distinct options. Each option 
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
