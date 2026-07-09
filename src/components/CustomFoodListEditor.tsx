@@ -469,7 +469,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
           <div className="space-y-2">
             <div className="space-y-1">
               <Label className="text-xs">Food name</Label>
-              <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} placeholder="e.g. Chicken breast" className="h-8" />
+              <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} onBlur={onNameBlur} placeholder="e.g. Chicken breast" className="h-8" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Portion ({eggMode ? "egg count" : "grams"})</Label>
