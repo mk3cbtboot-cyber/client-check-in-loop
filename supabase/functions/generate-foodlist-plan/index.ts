@@ -13,6 +13,8 @@ import {
   OATS_USDA_DESC,
   isEggName,
   isOatsName,
+  isOilName,
+  isNicheVarietyHit,
   type Macros,
   type Category,
 } from "../_shared/usda.ts";
