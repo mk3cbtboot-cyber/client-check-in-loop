@@ -206,12 +206,14 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
 
   return (
     <div className="space-y-3">
-      {macros ? (
-        <MacroTracker target={macros} used={used} />
-      ) : planFormat === "food_list_generated" ? (
-        <p className="text-xs text-muted-foreground rounded-md border p-3">
-          Add macro targets on the Macros / MPG tab to track progress here.
-        </p>
+      {planFormat === "food_list_generated" ? (
+        macros ? (
+          <MacroTracker target={macros} used={used} />
+        ) : (
+          <p className="text-xs text-muted-foreground rounded-md border p-3">
+            Add macro targets on the Macros / MPG tab to track progress here.
+          </p>
+        )
       ) : null}
       {!isEmpty && macroAllocation && (
         <PerMealBreakdown
