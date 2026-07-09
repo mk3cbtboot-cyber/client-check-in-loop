@@ -241,13 +241,7 @@ export default function RecipePlanAssignments({
 
   return (
     <div className="space-y-3">
-      {macros ? (
-        <MacroTracker target={macros} used={used} />
-      ) : (
-        <p className="text-xs text-muted-foreground rounded-md border p-3">
-          Add macro targets on the Macros / MPG tab to track progress here.
-        </p>
-      )}
+
 
       <div className="flex items-start justify-between gap-2">
         <div>
