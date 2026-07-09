@@ -270,6 +270,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
   const [draftFat, setDraftFat] = useState("0");
   const [macrosDirty, setMacrosDirty] = useState(false);
   const [densities, setDensities] = useState<{ p?: number; c?: number; f?: number }>({});
+  const [originalName, setOriginalName] = useState("");
   const [confirmRemoveIdx, setConfirmRemoveIdx] = useState<number | null>(null);
   const [localNote, setLocalNote] = useState(note);
 
