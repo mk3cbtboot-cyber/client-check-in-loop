@@ -336,7 +336,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     }
     const portion = `${grams}g`;
     setEstimating(true);
-    const e = await estimateFoodMacros(name, portion);
+    const e = await estimateFoodMacros(name, portion, draftCategory);
     setEstimating(false);
     if (macrosDirty) return; // practitioner edited during fetch
     setDraftProtein(String(round1(e.est_protein_g)));
