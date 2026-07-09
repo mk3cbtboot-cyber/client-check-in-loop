@@ -206,7 +206,7 @@ export const isOatsName = (n: string) => /\b(oats?|oatmeal)\b/i.test(n);
 // resolves to long-/medium-grain rather than glutinous/sticky.
 const NICHE_VARIETY_RE = /\b(glutinous|sticky|sweet rice|wild rice|basmati|jasmine|arborio|risotto|pearled|hulled|pearl barley|puffed)\b/i;
 
-function isNicheVarietyHit(description: string, candidateName: string): boolean {
+export function isNicheVarietyHit(description: string, candidateName: string): boolean {
   if (NICHE_VARIETY_RE.test(candidateName)) return false; // user asked for it
   return NICHE_VARIETY_RE.test(description);
 }
