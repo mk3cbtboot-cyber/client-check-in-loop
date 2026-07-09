@@ -15,7 +15,7 @@ import { BookOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import RecipeLibrary from "./RecipeLibrary";
 import { customSlotLabel } from "@/lib/meal-slots";
-import MacroTracker, { type MacroSet } from "@/components/MacroTracker";
+import { type MacroSet } from "@/components/MacroTracker";
 
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
