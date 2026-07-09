@@ -411,7 +411,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     } else if (!existing && !macrosProvided) {
       // Legacy add flow: if no macros entered and it's a new item, estimate via AI.
       setEstimating(true);
-      const e = await estimateFoodMacros(name, portion);
+      const e = await estimateFoodMacros(name, portion, draftCategory);
       setEstimating(false);
       est = { est_protein_g: e.est_protein_g, est_carbs_g: e.est_carbs_g, est_fat_g: e.est_fat_g };
     }
