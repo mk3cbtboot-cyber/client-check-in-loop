@@ -138,8 +138,13 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     return v === 4 || v === 5 ? v : 3;
   });
 
-  useEffect(() => { setList(normalizeList(initialList)); }, [initialList]);
-  useEffect(() => { setNotes(normalizeNotes(initialNotes)); }, [initialNotes]);
+  // Re-sync from parent only when the client itself changes. Parent re-renders
+  // (unrelated setClients calls with a new object ref) would otherwise clobber
+  // locally-saved list/notes with stale server-side data before parent refetches.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setList(normalizeList(initialList)); }, [clientId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setNotes(normalizeNotes(initialNotes)); }, [clientId]);
   useEffect(() => {
     const v = Number(initialMealsPerDay ?? 3);
     setMealsPerDay(v === 4 || v === 5 ? v : 3);
