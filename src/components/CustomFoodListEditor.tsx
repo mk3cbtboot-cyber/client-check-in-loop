@@ -138,8 +138,13 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     return v === 4 || v === 5 ? v : 3;
   });
 
-  useEffect(() => { setList(normalizeList(initialList)); }, [initialList]);
-  useEffect(() => { setNotes(normalizeNotes(initialNotes)); }, [initialNotes]);
+  // Re-sync from parent only when the client itself changes. Parent re-renders
+  // (unrelated setClients calls with a new object ref) would otherwise clobber
+  // locally-saved list/notes with stale server-side data before parent refetches.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setList(normalizeList(initialList)); }, [clientId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setNotes(normalizeNotes(initialNotes)); }, [clientId]);
   useEffect(() => {
     const v = Number(initialMealsPerDay ?? 3);
     setMealsPerDay(v === 4 || v === 5 ? v : 3);
@@ -384,12 +389,31 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
       est_carbs_g: Number(draftCarbs) || 0,
       est_fat_g: Number(draftFat) || 0,
     };
-    // Legacy add flow: if no macros entered and it's a new item, estimate via AI.
-    if (!existing && !macrosProvided) {
+    let dens = densities;
+
+    // If the food name changed and the practitioner hasn't manually edited macros,
+    // re-estimate synchronously here. This avoids a race where a fast Save click
+    // beats the async onNameBlur fetch and persists the old food's macros with
+    // the new food's name.
+    const nameChanged = existing != null && name !== originalName.trim();
+    const unitIsGrams = draftPortionUnit === "" || /^g\b|^grams?$/i.test(draftPortionUnit);
+    const grams = Number(draftPortionNum);
+    if (nameChanged && !macrosDirty && unitIsGrams && Number.isFinite(grams) && grams > 0) {
+      setEstimating(true);
+      const e = await estimateFoodMacros(name, `${grams}g`);
+      setEstimating(false);
+      est = { est_protein_g: e.est_protein_g, est_carbs_g: e.est_carbs_g, est_fat_g: e.est_fat_g };
+      dens = {
+        p: (e.est_protein_g / grams) * 100,
+        c: (e.est_carbs_g / grams) * 100,
+        f: (e.est_fat_g / grams) * 100,
+      };
+    } else if (!existing && !macrosProvided) {
+      // Legacy add flow: if no macros entered and it's a new item, estimate via AI.
       setEstimating(true);
       const e = await estimateFoodMacros(name, portion);
-      est = { est_protein_g: e.est_protein_g, est_carbs_g: e.est_carbs_g, est_fat_g: e.est_fat_g };
       setEstimating(false);
+      est = { est_protein_g: e.est_protein_g, est_carbs_g: e.est_carbs_g, est_fat_g: e.est_fat_g };
     }
     const est_calories = est.est_protein_g * 4 + est.est_carbs_g * 4 + est.est_fat_g * 9;
     const next: FoodItem = {
@@ -398,9 +422,9 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
       category: draftCategory,
       est_calories,
       ...est,
-      density_protein_per_100g: densities.p,
-      density_carbs_per_100g: densities.c,
-      density_fat_per_100g: densities.f,
+      density_protein_per_100g: dens.p,
+      density_carbs_per_100g: dens.c,
+      density_fat_per_100g: dens.f,
     };
     const updated = editingIndex != null
       ? items.map((it, i) => (i === editingIndex ? next : it))
