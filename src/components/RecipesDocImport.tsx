@@ -181,6 +181,15 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         return;
       }
       const ids = (inserted as unknown as { id: string }[]).map((r) => r.id);
+      const { error: clearErr } = await supabase
+        .from("client_recipe_assignments" as never)
+        .delete()
+        .eq("client_id", clientId);
+      if (clearErr) {
+        console.error(clearErr);
+        toast.error("Recipes saved to library, but failed to clear existing assignments.");
+        return;
+      }
       const assignments = cleaned.map((r, i) => ({
         client_id: clientId,
         recipe_id: ids[i],
