@@ -163,24 +163,70 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         toast.error("Not signed in");
         return;
       }
-      const payload = cleaned.map((r) => ({
-        practitioner_id: uid,
-        name: r.name,
-        ingredients: r.ingredients,
-        method: r.method,
-        notes: r.notes ? r.notes : null,
-        default_slot: r.meal_slot,
-      }));
-      const { data: inserted, error: insertErr } = await supabase
+      // Fetch existing library rows for this practitioner to dedupe by
+      // name (case-insensitive) + normalized ingredient food-set (order-independent).
+      const normalizeFoodSet = (ings: Ingredient[]) =>
+        Array.from(new Set(ings.map((i) => i.food.trim().toLowerCase()).filter(Boolean)))
+          .sort()
+          .join("|");
+      const cleanedNames = Array.from(new Set(cleaned.map((r) => r.name.toLowerCase())));
+      const { data: existingRows } = await supabase
         .from("practitioner_recipes" as never)
-        .insert(payload as never)
-        .select("id");
-      if (insertErr || !inserted) {
-        console.error(insertErr);
-        toast.error("Failed to save recipes to library.");
-        return;
+        .select("id,name,ingredients,created_at")
+        .eq("practitioner_id", uid)
+        .in("name", cleaned.map((r) => r.name));
+      type ExistingRow = { id: string; name: string; ingredients: Ingredient[] | null; created_at: string };
+      const existing = ((existingRows as unknown as ExistingRow[]) ?? [])
+        .filter((row) => cleanedNames.includes((row.name ?? "").toLowerCase()))
+        .sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+      const findExistingId = (r: (typeof cleaned)[number]): string | null => {
+        const key = normalizeFoodSet(r.ingredients);
+        const nameLower = r.name.toLowerCase();
+        for (const row of existing) {
+          if ((row.name ?? "").toLowerCase() !== nameLower) continue;
+          if (normalizeFoodSet(Array.isArray(row.ingredients) ? row.ingredients : []) === key) {
+            return row.id;
+          }
+        }
+        return null;
+      };
+
+      const ids: string[] = [];
+      const toInsertIndexes: number[] = [];
+      const toInsertPayload: Array<Record<string, unknown>> = [];
+      cleaned.forEach((r, i) => {
+        const existingId = findExistingId(r);
+        if (existingId) {
+          ids[i] = existingId;
+        } else {
+          toInsertIndexes.push(i);
+          toInsertPayload.push({
+            practitioner_id: uid,
+            name: r.name,
+            ingredients: r.ingredients,
+            method: r.method,
+            notes: r.notes ? r.notes : null,
+            default_slot: r.meal_slot,
+          });
+        }
+      });
+
+      if (toInsertPayload.length > 0) {
+        const { data: inserted, error: insertErr } = await supabase
+          .from("practitioner_recipes" as never)
+          .insert(toInsertPayload as never)
+          .select("id");
+        if (insertErr || !inserted) {
+          console.error(insertErr);
+          toast.error("Failed to save recipes to library.");
+          return;
+        }
+        const insertedIds = (inserted as unknown as { id: string }[]).map((r) => r.id);
+        toInsertIndexes.forEach((idx, k) => {
+          ids[idx] = insertedIds[k];
+        });
       }
-      const ids = (inserted as unknown as { id: string }[]).map((r) => r.id);
+
       const { error: clearErr } = await supabase
         .from("client_recipe_assignments" as never)
         .delete()
@@ -190,6 +236,7 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         toast.error("Recipes saved to library, but failed to clear existing assignments.");
         return;
       }
+
       const assignments = cleaned.map((r, i) => ({
         client_id: clientId,
         recipe_id: ids[i],
