@@ -381,39 +381,105 @@ export default function RecipePlanAssignments({
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {portionStage?.existingId ? "Edit portions" : "Review portions"} —{" "}
+              {portionStage?.existingId ? "Edit assignment" : "Review assignment"} —{" "}
               {portionStage?.recipe.name}
             </DialogTitle>
           </DialogHeader>
           {portionStage && (
-            <div className="space-y-2">
-              {portionStage.recipe.ingredients.length === 0 ? (
-                <p className="text-sm text-muted-foreground">This recipe has no ingredients.</p>
-              ) : (
-                portionStage.recipe.ingredients.map((ing, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_auto_140px] items-center gap-2">
-                    <p className="text-sm truncate">{ing.food}</p>
-                    <span className="text-xs text-muted-foreground">
-                      default {ing.amount || "—"}
-                    </span>
-                    <Input
-                      value={portionStage.overrides[i]?.amount ?? ""}
-                      onChange={(e) =>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Ingredients & portions
+                </Label>
+                {portionStage.recipe.ingredients.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">This recipe has no ingredients.</p>
+                ) : (
+                  portionStage.recipe.ingredients.map((ing, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_auto_140px] items-center gap-2">
+                      <p className="text-sm truncate">{ing.food}</p>
+                      <span className="text-xs text-muted-foreground">
+                        default {ing.amount || "—"}
+                      </span>
+                      <Input
+                        value={portionStage.overrides[i]?.amount ?? ""}
+                        onChange={(e) =>
+                          setPortionStage((s) =>
+                            s
+                              ? {
+                                  ...s,
+                                  overrides: s.overrides.map((o, idx) =>
+                                    idx === i ? { ...o, amount: e.target.value } : o,
+                                  ),
+                                }
+                              : s,
+                          )
+                        }
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Method
+                  </Label>
+                  {portionStage.method !== (portionStage.recipe.method ?? "") && (
+                    <button
+                      type="button"
+                      className="text-[11px] text-muted-foreground underline"
+                      onClick={() =>
                         setPortionStage((s) =>
-                          s
-                            ? {
-                                ...s,
-                                overrides: s.overrides.map((o, idx) =>
-                                  idx === i ? { ...o, amount: e.target.value } : o,
-                                ),
-                              }
-                            : s,
+                          s ? { ...s, method: s.recipe.method ?? "" } : s,
                         )
                       }
-                    />
-                  </div>
-                ))
-              )}
+                    >
+                      Reset to library default
+                    </button>
+                  )}
+                </div>
+                <Textarea
+                  rows={6}
+                  value={portionStage.method}
+                  onChange={(e) =>
+                    setPortionStage((s) => (s ? { ...s, method: e.target.value } : s))
+                  }
+                  placeholder="Step-by-step method for this client…"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Changes are saved as a per-client override and won't affect the library recipe or other clients.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Notes
+                  </Label>
+                  {portionStage.notes !== (portionStage.recipe.notes ?? "") && (
+                    <button
+                      type="button"
+                      className="text-[11px] text-muted-foreground underline"
+                      onClick={() =>
+                        setPortionStage((s) =>
+                          s ? { ...s, notes: s.recipe.notes ?? "" } : s,
+                        )
+                      }
+                    >
+                      Reset to library default
+                    </button>
+                  )}
+                </div>
+                <Textarea
+                  rows={3}
+                  value={portionStage.notes}
+                  onChange={(e) =>
+                    setPortionStage((s) => (s ? { ...s, notes: e.target.value } : s))
+                  }
+                  placeholder="Optional notes for this client…"
+                />
+              </div>
             </div>
           )}
           <DialogFooter className="gap-2">
