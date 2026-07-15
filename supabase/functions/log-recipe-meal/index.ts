@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
 
     const { data: a } = await admin
       .from("client_recipe_assignments")
-      .select("id, recipe_id, meal_slot, portion_overrides, client_id")
+      .select("id, recipe_id, meal_slot, portion_overrides, method_override, notes_override, client_id")
       .eq("id", assignment_id)
       .eq("client_id", c.id)
       .maybeSingle();
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
 
     const { data: r } = await admin
       .from("practitioner_recipes")
-      .select("name, ingredients, method")
+      .select("name, ingredients, method, notes")
       .eq("id", a.recipe_id)
       .maybeSingle();
     if (!r) return new Response(JSON.stringify({ error: "Recipe not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -56,9 +56,10 @@ Deno.serve(async (req) => {
       const amt = ov?.amount ?? i.amount ?? "";
       return amt ? `${i.food} — ${amt}` : i.food;
     });
-    const methodLines = typeof r.method === "string"
-      ? r.method.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)
-      : [];
+    const effectiveMethod = typeof a.method_override === "string" && a.method_override.length > 0
+      ? a.method_override
+      : (typeof r.method === "string" ? r.method : "");
+    const methodLines = effectiveMethod.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
 
     const slot = a.meal_slot as (typeof SLOT_KEYS)[number];
     const mealType = SLOT_TO_MEAL_TYPE[slot] ?? "snack";
