@@ -76,6 +76,8 @@ export default function RecipePlanAssignments({
     slot: SlotKey;
     recipe: Recipe;
     overrides: Ingredient[];
+    method: string;
+    notes: string;
     existingId?: string;
   } | null>(null);
 
