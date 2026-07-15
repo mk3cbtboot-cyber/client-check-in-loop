@@ -8,7 +8,9 @@ import Dashboard from "./pages/Dashboard";
 import CheckIn from "./pages/CheckIn";
 import ClientPortal from "./pages/ClientPortal";
 import Onboarding from "./pages/Onboarding";
+import OAuthConsent from "./pages/OAuthConsent";
 import NotFound from "./pages/NotFound.tsx";
+
 
 const queryClient = new QueryClient();
 
@@ -26,7 +28,9 @@ const App = () => (
           <Route path="/dashboard/clients/:clientId" element={<Dashboard />} />
           <Route path="/checkin/:token" element={<CheckIn />} />
           <Route path="/portal/:token" element={<ClientPortal />} />
+          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           <Route path="*" element={<NotFound />} />
+
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
