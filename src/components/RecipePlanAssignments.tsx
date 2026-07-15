@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import RecipeLibrary from "./RecipeLibrary";
 import { customSlotLabel } from "@/lib/meal-slots";
 import { type MacroSet } from "@/components/MacroTracker";
+import { Textarea } from "@/components/ui/textarea";
 
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
@@ -27,6 +28,7 @@ type Recipe = {
   name: string;
   ingredients: Ingredient[];
   method: string;
+  notes: string | null;
   default_slot: RecipeSlot;
 };
 
@@ -36,6 +38,8 @@ type Assignment = {
   recipe_id: string;
   meal_slot: SlotKey;
   portion_overrides: Ingredient[] | null;
+  method_override: string | null;
+  notes_override: string | null;
   est_macros: MacroSet | null;
 };
 
@@ -72,6 +76,8 @@ export default function RecipePlanAssignments({
     slot: SlotKey;
     recipe: Recipe;
     overrides: Ingredient[];
+    method: string;
+    notes: string;
     existingId?: string;
   } | null>(null);
 
@@ -126,6 +132,8 @@ export default function RecipePlanAssignments({
       slot: pickerSlot,
       recipe,
       overrides: recipe.ingredients.map((i) => ({ ...i })),
+      method: recipe.method ?? "",
+      notes: recipe.notes ?? "",
     });
     setPickerSlot(null);
   };
@@ -137,7 +145,14 @@ export default function RecipePlanAssignments({
       const ov = a.portion_overrides?.find((o) => o.food === i.food);
       return { food: i.food, amount: ov?.amount ?? i.amount };
     });
-    setPortionStage({ slot: a.meal_slot, recipe, overrides: base, existingId: a.id });
+    setPortionStage({
+      slot: a.meal_slot,
+      recipe,
+      overrides: base,
+      method: a.method_override ?? recipe.method ?? "",
+      notes: a.notes_override ?? recipe.notes ?? "",
+      existingId: a.id,
+    });
   };
 
   const estimateAssignmentMacros = async (
@@ -174,7 +189,7 @@ export default function RecipePlanAssignments({
 
   const savePortions = async (useDefaults: boolean) => {
     if (!portionStage) return;
-    const { slot, recipe, overrides, existingId } = portionStage;
+    const { slot, recipe, overrides, method, notes, existingId } = portionStage;
 
     let portion_overrides: Ingredient[] | null = null;
     if (!useDefaults) {
@@ -185,21 +200,28 @@ export default function RecipePlanAssignments({
       portion_overrides = changed.length > 0 ? changed : null;
     }
 
+    const baseMethod = recipe.method ?? "";
+    const baseNotes = recipe.notes ?? "";
+    const method_override = method !== baseMethod ? method : null;
+    const notes_override = notes !== baseNotes ? notes : null;
+
     const est_macros = await estimateAssignmentMacros(recipe, overrides, useDefaults);
 
     if (existingId) {
       const { error } = await supabase
         .from("client_recipe_assignments" as never)
-        .update({ portion_overrides, est_macros } as never)
+        .update({ portion_overrides, method_override, notes_override, est_macros } as never)
         .eq("id", existingId);
       if (error) return toast.error(error.message);
-      toast.success("Portions updated");
+      toast.success("Assignment updated");
     } else {
       const { error } = await supabase.from("client_recipe_assignments" as never).insert({
         client_id: clientId,
         recipe_id: recipe.id,
         meal_slot: slot,
         portion_overrides,
+        method_override,
+        notes_override,
         est_macros,
       } as never);
       if (error) return toast.error(error.message);
@@ -208,6 +230,7 @@ export default function RecipePlanAssignments({
     setPortionStage(null);
     void load();
   };
+
 
 
   const unassign = async (a: Assignment) => {
@@ -358,39 +381,105 @@ export default function RecipePlanAssignments({
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {portionStage?.existingId ? "Edit portions" : "Review portions"} —{" "}
+              {portionStage?.existingId ? "Edit assignment" : "Review assignment"} —{" "}
               {portionStage?.recipe.name}
             </DialogTitle>
           </DialogHeader>
           {portionStage && (
-            <div className="space-y-2">
-              {portionStage.recipe.ingredients.length === 0 ? (
-                <p className="text-sm text-muted-foreground">This recipe has no ingredients.</p>
-              ) : (
-                portionStage.recipe.ingredients.map((ing, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_auto_140px] items-center gap-2">
-                    <p className="text-sm truncate">{ing.food}</p>
-                    <span className="text-xs text-muted-foreground">
-                      default {ing.amount || "—"}
-                    </span>
-                    <Input
-                      value={portionStage.overrides[i]?.amount ?? ""}
-                      onChange={(e) =>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Ingredients & portions
+                </Label>
+                {portionStage.recipe.ingredients.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">This recipe has no ingredients.</p>
+                ) : (
+                  portionStage.recipe.ingredients.map((ing, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_auto_140px] items-center gap-2">
+                      <p className="text-sm truncate">{ing.food}</p>
+                      <span className="text-xs text-muted-foreground">
+                        default {ing.amount || "—"}
+                      </span>
+                      <Input
+                        value={portionStage.overrides[i]?.amount ?? ""}
+                        onChange={(e) =>
+                          setPortionStage((s) =>
+                            s
+                              ? {
+                                  ...s,
+                                  overrides: s.overrides.map((o, idx) =>
+                                    idx === i ? { ...o, amount: e.target.value } : o,
+                                  ),
+                                }
+                              : s,
+                          )
+                        }
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Method
+                  </Label>
+                  {portionStage.method !== (portionStage.recipe.method ?? "") && (
+                    <button
+                      type="button"
+                      className="text-[11px] text-muted-foreground underline"
+                      onClick={() =>
                         setPortionStage((s) =>
-                          s
-                            ? {
-                                ...s,
-                                overrides: s.overrides.map((o, idx) =>
-                                  idx === i ? { ...o, amount: e.target.value } : o,
-                                ),
-                              }
-                            : s,
+                          s ? { ...s, method: s.recipe.method ?? "" } : s,
                         )
                       }
-                    />
-                  </div>
-                ))
-              )}
+                    >
+                      Reset to library default
+                    </button>
+                  )}
+                </div>
+                <Textarea
+                  rows={6}
+                  value={portionStage.method}
+                  onChange={(e) =>
+                    setPortionStage((s) => (s ? { ...s, method: e.target.value } : s))
+                  }
+                  placeholder="Step-by-step method for this client…"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Changes are saved as a per-client override and won't affect the library recipe or other clients.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Notes
+                  </Label>
+                  {portionStage.notes !== (portionStage.recipe.notes ?? "") && (
+                    <button
+                      type="button"
+                      className="text-[11px] text-muted-foreground underline"
+                      onClick={() =>
+                        setPortionStage((s) =>
+                          s ? { ...s, notes: s.recipe.notes ?? "" } : s,
+                        )
+                      }
+                    >
+                      Reset to library default
+                    </button>
+                  )}
+                </div>
+                <Textarea
+                  rows={3}
+                  value={portionStage.notes}
+                  onChange={(e) =>
+                    setPortionStage((s) => (s ? { ...s, notes: e.target.value } : s))
+                  }
+                  placeholder="Optional notes for this client…"
+                />
+              </div>
             </div>
           )}
           <DialogFooter className="gap-2">
