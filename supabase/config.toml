@@ -30,6 +30,10 @@ verify_jwt = false
 [functions.save-food-selections]
 verify_jwt = false
 
+[functions.mcp]
+verify_jwt = false
+
+
 
 
 
