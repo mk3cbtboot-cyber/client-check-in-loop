@@ -132,6 +132,8 @@ export default function RecipePlanAssignments({
       slot: pickerSlot,
       recipe,
       overrides: recipe.ingredients.map((i) => ({ ...i })),
+      method: recipe.method ?? "",
+      notes: recipe.notes ?? "",
     });
     setPickerSlot(null);
   };
@@ -143,7 +145,14 @@ export default function RecipePlanAssignments({
       const ov = a.portion_overrides?.find((o) => o.food === i.food);
       return { food: i.food, amount: ov?.amount ?? i.amount };
     });
-    setPortionStage({ slot: a.meal_slot, recipe, overrides: base, existingId: a.id });
+    setPortionStage({
+      slot: a.meal_slot,
+      recipe,
+      overrides: base,
+      method: a.method_override ?? recipe.method ?? "",
+      notes: a.notes_override ?? recipe.notes ?? "",
+      existingId: a.id,
+    });
   };
 
   const estimateAssignmentMacros = async (
