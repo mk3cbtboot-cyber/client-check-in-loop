@@ -1,0 +1,1 @@
+ALTER TABLE public.client_recipe_assignments ADD COLUMN IF NOT EXISTS method_override text, ADD COLUMN IF NOT EXISTS notes_override text;

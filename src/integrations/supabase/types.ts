@@ -157,6 +157,8 @@ export type Database = {
           est_macros: Json | null
           id: string
           meal_slot: string
+          method_override: string | null
+          notes_override: string | null
           portion_overrides: Json | null
           recipe_id: string
         }
@@ -166,6 +168,8 @@ export type Database = {
           est_macros?: Json | null
           id?: string
           meal_slot: string
+          method_override?: string | null
+          notes_override?: string | null
           portion_overrides?: Json | null
           recipe_id: string
         }
@@ -175,6 +179,8 @@ export type Database = {
           est_macros?: Json | null
           id?: string
           meal_slot?: string
+          method_override?: string | null
+          notes_override?: string | null
           portion_overrides?: Json | null
           recipe_id?: string
         }
