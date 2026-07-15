@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,10 +9,15 @@ import { toast } from "sonner";
 
 export default function Auth() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Preserve a same-origin relative return path (e.g. the OAuth consent URL).
+  const rawNext = params.get("next");
+  const safeNext = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : null;
 
   const routeForUser = async (userId: string) => {
     const { data: roleRow } = await supabase
@@ -21,7 +26,11 @@ export default function Auth() {
       .eq("user_id", userId)
       .maybeSingle();
     if (roleRow?.role === "practitioner") {
-      navigate("/dashboard", { replace: true });
+      if (safeNext) {
+        window.location.href = safeNext;
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
     } else {
       toast.error("Client accounts use the personalized portal link sent by your practitioner.");
       await supabase.auth.signOut();
@@ -32,7 +41,9 @@ export default function Auth() {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) routeForUser(data.session.user.id);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
