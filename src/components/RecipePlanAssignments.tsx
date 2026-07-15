@@ -189,7 +189,7 @@ export default function RecipePlanAssignments({
 
   const savePortions = async (useDefaults: boolean) => {
     if (!portionStage) return;
-    const { slot, recipe, overrides, existingId } = portionStage;
+    const { slot, recipe, overrides, method, notes, existingId } = portionStage;
 
     let portion_overrides: Ingredient[] | null = null;
     if (!useDefaults) {
@@ -200,21 +200,28 @@ export default function RecipePlanAssignments({
       portion_overrides = changed.length > 0 ? changed : null;
     }
 
+    const baseMethod = recipe.method ?? "";
+    const baseNotes = recipe.notes ?? "";
+    const method_override = method !== baseMethod ? method : null;
+    const notes_override = notes !== baseNotes ? notes : null;
+
     const est_macros = await estimateAssignmentMacros(recipe, overrides, useDefaults);
 
     if (existingId) {
       const { error } = await supabase
         .from("client_recipe_assignments" as never)
-        .update({ portion_overrides, est_macros } as never)
+        .update({ portion_overrides, method_override, notes_override, est_macros } as never)
         .eq("id", existingId);
       if (error) return toast.error(error.message);
-      toast.success("Portions updated");
+      toast.success("Assignment updated");
     } else {
       const { error } = await supabase.from("client_recipe_assignments" as never).insert({
         client_id: clientId,
         recipe_id: recipe.id,
         meal_slot: slot,
         portion_overrides,
+        method_override,
+        notes_override,
         est_macros,
       } as never);
       if (error) return toast.error(error.message);
@@ -223,6 +230,7 @@ export default function RecipePlanAssignments({
     setPortionStage(null);
     void load();
   };
+
 
 
   const unassign = async (a: Assignment) => {
