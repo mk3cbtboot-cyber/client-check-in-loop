@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import RecipeLibrary from "./RecipeLibrary";
 import { customSlotLabel } from "@/lib/meal-slots";
 import { type MacroSet } from "@/components/MacroTracker";
+import { Textarea } from "@/components/ui/textarea";
 
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
@@ -27,6 +28,7 @@ type Recipe = {
   name: string;
   ingredients: Ingredient[];
   method: string;
+  notes: string | null;
   default_slot: RecipeSlot;
 };
 
@@ -36,6 +38,8 @@ type Assignment = {
   recipe_id: string;
   meal_slot: SlotKey;
   portion_overrides: Ingredient[] | null;
+  method_override: string | null;
+  notes_override: string | null;
   est_macros: MacroSet | null;
 };
 
