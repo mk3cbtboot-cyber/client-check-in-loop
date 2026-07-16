@@ -648,7 +648,7 @@ Deno.serve(async (req) => {
                 model: "google/gemini-3.5-flash",
                 messages: [
                   { role: "system", content: systemPrompt },
-                  { role: "user", content: `CLIENT PLAN DATA:\n${planSummary}\n\nCLIENT QUESTION:\n${body}` },
+                  { role: "user", content: `CLIENT PLAN DATA:\n${planSummary}\n\nCLIENT MESSAGE:\n${body}` },
                 ],
               }),
             });
