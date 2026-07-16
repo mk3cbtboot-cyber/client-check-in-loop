@@ -675,7 +675,7 @@ Deno.serve(async (req) => {
           // Practitioner-facing summary so they know this was AI-answered.
           // Skipped entirely for Phase 4 — messages are not forwarded to the practitioner.
           if (!isPhase4) {
-            const practFacing = `[AI-answered — for practitioner review]\nClient asked: ${body}\n\nAI replied: ${aiAnswer}`;
+            const practFacing = `[AI-answered — for practitioner review]\nClient wrote: ${body}\n\nAI replied: ${aiAnswer}`;
             console.log("ai_interceptor: before insert practitioner-facing message");
             const { error: insErr2 } = await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: practFacing });
             console.log("ai_interceptor: after insert practitioner-facing message", { insErr2 });
