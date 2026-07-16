@@ -426,18 +426,18 @@ Deno.serve(async (req) => {
           if (isRecipePlan) {
             const { data: assigns } = await admin
               .from("client_recipe_assignments")
-              .select("recipe_id, meal_slot, portion_overrides")
+              .select("recipe_id, meal_slot, portion_overrides, notes_override")
               .eq("client_id", c.id);
-            const arows = (assigns ?? []) as Array<{ recipe_id: string; meal_slot: string; portion_overrides: Array<{ food: string; amount: string }> | null }>;
+            const arows = (assigns ?? []) as Array<{ recipe_id: string; meal_slot: string; portion_overrides: Array<{ food: string; amount: string }> | null; notes_override: string | null }>;
             const ids = Array.from(new Set(arows.map((r) => r.recipe_id)));
-            const recMap = new Map<string, { name: string; ingredients: Array<{ food: string; amount: string }>; method: string }>();
+            const recMap = new Map<string, { name: string; ingredients: Array<{ food: string; amount: string }>; method: string; notes: string | null }>();
             if (ids.length) {
               const { data: recs } = await admin
                 .from("practitioner_recipes")
-                .select("id, name, ingredients, method")
+                .select("id, name, ingredients, method, notes")
                 .in("id", ids);
-              for (const r of (recs ?? []) as Array<{ id: string; name: string; ingredients: Array<{ food: string; amount: string }>; method: string }>) {
-                recMap.set(r.id, { name: r.name, ingredients: Array.isArray(r.ingredients) ? r.ingredients : [], method: typeof r.method === "string" ? r.method : "" });
+              for (const r of (recs ?? []) as Array<{ id: string; name: string; ingredients: Array<{ food: string; amount: string }>; method: string; notes: string | null }>) {
+                recMap.set(r.id, { name: r.name, ingredients: Array.isArray(r.ingredients) ? r.ingredients : [], method: typeof r.method === "string" ? r.method : "", notes: typeof r.notes === "string" ? r.notes : null });
               }
             }
             const meals = Number(f.meals_per_day ?? 3);
@@ -465,7 +465,11 @@ Deno.serve(async (req) => {
                   const amt = ov?.amount ?? i.amount ?? "";
                   return amt ? `${i.food} (${amt})` : i.food;
                 }).join(", ");
-                return `"${r.name}" — ingredients: ${ingStr || "(none)"}; method: ${r.method ? r.method.replace(/\s+/g, " ").trim() : "(none)"}`;
+                const effectiveNote = (a.notes_override && a.notes_override.trim())
+                  ? a.notes_override.trim()
+                  : (r.notes && r.notes.trim() ? r.notes.trim() : "");
+                const noteStr = effectiveNote ? `; practitioner note: ${effectiveNote.replace(/\s+/g, " ")}` : "";
+                return `"${r.name}" — ingredients: ${ingStr || "(none)"}; method: ${r.method ? r.method.replace(/\s+/g, " ").trim() : "(none)"}${noteStr}`;
               }).join(" | ");
               lines.push(`${slotLabel[slot] ?? slot}: ${parts}`);
             }
