@@ -85,12 +85,31 @@ function checkAvailability(profile: {
   return { available: false, reason: "out_of_hours" };
 }
 
+const GENERIC_MAILBOX_LOCALS = new Set([
+  "info", "hello", "admin", "contact", "support", "team", "office", "no-reply", "noreply",
+]);
+
+function firstNameFromEmail(email: string | null | undefined): string | null {
+  if (!email || typeof email !== "string") return null;
+  const local = (email.split("@")[0] ?? "").toLowerCase();
+  if (GENERIC_MAILBOX_LOCALS.has(local)) return null;
+  const letters = local.replace(/[^a-z]/g, "");
+  if (!letters) return null;
+  return letters.charAt(0).toUpperCase() + letters.slice(1);
+}
+
+function resolvePractName(prof: { display_name?: string | null; email?: string | null } | null | undefined): string {
+  const dn = prof?.display_name;
+  if (dn && dn.trim()) return dn.trim();
+  return firstNameFromEmail(prof?.email) ?? "your practitioner";
+}
+
 function buildNotice(profile: {
   ooo_message?: string | null;
   ooo_return_date?: string | null;
   out_of_office?: boolean;
-}): string {
-  const base = "Cheryl is currently outside of office hours. Your message has been received and she will respond when she's back.";
+}, practName: string): string {
+  const base = `${practName} is currently outside of office hours. Your message has been received and will be responded to when they're back.`;
   const extra = profile.out_of_office && profile.ooo_message ? ` ${profile.ooo_message.trim()}` : "";
   return base + extra;
 }
