@@ -85,12 +85,31 @@ function checkAvailability(profile: {
   return { available: false, reason: "out_of_hours" };
 }
 
+const GENERIC_MAILBOX_LOCALS = new Set([
+  "info", "hello", "admin", "contact", "support", "team", "office", "no-reply", "noreply",
+]);
+
+function firstNameFromEmail(email: string | null | undefined): string | null {
+  if (!email || typeof email !== "string") return null;
+  const local = (email.split("@")[0] ?? "").toLowerCase();
+  if (GENERIC_MAILBOX_LOCALS.has(local)) return null;
+  const letters = local.replace(/[^a-z]/g, "");
+  if (!letters) return null;
+  return letters.charAt(0).toUpperCase() + letters.slice(1);
+}
+
+function resolvePractName(prof: { display_name?: string | null; email?: string | null } | null | undefined): string {
+  const dn = prof?.display_name;
+  if (dn && dn.trim()) return dn.trim();
+  return firstNameFromEmail(prof?.email) ?? "your practitioner";
+}
+
 function buildNotice(profile: {
   ooo_message?: string | null;
   ooo_return_date?: string | null;
   out_of_office?: boolean;
-}): string {
-  const base = "Cheryl is currently outside of office hours. Your message has been received and she will respond when she's back.";
+}, practName: string): string {
+  const base = `${practName} is currently outside of office hours. Your message has been received and will be responded to when they're back.`;
   const extra = profile.out_of_office && profile.ooo_message ? ` ${profile.ooo_message.trim()}` : "";
   return base + extra;
 }
@@ -123,11 +142,12 @@ Deno.serve(async (req) => {
     // Load practitioner availability state
     const { data: prof } = await admin
       .from("profiles")
-      .select("office_hours, out_of_office, ooo_message, ooo_return_date, timezone")
+      .select("office_hours, out_of_office, ooo_message, ooo_return_date, timezone, display_name, email")
       .eq("id", c.practitioner_id)
       .maybeSingle();
     const availability = checkAvailability(prof ?? {});
-    const notice = buildNotice(prof ?? {});
+    const practName = resolvePractName(prof ?? null);
+    const notice = buildNotice(prof ?? {}, practName);
 
     if (action === "unread_count") {
       const since = c.client_last_read_at ?? "1970-01-01T00:00:00Z";
@@ -212,23 +232,9 @@ Deno.serve(async (req) => {
             .eq("week_start_date", _mondayOf(new Date()))
             .maybeSingle();
 
-          console.log("ai_interceptor: before fetch practitioner profile");
-          const { data: practProf, error: practErr } = await admin
-            .from("profiles")
-            .select("email, display_name")
-            .eq("id", c.practitioner_id)
-            .maybeSingle();
-          console.log("ai_interceptor: after fetch practitioner profile", { has_practProf: !!practProf, practErr });
-          const firstNameFromEmail = (email: string | null | undefined): string | null => {
-            if (!email || typeof email !== "string") return null;
-            const local = email.split("@")[0] ?? "";
-            const letters = local.replace(/[^A-Za-z]/g, "");
-            if (!letters) return null;
-            return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
-          };
-          const practName = (practProf?.display_name && practProf.display_name.trim())
-            ? practProf.display_name.trim()
-            : (firstNameFromEmail(practProf?.email) ?? "your practitioner");
+          // practName resolved at top of handler from the same profiles row (display_name, then non-generic email local, then "your practitioner").
+
+
 
 
           // Build a readable, structured plan summary for the LLM rather than dumping raw JSON.
@@ -420,18 +426,18 @@ Deno.serve(async (req) => {
           if (isRecipePlan) {
             const { data: assigns } = await admin
               .from("client_recipe_assignments")
-              .select("recipe_id, meal_slot, portion_overrides")
+              .select("recipe_id, meal_slot, portion_overrides, notes_override")
               .eq("client_id", c.id);
-            const arows = (assigns ?? []) as Array<{ recipe_id: string; meal_slot: string; portion_overrides: Array<{ food: string; amount: string }> | null }>;
+            const arows = (assigns ?? []) as Array<{ recipe_id: string; meal_slot: string; portion_overrides: Array<{ food: string; amount: string }> | null; notes_override: string | null }>;
             const ids = Array.from(new Set(arows.map((r) => r.recipe_id)));
-            const recMap = new Map<string, { name: string; ingredients: Array<{ food: string; amount: string }>; method: string }>();
+            const recMap = new Map<string, { name: string; ingredients: Array<{ food: string; amount: string }>; method: string; notes: string | null }>();
             if (ids.length) {
               const { data: recs } = await admin
                 .from("practitioner_recipes")
-                .select("id, name, ingredients, method")
+                .select("id, name, ingredients, method, notes")
                 .in("id", ids);
-              for (const r of (recs ?? []) as Array<{ id: string; name: string; ingredients: Array<{ food: string; amount: string }>; method: string }>) {
-                recMap.set(r.id, { name: r.name, ingredients: Array.isArray(r.ingredients) ? r.ingredients : [], method: typeof r.method === "string" ? r.method : "" });
+              for (const r of (recs ?? []) as Array<{ id: string; name: string; ingredients: Array<{ food: string; amount: string }>; method: string; notes: string | null }>) {
+                recMap.set(r.id, { name: r.name, ingredients: Array.isArray(r.ingredients) ? r.ingredients : [], method: typeof r.method === "string" ? r.method : "", notes: typeof r.notes === "string" ? r.notes : null });
               }
             }
             const meals = Number(f.meals_per_day ?? 3);
@@ -459,7 +465,11 @@ Deno.serve(async (req) => {
                   const amt = ov?.amount ?? i.amount ?? "";
                   return amt ? `${i.food} (${amt})` : i.food;
                 }).join(", ");
-                return `"${r.name}" — ingredients: ${ingStr || "(none)"}; method: ${r.method ? r.method.replace(/\s+/g, " ").trim() : "(none)"}`;
+                const effectiveNote = (a.notes_override && a.notes_override.trim())
+                  ? a.notes_override.trim()
+                  : (r.notes && r.notes.trim() ? r.notes.trim() : "");
+                const noteStr = effectiveNote ? `; practitioner note: ${effectiveNote.replace(/\s+/g, " ")}` : "";
+                return `"${r.name}" — ingredients: ${ingStr || "(none)"}; method: ${r.method ? r.method.replace(/\s+/g, " ").trim() : "(none)"}${noteStr}`;
               }).join(" | ");
               lines.push(`${slotLabel[slot] ?? slot}: ${parts}`);
             }
