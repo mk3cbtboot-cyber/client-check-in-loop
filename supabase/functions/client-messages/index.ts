@@ -142,11 +142,12 @@ Deno.serve(async (req) => {
     // Load practitioner availability state
     const { data: prof } = await admin
       .from("profiles")
-      .select("office_hours, out_of_office, ooo_message, ooo_return_date, timezone")
+      .select("office_hours, out_of_office, ooo_message, ooo_return_date, timezone, display_name, email")
       .eq("id", c.practitioner_id)
       .maybeSingle();
     const availability = checkAvailability(prof ?? {});
-    const notice = buildNotice(prof ?? {});
+    const practName = resolvePractName(prof ?? null);
+    const notice = buildNotice(prof ?? {}, practName);
 
     if (action === "unread_count") {
       const since = c.client_last_read_at ?? "1970-01-01T00:00:00Z";
