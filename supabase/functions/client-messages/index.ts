@@ -232,23 +232,9 @@ Deno.serve(async (req) => {
             .eq("week_start_date", _mondayOf(new Date()))
             .maybeSingle();
 
-          console.log("ai_interceptor: before fetch practitioner profile");
-          const { data: practProf, error: practErr } = await admin
-            .from("profiles")
-            .select("email, display_name")
-            .eq("id", c.practitioner_id)
-            .maybeSingle();
-          console.log("ai_interceptor: after fetch practitioner profile", { has_practProf: !!practProf, practErr });
-          const firstNameFromEmail = (email: string | null | undefined): string | null => {
-            if (!email || typeof email !== "string") return null;
-            const local = email.split("@")[0] ?? "";
-            const letters = local.replace(/[^A-Za-z]/g, "");
-            if (!letters) return null;
-            return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
-          };
-          const practName = (practProf?.display_name && practProf.display_name.trim())
-            ? practProf.display_name.trim()
-            : (firstNameFromEmail(practProf?.email) ?? "your practitioner");
+          // practName resolved at top of handler from the same profiles row (display_name, then non-generic email local, then "your practitioner").
+
+
 
 
           // Build a readable, structured plan summary for the LLM rather than dumping raw JSON.
