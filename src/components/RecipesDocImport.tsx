@@ -215,7 +215,7 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
             name: r.name,
             ingredients: r.ingredients,
             method: r.method,
-            notes: r.notes ? r.notes : null,
+            notes: null,
             default_slot: r.meal_slot,
           });
         }
