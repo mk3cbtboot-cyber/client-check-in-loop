@@ -215,7 +215,7 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
             name: r.name,
             ingredients: r.ingredients,
             method: r.method,
-            notes: r.notes ? r.notes : null,
+            notes: null,
             default_slot: r.meal_slot,
           });
         }
@@ -252,6 +252,7 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
         recipe_id: ids[i],
         meal_slot: r.meal_slot,
         portion_overrides: null,
+        notes_override: r.notes && r.notes.trim().length > 0 ? r.notes.trim() : null,
       }));
       const { error: assignErr } = await supabase
         .from("client_recipe_assignments" as never)
