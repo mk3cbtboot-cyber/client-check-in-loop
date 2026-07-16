@@ -176,17 +176,8 @@ Deno.serve(async (req) => {
         deferred: !availability.available,
       });
 
-      // AI interceptor: fires on every inbound client message that looks like a plan question.
-      const lower = body.toLowerCase();
-      const phrases = [
-        "can i", "am i allowed", "what is", "what's", "how much", "how many",
-        "is it ok", "is it okay", "what can", "how do i", "how should i",
-        "when should", "do i need", "should i", "could i", "may i",
-        "are there", "is there", "do you", "will i", "why is", "why does",
-      ];
-      const hasQuestion = body.includes("?") || phrases.some((p) => lower.includes(p));
-
-      if (hasQuestion) {
+      // AI interceptor: fires on every inbound client message (questions AND statements).
+      {
         try {
           console.log("ai_interceptor: start", { client_id: c.id, body_preview: body.slice(0, 80) });
           // Fetch full parsed plan data + client/practitioner names.
