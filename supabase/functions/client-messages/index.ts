@@ -575,30 +575,36 @@ Deno.serve(async (req) => {
               ? `The following foods are excluded from this client's plan and must not be suggested under any circumstances: ${((f as any).food_exclusions as string[]).join(", ")}. If the client asks about any of these foods, tell them these foods are not included in their plan.`
               : "";
 
+          const statementRule =
+            "The client's incoming message may be a question OR a statement (e.g. sharing how they're feeling, a preference, or a change they're planning). If it's a statement, briefly and warmly acknowledge it in one sentence. If the plan data lets you address what they said, do so specifically. If not, ask if they have a question, or offer to pass their message on to the practitioner. Never stay silent on a statement.";
+
           const systemPrompt = isRecipePlan
             ? [
-                "You are the AI assistant for a nutrition practitioner, answering the client's question about their personal Recipe Plan.",
+                "You are the AI assistant for a nutrition practitioner, responding to the client's message about their personal Recipe Plan.",
+                statementRule,
                 "Answer ONLY from the client's assigned recipes provided below. Each meal slot lists the exact recipes the practitioner has assigned, with ingredients (and the client's specific portion amounts) and method.",
                 "When a client asks about a specific food or recipe, report which slot(s) it appears in and the exact portion. Do NOT suggest substitutions across slots or invent recipes that aren't listed.",
                 "If a slot has no recipes assigned, say so plainly.",
                 "If the food is not anywhere in the plan, say: \"That food is not in your meal plan.\"",
                 "Be specific: name the recipes, ingredients, and portions from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
-                `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. supplements, medical advice, or coaching).`,
+                `Only fall back to "${AI_FALLBACK}" if a direct question genuinely cannot be answered from the plan data (e.g. supplements, medical advice, or coaching).`,
                 exclusionsRule,
               ].filter(Boolean).join(" ")
             : isFoodList
             ? [
-                "You are the AI assistant for a nutrition practitioner, answering the client's question about their personal Food-List meal plan.",
+                "You are the AI assistant for a nutrition practitioner, responding to the client's message about their personal Food-List meal plan.",
+                statementRule,
                 "Answer ONLY from the client's meal plan provided below. Each meal slot lists the exact foods, portions, and categories the practitioner has assigned. Do NOT infer, speculate, or recommend foods outside the listed slots.",
                 "When a client asks about a specific food, report which slot(s) contain it and the exact portion. Do NOT suggest substitutions across slots or invent foods that aren't listed.",
                 "If a slot has a Note, treat it as practitioner guidance for that slot.",
                 "If the food is not anywhere in the plan, say so plainly: \"That food is not in your meal plan.\"",
                 "Be specific: name the foods and portions from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
-                `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. supplements, medical advice, or coaching).`,
+                `Only fall back to "${AI_FALLBACK}" if a direct question genuinely cannot be answered from the plan data (e.g. supplements, medical advice, or coaching).`,
                 exclusionsRule,
               ].filter(Boolean).join(" ")
             : [
-                "You are the AI assistant for a Metabolic Balance nutrition practitioner, answering the client's question about their personal plan.",
+                "You are the AI assistant for a Metabolic Balance nutrition practitioner, responding to the client's message about their personal plan.",
+                statementRule,
                 "Answer ONLY from the client's parsed meal plan data provided below (meal slots, Phase 2 list, Phase 3 list, 8 Rules, treat meal guidance). Do NOT infer, speculate, or suggest anything not in this data.",
                 "When a client asks about a specific food, find which meal slot(s) or food list contain that food category. Report only those slots/lists and the exact portion specified.",
                 "NEVER suggest that a food in one meal slot can substitute for a food in a different meal slot or category. Do NOT compare proteins to dairy, seeds, or any other category.",
@@ -606,8 +612,8 @@ Deno.serve(async (req) => {
                 "If the food is genuinely not anywhere in the client's plan, say so plainly: \"That food is not in your meal plan.\"",
                 "Be specific: name the foods and quantities from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
                 isPhase4
-                  ? "This client is in Phase 4 — Maintenance. They have completed the program. Use their Phase 2 personal food list, Phase 3 extended list (including oils), the 8 Metabolic Balance Rules, and treat meal guidance (up to 3 treat meals per week) as your full reference. The PDF data above is comprehensive — answer any question that can be answered from it. NEVER tell the client you've passed their question to the practitioner, NEVER say you'll forward it, and NEVER suggest they wait for a human reply. If the answer truly isn't in the plan data, give the best general Metabolic Balance maintenance guidance consistent with what's in the plan."
-                  : `Only fall back to "${AI_FALLBACK}" if the question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
+                  ? "This client is in Phase 4 — Maintenance. They have completed the program. Use their Phase 2 personal food list, Phase 3 extended list (including oils), the 8 Metabolic Balance Rules, and treat meal guidance (up to 3 treat meals per week) as your full reference. The PDF data above is comprehensive — answer anything that can be answered from it. NEVER tell the client you've passed their message to the practitioner, NEVER say you'll forward it, and NEVER suggest they wait for a human reply. If the answer truly isn't in the plan data, give the best general Metabolic Balance maintenance guidance consistent with what's in the plan."
+                  : `Only fall back to "${AI_FALLBACK}" if a direct question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
                 Array.isArray((f as any).food_exclusions) && (f as any).food_exclusions.length
                   ? `The following foods are excluded from this client's plan and must not be suggested under any circumstances: ${((f as any).food_exclusions as string[]).join(", ")}. If the client asks about any of these foods, tell them these foods are not included in their plan.`
                   : "",
