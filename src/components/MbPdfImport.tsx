@@ -169,7 +169,23 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       });
       setStoragePath(path);
       setFoodExclusions(response.foodExclusions ?? null);
+
+      // Persist mb_pdf_path immediately so the uploaded file is never orphaned
+      // if the practitioner closes the review dialog without clicking Confirm & Save.
+      // Confirm & Save will overwrite this with the same path + parsed fields.
+      try {
+        const { error: pathErr } = await supabase
+          .from("clients")
+          .update({ mb_pdf_path: path } as never)
+          .eq("id", uploadClientId);
+        if (pathErr) console.warn("[MbPdfImport] could not persist mb_pdf_path immediately", pathErr);
+        else onSaved?.();
+      } catch (e) {
+        console.warn("[MbPdfImport] mb_pdf_path immediate save threw", e);
+      }
+
       setReviewOpen(true);
+
 
     } catch (err) {
       toast.error("Could not parse PDF", { description: (err as Error).message });
