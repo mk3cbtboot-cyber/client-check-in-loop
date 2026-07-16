@@ -1650,38 +1650,43 @@ export default function Dashboard() {
                       {/* Row 2: toggles | client info | details */}
                       <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                         {tierShowsToggle(tier) && (
-                          <>
-                            {client.client_type === "custom" ? (
-                              <span className="px-2 py-1 rounded-md border bg-primary text-primary-foreground text-xs font-medium">
-                                Custom
-                              </span>
-                            ) : (
-                              <div
-                                role="group"
-                                aria-label="System mode"
-                                className="inline-flex rounded-md border overflow-hidden"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); setSystemMode(client.id, "mb"); }}
-                                  className={`px-2 py-1 text-xs ${client.system_mode !== "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
-                                  aria-pressed={client.system_mode !== "own_practice"}
-                                >
-                                  MB
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); setSystemMode(client.id, "own_practice"); }}
-                                  className={`px-2 py-1 text-xs border-l ${client.system_mode === "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
-                                  aria-pressed={client.system_mode === "own_practice"}
-                                >
-                                  Custom
-                                </button>
-                              </div>
-                            )}
-                          </>
+                          <div
+                            role="group"
+                            aria-label="System mode"
+                            className="inline-flex rounded-md border overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (client.system_mode === "own_practice") {
+                                  if (!window.confirm(`Switch ${client.name} back to Metabolic Balance? Their existing MB data (phase, food lists, meal options, PDF) is preserved and will be shown again. Custom plan data stays intact too.`)) return;
+                                }
+                                setSystemMode(client.id, "mb");
+                              }}
+                              className={`px-2 py-1 text-xs ${client.system_mode !== "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                              aria-pressed={client.system_mode !== "own_practice"}
+                            >
+                              MB
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (client.system_mode !== "own_practice") {
+                                  if (!window.confirm(`Switch ${client.name} to a Custom plan? Their MB data (phase, food lists, meal options, PDF) is preserved and can be restored by switching back. No data is deleted.`)) return;
+                                }
+                                setSystemMode(client.id, "own_practice");
+                              }}
+                              className={`px-2 py-1 text-xs border-l ${client.system_mode === "own_practice" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                              aria-pressed={client.system_mode === "own_practice"}
+                            >
+                              Custom
+                            </button>
+                          </div>
                         )}
+
                         <span className="whitespace-nowrap">
                           {client.email}
                           {" · "}
