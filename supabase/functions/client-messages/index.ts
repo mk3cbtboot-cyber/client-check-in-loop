@@ -667,7 +667,7 @@ Deno.serve(async (req) => {
           const assistantLabel = `${practName}'s AI Assistant`;
           const clientFacing = isPhase4
             ? `${assistantLabel}: ${aiAnswer}`
-            : `${assistantLabel}: ${aiAnswer}\n\nI've also passed your question on to ${practName} in case they'd like to add anything.`;
+            : `${assistantLabel}: ${aiAnswer}\n\nI've also passed your message on to ${practName} in case they'd like to add anything.`;
           console.log("ai_interceptor: before insert client-facing message");
           const { error: insErr1 } = await admin.from("messages").insert({ client_id: c.id, sender: "ai", body: clientFacing });
           console.log("ai_interceptor: after insert client-facing message", { insErr1 });
