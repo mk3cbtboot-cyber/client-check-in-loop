@@ -165,10 +165,20 @@ export default function RecipesDocImport({ clientId, mealsPerDay, onSaved }: Pro
       }
       // Fetch existing library rows for this practitioner to dedupe by
       // name (case-insensitive) + normalized ingredient food-set (order-independent).
+      const SECTION_PREFIX_RE = /^(dressing|sauce|marinade|topping|garnish|glaze|dip|filling|base)\s*:\s*/i;
+      const normalizeFoodName = (s: string) =>
+        s
+          .toLowerCase()
+          .trim()
+          .replace(SECTION_PREFIX_RE, "")
+          .replace(/\s*\([^)]*\)\s*$/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
       const normalizeFoodSet = (ings: Ingredient[]) =>
-        Array.from(new Set(ings.map((i) => i.food.trim().toLowerCase()).filter(Boolean)))
+        Array.from(new Set(ings.map((i) => normalizeFoodName(i.food)).filter(Boolean)))
           .sort()
           .join("|");
+
       const cleanedNames = Array.from(new Set(cleaned.map((r) => r.name.toLowerCase())));
       const { data: existingRows } = await supabase
         .from("practitioner_recipes" as never)
