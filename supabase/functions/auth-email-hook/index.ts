@@ -17,10 +17,10 @@ const corsHeaders = {
 }
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirm your email',
-  invite: "You've been invited",
-  magiclink: 'Your login link',
-  recovery: 'Reset your password',
+  signup: 'Confirm your email for Tenacia',
+  invite: 'You have been invited to Tenacia',
+  magiclink: 'Your Tenacia sign-in link',
+  recovery: 'Reset your Tenacia password',
   email_change: 'Confirm your new email',
   reauthentication: 'Your verification code',
 }
@@ -36,7 +36,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "Client Check-in Loop"
+const SITE_NAME = "Tenacia"
 const SENDER_DOMAIN = "notify.tenacia.app"
 const ROOT_DOMAIN = "tenacia.app"
 const FROM_DOMAIN = "notify.tenacia.app" // Domain shown in From address (may be root or sender subdomain)
