@@ -57,17 +57,25 @@ const ZERO_CAL_ALLOWLIST = [
 ];
 
 const NOTE_ATTRIBUTION_PATTERNS: RegExp[] = [
-  /\s*[\(\[]?\s*(?:as|per|according to|following|in line with|based on)\s+(?:the\s+)?(?:your\s+)?practitioner'?s?\s+(?:note|notes|instruction|instructions|guidance)\s*[\)\]]?\.?/gi,
-  /\s*[\(\[]?\s*(?:as|per|according to|following)\s+(?:the\s+)?(?:your\s+)?(?:note|notes)\s+(?:from|by)\s+(?:the\s+)?practitioner\s*[\)\]]?\.?/gi,
-  /\s*[\(\[]?\s*(?:as|per)\s+(?:the\s+)?(?:practitioner|dietitian|nutritionist|coach)\s+(?:said|stated|advised|noted|recommends?|recommended)\s*[\)\]]?\.?/gi,
-  /\s*[\(\[]?\s*(?:per|as per|according to)\s+(?:the\s+)?(?:slot\s+)?notes?\s*[\)\]]?\.?/gi,
+  // whole parenthetical that references notes or the practitioner
+  /\s*[\(\[][^)\]]*\b(?:practitioner|dietitian|nutritionist|coach|slot\s+notes?|your\s+notes?|the\s+notes?)\b[^)\]]*[\)\]]/gi,
+  /\s*\b(?:as\s+per|per|as|according\s+to|following|in\s+line\s+with|based\s+on)\s+(?:the\s+)?(?:your\s+)?practitioner'?s?\s+(?:note|notes|instruction|instructions|guidance)\b/gi,
+  /\s*\b(?:as\s+per|per|as|according\s+to|following)\s+(?:the\s+)?(?:your\s+)?(?:note|notes)\s+(?:from|by)\s+(?:the\s+)?practitioner\b/gi,
+  /\s*\b(?:as\s+per|per|as)\s+(?:the\s+)?(?:practitioner|dietitian|nutritionist|coach)\s+(?:said|stated|advised|noted|recommends?|recommended)\b/gi,
+  /\s*\b(?:as\s+per|per|according\s+to)\s+(?:the\s+)?(?:slot\s+|practitioner\s+|your\s+)?notes?\b/gi,
 ];
 
 function stripNoteAttribution(text: string): string {
   let out = text;
   for (const re of NOTE_ATTRIBUTION_PATTERNS) out = out.replace(re, "");
-  return out.replace(/\s{2,}/g, " ").replace(/\s+([,.;:])/g, "$1").trim();
+  return out
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.;:])/g, "$1")
+    .replace(/\(\s*\)|\[\s*\]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
+
 
 function normalize(s: string): string {
   return s
