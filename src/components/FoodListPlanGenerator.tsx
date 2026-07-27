@@ -77,7 +77,7 @@ interface Props {
   existingList: unknown;
   macroAllocation?: Allocation | null;
   onSaved?: () => void;
-  onClientPatched?: (patch: { meals_per_day?: number; food_exclusions?: string[] }) => void;
+  onClientPatched?: (patch: { meals_per_day?: number; food_exclusions?: string[]; food_list?: unknown; client_food_selections?: unknown }) => void;
 }
 
 export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, foodExclusions, existingList, macroAllocation, onSaved, onClientPatched }: Props) {
