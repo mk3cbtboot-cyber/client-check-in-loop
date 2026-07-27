@@ -383,14 +383,19 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
 
   const round1 = (n: number) => Math.round(n * 10) / 10;
 
+  /** Grams for the current draft, using the shared unit conversion. */
+  function draftGrams(numStr = draftPortionNum): number | null {
+    const qty = Number(numStr);
+    if (!Number.isFinite(qty) || qty <= 0) return null;
+    const unit = draftPortionUnit.trim() || (isEggItem(draftName, draftCategory) ? "eggs" : "g");
+    return portionToGrams(`${qty} ${unit}`, draftName);
+  }
+
   function onPortionChange(v: string) {
     setDraftPortionNum(v);
     if (macrosDirty) return;
-    const grams = Number(v);
-    if (!Number.isFinite(grams) || grams < 0) return;
-    // Only auto-recalc when USDA densities exist and unit represents grams (not egg count).
-    const unitIsGrams = draftPortionUnit === "" || /^g\b|^grams?$/i.test(draftPortionUnit);
-    if (!unitIsGrams) return;
+    const grams = draftGrams(v);
+    if (grams === null) return;
     if (densities.p !== undefined) setDraftProtein(String(round1((densities.p / 100) * grams)));
     if (densities.c !== undefined) setDraftCarbs(String(round1((densities.c / 100) * grams)));
     if (densities.f !== undefined) setDraftFat(String(round1((densities.f / 100) * grams)));
