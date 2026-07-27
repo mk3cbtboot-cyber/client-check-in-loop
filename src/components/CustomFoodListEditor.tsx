@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
 import MacroTracker, { type MacroSet } from "@/components/MacroTracker";
 import { portionToGrams } from "@/lib/portion";
-import { macrosFor, sumMacros, withDensityModel, isFixedItem, type DensityFoodItem } from "@/lib/macros";
+import { sumMacros, withDensityModel, type DensityFoodItem } from "@/lib/macros";
 
 export type FoodCategoryKind = "Protein" | "Carbs" | "Veg" | "Fat" | "Other";
 export interface FoodItem extends DensityFoodItem {
@@ -506,18 +506,12 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
       {items.length > 0 && (
         <ul className="space-y-1.5">
           {items.map((it, idx) => {
-            const m = macrosFor(it);
-            const fixed = isFixedItem(it);
             return (
             <li key={idx} className="flex items-start justify-between gap-2 rounded border p-2 text-xs">
               <div className="min-w-0 flex-1">
                 <p className="font-medium truncate">{it.name}</p>
                 <p className="text-muted-foreground">
                   {it.portion} · <span className="uppercase tracking-wide">{it.category}</span>
-                </p>
-                <p className="text-muted-foreground">
-                  {Math.round(m.calories)} kcal · P {Math.round(m.protein_g * 10) / 10}g · C {Math.round(m.carbs_g * 10) / 10}g · F {Math.round(m.fat_g * 10) / 10}g
-                  {fixed && <span className="ml-1 rounded bg-muted px-1 py-0.5 text-[10px] uppercase">fixed</span>}
                 </p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
