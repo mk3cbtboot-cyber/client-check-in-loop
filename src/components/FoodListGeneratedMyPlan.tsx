@@ -57,15 +57,16 @@ export default function FoodListGeneratedMyPlan({ foodList, foodListNotes, meals
               </Card>
             ) : (
               <Card className="p-4 space-y-2">
+                <p className="text-xs uppercase text-muted-foreground">Approved foods</p>
                 <ul className="text-sm space-y-1">
                   {ordered.map(({ cat, food }, i) => (
                     <li key={i}>
                       <span className="font-medium">{stripEstimated(food.name)}</span>
                       {food.portion ? <> · {food.portion}</> : null}
-                      <span className="text-muted-foreground"> · {CATEGORY_LABEL[cat]}</span>
                     </li>
                   ))}
                 </ul>
+
                 {note && (
                   <p className="text-xs text-muted-foreground border-t pt-2">
                     <span className="font-medium text-foreground">Note: </span>{note}
