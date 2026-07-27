@@ -314,11 +314,12 @@ Return JSON of this exact shape:
   try {
     const parsed = JSON.parse(content);
     return {
-      protein: Array.isArray(parsed.protein) ? parsed.protein : [],
-      carbs: Array.isArray(parsed.carbs) ? parsed.carbs : [],
-      veg: Array.isArray(parsed.veg) ? parsed.veg : [],
-      fat: Array.isArray(parsed.fat) ? parsed.fat : [],
+      protein: sanitizeCandidateList(Array.isArray(parsed.protein) ? parsed.protein : []),
+      carbs: sanitizeCandidateList(Array.isArray(parsed.carbs) ? parsed.carbs : []),
+      veg: sanitizeCandidateList(Array.isArray(parsed.veg) ? parsed.veg : []),
+      fat: sanitizeCandidateList(Array.isArray(parsed.fat) ? parsed.fat : []),
     };
+
   } catch {
     return { protein: [], carbs: [], veg: [], fat: [] };
   }
