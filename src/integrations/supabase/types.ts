@@ -1015,6 +1015,9 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      food_item_grams: { Args: { item: Json }; Returns: number }
+      food_item_with_density: { Args: { item: Json }; Returns: Json }
+      food_list_with_density: { Args: { fl: Json }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
