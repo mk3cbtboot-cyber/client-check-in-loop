@@ -356,14 +356,14 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     const name = draftName.trim();
     if (!name || name === originalName.trim()) return;
     if (macrosDirty) return;
-    const unitIsGrams = draftPortionUnit === "" || /^g\b|^grams?$/i.test(draftPortionUnit);
-    const grams = Number(draftPortionNum);
-    if (!unitIsGrams || !Number.isFinite(grams) || grams <= 0) {
-      // Can't derive densities without a gram portion; clear stale ones so old food's numbers don't leak.
+    const grams = draftGrams();
+    if (grams === null) {
+      // Can't derive densities without a resolvable gram weight; clear stale ones
+      // so the old food's numbers don't leak onto the new name.
       setDensities({});
       return;
     }
-    const portion = `${grams}g`;
+    const portion = `${Math.round(grams)}g`;
     setEstimating(true);
     const e = await estimateFoodMacros(name, portion, draftCategory);
     setEstimating(false);
