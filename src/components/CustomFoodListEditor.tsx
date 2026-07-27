@@ -67,7 +67,7 @@ function normalizeList(raw: unknown): FoodList {
     Array.isArray(v)
       ? v.map((x) => {
           const o = (x ?? {}) as Record<string, unknown>;
-          return {
+          const base: FoodItem = {
             name: String(o.name ?? ""),
             portion: String(o.portion ?? ""),
             category: (CATEGORIES.includes(o.category as FoodCategoryKind) ? o.category : "Other") as FoodCategoryKind,
@@ -75,10 +75,14 @@ function normalizeList(raw: unknown): FoodList {
             est_protein_g: num(o.est_protein_g),
             est_carbs_g: num(o.est_carbs_g),
             est_fat_g: num(o.est_fat_g),
+            grams: numOpt(o.grams),
             density_protein_per_100g: numOpt(o.density_protein_per_100g),
             density_carbs_per_100g: numOpt(o.density_carbs_per_100g),
             density_fat_per_100g: numOpt(o.density_fat_per_100g),
+            ...(typeof o.density_source === "string" ? { density_source: o.density_source } : {}),
           };
+          // Lazy repair for items saved before the density model existed.
+          return withDensityModel(base);
         })
       : [];
   return {
