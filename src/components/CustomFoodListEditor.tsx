@@ -670,16 +670,7 @@ function PerMealBreakdown({
   allocation: MacroAllocation;
 }) {
   const rows = visible.map((slot) => {
-    const items = list[slot];
-    const actual = items.reduce(
-      (acc, it) => {
-        acc.protein_g += Number(it.est_protein_g) || 0;
-        acc.carbs_g += Number(it.est_carbs_g) || 0;
-        acc.fat_g += Number(it.est_fat_g) || 0;
-        return acc;
-      },
-      { protein_g: 0, carbs_g: 0, fat_g: 0 },
-    );
+    const actual = sumMacros(list[slot]);
     const target = allocation[slotToMealKey(slot, mealsPerDay)] ?? { protein_g: 0, carbs_g: 0, fat_g: 0, calories: 0 };
     return {
       slot,
