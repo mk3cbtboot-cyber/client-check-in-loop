@@ -826,7 +826,18 @@ Deno.serve(async (req) => {
 
       out[slot] = items.map((it) => {
         const m = it.est_macros;
-        const rest: Record<string, unknown> = { name: it.name, portion: it.portion, category: it.category };
+        // Final safety net: never let a brand name reach a client.
+        let safeName = it.name;
+        for (const [re, replacement] of BRAND_REPLACEMENTS) {
+          if (re.test(safeName)) {
+            const generic = replacement || "Food";
+            console.log(`[generate-foodlist-plan] final brand scrub: "${safeName}" -> "${generic}"`);
+            safeName = safeName.replace(re, generic).replace(/\s+/g, " ").trim();
+            break;
+          }
+        }
+        const rest: Record<string, unknown> = { name: safeName, portion: it.portion, category: it.category };
+
         if (m) {
           rest.est_calories = Math.round(Number(m.calories) || 0);
           rest.est_protein_g = Math.round((Number(m.protein_g) || 0) * 10) / 10;
