@@ -18,6 +18,7 @@ import {
   type Macros,
   type Category,
 } from "../_shared/usda.ts";
+import { withDensityModel } from "../_shared/food-macros.ts";
 
 const SLOT_KEYS = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"] as const;
 type SlotKey = (typeof SLOT_KEYS)[number];
