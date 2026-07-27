@@ -150,7 +150,108 @@ const EGG_PROTEIN_POOL = ["Eggs"];
 const LEGUME_PAIR_RE = /\b(black beans?|kidney beans?|chickpeas?|garbanzos?|lentils?|pinto beans?|cannellini( beans?)?|navy beans?)\b/i;
 const LEAN_PROTEIN_POOL = ["Chicken Breast", "Turkey Breast", "Cod", "Haddock"];
 
+// ---- Brand / proper-noun safety net -------------------------------------
+// Maps known brand names to generic descriptions. Anything brand-like that is
+// not mapped is rejected outright so it can never reach a client.
+const BRAND_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bezekiel\b(\s+bread)?/i, "Whole Grain Bread"],
+  [/\bweet[- ]?a?bix\b/i, "Whole Wheat Cereal"],
+  [/\bshredded\s+wheat\b/i, "Whole Wheat Cereal"],
+  [/\bcheerios\b/i, "Whole Grain Oat Cereal"],
+  [/\bspecial\s*k\b/i, "Rice Cereal"],
+  [/\ball[- ]bran\b/i, "Wheat Bran Cereal"],
+  [/\balpen\b/i, "Muesli"],
+  [/\bready\s*brek\b/i, "Oats"],
+  [/\bquaker\b/i, "Oats"],
+  [/\bkellogg'?s?\b/i, "Cereal"],
+  [/\bnestl[eé]\b/i, "Cereal"],
+  [/\bgeneral\s+mills\b/i, "Cereal"],
+  [/\bmuller\s*light\b/i, "Greek Yoghurt"],
+  [/\bfage\b/i, "Greek Yoghurt"],
+  [/\bchobani\b/i, "Greek Yoghurt"],
+  [/\byakult\b/i, "Yoghurt"],
+  [/\balpro\b/i, "Soy Milk"],
+  [/\boatly\b/i, "Oat Milk"],
+  [/\bbabybel\b/i, "Cheese"],
+  [/\bphiladelphia\b/i, "Cream Cheese"],
+  [/\blaughing\s+cow\b/i, "Cheese"],
+  [/\bheinz\b/i, "Canned Beans"],
+  [/\bhellmann'?s?\b/i, "Mayonnaise"],
+  [/\bnutella\b/i, "Nut Spread"],
+  [/\bmarmite\b/i, "Yeast Extract"],
+  [/\bvegemite\b/i, "Yeast Extract"],
+  [/\bquorn\b/i, "Meat-Free Protein"],
+  [/\bbeyond\s+(meat|burger)\b/i, "Plant-Based Protein"],
+  [/\bimpossible\s+(meat|burger)\b/i, "Plant-Based Protein"],
+  [/\btofurky\b/i, "Tofu"],
+  [/\bbirds\s+eye\b/i, "Frozen Vegetables"],
+  [/\buncle\s+ben'?s?\b/i, "Rice"],
+  [/\btilda\b/i, "Rice"],
+  [/\bbarilla\b/i, "Pasta"],
+  [/\bwarburtons\b/i, "Bread"],
+  [/\bhovis\b/i, "Bread"],
+  [/\bkingsmill\b/i, "Bread"],
+  [/\bwonder\s+bread\b/i, "Bread"],
+  [/\bdave'?s\s+killer\s+bread\b/i, "Whole Grain Bread"],
+  [/\bryvita\b/i, "Rye Crispbread"],
+  [/\bwasa\b/i, "Rye Crispbread"],
+  [/\btriscuit\b/i, "Whole Wheat Cracker"],
+  [/\bskippy\b/i, "Peanut Butter"],
+  [/\bjif\b/i, "Peanut Butter"],
+  [/\bwhole\s+earth\b/i, "Peanut Butter"],
+  [/\bhalo\s+top\b/i, "Yoghurt"],
+  [/\bquest\b/i, ""],
+  [/\bclif\b/i, ""],
+  [/\bmyprotein\b/i, ""],
+  [/\boptimum\s+nutrition\b/i, ""],
+  [/\bgatorade\b/i, ""],
+  [/\bhuel\b/i, ""],
+  [/\bslimfast\b/i, ""],
+];
+
+// Generic brand-shape heuristics for anything not on the blocklist.
+function looksBrandLike(name: string): boolean {
+  if (/[®™©]/.test(name)) return true;
+  if (/\b\w+['’]s\b/.test(name)) return true; // possessives: "Trader Joe's"
+  if (/[a-z][A-Z]/.test(name)) return true; // inner caps: "PowerBar"
+  if (/\b[A-Z]{2,}\b/.test(name)) return true; // ALLCAPS tokens
+  if (/\b\w*\d+\w*\b/.test(name)) return true; // model-number style names
+  return false;
+}
+
+/** Returns a safe generic name, or null if the name must be rejected. */
+function sanitizeFoodName(raw: string): string | null {
+  let name = String(raw ?? "").trim();
+  if (!name) return null;
+  for (const [re, replacement] of BRAND_REPLACEMENTS) {
+    if (re.test(name)) {
+      if (!replacement) {
+        console.log(`[generate-foodlist-plan] rejected branded food: "${name}"`);
+        return null;
+      }
+      console.log(`[generate-foodlist-plan] brand mapped: "${name}" -> "${replacement}"`);
+      name = replacement;
+      return name;
+    }
+  }
+  if (looksBrandLike(name)) {
+    console.log(`[generate-foodlist-plan] rejected proper-noun/brand-like food: "${name}"`);
+    return null;
+  }
+  return name;
+}
+
+function sanitizeCandidateList(list: string[]): string[] {
+  const out: string[] = [];
+  for (const c of list) {
+    const safe = sanitizeFoodName(c);
+    if (safe && !out.some((x) => x.toLowerCase() === safe.toLowerCase())) out.push(safe);
+  }
+  return out;
+}
+
 async function aiCandidatesForSlot(
+
   apiKey: string,
   params: {
     slotKey: string;
