@@ -242,7 +242,7 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
           </p>
         )
       ) : null}
-      {!isEmpty && macroAllocation && (
+      {planFormat === "food_list_generated" && !isEmpty && macroAllocation && (
         <PerMealBreakdown
           visible={visible}
           list={list}
