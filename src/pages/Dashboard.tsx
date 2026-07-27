@@ -1959,6 +1959,9 @@ export default function Dashboard() {
                                 existingList={(client as unknown as { food_list?: unknown }).food_list}
                                 mealsPerDay={Number((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)}
                                 onSaved={load}
+                                onClientPatched={(patch) => {
+                                  setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
+                                }}
                               />
                             )}
                             {client.system_mode === "own_practice" && client.plan_format === "recipe" && (
