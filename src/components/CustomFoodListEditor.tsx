@@ -201,13 +201,13 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
   const slots = ALL_SLOTS.filter((s) => visible.includes(s.key));
   const gridCols = slots.length >= 5 ? "md:grid-cols-5" : slots.length === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
 
+  // Derived from grams x density so portion edits scale the tracker.
   const used: MacroSet = visible.reduce(
     (acc, key) => {
-      for (const it of list[key]) {
-        acc.protein_g += Number(it.est_protein_g) || 0;
-        acc.carbs_g += Number(it.est_carbs_g) || 0;
-        acc.fat_g += Number(it.est_fat_g) || 0;
-      }
+      const m = sumMacros(list[key]);
+      acc.protein_g += m.protein_g;
+      acc.carbs_g += m.carbs_g;
+      acc.fat_g += m.fat_g;
       return acc;
     },
     { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 } as MacroSet,
