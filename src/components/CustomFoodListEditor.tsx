@@ -430,11 +430,10 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     // beats the async onNameBlur fetch and persists the old food's macros with
     // the new food's name.
     const nameChanged = existing != null && name !== originalName.trim();
-    const unitIsGrams = draftPortionUnit === "" || /^g\b|^grams?$/i.test(draftPortionUnit);
-    const grams = Number(draftPortionNum);
-    if (nameChanged && !macrosDirty && unitIsGrams && Number.isFinite(grams) && grams > 0) {
+    const grams = draftGrams();
+    if (nameChanged && !macrosDirty && grams !== null) {
       setEstimating(true);
-      const e = await estimateFoodMacros(name, `${grams}g`, draftCategory);
+      const e = await estimateFoodMacros(name, `${Math.round(grams)}g`, draftCategory);
       setEstimating(false);
       est = { est_protein_g: e.est_protein_g, est_carbs_g: e.est_carbs_g, est_fat_g: e.est_fat_g };
       dens = {
@@ -449,6 +448,15 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
       setEstimating(false);
       est = { est_protein_g: e.est_protein_g, est_carbs_g: e.est_carbs_g, est_fat_g: e.est_fat_g };
     }
+    // Manually-typed macros define a new density at the current gram weight, so
+    // later portion edits keep scaling instead of freezing.
+    if (grams !== null && (macrosDirty || dens.p === undefined || dens.c === undefined || dens.f === undefined)) {
+      dens = {
+        p: (est.est_protein_g / grams) * 100,
+        c: (est.est_carbs_g / grams) * 100,
+        f: (est.est_fat_g / grams) * 100,
+      };
+    }
     const est_calories = est.est_protein_g * 4 + est.est_carbs_g * 4 + est.est_fat_g * 9;
     const next: FoodItem = {
       name,
@@ -456,9 +464,11 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
       category: draftCategory,
       est_calories,
       ...est,
+      ...(grams !== null ? { grams } : {}),
       density_protein_per_100g: dens.p,
       density_carbs_per_100g: dens.c,
       density_fat_per_100g: dens.f,
+      ...(grams !== null && dens.p !== undefined ? { density_source: macrosDirty ? "manual" : "estimated" } : {}),
     };
     const updated = editingIndex != null
       ? items.map((it, i) => (i === editingIndex ? next : it))
