@@ -58,29 +58,14 @@ export default function FoodListGeneratedMyPlan({ foodList, foodListNotes, meals
             ) : (
               <Card className="p-4 space-y-2">
                 <ul className="text-sm space-y-1">
-                  {ordered.map(({ cat, food }, i) => {
-                    const m = macrosFor(food);
-                    return (
-                      <li key={i}>
-                        <span className="font-medium">{stripEstimated(food.name)}</span>
-                        {food.portion ? <> · {food.portion}</> : null}
-                        <span className="text-muted-foreground"> · {CATEGORY_LABEL[cat]}</span>
-                        <span className="block text-xs text-muted-foreground">
-                          {Math.round(m.calories)} kcal · P {Math.round(m.protein_g)}g · C {Math.round(m.carbs_g)}g · F {Math.round(m.fat_g)}g
-                        </span>
-                      </li>
-                    );
-                  })}
+                  {ordered.map(({ cat, food }, i) => (
+                    <li key={i}>
+                      <span className="font-medium">{stripEstimated(food.name)}</span>
+                      {food.portion ? <> · {food.portion}</> : null}
+                      <span className="text-muted-foreground"> · {CATEGORY_LABEL[cat]}</span>
+                    </li>
+                  ))}
                 </ul>
-                {(() => {
-                  const t = sumMacros(ordered.map((o) => o.food));
-                  return (
-                    <p className="text-xs text-muted-foreground border-t pt-2">
-                      <span className="font-medium text-foreground">Meal total: </span>
-                      {Math.round(t.calories)} kcal · P {Math.round(t.protein_g)}g · C {Math.round(t.carbs_g)}g · F {Math.round(t.fat_g)}g
-                    </p>
-                  );
-                })()}
                 {note && (
                   <p className="text-xs text-muted-foreground border-t pt-2">
                     <span className="font-medium text-foreground">Note: </span>{note}

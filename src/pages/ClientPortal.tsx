@@ -1286,22 +1286,6 @@ export default function ClientPortal() {
                   </div>
                 ))}
               </div>
-              {client.client_type === "custom" && (() => {
-                const meals = Number(client.meals_per_day ?? 3);
-                const slots = meals === 5
-                  ? ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"]
-                  : meals === 4
-                    ? ["breakfast", "lunch", "afternoon_snack", "dinner"]
-                    : ["breakfast", "lunch", "dinner"];
-                const t = sumMacrosAcrossSlots(client.food_list ?? {}, slots);
-                if (t.calories <= 0) return null;
-                return (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    <span className="font-medium text-foreground">Planned from your meal plan: </span>
-                    {Math.round(t.calories)} kcal · P {Math.round(t.protein_g)}g · C {Math.round(t.carbs_g)}g · F {Math.round(t.fat_g)}g
-                  </p>
-                );
-              })()}
             </Card>
           )}
           {client.client_type === "custom" && (
