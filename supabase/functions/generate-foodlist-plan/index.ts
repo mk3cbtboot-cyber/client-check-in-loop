@@ -175,7 +175,7 @@ List 6 ranked candidate foods per macro category. Each candidate is a specific n
 
 For vegetables, use simple names only — one or two words maximum. Do not append preparation descriptors such as "sticks", "strips", "florets", "diced", "sliced", "chopped", or "pieces" to vegetable names. Use "Carrots" not "Carrot Sticks". Use "Bell Peppers" not "Bell Pepper Strips". Simple names produce accurate USDA matches.
 
-Do not suggest brand names, proprietary foods, or specialty product names. Use only generic, USDA-compatible names that have a realistic chance of matching a USDA Foundation or SR Legacy entry. Examples: instead of "Ezekiel bread" use "whole grain bread"; instead of "Weetabix" use "whole wheat cereal"; skip items like "Quest bar" entirely. No trademarked or branded products.
+Use only generic whole-food descriptions. Never use brand names, trademarks, proper nouns, product names, or proprietary/specialty product names of any kind. Every name must be a plain generic food description that has a realistic chance of matching a USDA Foundation or SR Legacy entry (for example a type of bread should be described by its grain, not by any product name).
 
 Do NOT suggest pork or any pork cut as a protein source. This includes pork loin, pork tenderloin, pork chops, pork belly, pork shoulder, ham, bacon, prosciutto, pancetta, or any other pork-derived meat. Never include these in the "protein" list.
 
