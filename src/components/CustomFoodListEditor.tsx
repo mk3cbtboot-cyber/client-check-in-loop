@@ -16,12 +16,15 @@ import { Pencil, Trash2, Plus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
 import MacroTracker, { type MacroSet } from "@/components/MacroTracker";
+import { portionToGrams } from "@/lib/portion";
+import { macrosFor, sumMacros, withDensityModel, isFixedItem, type DensityFoodItem } from "@/lib/macros";
 
 export type FoodCategoryKind = "Protein" | "Carbs" | "Veg" | "Fat" | "Other";
-export interface FoodItem {
+export interface FoodItem extends DensityFoodItem {
   name: string;
   portion: string;
   category: FoodCategoryKind;
+  grams?: number;
   est_calories?: number;
   est_protein_g?: number;
   est_carbs_g?: number;
@@ -29,6 +32,7 @@ export interface FoodItem {
   density_protein_per_100g?: number;
   density_carbs_per_100g?: number;
   density_fat_per_100g?: number;
+  density_source?: string;
 }
 export type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 export type FoodList = Record<SlotKey, FoodItem[]>;
