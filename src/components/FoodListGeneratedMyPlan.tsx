@@ -7,13 +7,6 @@ type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "di
 
 const ALL_SLOTS: SlotKey[] = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
 
-const CATEGORY_LABEL: Record<CategoryKey, string> = {
-  protein: "Protein",
-  carbs: "Carbs",
-  veg: "Veg",
-  fat: "Fat",
-};
-
 function visibleSlotKeys(meals: number): SlotKey[] {
   if (meals === 5) return ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
   if (meals === 4) return ["breakfast", "lunch", "afternoon_snack", "dinner"];
