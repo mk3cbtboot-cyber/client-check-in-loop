@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
 import MacroTracker, { type MacroSet } from "@/components/MacroTracker";
 import { portionToGrams } from "@/lib/portion";
-import { macrosFor, sumMacros, withDensityModel, isFixedItem, type DensityFoodItem } from "@/lib/macros";
+import { sumMacros, withDensityModel, type DensityFoodItem } from "@/lib/macros";
 
 export type FoodCategoryKind = "Protein" | "Carbs" | "Veg" | "Fat" | "Other";
 export interface FoodItem extends DensityFoodItem {

@@ -1,4 +1,3 @@
-import { Card } from "@/components/ui/card";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";

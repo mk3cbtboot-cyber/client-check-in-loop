@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { customSlotLabel } from "@/lib/meal-slots";
 import { type FoodItem, categorize, type CategoryKey } from "@/components/FoodSelectionPlanSection";
-import { macrosFor, sumMacros } from "@/lib/macros";
+
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 
