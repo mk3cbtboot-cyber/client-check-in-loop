@@ -51,6 +51,7 @@ interface Props {
   existingList: unknown;
   mealsPerDay: number;
   onSaved?: () => void;
+  onClientPatched?: (patch: Record<string, unknown>) => void;
 }
 
 export default function FoodListDocImport({ clientId, existingList, mealsPerDay, onSaved }: Props) {
