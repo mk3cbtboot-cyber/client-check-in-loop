@@ -51,9 +51,10 @@ interface Props {
   existingList: unknown;
   mealsPerDay: number;
   onSaved?: () => void;
+  onClientPatched?: (patch: Record<string, unknown>) => void;
 }
 
-export default function FoodListDocImport({ clientId, existingList, mealsPerDay, onSaved }: Props) {
+export default function FoodListDocImport({ clientId, existingList, mealsPerDay, onSaved, onClientPatched }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -149,11 +150,18 @@ export default function FoodListDocImport({ clientId, existingList, mealsPerDay,
     update.keys_to_success = reviewKeys;
     update.digestion_protocol = reviewDigestion;
     update.recommended_supplements = reviewSupplements;
-    const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
-    if (error) {
-      toast.error("Failed to save food list");
+    const { data: saved, error } = await supabase
+      .from("clients")
+      .update(update as never)
+      .eq("id", clientId)
+      .select("food_list, food_exclusions, keys_to_success, digestion_protocol, recommended_supplements");
+    if (error || !saved || saved.length === 0) {
+      toast.error(error ? "Failed to save food list" : "Save was not confirmed. Please try again.");
       return;
     }
+    const row = saved[0] as Record<string, unknown>;
+    onClientPatched?.(row);
+    setReviewList(normalizeList(row.food_list));
     setReviewOpen(false);
     toast.success("Food list imported.");
     onSaved?.();

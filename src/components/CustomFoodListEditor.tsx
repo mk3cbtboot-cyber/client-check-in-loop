@@ -109,6 +109,7 @@ interface Props {
   macros?: MacroSet | null;
   macroAllocation?: MacroAllocation | null;
   onGoToMacros?: () => void;
+  onClientPatched?: (patch: { food_list?: unknown; food_list_notes?: unknown }) => void;
 }
 
 export async function estimateFoodMacros(name: string, portion: string, category?: FoodCategoryKind): Promise<{ est_calories: number; est_protein_g: number; est_carbs_g: number; est_fat_g: number }> {
@@ -130,7 +131,7 @@ export async function estimateFoodMacros(name: string, portion: string, category
   }
 }
 
-export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialMealsPerDay, planFormat, macros, macroAllocation, onGoToMacros }: Props) {
+export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialMealsPerDay, planFormat, macros, macroAllocation, onGoToMacros, onClientPatched }: Props) {
   const [list, setList] = useState<FoodList>(() => normalizeList(initialList));
   const [notes, setNotes] = useState<FoodListNotes>(() => normalizeNotes(initialNotes));
   const [mealsPerDay, setMealsPerDay] = useState<number>(() => {
@@ -153,21 +154,39 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
   async function saveList(next: FoodList) {
     const prev = list;
     setList(next);
-    const { error } = await supabase.from("clients").update({ food_list: next } as never).eq("id", clientId);
-    if (error) {
+    const { data, error } = await supabase
+      .from("clients")
+      .update({ food_list: next } as never)
+      .eq("id", clientId)
+      .select("food_list");
+    if (error || !data || data.length === 0) {
       setList(prev);
-      toast.error("Failed to save food list");
+      toast.error(error ? "Failed to save food list" : "Save was not confirmed. Please try again.");
+      return;
     }
+    // Reflect the committed server value so a later save cannot overwrite it
+    // with a stale local copy, and push it into the parent's cached client row.
+    const committed = (data[0] as { food_list?: unknown }).food_list;
+    setList(normalizeList(committed));
+    onClientPatched?.({ food_list: committed });
   }
 
   async function saveNotes(next: FoodListNotes) {
     const prev = notes;
     setNotes(next);
-    const { error } = await supabase.from("clients").update({ food_list_notes: next } as never).eq("id", clientId);
-    if (error) {
+    const { data, error } = await supabase
+      .from("clients")
+      .update({ food_list_notes: next } as never)
+      .eq("id", clientId)
+      .select("food_list_notes");
+    if (error || !data || data.length === 0) {
       setNotes(prev);
-      toast.error("Failed to save notes");
+      toast.error(error ? "Failed to save notes" : "Save was not confirmed. Please try again.");
+      return;
     }
+    const committed = (data[0] as { food_list_notes?: unknown }).food_list_notes;
+    setNotes(normalizeNotes(committed));
+    onClientPatched?.({ food_list_notes: committed });
   }
 
   const visible = visibleSlotKeys(mealsPerDay);
