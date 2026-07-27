@@ -529,7 +529,8 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
                 </Button>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 
