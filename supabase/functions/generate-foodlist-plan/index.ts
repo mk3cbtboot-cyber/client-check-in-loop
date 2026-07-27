@@ -732,7 +732,7 @@ Deno.serve(async (req) => {
           rest.est_fat_g = Math.round((Number(m.fat_g) || 0) * 10) / 10;
         }
         // Persist the density model so portion edits scale macros downstream.
-        return withDensityModel(rest) as typeof it;
+        return withDensityModel(rest as never) as typeof it;
       });
 
       for (const it of items) {
