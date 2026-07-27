@@ -184,8 +184,18 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
       }
       selections[slot] = s;
     }
-    const { error } = await supabase.from("clients").update({ food_list: reviewList, client_food_selections: selections } as never).eq("id", clientId);
-    if (error) { toast.error("Failed to save meal plan"); return; }
+    const { data: saved, error } = await supabase
+      .from("clients")
+      .update({ food_list: reviewList, client_food_selections: selections } as never)
+      .eq("id", clientId)
+      .select("food_list, client_food_selections");
+    if (error || !saved || saved.length === 0) {
+      toast.error(error ? "Failed to save meal plan" : "Save was not confirmed. Please try again.");
+      return;
+    }
+    const row = saved[0] as { food_list?: unknown; client_food_selections?: unknown };
+    onClientPatched?.({ food_list: row.food_list, client_food_selections: row.client_food_selections });
+    setReviewList(normalizeList(row.food_list));
     setReviewOpen(false);
     toast.success("Meal plan saved.");
     onSaved?.();
