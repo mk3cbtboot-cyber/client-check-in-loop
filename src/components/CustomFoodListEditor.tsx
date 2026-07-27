@@ -109,6 +109,7 @@ interface Props {
   macros?: MacroSet | null;
   macroAllocation?: MacroAllocation | null;
   onGoToMacros?: () => void;
+  onClientPatched?: (patch: { food_list?: unknown; food_list_notes?: unknown }) => void;
 }
 
 export async function estimateFoodMacros(name: string, portion: string, category?: FoodCategoryKind): Promise<{ est_calories: number; est_protein_g: number; est_carbs_g: number; est_fat_g: number }> {
