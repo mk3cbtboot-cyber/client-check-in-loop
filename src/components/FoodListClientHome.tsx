@@ -151,9 +151,9 @@ function FoodListSlotSection({ token, slotKey, label, foods, note, onLogged }: S
                   <li key={i}>
                     <span className="font-medium">{f.name}</span>
                     {f.portion ? <> · {f.portion}</> : null}
-                    {f.category ? <span className="text-muted-foreground"> · {f.category}</span> : null}
                   </li>
                 ))}
+
               </ul>
             </div>
             {note && (

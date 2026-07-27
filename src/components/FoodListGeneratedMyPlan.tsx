@@ -7,13 +7,6 @@ type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "di
 
 const ALL_SLOTS: SlotKey[] = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
 
-const CATEGORY_LABEL: Record<CategoryKey, string> = {
-  protein: "Protein",
-  carbs: "Carbs",
-  veg: "Veg",
-  fat: "Fat",
-};
-
 function visibleSlotKeys(meals: number): SlotKey[] {
   if (meals === 5) return ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
   if (meals === 4) return ["breakfast", "lunch", "afternoon_snack", "dinner"];
@@ -57,15 +50,16 @@ export default function FoodListGeneratedMyPlan({ foodList, foodListNotes, meals
               </Card>
             ) : (
               <Card className="p-4 space-y-2">
+                <p className="text-xs uppercase text-muted-foreground">Approved foods</p>
                 <ul className="text-sm space-y-1">
                   {ordered.map(({ cat, food }, i) => (
                     <li key={i}>
                       <span className="font-medium">{stripEstimated(food.name)}</span>
                       {food.portion ? <> · {food.portion}</> : null}
-                      <span className="text-muted-foreground"> · {CATEGORY_LABEL[cat]}</span>
                     </li>
                   ))}
                 </ul>
+
                 {note && (
                   <p className="text-xs text-muted-foreground border-t pt-2">
                     <span className="font-medium text-foreground">Note: </span>{note}
