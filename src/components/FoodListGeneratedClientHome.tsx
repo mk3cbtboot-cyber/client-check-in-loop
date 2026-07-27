@@ -1,3 +1,4 @@
+import { macrosFor, sumMacros } from "@/lib/macros";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -151,14 +152,29 @@ function GeneratedSlotSection({ token, slotKey, label, selectedFoods, hasAnySele
             <div className="space-y-1">
               <p className="text-xs uppercase text-muted-foreground">Your selected foods</p>
               <ul className="text-sm space-y-1">
-                {selectedFoods.map(({ cat, food }) => (
-                  <li key={cat}>
-                    <span className="font-medium">{stripEstimated(food.name)}</span>
-                    {food.portion ? <> · {food.portion}</> : null}
-                    <span className="text-muted-foreground"> · {CATEGORY_LABEL[cat]}</span>
-                  </li>
-                ))}
+                {selectedFoods.map(({ cat, food }) => {
+                  const m = macrosFor(food);
+                  return (
+                    <li key={cat}>
+                      <span className="font-medium">{stripEstimated(food.name)}</span>
+                      {food.portion ? <> · {food.portion}</> : null}
+                      <span className="text-muted-foreground"> · {CATEGORY_LABEL[cat]}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {Math.round(m.calories)} kcal · P {Math.round(m.protein_g)}g · C {Math.round(m.carbs_g)}g · F {Math.round(m.fat_g)}g
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
+              {(() => {
+                const t = sumMacros(selectedFoods.map((s) => s.food));
+                return (
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">Meal total: </span>
+                    {Math.round(t.calories)} kcal · P {Math.round(t.protein_g)}g · C {Math.round(t.carbs_g)}g · F {Math.round(t.fat_g)}g
+                  </p>
+                );
+              })()}
             </div>
             {note && (
               <p className="text-xs text-muted-foreground border-t pt-2">

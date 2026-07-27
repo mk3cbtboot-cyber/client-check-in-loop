@@ -18,6 +18,7 @@ import {
   type Macros,
   type Category,
 } from "../_shared/usda.ts";
+import { withDensityModel } from "../_shared/food-macros.ts";
 
 const SLOT_KEYS = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"] as const;
 type SlotKey = (typeof SLOT_KEYS)[number];
@@ -730,7 +731,8 @@ Deno.serve(async (req) => {
           rest.est_carbs_g = Math.round((Number(m.carbs_g) || 0) * 10) / 10;
           rest.est_fat_g = Math.round((Number(m.fat_g) || 0) * 10) / 10;
         }
-        return rest as typeof it;
+        // Persist the density model so portion edits scale macros downstream.
+        return withDensityModel(rest as never) as typeof it;
       });
 
       for (const it of items) {

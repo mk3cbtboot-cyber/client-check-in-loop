@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
 import { cn } from "@/lib/utils";
+import { type DensityFoodItem } from "@/lib/macros";
 
 export type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 
-export interface FoodItem {
+export interface FoodItem extends DensityFoodItem {
   name: string;
   portion: string;
   category: string;

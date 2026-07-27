@@ -16,12 +16,15 @@ import { Pencil, Trash2, Plus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
 import MacroTracker, { type MacroSet } from "@/components/MacroTracker";
+import { portionToGrams } from "@/lib/portion";
+import { macrosFor, sumMacros, withDensityModel, isFixedItem, type DensityFoodItem } from "@/lib/macros";
 
 export type FoodCategoryKind = "Protein" | "Carbs" | "Veg" | "Fat" | "Other";
-export interface FoodItem {
+export interface FoodItem extends DensityFoodItem {
   name: string;
   portion: string;
   category: FoodCategoryKind;
+  grams?: number;
   est_calories?: number;
   est_protein_g?: number;
   est_carbs_g?: number;
@@ -29,6 +32,7 @@ export interface FoodItem {
   density_protein_per_100g?: number;
   density_carbs_per_100g?: number;
   density_fat_per_100g?: number;
+  density_source?: string;
 }
 export type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 export type FoodList = Record<SlotKey, FoodItem[]>;
@@ -63,7 +67,7 @@ function normalizeList(raw: unknown): FoodList {
     Array.isArray(v)
       ? v.map((x) => {
           const o = (x ?? {}) as Record<string, unknown>;
-          return {
+          const base: FoodItem = {
             name: String(o.name ?? ""),
             portion: String(o.portion ?? ""),
             category: (CATEGORIES.includes(o.category as FoodCategoryKind) ? o.category : "Other") as FoodCategoryKind,
@@ -71,10 +75,14 @@ function normalizeList(raw: unknown): FoodList {
             est_protein_g: num(o.est_protein_g),
             est_carbs_g: num(o.est_carbs_g),
             est_fat_g: num(o.est_fat_g),
+            grams: numOpt(o.grams),
             density_protein_per_100g: numOpt(o.density_protein_per_100g),
             density_carbs_per_100g: numOpt(o.density_carbs_per_100g),
             density_fat_per_100g: numOpt(o.density_fat_per_100g),
+            ...(typeof o.density_source === "string" ? { density_source: o.density_source } : {}),
           };
+          // Lazy repair for items saved before the density model existed.
+          return withDensityModel(base);
         })
       : [];
   return {
@@ -193,13 +201,13 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
   const slots = ALL_SLOTS.filter((s) => visible.includes(s.key));
   const gridCols = slots.length >= 5 ? "md:grid-cols-5" : slots.length === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
 
+  // Derived from grams x density so portion edits scale the tracker.
   const used: MacroSet = visible.reduce(
     (acc, key) => {
-      for (const it of list[key]) {
-        acc.protein_g += Number(it.est_protein_g) || 0;
-        acc.carbs_g += Number(it.est_carbs_g) || 0;
-        acc.fat_g += Number(it.est_fat_g) || 0;
-      }
+      const m = sumMacros(list[key]);
+      acc.protein_g += m.protein_g;
+      acc.carbs_g += m.carbs_g;
+      acc.fat_g += m.fat_g;
       return acc;
     },
     { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 } as MacroSet,
@@ -348,14 +356,14 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     const name = draftName.trim();
     if (!name || name === originalName.trim()) return;
     if (macrosDirty) return;
-    const unitIsGrams = draftPortionUnit === "" || /^g\b|^grams?$/i.test(draftPortionUnit);
-    const grams = Number(draftPortionNum);
-    if (!unitIsGrams || !Number.isFinite(grams) || grams <= 0) {
-      // Can't derive densities without a gram portion; clear stale ones so old food's numbers don't leak.
+    const grams = draftGrams();
+    if (grams === null) {
+      // Can't derive densities without a resolvable gram weight; clear stale ones
+      // so the old food's numbers don't leak onto the new name.
       setDensities({});
       return;
     }
-    const portion = `${grams}g`;
+    const portion = `${Math.round(grams)}g`;
     setEstimating(true);
     const e = await estimateFoodMacros(name, portion, draftCategory);
     setEstimating(false);
@@ -375,14 +383,19 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
 
   const round1 = (n: number) => Math.round(n * 10) / 10;
 
+  /** Grams for the current draft, using the shared unit conversion. */
+  function draftGrams(numStr = draftPortionNum): number | null {
+    const qty = Number(numStr);
+    if (!Number.isFinite(qty) || qty <= 0) return null;
+    const unit = draftPortionUnit.trim() || (isEggItem(draftName, draftCategory) ? "eggs" : "g");
+    return portionToGrams(`${qty} ${unit}`, draftName);
+  }
+
   function onPortionChange(v: string) {
     setDraftPortionNum(v);
     if (macrosDirty) return;
-    const grams = Number(v);
-    if (!Number.isFinite(grams) || grams < 0) return;
-    // Only auto-recalc when USDA densities exist and unit represents grams (not egg count).
-    const unitIsGrams = draftPortionUnit === "" || /^g\b|^grams?$/i.test(draftPortionUnit);
-    if (!unitIsGrams) return;
+    const grams = draftGrams(v);
+    if (grams === null) return;
     if (densities.p !== undefined) setDraftProtein(String(round1((densities.p / 100) * grams)));
     if (densities.c !== undefined) setDraftCarbs(String(round1((densities.c / 100) * grams)));
     if (densities.f !== undefined) setDraftFat(String(round1((densities.f / 100) * grams)));
@@ -417,11 +430,10 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
     // beats the async onNameBlur fetch and persists the old food's macros with
     // the new food's name.
     const nameChanged = existing != null && name !== originalName.trim();
-    const unitIsGrams = draftPortionUnit === "" || /^g\b|^grams?$/i.test(draftPortionUnit);
-    const grams = Number(draftPortionNum);
-    if (nameChanged && !macrosDirty && unitIsGrams && Number.isFinite(grams) && grams > 0) {
+    const grams = draftGrams();
+    if (nameChanged && !macrosDirty && grams !== null) {
       setEstimating(true);
-      const e = await estimateFoodMacros(name, `${grams}g`, draftCategory);
+      const e = await estimateFoodMacros(name, `${Math.round(grams)}g`, draftCategory);
       setEstimating(false);
       est = { est_protein_g: e.est_protein_g, est_carbs_g: e.est_carbs_g, est_fat_g: e.est_fat_g };
       dens = {
@@ -436,6 +448,15 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
       setEstimating(false);
       est = { est_protein_g: e.est_protein_g, est_carbs_g: e.est_carbs_g, est_fat_g: e.est_fat_g };
     }
+    // Manually-typed macros define a new density at the current gram weight, so
+    // later portion edits keep scaling instead of freezing.
+    if (grams !== null && (macrosDirty || dens.p === undefined || dens.c === undefined || dens.f === undefined)) {
+      dens = {
+        p: (est.est_protein_g / grams) * 100,
+        c: (est.est_carbs_g / grams) * 100,
+        f: (est.est_fat_g / grams) * 100,
+      };
+    }
     const est_calories = est.est_protein_g * 4 + est.est_carbs_g * 4 + est.est_fat_g * 9;
     const next: FoodItem = {
       name,
@@ -443,9 +464,11 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
       category: draftCategory,
       est_calories,
       ...est,
+      ...(grams !== null ? { grams } : {}),
       density_protein_per_100g: dens.p,
       density_carbs_per_100g: dens.c,
       density_fat_per_100g: dens.f,
+      ...(grams !== null && dens.p !== undefined ? { density_source: macrosDirty ? "manual" : "estimated" } : {}),
     };
     const updated = editingIndex != null
       ? items.map((it, i) => (i === editingIndex ? next : it))
@@ -482,12 +505,19 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
 
       {items.length > 0 && (
         <ul className="space-y-1.5">
-          {items.map((it, idx) => (
+          {items.map((it, idx) => {
+            const m = macrosFor(it);
+            const fixed = isFixedItem(it);
+            return (
             <li key={idx} className="flex items-start justify-between gap-2 rounded border p-2 text-xs">
               <div className="min-w-0 flex-1">
                 <p className="font-medium truncate">{it.name}</p>
                 <p className="text-muted-foreground">
                   {it.portion} · <span className="uppercase tracking-wide">{it.category}</span>
+                </p>
+                <p className="text-muted-foreground">
+                  {Math.round(m.calories)} kcal · P {Math.round(m.protein_g * 10) / 10}g · C {Math.round(m.carbs_g * 10) / 10}g · F {Math.round(m.fat_g * 10) / 10}g
+                  {fixed && <span className="ml-1 rounded bg-muted px-1 py-0.5 text-[10px] uppercase">fixed</span>}
                 </p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
@@ -499,7 +529,8 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
                 </Button>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 
@@ -662,16 +693,7 @@ function PerMealBreakdown({
   allocation: MacroAllocation;
 }) {
   const rows = visible.map((slot) => {
-    const items = list[slot];
-    const actual = items.reduce(
-      (acc, it) => {
-        acc.protein_g += Number(it.est_protein_g) || 0;
-        acc.carbs_g += Number(it.est_carbs_g) || 0;
-        acc.fat_g += Number(it.est_fat_g) || 0;
-        return acc;
-      },
-      { protein_g: 0, carbs_g: 0, fat_g: 0 },
-    );
+    const actual = sumMacros(list[slot]);
     const target = allocation[slotToMealKey(slot, mealsPerDay)] ?? { protein_g: 0, carbs_g: 0, fat_g: 0, calories: 0 };
     return {
       slot,
