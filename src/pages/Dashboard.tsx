@@ -2313,7 +2313,11 @@ export default function Dashboard() {
                                       document.getElementById("generate-meal-plan-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
                                     }, 150);
                                   }}
+                                  onClientPatched={(patch) => {
+                                    setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
+                                  }}
                                 />
+
                               </div>
                             )
                           ) : client.plan_format === "recipe" ? (
