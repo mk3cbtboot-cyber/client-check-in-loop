@@ -54,7 +54,7 @@ interface Props {
   onClientPatched?: (patch: Record<string, unknown>) => void;
 }
 
-export default function FoodListDocImport({ clientId, existingList, mealsPerDay, onSaved }: Props) {
+export default function FoodListDocImport({ clientId, existingList, mealsPerDay, onSaved, onClientPatched }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
