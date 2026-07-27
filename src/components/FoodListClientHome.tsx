@@ -147,13 +147,19 @@ function FoodListSlotSection({ token, slotKey, label, foods, note, onLogged }: S
             <div className="space-y-1">
               <p className="text-xs uppercase text-muted-foreground">Approved foods</p>
               <ul className="text-sm space-y-1">
-                {foods.map((f, i) => (
-                  <li key={i}>
-                    <span className="font-medium">{f.name}</span>
-                    {f.portion ? <> · {f.portion}</> : null}
-                    {f.category ? <span className="text-muted-foreground"> · {f.category}</span> : null}
-                  </li>
-                ))}
+                {foods.map((f, i) => {
+                  const m = macrosFor(f);
+                  return (
+                    <li key={i}>
+                      <span className="font-medium">{f.name}</span>
+                      {f.portion ? <> · {f.portion}</> : null}
+                      {f.category ? <span className="text-muted-foreground"> · {f.category}</span> : null}
+                      <span className="block text-xs text-muted-foreground">
+                        {Math.round(m.calories)} kcal · P {Math.round(m.protein_g)}g · C {Math.round(m.carbs_g)}g · F {Math.round(m.fat_g)}g
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
             {note && (
