@@ -840,10 +840,10 @@ Deno.serve(async (req) => {
             const contrib = contributionAt(found.per100, grams);
             subtract(contrib);
             usedProtein.add(canon(found.name));
-            items.push({ name: found.name, portion, category: "Protein", est_macros: contrib });
+            items.push({ name: canonicalName(found.name), portion, category: "Protein", est_macros: contrib });
             pushDebugFromUsda(slot, i, found.name, "Protein", found.per100, found.usdaDescription, portion);
           } else {
-            const fallbackName = candidates.find((n) => !usedProtein.has(canon(n))) ?? "Chicken Breast, cooked";
+            const fallbackName = candidates.find((n) => !usedProtein.has(canon(n))) ?? "Chicken Breast";
             let portion: string;
             if (isEggName(fallbackName)) {
               const count = Math.max(1, Math.round(remainingProtein / 6));
@@ -851,12 +851,13 @@ Deno.serve(async (req) => {
             } else {
               portion = fmtPortionG((remainingProtein * 100) / 30);
             }
-            const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-            if (est) { subtract(est); addActual(est); }
+            const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Protein");
+            subtract(est); addActual(est);
             usedProtein.add(canon(fallbackName));
-            items.push({ name: `${fallbackName} (estimated)`, portion, category: "Protein", est_macros: est ?? undefined });
+            items.push({ name: canonicalName(fallbackName), portion, category: "Protein", est_macros: est });
             pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
           }
+
         };
 
         const placeCarbFromFound = (found: { name: string; per100: Macros; usdaDescription: string }) => {
