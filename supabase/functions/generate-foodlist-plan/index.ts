@@ -436,16 +436,57 @@ async function aiEstimateMacros(apiKey: string, name: string, portion: string): 
   const data = await res.json();
   try {
     const o = JSON.parse(data?.choices?.[0]?.message?.content ?? "{}");
-    return {
-      calories: Math.round(Number(o.calories) || 0),
-      protein_g: Math.round(Number(o.protein_g) || 0),
-      carbs_g: Math.round(Number(o.carbs_g) || 0),
-      fat_g: Math.round(Number(o.fat_g) || 0),
+    const fields = ["calories", "protein_g", "carbs_g", "fat_g"] as const;
+    // A reply missing (or non-numeric on) any field is a FAILURE, never a 0.
+    for (const f of fields) {
+      const n = Number(o?.[f]);
+      if (o?.[f] === undefined || o?.[f] === null || !Number.isFinite(n) || n < 0) return null;
+    }
+    const parsed: Macros = {
+      calories: Math.round(Number(o.calories)),
+      protein_g: Math.round(Number(o.protein_g) * 10) / 10,
+      carbs_g: Math.round(Number(o.carbs_g) * 10) / 10,
+      fat_g: Math.round(Number(o.fat_g) * 10) / 10,
     };
+    return macrosAreReal(parsed) ? parsed : null;
   } catch {
     return null;
   }
 }
+
+/**
+ * Always returns real, non-zero macros plus the per-100g density behind them.
+ * One AI retry, then a category-default density. Never yields 0/0/0.
+ */
+async function estimateMacrosGuaranteed(
+  apiKey: string,
+  name: string,
+  portion: string,
+  category: Category,
+): Promise<{ macros: Macros; per100: Macros; usedDefault: boolean }> {
+  const grams = Math.max(1, gramsFromPortion(portion));
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const est = await aiEstimateMacros(apiKey, name, portion).catch(() => null);
+    if (macrosAreReal(est)) {
+      const f = 100 / grams;
+      return {
+        macros: est,
+        per100: {
+          calories: est.calories * f,
+          protein_g: est.protein_g * f,
+          carbs_g: est.carbs_g * f,
+          fat_g: est.fat_g * f,
+        },
+        usedDefault: false,
+      };
+    }
+    console.log(`[generate-foodlist-plan] AI macro estimate failed for "${name}" (${portion}) — attempt ${attempt + 1}`);
+  }
+  const per100 = CATEGORY_DEFAULT_PER100[category] ?? CATEGORY_DEFAULT_PER100.Other;
+  console.log(`[generate-foodlist-plan] using ${category} default density for "${name}" (${portion})`);
+  return { macros: scalePer100(per100, grams), per100, usedDefault: true };
+}
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
