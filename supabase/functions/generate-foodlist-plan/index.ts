@@ -931,7 +931,7 @@ Deno.serve(async (req) => {
           subtract(contrib);
           addActual(contrib);
           usedFat.add(canon("Olive Oil"));
-          items.push({ name: "Olive Oil (estimated)", portion, category: "Fat", est_macros: {
+          items.push({ name: canonicalName("Olive Oil"), portion, category: "Fat", est_macros: {
             calories: Math.round(contrib.calories),
             protein_g: Math.round(contrib.protein_g),
             carbs_g: Math.round(contrib.carbs_g),
