@@ -52,8 +52,59 @@ type DebugFood = {
   estimated: boolean;
 };
 
+// Variant words that describe the same ingredient. Stripped from the canonical
+// key so "Turkey Breast" and "Skinless Turkey Breast" collapse to one food, and
+// "Chicken Breast" and "Chicken Breast, cooked" never appear as two entries.
+const CANON_STOPWORDS = new Set([
+  "estimated", "cooked", "raw", "fresh", "frozen", "canned", "dried",
+  "skinless", "boneless", "skin", "less", "lean", "extra", "trimmed",
+  "grilled", "roasted", "baked", "steamed", "boiled", "poached", "sauteed",
+  "plain", "unsweetened", "unsalted", "natural", "organic", "meat", "only",
+  "chopped", "sliced", "diced", "florets", "sticks", "strips", "pieces",
+]);
+
 function canon(name: string): string {
-  return name.toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z]+/g, " ").trim();
+  const words = String(name ?? "")
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[^a-z]+/g, " ")
+    .trim()
+    .split(" ")
+    .filter((w) => w && !CANON_STOPWORDS.has(w))
+    .map((w) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w));
+  return words.sort().join(" ");
+}
+
+function titleCase(s: string): string {
+  return s.replace(/\s+/g, " ").trim().split(" ")
+    .map((w) => (w.length ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
+/** Strip variant/preparation noise from a name for display purposes. */
+function cleanDisplayName(raw: string): string {
+  const base = String(raw ?? "")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/,[^,]*$/, (m) => (/(cooked|raw|skinless|boneless|meat only|estimated)/i.test(m) ? " " : m))
+    .replace(/\b(skinless|boneless|cooked|raw|estimated)\b/gi, " ")
+    .replace(/[,\s]+/g, " ")
+    .trim();
+  return titleCase(base || String(raw ?? "").trim());
+}
+
+/**
+ * One canonical display name per ingredient, shared across every meal slot.
+ * First sighting wins, so the same food always reads identically in the plan.
+ */
+const canonicalNames = new Map<string, string>();
+function canonicalName(raw: string): string {
+  const key = canon(raw);
+  const display = cleanDisplayName(raw);
+  if (!key) return display;
+  const existing = canonicalNames.get(key);
+  if (existing) return existing;
+  canonicalNames.set(key, display);
+  return display;
 }
 
 function roundPortionG(g: number): number {
@@ -66,6 +117,49 @@ function roundPortionG(g: number): number {
 function fmtPortionG(g: number): string {
   return `${roundPortionG(g)}g`;
 }
+
+// ---- Guaranteed-macro estimation ---------------------------------------
+// No generated food may ever be stored with 0/0/0. When USDA has no match we
+// ask the model, retry once, then fall back to a category-default density.
+const CATEGORY_DEFAULT_PER100: Record<Category, Macros> = {
+  Protein: { calories: 165, protein_g: 31, carbs_g: 0, fat_g: 3.6 },
+  Carbs: { calories: 130, protein_g: 2.7, carbs_g: 28, fat_g: 0.3 },
+  Veg: { calories: 35, protein_g: 2.5, carbs_g: 7, fat_g: 0.4 },
+  Fat: { calories: 884, protein_g: 0, carbs_g: 0, fat_g: 100 },
+  Other: { calories: 100, protein_g: 3, carbs_g: 15, fat_g: 2 },
+} as Record<Category, Macros>;
+
+function gramsFromPortion(portion: string): number {
+  const p = String(portion ?? "");
+  const g = /([\d.]+)\s*g\b/i.exec(p);
+  if (g) return Number(g[1]);
+  const tsp = /([\d.]+)\s*tsp/i.exec(p);
+  if (tsp) return Number(tsp[1]) * 4.5;
+  const tbsp = /([\d.]+)\s*tbsp/i.exec(p);
+  if (tbsp) return Number(tbsp[1]) * 13.6;
+  const egg = /([\d.]+)\s*eggs?/i.exec(p);
+  if (egg) return Number(egg[1]) * 50;
+  const n = /([\d.]+)/.exec(p);
+  return n ? Number(n[1]) : 100;
+}
+
+function macrosAreReal(m: Macros | null | undefined): m is Macros {
+  if (!m) return false;
+  const vals = [m.calories, m.protein_g, m.carbs_g, m.fat_g].map(Number);
+  if (!vals.every((v) => Number.isFinite(v) && v >= 0)) return false;
+  return vals.slice(1).some((v) => v > 0) || Number(m.calories) > 0;
+}
+
+function scalePer100(per100: Macros, grams: number): Macros {
+  const f = grams / 100;
+  return {
+    calories: per100.calories * f,
+    protein_g: per100.protein_g * f,
+    carbs_g: per100.carbs_g * f,
+    fat_g: per100.fat_g * f,
+  };
+}
+
 
 // USDA lookup helpers, category filters, egg/oats hard-codes, and the
 // cooked-search-term/density rules live in ../_shared/usda.ts so the edit-modal
@@ -342,16 +436,57 @@ async function aiEstimateMacros(apiKey: string, name: string, portion: string): 
   const data = await res.json();
   try {
     const o = JSON.parse(data?.choices?.[0]?.message?.content ?? "{}");
-    return {
-      calories: Math.round(Number(o.calories) || 0),
-      protein_g: Math.round(Number(o.protein_g) || 0),
-      carbs_g: Math.round(Number(o.carbs_g) || 0),
-      fat_g: Math.round(Number(o.fat_g) || 0),
+    const fields = ["calories", "protein_g", "carbs_g", "fat_g"] as const;
+    // A reply missing (or non-numeric on) any field is a FAILURE, never a 0.
+    for (const f of fields) {
+      const n = Number(o?.[f]);
+      if (o?.[f] === undefined || o?.[f] === null || !Number.isFinite(n) || n < 0) return null;
+    }
+    const parsed: Macros = {
+      calories: Math.round(Number(o.calories)),
+      protein_g: Math.round(Number(o.protein_g) * 10) / 10,
+      carbs_g: Math.round(Number(o.carbs_g) * 10) / 10,
+      fat_g: Math.round(Number(o.fat_g) * 10) / 10,
     };
+    return macrosAreReal(parsed) ? parsed : null;
   } catch {
     return null;
   }
 }
+
+/**
+ * Always returns real, non-zero macros plus the per-100g density behind them.
+ * One AI retry, then a category-default density. Never yields 0/0/0.
+ */
+async function estimateMacrosGuaranteed(
+  apiKey: string,
+  name: string,
+  portion: string,
+  category: Category,
+): Promise<{ macros: Macros; per100: Macros; usedDefault: boolean }> {
+  const grams = Math.max(1, gramsFromPortion(portion));
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const est = await aiEstimateMacros(apiKey, name, portion).catch(() => null);
+    if (macrosAreReal(est)) {
+      const f = 100 / grams;
+      return {
+        macros: est,
+        per100: {
+          calories: est.calories * f,
+          protein_g: est.protein_g * f,
+          carbs_g: est.carbs_g * f,
+          fat_g: est.fat_g * f,
+        },
+        usedDefault: false,
+      };
+    }
+    console.log(`[generate-foodlist-plan] AI macro estimate failed for "${name}" (${portion}) — attempt ${attempt + 1}`);
+  }
+  const per100 = CATEGORY_DEFAULT_PER100[category] ?? CATEGORY_DEFAULT_PER100.Other;
+  console.log(`[generate-foodlist-plan] using ${category} default density for "${name}" (${portion})`);
+  return { macros: scalePer100(per100, grams), per100, usedDefault: true };
+}
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -549,17 +684,18 @@ Deno.serve(async (req) => {
           usedVeg.add(canon(found.name));
           const contrib = contributionAt(found.per100, grams);
           subtract(contrib);
-          items.push({ name: found.name, portion, category: "Veg", est_macros: contrib });
+          items.push({ name: canonicalName(found.name), portion, category: "Veg", est_macros: contrib });
           pushDebugFromUsda(slot, i, found.name, "Veg", found.per100, found.usdaDescription, portion);
         } else {
           const fallbackName = (cands.veg ?? []).find((n) => !usedVeg.has(canon(n)));
           if (!fallbackName) break;
-          const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-          if (est) { subtract(est); addActual(est); }
+          const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Veg");
+          subtract(est); addActual(est);
           usedVeg.add(canon(fallbackName));
-          items.push({ name: `${fallbackName} (estimated)`, portion, category: "Veg", est_macros: est ?? undefined });
+          items.push({ name: canonicalName(fallbackName), portion, category: "Veg", est_macros: est });
           pushDebugEstimated(slot, i, fallbackName, "Veg", portion);
         }
+
       }
 
       // Step 3 — sizing order per slot: carbs → protein → fat (veggies already done above).
@@ -704,10 +840,10 @@ Deno.serve(async (req) => {
             const contrib = contributionAt(found.per100, grams);
             subtract(contrib);
             usedProtein.add(canon(found.name));
-            items.push({ name: found.name, portion, category: "Protein", est_macros: contrib });
+            items.push({ name: canonicalName(found.name), portion, category: "Protein", est_macros: contrib });
             pushDebugFromUsda(slot, i, found.name, "Protein", found.per100, found.usdaDescription, portion);
           } else {
-            const fallbackName = candidates.find((n) => !usedProtein.has(canon(n))) ?? "Chicken Breast, cooked";
+            const fallbackName = candidates.find((n) => !usedProtein.has(canon(n))) ?? "Chicken Breast";
             let portion: string;
             if (isEggName(fallbackName)) {
               const count = Math.max(1, Math.round(remainingProtein / 6));
@@ -715,12 +851,13 @@ Deno.serve(async (req) => {
             } else {
               portion = fmtPortionG((remainingProtein * 100) / 30);
             }
-            const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-            if (est) { subtract(est); addActual(est); }
+            const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Protein");
+            subtract(est); addActual(est);
             usedProtein.add(canon(fallbackName));
-            items.push({ name: `${fallbackName} (estimated)`, portion, category: "Protein", est_macros: est ?? undefined });
+            items.push({ name: canonicalName(fallbackName), portion, category: "Protein", est_macros: est });
             pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
           }
+
         };
 
         const placeCarbFromFound = (found: { name: string; per100: Macros; usdaDescription: string }) => {
@@ -729,7 +866,7 @@ Deno.serve(async (req) => {
           const contrib = contributionAt(found.per100, grams);
           subtract(contrib);
           usedCarbs.add(canon(found.name));
-          items.push({ name: found.name, portion, category: "Carbs", est_macros: contrib });
+          items.push({ name: canonicalName(found.name), portion, category: "Carbs", est_macros: contrib });
           pushDebugFromUsda(slot, i, found.name, "Carbs", found.per100, found.usdaDescription, portion);
         };
 
@@ -744,12 +881,12 @@ Deno.serve(async (req) => {
           if (carbFound) {
             placeCarbFromFound(carbFound);
           } else if (remainingCarbs > 0) {
-            const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n))) ?? "Brown Rice (cooked)";
+            const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n))) ?? "Brown Rice";
             const portion = fmtPortionG((remainingCarbs * 100) / 25);
-            const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-            if (est) { subtract(est); addActual(est); }
+            const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Carbs");
+            subtract(est); addActual(est);
             usedCarbs.add(canon(fallbackName));
-            items.push({ name: `${fallbackName} (estimated)`, portion, category: "Carbs", est_macros: est ?? undefined });
+            items.push({ name: canonicalName(fallbackName), portion, category: "Carbs", est_macros: est });
             pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
           }
           if (remainingProtein > 0) await placeProtein(cands.protein ?? []);
@@ -757,8 +894,9 @@ Deno.serve(async (req) => {
       }
 
 
-      // Step 5 — FAT sized to remaining fat.
-      if (remainingFat > 6) {
+      // Step 5 — FAT sized to remaining fat. No deadband: any meal still short on
+      // fat gets a fat source sized to cover the remainder.
+      if (remainingFat > 0) {
         const found = await findUSDAFood(cands.fat ?? [], usedFat, "Fat");
         const foundFatPer100 = Number(found?.per100?.fat_g ?? 0);
         const foundValid = !!found && Number.isFinite(foundFatPer100) && foundFatPer100 > 0;
@@ -776,7 +914,7 @@ Deno.serve(async (req) => {
           const contrib = contributionAt(found.per100, grams);
           subtract(contrib);
           usedFat.add(canon(found.name));
-          items.push({ name: found.name, portion, category: "Fat", est_macros: contrib });
+          items.push({ name: canonicalName(found.name), portion, category: "Fat", est_macros: contrib });
           pushDebugFromUsda(slot, i, found.name, "Fat", found.per100, found.usdaDescription, portion);
         } else {
           if (found && !foundValid) {
@@ -793,7 +931,7 @@ Deno.serve(async (req) => {
           subtract(contrib);
           addActual(contrib);
           usedFat.add(canon("Olive Oil"));
-          items.push({ name: "Olive Oil (estimated)", portion, category: "Fat", est_macros: {
+          items.push({ name: canonicalName("Olive Oil"), portion, category: "Fat", est_macros: {
             calories: Math.round(contrib.calories),
             protein_g: Math.round(contrib.protein_g),
             carbs_g: Math.round(contrib.carbs_g),
@@ -825,9 +963,9 @@ Deno.serve(async (req) => {
       } as never);
 
       out[slot] = items.map((it) => {
-        const m = it.est_macros;
-        // Final safety net: never let a brand name reach a client.
-        let safeName = it.name;
+        // Final safety net: never let a brand name reach a client, and never
+        // surface an "(estimated)" suffix in the displayed name.
+        let safeName = it.name.replace(/\s*\(estimated\)\s*/gi, " ").replace(/\s+/g, " ").trim();
         for (const [re, replacement] of BRAND_REPLACEMENTS) {
           if (re.test(safeName)) {
             const generic = replacement || "Food";
@@ -836,17 +974,27 @@ Deno.serve(async (req) => {
             break;
           }
         }
-        const rest: Record<string, unknown> = { name: safeName, portion: it.portion, category: it.category };
-
-        if (m) {
-          rest.est_calories = Math.round(Number(m.calories) || 0);
-          rest.est_protein_g = Math.round((Number(m.protein_g) || 0) * 10) / 10;
-          rest.est_carbs_g = Math.round((Number(m.carbs_g) || 0) * 10) / 10;
-          rest.est_fat_g = Math.round((Number(m.fat_g) || 0) * 10) / 10;
+        // Final macro guard: no generated food may ever be stored as 0/0/0.
+        let m = it.est_macros;
+        if (!macrosAreReal(m)) {
+          const grams = Math.max(1, gramsFromPortion(it.portion));
+          const per100 = CATEGORY_DEFAULT_PER100[it.category] ?? CATEGORY_DEFAULT_PER100.Other;
+          m = scalePer100(per100, grams);
+          console.log(`[generate-foodlist-plan] zero-macro guard applied to "${safeName}" (${it.portion}) using ${it.category} default density`);
         }
+        const rest: Record<string, unknown> = {
+          name: safeName,
+          portion: it.portion,
+          category: it.category,
+          est_calories: Math.round(Number(m.calories) || 0),
+          est_protein_g: Math.round((Number(m.protein_g) || 0) * 10) / 10,
+          est_carbs_g: Math.round((Number(m.carbs_g) || 0) * 10) / 10,
+          est_fat_g: Math.round((Number(m.fat_g) || 0) * 10) / 10,
+        };
         // Persist the density model so portion edits scale macros downstream.
         return withDensityModel(rest as never) as typeof it;
       });
+
 
       for (const it of items) {
         const cleanName = it.name.replace(/\s*\(estimated\)\s*$/i, "").trim();
