@@ -914,7 +914,7 @@ Deno.serve(async (req) => {
           const contrib = contributionAt(found.per100, grams);
           subtract(contrib);
           usedFat.add(canon(found.name));
-          items.push({ name: found.name, portion, category: "Fat", est_macros: contrib });
+          items.push({ name: canonicalName(found.name), portion, category: "Fat", est_macros: contrib });
           pushDebugFromUsda(slot, i, found.name, "Fat", found.per100, found.usdaDescription, portion);
         } else {
           if (found && !foundValid) {
