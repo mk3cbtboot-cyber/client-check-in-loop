@@ -684,17 +684,18 @@ Deno.serve(async (req) => {
           usedVeg.add(canon(found.name));
           const contrib = contributionAt(found.per100, grams);
           subtract(contrib);
-          items.push({ name: found.name, portion, category: "Veg", est_macros: contrib });
+          items.push({ name: canonicalName(found.name), portion, category: "Veg", est_macros: contrib });
           pushDebugFromUsda(slot, i, found.name, "Veg", found.per100, found.usdaDescription, portion);
         } else {
           const fallbackName = (cands.veg ?? []).find((n) => !usedVeg.has(canon(n)));
           if (!fallbackName) break;
-          const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-          if (est) { subtract(est); addActual(est); }
+          const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Veg");
+          subtract(est); addActual(est);
           usedVeg.add(canon(fallbackName));
-          items.push({ name: `${fallbackName} (estimated)`, portion, category: "Veg", est_macros: est ?? undefined });
+          items.push({ name: canonicalName(fallbackName), portion, category: "Veg", est_macros: est });
           pushDebugEstimated(slot, i, fallbackName, "Veg", portion);
         }
+
       }
 
       // Step 3 — sizing order per slot: carbs → protein → fat (veggies already done above).
