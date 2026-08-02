@@ -52,8 +52,59 @@ type DebugFood = {
   estimated: boolean;
 };
 
+// Variant words that describe the same ingredient. Stripped from the canonical
+// key so "Turkey Breast" and "Skinless Turkey Breast" collapse to one food, and
+// "Chicken Breast" and "Chicken Breast, cooked" never appear as two entries.
+const CANON_STOPWORDS = new Set([
+  "estimated", "cooked", "raw", "fresh", "frozen", "canned", "dried",
+  "skinless", "boneless", "skin", "less", "lean", "extra", "trimmed",
+  "grilled", "roasted", "baked", "steamed", "boiled", "poached", "sauteed",
+  "plain", "unsweetened", "unsalted", "natural", "organic", "meat", "only",
+  "chopped", "sliced", "diced", "florets", "sticks", "strips", "pieces",
+]);
+
 function canon(name: string): string {
-  return name.toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z]+/g, " ").trim();
+  const words = String(name ?? "")
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[^a-z]+/g, " ")
+    .trim()
+    .split(" ")
+    .filter((w) => w && !CANON_STOPWORDS.has(w))
+    .map((w) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w));
+  return words.sort().join(" ");
+}
+
+function titleCase(s: string): string {
+  return s.replace(/\s+/g, " ").trim().split(" ")
+    .map((w) => (w.length ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
+/** Strip variant/preparation noise from a name for display purposes. */
+function cleanDisplayName(raw: string): string {
+  const base = String(raw ?? "")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/,[^,]*$/, (m) => (/(cooked|raw|skinless|boneless|meat only|estimated)/i.test(m) ? " " : m))
+    .replace(/\b(skinless|boneless|cooked|raw|estimated)\b/gi, " ")
+    .replace(/[,\s]+/g, " ")
+    .trim();
+  return titleCase(base || String(raw ?? "").trim());
+}
+
+/**
+ * One canonical display name per ingredient, shared across every meal slot.
+ * First sighting wins, so the same food always reads identically in the plan.
+ */
+const canonicalNames = new Map<string, string>();
+function canonicalName(raw: string): string {
+  const key = canon(raw);
+  const display = cleanDisplayName(raw);
+  if (!key) return display;
+  const existing = canonicalNames.get(key);
+  if (existing) return existing;
+  canonicalNames.set(key, display);
+  return display;
 }
 
 function roundPortionG(g: number): number {
@@ -66,6 +117,49 @@ function roundPortionG(g: number): number {
 function fmtPortionG(g: number): string {
   return `${roundPortionG(g)}g`;
 }
+
+// ---- Guaranteed-macro estimation ---------------------------------------
+// No generated food may ever be stored with 0/0/0. When USDA has no match we
+// ask the model, retry once, then fall back to a category-default density.
+const CATEGORY_DEFAULT_PER100: Record<Category, Macros> = {
+  Protein: { calories: 165, protein_g: 31, carbs_g: 0, fat_g: 3.6 },
+  Carbs: { calories: 130, protein_g: 2.7, carbs_g: 28, fat_g: 0.3 },
+  Veg: { calories: 35, protein_g: 2.5, carbs_g: 7, fat_g: 0.4 },
+  Fat: { calories: 884, protein_g: 0, carbs_g: 0, fat_g: 100 },
+  Other: { calories: 100, protein_g: 3, carbs_g: 15, fat_g: 2 },
+} as Record<Category, Macros>;
+
+function gramsFromPortion(portion: string): number {
+  const p = String(portion ?? "");
+  const g = /([\d.]+)\s*g\b/i.exec(p);
+  if (g) return Number(g[1]);
+  const tsp = /([\d.]+)\s*tsp/i.exec(p);
+  if (tsp) return Number(tsp[1]) * 4.5;
+  const tbsp = /([\d.]+)\s*tbsp/i.exec(p);
+  if (tbsp) return Number(tbsp[1]) * 13.6;
+  const egg = /([\d.]+)\s*eggs?/i.exec(p);
+  if (egg) return Number(egg[1]) * 50;
+  const n = /([\d.]+)/.exec(p);
+  return n ? Number(n[1]) : 100;
+}
+
+function macrosAreReal(m: Macros | null | undefined): m is Macros {
+  if (!m) return false;
+  const vals = [m.calories, m.protein_g, m.carbs_g, m.fat_g].map(Number);
+  if (!vals.every((v) => Number.isFinite(v) && v >= 0)) return false;
+  return vals.slice(1).some((v) => v > 0) || Number(m.calories) > 0;
+}
+
+function scalePer100(per100: Macros, grams: number): Macros {
+  const f = grams / 100;
+  return {
+    calories: per100.calories * f,
+    protein_g: per100.protein_g * f,
+    carbs_g: per100.carbs_g * f,
+    fat_g: per100.fat_g * f,
+  };
+}
+
 
 // USDA lookup helpers, category filters, egg/oats hard-codes, and the
 // cooked-search-term/density rules live in ../_shared/usda.ts so the edit-modal
