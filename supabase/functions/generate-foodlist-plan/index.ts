@@ -963,9 +963,9 @@ Deno.serve(async (req) => {
       } as never);
 
       out[slot] = items.map((it) => {
-        const m = it.est_macros;
-        // Final safety net: never let a brand name reach a client.
-        let safeName = it.name;
+        // Final safety net: never let a brand name reach a client, and never
+        // surface an "(estimated)" suffix in the displayed name.
+        let safeName = it.name.replace(/\s*\(estimated\)\s*/gi, " ").replace(/\s+/g, " ").trim();
         for (const [re, replacement] of BRAND_REPLACEMENTS) {
           if (re.test(safeName)) {
             const generic = replacement || "Food";
@@ -974,17 +974,27 @@ Deno.serve(async (req) => {
             break;
           }
         }
-        const rest: Record<string, unknown> = { name: safeName, portion: it.portion, category: it.category };
-
-        if (m) {
-          rest.est_calories = Math.round(Number(m.calories) || 0);
-          rest.est_protein_g = Math.round((Number(m.protein_g) || 0) * 10) / 10;
-          rest.est_carbs_g = Math.round((Number(m.carbs_g) || 0) * 10) / 10;
-          rest.est_fat_g = Math.round((Number(m.fat_g) || 0) * 10) / 10;
+        // Final macro guard: no generated food may ever be stored as 0/0/0.
+        let m = it.est_macros;
+        if (!macrosAreReal(m)) {
+          const grams = Math.max(1, gramsFromPortion(it.portion));
+          const per100 = CATEGORY_DEFAULT_PER100[it.category] ?? CATEGORY_DEFAULT_PER100.Other;
+          m = scalePer100(per100, grams);
+          console.log(`[generate-foodlist-plan] zero-macro guard applied to "${safeName}" (${it.portion}) using ${it.category} default density`);
         }
+        const rest: Record<string, unknown> = {
+          name: safeName,
+          portion: it.portion,
+          category: it.category,
+          est_calories: Math.round(Number(m.calories) || 0),
+          est_protein_g: Math.round((Number(m.protein_g) || 0) * 10) / 10,
+          est_carbs_g: Math.round((Number(m.carbs_g) || 0) * 10) / 10,
+          est_fat_g: Math.round((Number(m.fat_g) || 0) * 10) / 10,
+        };
         // Persist the density model so portion edits scale macros downstream.
         return withDensityModel(rest as never) as typeof it;
       });
+
 
       for (const it of items) {
         const cleanName = it.name.replace(/\s*\(estimated\)\s*$/i, "").trim();
