@@ -881,12 +881,12 @@ Deno.serve(async (req) => {
           if (carbFound) {
             placeCarbFromFound(carbFound);
           } else if (remainingCarbs > 0) {
-            const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n))) ?? "Brown Rice (cooked)";
+            const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n))) ?? "Brown Rice";
             const portion = fmtPortionG((remainingCarbs * 100) / 25);
-            const est = await aiEstimateMacros(apiKey, fallbackName, portion);
-            if (est) { subtract(est); addActual(est); }
+            const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Carbs");
+            subtract(est); addActual(est);
             usedCarbs.add(canon(fallbackName));
-            items.push({ name: `${fallbackName} (estimated)`, portion, category: "Carbs", est_macros: est ?? undefined });
+            items.push({ name: canonicalName(fallbackName), portion, category: "Carbs", est_macros: est });
             pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
           }
           if (remainingProtein > 0) await placeProtein(cands.protein ?? []);
