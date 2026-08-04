@@ -238,11 +238,110 @@ const VEG_POOL = [
   "Tomato", "Asparagus", "Green Beans", "Kale", "Cauliflower",
 ];
 
-const EGG_PROTEIN_POOL = ["Eggs"];
-
 // Legume detector — when the chosen carb source is a legume, pair it with a lean protein.
 const LEGUME_PAIR_RE = /\b(black beans?|kidney beans?|chickpeas?|garbanzos?|lentils?|pinto beans?|cannellini( beans?)?|navy beans?)\b/i;
 const LEAN_PROTEIN_POOL = ["Chicken Breast", "Turkey Breast", "Cod", "Haddock"];
+
+// ---- Curated breakfast pools (pinned per-100g densities) -----------------
+// Accuracy here is literal, not USDA-dependent, so breakfast can vary without
+// risking a bad macro match.
+type PinnedFood = { name: string; per100: Macros };
+
+const BREAKFAST_PROTEIN_POOL: PinnedFood[] = [
+  { name: "Whole Egg", per100: { calories: 143, protein_g: 12.6, carbs_g: 0.6, fat_g: 9.5 } },
+  { name: "Liquid Egg Whites", per100: { calories: 52, protein_g: 11, carbs_g: 0.7, fat_g: 0.2 } },
+  { name: "Plain Greek Yoghurt", per100: { calories: 59, protein_g: 10, carbs_g: 3.6, fat_g: 0.4 } },
+  { name: "Cottage Cheese", per100: { calories: 98, protein_g: 11, carbs_g: 3.4, fat_g: 4.3 } },
+];
+
+const BREAKFAST_SLOW_CARBS: PinnedFood[] = [
+  { name: "Oats", per100: OATS_PER100 },
+];
+
+const BREAKFAST_FAST_CARBS: PinnedFood[] = [
+  { name: "Blueberries", per100: { calories: 57, protein_g: 0.7, carbs_g: 14.5, fat_g: 0.3 } },
+  { name: "Strawberries", per100: { calories: 32, protein_g: 0.7, carbs_g: 7.7, fat_g: 0.3 } },
+  { name: "Raspberries", per100: { calories: 52, protein_g: 1.2, carbs_g: 11.9, fat_g: 0.7 } },
+  { name: "Banana", per100: { calories: 89, protein_g: 1.1, carbs_g: 22.8, fat_g: 0.3 } },
+  { name: "Apple", per100: { calories: 52, protein_g: 0.3, carbs_g: 13.8, fat_g: 0.2 } },
+];
+
+// ---- Exclusion engine ----------------------------------------------------
+// Free text like "no eggs or egg whites" must genuinely block every source,
+// including the hard-coded pools.
+const EXCLUSION_FILLERS = new Set([
+  "no", "none", "not", "never", "avoid", "avoiding", "without", "exclude",
+  "excluding", "excluded", "allergic", "allergy", "allergies", "intolerant",
+  "intolerance", "dislike", "dislikes", "hate", "hates", "free", "i", "im",
+  "dont", "do", "eat", "eats", "eating", "any", "all", "please", "cant",
+  "my", "of", "to", "the", "a", "an", "is", "are", "with", "anything",
+  "food", "foods", "products", "product", "based",
+  // Generic modifiers — too broad to exclude on their own ("egg white" is
+  // already covered by the "egg" group).
+  "white", "whites", "plain", "liquid", "whole", "fresh", "raw", "cooked",
+]);
+
+// Groups let one term pull in its family: "egg" blocks egg whites, "dairy"
+// blocks yoghurt and cottage cheese, etc.
+const EXCLUSION_GROUPS: string[][] = [
+  ["egg", "eggwhite", "omelette", "omelet", "frittata"],
+  ["dairy", "milk", "yoghurt", "yogurt", "cheese", "cottage", "cream", "butter", "ghee", "kefir", "whey", "quark"],
+  ["gluten", "wheat", "bread", "pasta", "couscous", "barley", "rye"],
+  ["shellfish", "shrimp", "prawn", "crab", "lobster", "clam", "mussel", "oyster", "scallop"],
+  ["nut", "almond", "cashew", "walnut", "pecan", "pistachio", "peanut", "hazelnut", "macadamia"],
+  ["seed", "sunflower", "pumpkin", "sesame", "chia", "flax"],
+  ["soy", "soya", "tofu", "tempeh", "edamame"],
+  ["pork", "bacon", "ham", "prosciutto", "pancetta"],
+  ["fish", "salmon", "tuna", "cod", "haddock", "tilapia", "sardine", "mackerel", "trout"],
+];
+
+function singular(w: string): string {
+  if (w.length > 3 && w.endsWith("ies")) return `${w.slice(0, -3)}y`;
+  if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss")) return w.slice(0, -1);
+  return w;
+}
+
+function normWords(s: string): string[] {
+  return String(s ?? "")
+    .toLowerCase()
+    .replace(/[^a-z]+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map(singular);
+}
+
+/** Parse free-text exclusions into normalized single-word tokens. */
+function parseExclusionTerms(raw: string[]): string[] {
+  const terms = new Set<string>();
+  for (const chunk of raw) {
+    for (const part of String(chunk ?? "").split(/[,;/\n]|\band\b|\bor\b|\bplus\b/i)) {
+      for (const w of normWords(part)) {
+        if (!w || w.length < 3 || EXCLUSION_FILLERS.has(w)) continue;
+        terms.add(w);
+      }
+    }
+  }
+  // Expand via groups.
+  for (const group of EXCLUSION_GROUPS) {
+    if (group.some((g) => terms.has(singular(g)))) {
+      for (const g of group) terms.add(singular(g));
+    }
+  }
+  return [...terms];
+}
+
+function makeExclusionFilter(raw: string[]) {
+  const terms = parseExclusionTerms(raw);
+  const isExcluded = (name: string): boolean => {
+    if (!terms.length) return false;
+    const words = normWords(name);
+    const joined = words.join("");
+    return terms.some((t) => words.includes(t) || (t.length >= 5 && joined.includes(t)));
+  };
+  return { terms, isExcluded };
+}
+
 
 // ---- Brand / proper-noun safety net -------------------------------------
 // Maps known brand names to generic descriptions. Anything brand-like that is
@@ -356,6 +455,7 @@ async function aiCandidatesForSlot(
     excludedFoods: string[];
     usedFats: string[];
     exclusions: string[];
+    eggsAllowed: boolean;
     preferences: string;
   },
 ): Promise<{ protein: string[]; carbs: string[]; veg: string[]; fat: string[] }> {
@@ -374,9 +474,9 @@ Use only generic whole-food descriptions. Never use brand names, trademarks, pro
 
 Do NOT suggest pork or any pork cut as a protein source. This includes pork loin, pork tenderloin, pork chops, pork belly, pork shoulder, ham, bacon, prosciutto, pancetta, or any other pork-derived meat. Never include these in the "protein" list.
 
-${params.slotIndex === 0
+${params.slotIndex === 0 && params.eggsAllowed
   ? `Eggs and egg-based proteins (whole eggs, egg whites, liquid eggs, omelettes, frittatas, etc.) are permitted as a protein source for this slot (Meal 1 / breakfast).`
-  : `Do NOT suggest eggs or any egg-based protein (whole eggs, egg whites, liquid eggs, omelettes, frittatas, egg-based dishes, etc.) as a protein source. Eggs are only valid for Meal 1 (breakfast). For this slot, select from fish, poultry, or other lean proteins only. Never include eggs in the "protein" list.`}
+  : `Do NOT suggest eggs or any egg-based protein (whole eggs, egg whites, liquid eggs, omelettes, frittatas, egg-based dishes, etc.) as a protein source. Never include eggs in the "protein" list.`}
 
 Do not use any of the following foods in this slot: ${params.excludedFoods.length ? params.excludedFoods.join(", ") : "(none)"}
 
@@ -512,7 +612,14 @@ Deno.serve(async (req) => {
     const meals_per_day = [3, 4, 5].includes(Number(body?.meals_per_day)) ? Number(body.meals_per_day) : 3;
     const exclusions: string[] = Array.isArray(body?.exclusions)
       ? body.exclusions.map((x: unknown) => String(x ?? "").trim()).filter((x: string) => x.length > 0)
-      : [];
+      : typeof body?.exclusions === "string" && body.exclusions.trim()
+        ? [body.exclusions.trim()]
+        : [];
+    const { terms: exclusionTerms, isExcluded } = makeExclusionFilter(exclusions);
+    const eggsAllowed = !isExcluded("Whole Egg") && !isExcluded("Liquid Egg Whites");
+    console.log(`[generate-foodlist-plan] exclusion terms: ${exclusionTerms.join(", ") || "(none)"} | eggsAllowed=${eggsAllowed}`);
+    const allowNames = (list: string[]): string[] => list.filter((n) => !isExcluded(n));
+    const allowPinned = (list: PinnedFood[]): PinnedFood[] => list.filter((f) => !isExcluded(f.name));
     const preferences = typeof body?.preferences === "string" ? body.preferences.trim() : "";
     const activeSlots = slotsForMeals(meals_per_day);
 
@@ -611,6 +718,7 @@ Deno.serve(async (req) => {
           excludedFoods,           // empty at this point — kept for prompt shape
           usedFats: usedFatNames,  // empty at this point — kept for prompt shape
           exclusions,
+          eggsAllowed,
           preferences,
         }).catch((e) => {
           console.error("aiCandidatesForSlot failed", slot, e);
@@ -626,10 +734,11 @@ Deno.serve(async (req) => {
       debugTargets.push({ slot, slot_index: i, ...target });
       const cands = candidatesPerSlot[i];
 
-      cands.veg = [...(cands.veg ?? []), ...VEG_POOL];
-      if (i === 0) {
-        cands.protein = [...EGG_PROTEIN_POOL];
-      }
+      // Hard exclusion filter over EVERY candidate source, AI or hard-coded.
+      cands.veg = allowNames([...(cands.veg ?? []), ...VEG_POOL]);
+      cands.protein = allowNames(cands.protein ?? []);
+      cands.carbs = allowNames(cands.carbs ?? []);
+      cands.fat = allowNames(cands.fat ?? []);
       const items: FoodItem[] = [];
 
       // Running totals — every food contributes to all three macros and reduces all remaining targets.
@@ -700,109 +809,110 @@ Deno.serve(async (req) => {
 
       // Step 3 — sizing order per slot: carbs → protein → fat (veggies already done above).
       if (i === 0) {
-        // Meal 1 — order: Oats first, then dynamic egg formula.
-        // Hard-coded macros (no USDA calls).
-        const WHOLE = { protein_g: 6.3, carbs_g: 0.3, fat_g: 4.75, calories: 70 }; // per 50g egg
-        const WHITE = { protein_g: 3.6, carbs_g: 0.1, fat_g: 0.05, calories: 17 }; // per 33g white
-        const LIQUID_PER100 = { protein_g: 11, carbs_g: 0.7, fat_g: 0.2, calories: 52 };
+        // Meal 1 — curated, pinned-density breakfast pools. Every pool is passed
+        // through the hard exclusion filter first, so nothing excluded can be picked.
+        const pick = <T,>(arr: T[]): T | null => (arr.length ? arr[Math.floor(Math.random() * arr.length)] : null);
 
-        // Meal 1 carb source — always Oats, sized FIRST from remaining carbs (after veggies).
-        if (remainingCarbs > 0) {
-          const rawGrams = (remainingCarbs / OATS_PER100.carbs_g) * 100;
-          const oatsGrams = Math.max(5, Math.round(rawGrams / 5) * 5);
-          const factor = oatsGrams / 100;
-          const oatsContrib = {
-            calories: Math.round(OATS_PER100.calories * factor),
-            protein_g: Math.round(OATS_PER100.protein_g * factor * 10) / 10,
-            carbs_g: Math.round(OATS_PER100.carbs_g * factor * 10) / 10,
-            fat_g: Math.round(OATS_PER100.fat_g * factor * 10) / 10,
+        const placePinned = (food: PinnedFood, grams: number, portion: string, category: Category, usedSet: Set<string>) => {
+          if (grams <= 0) return;
+          const factor = grams / 100;
+          const raw = {
+            calories: food.per100.calories * factor,
+            protein_g: food.per100.protein_g * factor,
+            carbs_g: food.per100.carbs_g * factor,
+            fat_g: food.per100.fat_g * factor,
           };
-          remainingProtein -= OATS_PER100.protein_g * factor;
-          remainingCarbs -= OATS_PER100.carbs_g * factor;
-          remainingFat -= OATS_PER100.fat_g * factor;
-          addActual({
-            calories: OATS_PER100.calories * factor,
-            protein_g: OATS_PER100.protein_g * factor,
-            carbs_g: OATS_PER100.carbs_g * factor,
-            fat_g: OATS_PER100.fat_g * factor,
-          });
+          remainingProtein -= raw.protein_g;
+          remainingCarbs -= raw.carbs_g;
+          remainingFat -= raw.fat_g;
+          addActual(raw);
+          usedSet.add(canon(food.name));
           items.push({
-            name: "Oats",
-            portion: `${oatsGrams}g`,
-            category: "Carbs",
-            est_macros: oatsContrib,
+            name: canonicalName(food.name),
+            portion,
+            category,
+            est_macros: {
+              calories: Math.round(raw.calories),
+              protein_g: Math.round(raw.protein_g * 10) / 10,
+              carbs_g: Math.round(raw.carbs_g * 10) / 10,
+              fat_g: Math.round(raw.fat_g * 100) / 100,
+            },
           });
-          pushDebugFromUsda(slot, i, "Oats", "Carbs", OATS_PER100, OATS_USDA_DESC, `${oatsGrams}g`);
-          usedCarbs.add(canon("Oats"));
-        }
-
-        // Step 1 — whole egg count from the slot's original fat target.
-        let wholeCount = Math.floor(Math.max(0, target.fat_g) / 4.75);
-        wholeCount = Math.min(wholeCount, 3);
-        wholeCount = Math.max(wholeCount, 1);
-
-        // Step 2 — subtract whole eggs.
-        const wholeContrib = {
-          calories: Math.round(WHOLE.calories * wholeCount),
-          protein_g: Math.round(WHOLE.protein_g * wholeCount * 10) / 10,
-          carbs_g: Math.round(WHOLE.carbs_g * wholeCount * 10) / 10,
-          fat_g: Math.round(WHOLE.fat_g * wholeCount * 100) / 100,
+          pushDebugFromUsda(slot, i, food.name, category, food.per100, `${food.name} (pinned density, per 100g)`, portion);
         };
-        remainingProtein -= WHOLE.protein_g * wholeCount;
-        remainingCarbs -= WHOLE.carbs_g * wholeCount;
-        remainingFat -= WHOLE.fat_g * wholeCount;
-        addActual({
-          calories: WHOLE.calories * wholeCount,
-          protein_g: WHOLE.protein_g * wholeCount,
-          carbs_g: WHOLE.carbs_g * wholeCount,
-          fat_g: WHOLE.fat_g * wholeCount,
-        });
-        items.push({
-          name: "Whole Egg",
-          portion: `${wholeCount} ${wholeCount === 1 ? "egg" : "eggs"}`,
-          category: "Protein",
-          est_macros: wholeContrib,
-        });
-        pushDebugFromUsda(slot, i, "Whole Egg", "Protein", { calories: 143, protein_g: 12.6, carbs_g: 0.6, fat_g: 9.5 }, "Whole Egg (hard-coded, 50g)", `${wholeCount} ${wholeCount === 1 ? "egg" : "eggs"}`);
 
-        // Step 3 — (removed) previously subtracted `wholeCount` separate egg whites.
-        // We now fold that protein into the liquid-egg-whites portion below so the
-        // client doesn't buy extra whole eggs just to discard the yolks. Leaving
-        // `remainingProtein` untouched here means Step 4 naturally picks up the
-        // ~3.6g protein per egg white at the 11g/100g liquid density (~33g per
-        // egg white), rounded to the nearest 5g with the rest of the gap.
-
-
-
-        // Step 4 — liquid egg whites fill remaining protein.
-        const rawLiquid = Math.max(0, remainingProtein) / 11 * 100;
-        const liquidGrams = Math.max(0, Math.round(rawLiquid / 5) * 5);
-        if (liquidGrams > 0) {
-          const factor = liquidGrams / 100;
-          const liquidContrib = {
-            calories: Math.round(LIQUID_PER100.calories * factor),
-            protein_g: Math.round(LIQUID_PER100.protein_g * factor * 10) / 10,
-            carbs_g: Math.round(LIQUID_PER100.carbs_g * factor * 10) / 10,
-            fat_g: Math.round(LIQUID_PER100.fat_g * factor * 100) / 100,
-          };
-          remainingProtein -= LIQUID_PER100.protein_g * factor;
-          remainingCarbs -= LIQUID_PER100.carbs_g * factor;
-          remainingFat -= LIQUID_PER100.fat_g * factor;
-          addActual({
-            calories: LIQUID_PER100.calories * factor,
-            protein_g: LIQUID_PER100.protein_g * factor,
-            carbs_g: LIQUID_PER100.carbs_g * factor,
-            fat_g: LIQUID_PER100.fat_g * factor,
-          });
-          items.push({
-            name: "Liquid Egg Whites",
-            portion: `${liquidGrams}g`,
-            category: "Protein",
-            est_macros: liquidContrib,
-          });
-          pushDebugFromUsda(slot, i, "Liquid Egg Whites", "Protein", LIQUID_PER100, "Liquid Egg Whites (hard-coded, per 100g)", `${liquidGrams}g`);
+        // --- Breakfast carbs: a slow carb and a fast carb, sized jointly ---
+        const slowPick = pick(allowPinned(BREAKFAST_SLOW_CARBS));
+        const fastPick = pick(allowPinned(BREAKFAST_FAST_CARBS));
+        if (remainingCarbs > 0 && (slowPick || fastPick)) {
+          const carbTarget = remainingCarbs;
+          const slowShare = slowPick && fastPick ? 0.6 : slowPick ? 1 : 0;
+          if (slowPick && slowShare > 0) {
+            const grams = Math.max(5, Math.round(((carbTarget * slowShare) / slowPick.per100.carbs_g) * 100 / 5) * 5);
+            placePinned(slowPick, grams, `${grams}g`, "Carbs", usedCarbs);
+          }
+          if (fastPick && remainingCarbs > 0) {
+            const grams = Math.max(5, Math.round((remainingCarbs / fastPick.per100.carbs_g) * 100 / 5) * 5);
+            placePinned(fastPick, grams, `${grams}g`, "Carbs", usedCarbs);
+          }
+        } else if (remainingCarbs > 0) {
+          console.log(`[generate-foodlist-plan] breakfast: all pinned carbs excluded — falling back to AI carb candidates`);
+          const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n)));
+          if (fallbackName) {
+            const portion = fmtPortionG((remainingCarbs * 100) / 25);
+            const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Carbs");
+            subtract(est); addActual(est);
+            usedCarbs.add(canon(fallbackName));
+            items.push({ name: canonicalName(fallbackName), portion, category: "Carbs", est_macros: est });
+            pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
+          }
         }
-        usedProtein.add(canon("Eggs"));
+
+        // --- Breakfast protein: one pick from the curated pool ---
+        const proteinPool = allowPinned(BREAKFAST_PROTEIN_POOL);
+        const eggWhole = proteinPool.find((f) => f.name === "Whole Egg") ?? null;
+        const eggWhites = proteinPool.find((f) => f.name === "Liquid Egg Whites") ?? null;
+        // Treat the egg pair as a single option so eggs don't get double weight.
+        const options: PinnedFood[] = proteinPool.filter((f) => f.name !== "Liquid Egg Whites");
+        const proteinPick = pick(options);
+
+        if (proteinPick && proteinPick.name === "Whole Egg" && eggWhole) {
+          // Egg path — whole eggs derive fat from the yolks, liquid whites fill protein.
+          let wholeCount = Math.floor(Math.max(0, target.fat_g) / 4.75);
+          wholeCount = Math.min(Math.max(wholeCount, 1), 3);
+          placePinned(eggWhole, wholeCount * 50, `${wholeCount} ${wholeCount === 1 ? "egg" : "eggs"}`, "Protein", usedProtein);
+          if (eggWhites && remainingProtein > 0) {
+            const grams = Math.max(0, Math.round(((remainingProtein / eggWhites.per100.protein_g) * 100) / 5) * 5);
+            if (grams > 0) placePinned(eggWhites, grams, `${grams}g`, "Protein", usedProtein);
+          }
+        } else if (proteinPick) {
+          const grams = roundPortionG((Math.max(0, remainingProtein) * 100) / Math.max(1, proteinPick.per100.protein_g));
+          placePinned(proteinPick, grams, `${grams}g`, "Protein", usedProtein);
+        } else if (remainingProtein > 0) {
+          console.log(`[generate-foodlist-plan] breakfast: all pinned proteins excluded — falling back to AI protein candidates`);
+          const found = await findUSDAFood(cands.protein ?? [], usedProtein, "Protein");
+          if (found) {
+            const grams = roundPortionG((Math.max(0, remainingProtein) * 100) / Math.max(1, found.per100.protein_g));
+            const portion = fmtPortionG(grams);
+            const contrib = contributionAt(found.per100, grams);
+            subtract(contrib);
+            usedProtein.add(canon(found.name));
+            items.push({ name: canonicalName(found.name), portion, category: "Protein", est_macros: contrib });
+            pushDebugFromUsda(slot, i, found.name, "Protein", found.per100, found.usdaDescription, portion);
+          } else {
+            const fallbackName = allowNames([...(cands.protein ?? []), ...LEAN_PROTEIN_POOL]).find((n) => !usedProtein.has(canon(n)));
+            if (fallbackName) {
+              const portion = fmtPortionG((remainingProtein * 100) / 30);
+              const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Protein");
+              subtract(est); addActual(est);
+              usedProtein.add(canon(fallbackName));
+              items.push({ name: canonicalName(fallbackName), portion, category: "Protein", est_macros: est });
+              pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
+            }
+          }
+        }
+        // The shared fat step below runs for breakfast too, so a non-egg protein
+        // (yoghurt / cottage cheese) still gets a real fat source.
       } else {
 
 
@@ -843,7 +953,12 @@ Deno.serve(async (req) => {
             items.push({ name: canonicalName(found.name), portion, category: "Protein", est_macros: contrib });
             pushDebugFromUsda(slot, i, found.name, "Protein", found.per100, found.usdaDescription, portion);
           } else {
-            const fallbackName = candidates.find((n) => !usedProtein.has(canon(n))) ?? "Chicken Breast";
+            const fallbackName = allowNames(candidates).find((n) => !usedProtein.has(canon(n)))
+              ?? allowNames(LEAN_PROTEIN_POOL).find((n) => !usedProtein.has(canon(n)));
+            if (!fallbackName) {
+              console.log(`[generate-foodlist-plan] no allowed protein source for ${slot} after exclusions`);
+              return;
+            }
             let portion: string;
             if (isEggName(fallbackName)) {
               const count = Math.max(1, Math.round(remainingProtein / 6));
@@ -874,20 +989,25 @@ Deno.serve(async (req) => {
           // Legume pairing — Step 1: size legume to carb target, subtract ALL macros (incl. protein).
           placeCarbFromFound(carbFound);
           // Step 2/3 — force lean protein sized to REMAINING protein.
-          if (remainingProtein > 0) await placeProtein(LEAN_PROTEIN_POOL);
+          if (remainingProtein > 0) await placeProtein(allowNames(LEAN_PROTEIN_POOL));
         } else {
           // Standard order: carbs first (subtract all macros incl. protein), then protein
           // sized to what remains — prevents protein overage from carb-side protein.
           if (carbFound) {
             placeCarbFromFound(carbFound);
           } else if (remainingCarbs > 0) {
-            const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n))) ?? "Brown Rice";
-            const portion = fmtPortionG((remainingCarbs * 100) / 25);
-            const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Carbs");
-            subtract(est); addActual(est);
-            usedCarbs.add(canon(fallbackName));
-            items.push({ name: canonicalName(fallbackName), portion, category: "Carbs", est_macros: est });
-            pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
+            const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n)))
+              ?? allowNames(["Brown Rice", "Quinoa", "Sweet Potato", "White Potato"]).find((n) => !usedCarbs.has(canon(n)));
+            if (fallbackName) {
+              const portion = fmtPortionG((remainingCarbs * 100) / 25);
+              const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Carbs");
+              subtract(est); addActual(est);
+              usedCarbs.add(canon(fallbackName));
+              items.push({ name: canonicalName(fallbackName), portion, category: "Carbs", est_macros: est });
+              pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
+            } else {
+              console.log(`[generate-foodlist-plan] no allowed carb source for ${slot} after exclusions`);
+            }
           }
           if (remainingProtein > 0) await placeProtein(cands.protein ?? []);
         }
@@ -918,26 +1038,32 @@ Deno.serve(async (req) => {
           pushDebugFromUsda(slot, i, found.name, "Fat", found.per100, found.usdaDescription, portion);
         } else {
           if (found && !foundValid) {
-            console.log(`[generate-foodlist-plan] Fat USDA result for "${found.name}" had invalid fat density (${foundFatPer100}g/100g) — falling back to hard-coded olive oil.`);
+            console.log(`[generate-foodlist-plan] Fat USDA result for "${found.name}" had invalid fat density (${foundFatPer100}g/100g) — falling back to a pinned oil.`);
           } else {
-            console.log(`[generate-foodlist-plan] Fat USDA lookup returned no valid match for ${slot} — falling back to hard-coded olive oil.`);
+            console.log(`[generate-foodlist-plan] Fat USDA lookup returned no valid match for ${slot} — falling back to a pinned oil.`);
           }
-          // Hard-coded olive oil fallback — ensures fat target is always met.
-          const OLIVE_OIL_PER100: Macros = { calories: 884, protein_g: 0, carbs_g: 0, fat_g: 100 };
-          const tsp = Math.max(1, Math.round(remainingFat / 4.5));
-          const grams = tsp * 4.5;
-          const portion = `${tsp} tsp`;
-          const contrib = rawContributionAt(OLIVE_OIL_PER100, grams);
-          subtract(contrib);
-          addActual(contrib);
-          usedFat.add(canon("Olive Oil"));
-          items.push({ name: canonicalName("Olive Oil"), portion, category: "Fat", est_macros: {
-            calories: Math.round(contrib.calories),
-            protein_g: Math.round(contrib.protein_g),
-            carbs_g: Math.round(contrib.carbs_g),
-            fat_g: Math.round(contrib.fat_g),
-          } });
-          pushDebugEstimated(slot, i, "Olive Oil", "Fat", portion);
+          // Pinned oil fallback — ensures the fat target is met, exclusion-aware.
+          const OIL_FALLBACKS = ["Olive Oil", "Avocado Oil", "Coconut Oil"];
+          const oilName = allowNames(OIL_FALLBACKS).find((n) => !usedFat.has(canon(n))) ?? allowNames(OIL_FALLBACKS)[0];
+          if (!oilName) {
+            console.log(`[generate-foodlist-plan] no allowed fat source for ${slot} after exclusions`);
+          } else {
+            const OIL_PER100: Macros = { calories: 884, protein_g: 0, carbs_g: 0, fat_g: 100 };
+            const tsp = Math.max(1, Math.round(remainingFat / 4.5));
+            const grams = tsp * 4.5;
+            const portion = `${tsp} tsp`;
+            const contrib = rawContributionAt(OIL_PER100, grams);
+            subtract(contrib);
+            addActual(contrib);
+            usedFat.add(canon(oilName));
+            items.push({ name: canonicalName(oilName), portion, category: "Fat", est_macros: {
+              calories: Math.round(contrib.calories),
+              protein_g: Math.round(contrib.protein_g),
+              carbs_g: Math.round(contrib.carbs_g),
+              fat_g: Math.round(contrib.fat_g),
+            } });
+            pushDebugEstimated(slot, i, oilName, "Fat", portion);
+          }
         }
       }
 
@@ -962,7 +1088,17 @@ Deno.serve(async (req) => {
         portion: "", estimated: false, variance: true,
       } as never);
 
-      out[slot] = items.map((it) => {
+      // Final output-level exclusion pass — nothing excluded may ever reach a client,
+      // regardless of which pool or fallback produced it.
+      const kept = items.filter((it) => {
+        if (isExcluded(it.name)) {
+          console.log(`[generate-foodlist-plan] output exclusion drop: "${it.name}" (${slot})`);
+          return false;
+        }
+        return true;
+      });
+
+      out[slot] = kept.map((it) => {
         // Final safety net: never let a brand name reach a client, and never
         // surface an "(estimated)" suffix in the displayed name.
         let safeName = it.name.replace(/\s*\(estimated\)\s*/gi, " ").replace(/\s+/g, " ").trim();
@@ -996,7 +1132,7 @@ Deno.serve(async (req) => {
       });
 
 
-      for (const it of items) {
+      for (const it of kept) {
         const cleanName = it.name.replace(/\s*\(estimated\)\s*$/i, "").trim();
         if (it.category === "Protein" || it.category === "Carbs") {
           if (!excludedFoods.includes(cleanName)) excludedFoods.push(cleanName);
