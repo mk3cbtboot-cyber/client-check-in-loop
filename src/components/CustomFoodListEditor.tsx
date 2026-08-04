@@ -542,17 +542,22 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
               <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} onBlur={onNameBlur} placeholder="e.g. Chicken breast" className="h-8" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Portion ({eggMode ? "egg count" : "grams"})</Label>
+              <Label className="text-xs">
+                Portion ({eggMode ? "egg count" : spoonUnit ? spoonUnit : "grams"})
+              </Label>
               <Input
                 type="number"
                 inputMode="decimal"
                 min={0}
-                step={eggMode ? 1 : 1}
+                step={eggMode || spoonUnit ? 1 : 1}
                 value={draftPortionNum}
                 onChange={(e) => onPortionChange(e.target.value)}
-                placeholder={eggMode ? "e.g. 2" : "e.g. 150"}
+                placeholder={eggMode ? "e.g. 2" : spoonUnit ? "e.g. 3" : "e.g. 150"}
                 className="h-8"
               />
+              {spoonUnit && spoonGrams !== null && (
+                <p className="text-[11px] text-muted-foreground">≈ {Math.round(spoonGrams)}g</p>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Category</Label>
