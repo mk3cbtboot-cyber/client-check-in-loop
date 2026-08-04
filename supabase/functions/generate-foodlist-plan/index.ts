@@ -275,7 +275,10 @@ const EXCLUSION_FILLERS = new Set([
   "intolerance", "dislike", "dislikes", "hate", "hates", "free", "i", "im",
   "dont", "do", "eat", "eats", "eating", "any", "all", "please", "cant",
   "my", "of", "to", "the", "a", "an", "is", "are", "with", "anything",
-  "food", "foods", "products", "product", "based", "please",
+  "food", "foods", "products", "product", "based",
+  // Generic modifiers — too broad to exclude on their own ("egg white" is
+  // already covered by the "egg" group).
+  "white", "whites", "plain", "liquid", "whole", "fresh", "raw", "cooked",
 ]);
 
 // Groups let one term pull in its family: "egg" blocks egg whites, "dairy"
