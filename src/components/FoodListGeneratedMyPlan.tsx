@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { customSlotLabel } from "@/lib/meal-slots";
+import { formatPortionDisplay } from "@/lib/portion";
 import { type FoodItem, categorize, type CategoryKey } from "@/components/FoodSelectionPlanSection";
 
 
@@ -55,7 +56,7 @@ export default function FoodListGeneratedMyPlan({ foodList, foodListNotes, meals
                   {ordered.map(({ cat, food }, i) => (
                     <li key={i}>
                       <span className="font-medium">{stripEstimated(food.name)}</span>
-                      {food.portion ? <> · {food.portion}</> : null}
+                      {food.portion ? <> · {formatPortionDisplay(food.portion, food.name)}</> : null}
                     </li>
                   ))}
                 </ul>

@@ -16,7 +16,7 @@ import { Pencil, Trash2, Plus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
 import MacroTracker, { type MacroSet } from "@/components/MacroTracker";
-import { portionToGrams } from "@/lib/portion";
+import { portionToGrams, formatPortionDisplay, normalizeUnit } from "@/lib/portion";
 import { sumMacros, withDensityModel, type DensityFoodItem } from "@/lib/macros";
 
 export type FoodCategoryKind = "Protein" | "Carbs" | "Veg" | "Fat" | "Other";
@@ -511,7 +511,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
               <div className="min-w-0 flex-1">
                 <p className="font-medium truncate">{it.name}</p>
                 <p className="text-muted-foreground">
-                  {it.portion} · <span className="uppercase tracking-wide">{it.category}</span>
+                  {formatPortionDisplay(it.portion, it.name)} · <span className="uppercase tracking-wide">{it.category}</span>
                 </p>
               </div>
               <div className="flex items-center gap-1 shrink-0">

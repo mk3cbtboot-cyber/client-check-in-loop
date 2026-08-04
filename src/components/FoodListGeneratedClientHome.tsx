@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
+import { formatPortionDisplay } from "@/lib/portion";
 import { type FoodItem, categorize, type CategoryKey } from "@/components/FoodSelectionPlanSection";
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
@@ -147,7 +148,7 @@ function GeneratedSlotSection({ token, slotKey, label, selectedFoods, hasAnySele
                 {selectedFoods.map(({ cat, food }) => (
                   <li key={cat}>
                     <span className="font-medium">{stripEstimated(food.name)}</span>
-                    {food.portion ? <> · {food.portion}</> : null}
+                    {food.portion ? <> · {formatPortionDisplay(food.portion, food.name)}</> : null}
 
                   </li>
                 ))}
