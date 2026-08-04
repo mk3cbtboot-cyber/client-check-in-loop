@@ -1035,26 +1035,32 @@ Deno.serve(async (req) => {
           pushDebugFromUsda(slot, i, found.name, "Fat", found.per100, found.usdaDescription, portion);
         } else {
           if (found && !foundValid) {
-            console.log(`[generate-foodlist-plan] Fat USDA result for "${found.name}" had invalid fat density (${foundFatPer100}g/100g) — falling back to hard-coded olive oil.`);
+            console.log(`[generate-foodlist-plan] Fat USDA result for "${found.name}" had invalid fat density (${foundFatPer100}g/100g) — falling back to a pinned oil.`);
           } else {
-            console.log(`[generate-foodlist-plan] Fat USDA lookup returned no valid match for ${slot} — falling back to hard-coded olive oil.`);
+            console.log(`[generate-foodlist-plan] Fat USDA lookup returned no valid match for ${slot} — falling back to a pinned oil.`);
           }
-          // Hard-coded olive oil fallback — ensures fat target is always met.
-          const OLIVE_OIL_PER100: Macros = { calories: 884, protein_g: 0, carbs_g: 0, fat_g: 100 };
-          const tsp = Math.max(1, Math.round(remainingFat / 4.5));
-          const grams = tsp * 4.5;
-          const portion = `${tsp} tsp`;
-          const contrib = rawContributionAt(OLIVE_OIL_PER100, grams);
-          subtract(contrib);
-          addActual(contrib);
-          usedFat.add(canon("Olive Oil"));
-          items.push({ name: canonicalName("Olive Oil"), portion, category: "Fat", est_macros: {
-            calories: Math.round(contrib.calories),
-            protein_g: Math.round(contrib.protein_g),
-            carbs_g: Math.round(contrib.carbs_g),
-            fat_g: Math.round(contrib.fat_g),
-          } });
-          pushDebugEstimated(slot, i, "Olive Oil", "Fat", portion);
+          // Pinned oil fallback — ensures the fat target is met, exclusion-aware.
+          const OIL_FALLBACKS = ["Olive Oil", "Avocado Oil", "Coconut Oil"];
+          const oilName = allowNames(OIL_FALLBACKS).find((n) => !usedFat.has(canon(n))) ?? allowNames(OIL_FALLBACKS)[0];
+          if (!oilName) {
+            console.log(`[generate-foodlist-plan] no allowed fat source for ${slot} after exclusions`);
+          } else {
+            const OIL_PER100: Macros = { calories: 884, protein_g: 0, carbs_g: 0, fat_g: 100 };
+            const tsp = Math.max(1, Math.round(remainingFat / 4.5));
+            const grams = tsp * 4.5;
+            const portion = `${tsp} tsp`;
+            const contrib = rawContributionAt(OIL_PER100, grams);
+            subtract(contrib);
+            addActual(contrib);
+            usedFat.add(canon(oilName));
+            items.push({ name: canonicalName(oilName), portion, category: "Fat", est_macros: {
+              calories: Math.round(contrib.calories),
+              protein_g: Math.round(contrib.protein_g),
+              carbs_g: Math.round(contrib.carbs_g),
+              fat_g: Math.round(contrib.fat_g),
+            } });
+            pushDebugEstimated(slot, i, oilName, "Fat", portion);
+          }
         }
       }
 
