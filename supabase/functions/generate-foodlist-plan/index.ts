@@ -986,20 +986,25 @@ Deno.serve(async (req) => {
           // Legume pairing — Step 1: size legume to carb target, subtract ALL macros (incl. protein).
           placeCarbFromFound(carbFound);
           // Step 2/3 — force lean protein sized to REMAINING protein.
-          if (remainingProtein > 0) await placeProtein(LEAN_PROTEIN_POOL);
+          if (remainingProtein > 0) await placeProtein(allowNames(LEAN_PROTEIN_POOL));
         } else {
           // Standard order: carbs first (subtract all macros incl. protein), then protein
           // sized to what remains — prevents protein overage from carb-side protein.
           if (carbFound) {
             placeCarbFromFound(carbFound);
           } else if (remainingCarbs > 0) {
-            const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n))) ?? "Brown Rice";
-            const portion = fmtPortionG((remainingCarbs * 100) / 25);
-            const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Carbs");
-            subtract(est); addActual(est);
-            usedCarbs.add(canon(fallbackName));
-            items.push({ name: canonicalName(fallbackName), portion, category: "Carbs", est_macros: est });
-            pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
+            const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n)))
+              ?? allowNames(["Brown Rice", "Quinoa", "Sweet Potato", "White Potato"]).find((n) => !usedCarbs.has(canon(n)));
+            if (fallbackName) {
+              const portion = fmtPortionG((remainingCarbs * 100) / 25);
+              const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Carbs");
+              subtract(est); addActual(est);
+              usedCarbs.add(canon(fallbackName));
+              items.push({ name: canonicalName(fallbackName), portion, category: "Carbs", est_macros: est });
+              pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
+            } else {
+              console.log(`[generate-foodlist-plan] no allowed carb source for ${slot} after exclusions`);
+            }
           }
           if (remainingProtein > 0) await placeProtein(cands.protein ?? []);
         }
