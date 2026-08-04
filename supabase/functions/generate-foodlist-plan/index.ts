@@ -452,6 +452,7 @@ async function aiCandidatesForSlot(
     excludedFoods: string[];
     usedFats: string[];
     exclusions: string[];
+    eggsAllowed: boolean;
     preferences: string;
   },
 ): Promise<{ protein: string[]; carbs: string[]; veg: string[]; fat: string[] }> {
