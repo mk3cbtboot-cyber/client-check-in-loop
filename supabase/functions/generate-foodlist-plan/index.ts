@@ -915,12 +915,10 @@ Deno.serve(async (req) => {
           for (let it = 0; it < 10; it += 1) {
             gFlax = flax && tF > 0 ? Math.max(0, (tF - contrib("fat_g", "flax")) * 100 / flax.per100.fat_g) : 0;
             gProt = Math.max(0, (tP - contrib("protein_g", "prot")) * 100 / Math.max(1, bfPick.per100.protein_g));
-            const cRem = Math.max(0, tC - contrib("carbs_g", "slow") - (per(slowPick, "carbs_g") * 0) );
             const cAfter = Math.max(0, tC - (per(flax, "carbs_g") * gFlax + per(bfPick, "carbs_g") * gProt) / 100);
             const slowShare = slowPick && fastPick ? 0.6 : slowPick ? 1 : 0;
             gSlow = slowPick ? (cAfter * slowShare) * 100 / slowPick.per100.carbs_g : 0;
             gFast = fastPick ? Math.max(0, cAfter - per(slowPick, "carbs_g") * gSlow / 100) * 100 / fastPick.per100.carbs_g : 0;
-            void cRem;
           }
           // Round sequentially, re-solving the remainder after each rounding so
           // rounding error never accumulates into a big over/undershoot.
