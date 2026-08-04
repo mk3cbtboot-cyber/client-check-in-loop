@@ -250,9 +250,16 @@ type PinnedFood = { name: string; per100: Macros };
 const BREAKFAST_PROTEIN_POOL: PinnedFood[] = [
   { name: "Whole Egg", per100: { calories: 143, protein_g: 12.6, carbs_g: 0.6, fat_g: 9.5 } },
   { name: "Liquid Egg Whites", per100: { calories: 52, protein_g: 11, carbs_g: 0.7, fat_g: 0.2 } },
-  { name: "Plain Greek Yoghurt", per100: { calories: 59, protein_g: 10, carbs_g: 3.6, fat_g: 0.4 } },
-  { name: "Cottage Cheese", per100: { calories: 98, protein_g: 11, carbs_g: 3.4, fat_g: 4.3 } },
+  // Low-fat / non-fat versions — the dairy breakfast takes its fat from flaxseed.
+  { name: "Non-Fat Greek Yoghurt", per100: { calories: 59, protein_g: 10.3, carbs_g: 3.6, fat_g: 0.2 } },
+  { name: "Low-Fat Cottage Cheese", per100: { calories: 72, protein_g: 12.4, carbs_g: 2.7, fat_g: 1.0 } },
 ];
+
+// Fat source for a yoghurt / cottage-cheese breakfast — mixes in, unlike oil.
+const BREAKFAST_DAIRY_FAT: PinnedFood = {
+  name: "Ground Flaxseed",
+  per100: { calories: 534, protein_g: 18.3, carbs_g: 28.9, fat_g: 42.2 },
+};
 
 const BREAKFAST_SLOW_CARBS: PinnedFood[] = [
   { name: "Oats", per100: OATS_PER100 },
