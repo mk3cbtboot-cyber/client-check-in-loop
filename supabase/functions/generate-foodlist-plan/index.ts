@@ -1129,7 +1129,7 @@ Deno.serve(async (req) => {
       });
 
 
-      for (const it of items) {
+      for (const it of kept) {
         const cleanName = it.name.replace(/\s*\(estimated\)\s*$/i, "").trim();
         if (it.category === "Protein" || it.category === "Carbs") {
           if (!excludedFoods.includes(cleanName)) excludedFoods.push(cleanName);
