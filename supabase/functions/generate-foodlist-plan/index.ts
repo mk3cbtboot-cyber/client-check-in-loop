@@ -238,11 +238,107 @@ const VEG_POOL = [
   "Tomato", "Asparagus", "Green Beans", "Kale", "Cauliflower",
 ];
 
-const EGG_PROTEIN_POOL = ["Eggs"];
-
 // Legume detector — when the chosen carb source is a legume, pair it with a lean protein.
 const LEGUME_PAIR_RE = /\b(black beans?|kidney beans?|chickpeas?|garbanzos?|lentils?|pinto beans?|cannellini( beans?)?|navy beans?)\b/i;
 const LEAN_PROTEIN_POOL = ["Chicken Breast", "Turkey Breast", "Cod", "Haddock"];
+
+// ---- Curated breakfast pools (pinned per-100g densities) -----------------
+// Accuracy here is literal, not USDA-dependent, so breakfast can vary without
+// risking a bad macro match.
+type PinnedFood = { name: string; per100: Macros };
+
+const BREAKFAST_PROTEIN_POOL: PinnedFood[] = [
+  { name: "Whole Egg", per100: { calories: 143, protein_g: 12.6, carbs_g: 0.6, fat_g: 9.5 } },
+  { name: "Liquid Egg Whites", per100: { calories: 52, protein_g: 11, carbs_g: 0.7, fat_g: 0.2 } },
+  { name: "Plain Greek Yoghurt", per100: { calories: 59, protein_g: 10, carbs_g: 3.6, fat_g: 0.4 } },
+  { name: "Cottage Cheese", per100: { calories: 98, protein_g: 11, carbs_g: 3.4, fat_g: 4.3 } },
+];
+
+const BREAKFAST_SLOW_CARBS: PinnedFood[] = [
+  { name: "Oats", per100: OATS_PER100 },
+];
+
+const BREAKFAST_FAST_CARBS: PinnedFood[] = [
+  { name: "Blueberries", per100: { calories: 57, protein_g: 0.7, carbs_g: 14.5, fat_g: 0.3 } },
+  { name: "Strawberries", per100: { calories: 32, protein_g: 0.7, carbs_g: 7.7, fat_g: 0.3 } },
+  { name: "Raspberries", per100: { calories: 52, protein_g: 1.2, carbs_g: 11.9, fat_g: 0.7 } },
+  { name: "Banana", per100: { calories: 89, protein_g: 1.1, carbs_g: 22.8, fat_g: 0.3 } },
+  { name: "Apple", per100: { calories: 52, protein_g: 0.3, carbs_g: 13.8, fat_g: 0.2 } },
+];
+
+// ---- Exclusion engine ----------------------------------------------------
+// Free text like "no eggs or egg whites" must genuinely block every source,
+// including the hard-coded pools.
+const EXCLUSION_FILLERS = new Set([
+  "no", "none", "not", "never", "avoid", "avoiding", "without", "exclude",
+  "excluding", "excluded", "allergic", "allergy", "allergies", "intolerant",
+  "intolerance", "dislike", "dislikes", "hate", "hates", "free", "i", "im",
+  "dont", "do", "eat", "eats", "eating", "any", "all", "please", "cant",
+  "my", "of", "to", "the", "a", "an", "is", "are", "with", "anything",
+  "food", "foods", "products", "product", "based", "please",
+]);
+
+// Groups let one term pull in its family: "egg" blocks egg whites, "dairy"
+// blocks yoghurt and cottage cheese, etc.
+const EXCLUSION_GROUPS: string[][] = [
+  ["egg", "eggwhite", "omelette", "omelet", "frittata"],
+  ["dairy", "milk", "yoghurt", "yogurt", "cheese", "cottage", "cream", "butter", "ghee", "kefir", "whey", "quark"],
+  ["gluten", "wheat", "bread", "pasta", "couscous", "barley", "rye"],
+  ["shellfish", "shrimp", "prawn", "crab", "lobster", "clam", "mussel", "oyster", "scallop"],
+  ["nut", "almond", "cashew", "walnut", "pecan", "pistachio", "peanut", "hazelnut", "macadamia"],
+  ["seed", "sunflower", "pumpkin", "sesame", "chia", "flax"],
+  ["soy", "soya", "tofu", "tempeh", "edamame"],
+  ["pork", "bacon", "ham", "prosciutto", "pancetta"],
+  ["fish", "salmon", "tuna", "cod", "haddock", "tilapia", "sardine", "mackerel", "trout"],
+];
+
+function singular(w: string): string {
+  if (w.length > 3 && w.endsWith("ies")) return `${w.slice(0, -3)}y`;
+  if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss")) return w.slice(0, -1);
+  return w;
+}
+
+function normWords(s: string): string[] {
+  return String(s ?? "")
+    .toLowerCase()
+    .replace(/[^a-z]+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map(singular);
+}
+
+/** Parse free-text exclusions into normalized single-word tokens. */
+function parseExclusionTerms(raw: string[]): string[] {
+  const terms = new Set<string>();
+  for (const chunk of raw) {
+    for (const part of String(chunk ?? "").split(/[,;/\n]|\band\b|\bor\b|\bplus\b/i)) {
+      for (const w of normWords(part)) {
+        if (!w || w.length < 3 || EXCLUSION_FILLERS.has(w)) continue;
+        terms.add(w);
+      }
+    }
+  }
+  // Expand via groups.
+  for (const group of EXCLUSION_GROUPS) {
+    if (group.some((g) => terms.has(singular(g)))) {
+      for (const g of group) terms.add(singular(g));
+    }
+  }
+  return [...terms];
+}
+
+function makeExclusionFilter(raw: string[]) {
+  const terms = parseExclusionTerms(raw);
+  const isExcluded = (name: string): boolean => {
+    if (!terms.length) return false;
+    const words = normWords(name);
+    const joined = words.join("");
+    return terms.some((t) => words.includes(t) || (t.length >= 5 && joined.includes(t)));
+  };
+  return { terms, isExcluded };
+}
+
 
 // ---- Brand / proper-noun safety net -------------------------------------
 // Maps known brand names to generic descriptions. Anything brand-like that is
