@@ -715,6 +715,7 @@ Deno.serve(async (req) => {
           excludedFoods,           // empty at this point — kept for prompt shape
           usedFats: usedFatNames,  // empty at this point — kept for prompt shape
           exclusions,
+          eggsAllowed,
           preferences,
         }).catch((e) => {
           console.error("aiCandidatesForSlot failed", slot, e);
@@ -730,10 +731,11 @@ Deno.serve(async (req) => {
       debugTargets.push({ slot, slot_index: i, ...target });
       const cands = candidatesPerSlot[i];
 
-      cands.veg = [...(cands.veg ?? []), ...VEG_POOL];
-      if (i === 0) {
-        cands.protein = [...EGG_PROTEIN_POOL];
-      }
+      // Hard exclusion filter over EVERY candidate source, AI or hard-coded.
+      cands.veg = allowNames([...(cands.veg ?? []), ...VEG_POOL]);
+      cands.protein = allowNames(cands.protein ?? []);
+      cands.carbs = allowNames(cands.carbs ?? []);
+      cands.fat = allowNames(cands.fat ?? []);
       const items: FoodItem[] = [];
 
       // Running totals — every food contributes to all three macros and reduces all remaining targets.
