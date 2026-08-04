@@ -950,7 +950,12 @@ Deno.serve(async (req) => {
             items.push({ name: canonicalName(found.name), portion, category: "Protein", est_macros: contrib });
             pushDebugFromUsda(slot, i, found.name, "Protein", found.per100, found.usdaDescription, portion);
           } else {
-            const fallbackName = candidates.find((n) => !usedProtein.has(canon(n))) ?? "Chicken Breast";
+            const fallbackName = allowNames(candidates).find((n) => !usedProtein.has(canon(n)))
+              ?? allowNames(LEAN_PROTEIN_POOL).find((n) => !usedProtein.has(canon(n)));
+            if (!fallbackName) {
+              console.log(`[generate-foodlist-plan] no allowed protein source for ${slot} after exclusions`);
+              return;
+            }
             let portion: string;
             if (isEggName(fallbackName)) {
               const count = Math.max(1, Math.round(remainingProtein / 6));
