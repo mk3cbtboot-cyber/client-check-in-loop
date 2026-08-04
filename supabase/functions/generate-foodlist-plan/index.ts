@@ -1052,7 +1052,7 @@ Deno.serve(async (req) => {
 
       // Step 5 — FAT sized to remaining fat. No deadband: any meal still short on
       // fat gets a fat source sized to cover the remainder.
-      if (remainingFat > 0) {
+      if (remainingFat > 0 && !skipGenericFat) {
         const found = await findUSDAFood(cands.fat ?? [], usedFat, "Fat");
         const foundFatPer100 = Number(found?.per100?.fat_g ?? 0);
         const foundValid = !!found && Number.isFinite(foundFatPer100) && foundFatPer100 > 0;
