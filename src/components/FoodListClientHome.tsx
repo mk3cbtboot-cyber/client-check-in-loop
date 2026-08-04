@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
+import { formatPortionDisplay } from "@/lib/portion";
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 
@@ -150,7 +151,7 @@ function FoodListSlotSection({ token, slotKey, label, foods, note, onLogged }: S
                 {foods.map((f, i) => (
                   <li key={i}>
                     <span className="font-medium">{f.name}</span>
-                    {f.portion ? <> · {f.portion}</> : null}
+                    {f.portion ? <> · {formatPortionDisplay(f.portion, f.name)}</> : null}
                   </li>
                 ))}
 

@@ -16,7 +16,7 @@ import { Pencil, Trash2, Plus, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
 import MacroTracker, { type MacroSet } from "@/components/MacroTracker";
-import { portionToGrams } from "@/lib/portion";
+import { portionToGrams, formatPortionDisplay, normalizeUnit } from "@/lib/portion";
 import { sumMacros, withDensityModel, type DensityFoodItem } from "@/lib/macros";
 
 export type FoodCategoryKind = "Protein" | "Carbs" | "Veg" | "Fat" | "Other";
@@ -485,6 +485,10 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
 
   const showForm = adding || editingIndex != null;
   const eggMode = isEggItem(draftName, draftCategory);
+  // Spoon-measured foods (oils/fats) keep their real unit in the label.
+  const normalizedDraftUnit = normalizeUnit(draftPortionUnit);
+  const spoonUnit = normalizedDraftUnit === "tsp" || normalizedDraftUnit === "tbsp" ? normalizedDraftUnit : null;
+  const spoonGrams = spoonUnit ? draftGrams() : null;
 
   return (
     <div className="rounded-md border p-3 space-y-3 bg-card">
@@ -511,7 +515,7 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
               <div className="min-w-0 flex-1">
                 <p className="font-medium truncate">{it.name}</p>
                 <p className="text-muted-foreground">
-                  {it.portion} · <span className="uppercase tracking-wide">{it.category}</span>
+                  {formatPortionDisplay(it.portion, it.name)} · <span className="uppercase tracking-wide">{it.category}</span>
                 </p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
@@ -542,17 +546,22 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
               <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} onBlur={onNameBlur} placeholder="e.g. Chicken breast" className="h-8" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Portion ({eggMode ? "egg count" : "grams"})</Label>
+              <Label className="text-xs">
+                Portion ({eggMode ? "egg count" : spoonUnit ? spoonUnit : "grams"})
+              </Label>
               <Input
                 type="number"
                 inputMode="decimal"
                 min={0}
-                step={eggMode ? 1 : 1}
+                step={eggMode || spoonUnit ? 1 : 1}
                 value={draftPortionNum}
                 onChange={(e) => onPortionChange(e.target.value)}
-                placeholder={eggMode ? "e.g. 2" : "e.g. 150"}
+                placeholder={eggMode ? "e.g. 2" : spoonUnit ? "e.g. 3" : "e.g. 150"}
                 className="h-8"
               />
+              {spoonUnit && spoonGrams !== null && (
+                <p className="text-[11px] text-muted-foreground">≈ {Math.round(spoonGrams)}g</p>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Category</Label>
