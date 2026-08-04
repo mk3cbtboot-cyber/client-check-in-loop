@@ -609,7 +609,14 @@ Deno.serve(async (req) => {
     const meals_per_day = [3, 4, 5].includes(Number(body?.meals_per_day)) ? Number(body.meals_per_day) : 3;
     const exclusions: string[] = Array.isArray(body?.exclusions)
       ? body.exclusions.map((x: unknown) => String(x ?? "").trim()).filter((x: string) => x.length > 0)
-      : [];
+      : typeof body?.exclusions === "string" && body.exclusions.trim()
+        ? [body.exclusions.trim()]
+        : [];
+    const { terms: exclusionTerms, isExcluded } = makeExclusionFilter(exclusions);
+    const eggsAllowed = !isExcluded("Whole Egg") && !isExcluded("Liquid Egg Whites");
+    console.log(`[generate-foodlist-plan] exclusion terms: ${exclusionTerms.join(", ") || "(none)"} | eggsAllowed=${eggsAllowed}`);
+    const allowNames = (list: string[]): string[] => list.filter((n) => !isExcluded(n));
+    const allowPinned = (list: PinnedFood[]): PinnedFood[] => list.filter((f) => !isExcluded(f.name));
     const preferences = typeof body?.preferences === "string" ? body.preferences.trim() : "";
     const activeSlots = slotsForMeals(meals_per_day);
 
