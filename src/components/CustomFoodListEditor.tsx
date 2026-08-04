@@ -485,6 +485,10 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
 
   const showForm = adding || editingIndex != null;
   const eggMode = isEggItem(draftName, draftCategory);
+  // Spoon-measured foods (oils/fats) keep their real unit in the label.
+  const normalizedDraftUnit = normalizeUnit(draftPortionUnit);
+  const spoonUnit = normalizedDraftUnit === "tsp" || normalizedDraftUnit === "tbsp" ? normalizedDraftUnit : null;
+  const spoonGrams = spoonUnit ? draftGrams() : null;
 
   return (
     <div className="rounded-md border p-3 space-y-3 bg-card">
