@@ -1085,7 +1085,17 @@ Deno.serve(async (req) => {
         portion: "", estimated: false, variance: true,
       } as never);
 
-      out[slot] = items.map((it) => {
+      // Final output-level exclusion pass — nothing excluded may ever reach a client,
+      // regardless of which pool or fallback produced it.
+      const kept = items.filter((it) => {
+        if (isExcluded(it.name)) {
+          console.log(`[generate-foodlist-plan] output exclusion drop: "${it.name}" (${slot})`);
+          return false;
+        }
+        return true;
+      });
+
+      out[slot] = kept.map((it) => {
         // Final safety net: never let a brand name reach a client, and never
         // surface an "(estimated)" suffix in the displayed name.
         let safeName = it.name.replace(/\s*\(estimated\)\s*/gi, " ").replace(/\s+/g, " ").trim();
