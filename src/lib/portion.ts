@@ -162,3 +162,18 @@ export function formatPortion(qty: number, unit: string): string {
   if (u === "egg") return `${n} ${n === 1 ? "egg" : "eggs"}`;
   return `${n} ${u}`;
 }
+
+/**
+ * Display string for a portion. Spoon-measured foods (oils/fats) show both the
+ * spoon measure and its gram equivalent, e.g. "3 tsp (14g)". Everything else is
+ * shown exactly as stored. Display only — no stored value changes.
+ */
+export function formatPortionDisplay(portion: string, name = ""): string {
+  const raw = String(portion ?? "").trim();
+  if (!raw) return raw;
+  const { qty, unit } = parsePortion(raw);
+  if (qty === null || (unit !== "tsp" && unit !== "tbsp")) return raw;
+  const grams = portionToGrams(raw, name);
+  if (grams === null || !(grams > 0)) return raw;
+  return `${raw} (${Math.round(grams)}g)`;
+}
