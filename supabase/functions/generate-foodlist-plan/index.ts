@@ -1033,7 +1033,12 @@ Deno.serve(async (req) => {
         // The shared fat step below still runs for a non-egg breakfast when
         // flaxseed was excluded, so there is always a real fat source.
       } else {
-
+        // --- Meals 2-5 — joint fixed-point sizing ---------------------------
+        // Food SELECTION is unchanged: same AI candidates, same USDA matching,
+        // same legume pairing, same lean-protein and pinned-oil fallbacks.
+        // Only the gram weights change: protein, carbs and fat are now solved
+        // together against the targets left after the 2x100g vegetables have
+        // already been deducted from all three running totals above.
 
         // Pre-fetch the carb candidate to detect legume pairing before sizing protein.
         const carbFound = remainingCarbs > 0
@@ -1042,42 +1047,80 @@ Deno.serve(async (req) => {
         const carbIsLegume = !!carbFound && (
           LEGUME_PAIR_RE.test(carbFound.name) || LEGUME_PAIR_RE.test(carbFound.usdaDescription)
         );
+        // Legume carb → force a lean protein, exactly as before.
+        const proteinCandidates = carbIsLegume ? allowNames(LEAN_PROTEIN_POOL) : (cands.protein ?? []);
+        const proteinFound = remainingProtein > 0
+          ? await findUSDAFood(proteinCandidates, usedProtein, "Protein")
+          : null;
+        const fatFound = await findUSDAFood(cands.fat ?? [], usedFat, "Fat");
 
-        const placeProtein = async (candidates: string[]) => {
-          const found = await findUSDAFood(candidates, usedProtein, "Protein");
-          if (found) {
-            const fatPer100 = Number(found.per100.fat_g ?? 0);
-            const proteinPer100 = Math.max(1, found.per100.protein_g);
-            let grams: number;
-            if (fatPer100 > 7) {
-              proteinWasFatty = true;
-              const fromProtein = (Math.max(0, remainingProtein) * 100) / proteinPer100;
-              const fromFat = (Math.max(0, remainingFat) * 100) / fatPer100;
-              grams = roundPortionG(Math.min(fromProtein, fromFat));
-              console.log(`[generate-foodlist-plan] fatty-protein cap on "${found.name}" (fat ${fatPer100}g/100g): fromProtein=${fromProtein.toFixed(1)}g fromFat=${fromFat.toFixed(1)}g → ${grams}g`);
-            } else {
-              grams = roundPortionG((Math.max(0, remainingProtein) * 100) / proteinPer100);
-            }
-            let portion: string;
-            if (isEggName(found.name)) {
-              const count = Math.max(1, Math.round(grams / 50));
-              grams = count * 50;
-              portion = `${count} ${count === 1 ? "egg" : "eggs"}`;
-            } else {
-              portion = fmtPortionG(grams);
-            }
-            const contrib = contributionAt(found.per100, grams);
-            subtract(contrib);
-            usedProtein.add(canon(found.name));
-            items.push({ name: canonicalName(found.name), portion, category: "Protein", est_macros: contrib });
-            pushDebugFromUsda(slot, i, found.name, "Protein", found.per100, found.usdaDescription, portion);
+        interface Placement {
+          entry: SolveEntry;
+          round: (g: number) => number;
+          place: (g: number) => void;
+        }
+        const placements: Placement[] = [];
+
+        // --- Carbs -----------------------------------------------------------
+        const carbDensity = Number(carbFound?.per100?.carbs_g ?? 0);
+        if (carbFound && carbDensity > 0) {
+          placements.push({
+            entry: { label: carbFound.name, per100: carbFound.per100, macro: "carbs_g", min: 15, max: 400 },
+            round: roundPortionG,
+            place: (g) => {
+              const portion = fmtPortionG(g);
+              const contrib = contributionAt(carbFound.per100, g);
+              subtract(contrib);
+              usedCarbs.add(canon(carbFound.name));
+              items.push({ name: canonicalName(carbFound.name), portion, category: "Carbs", est_macros: contrib });
+              pushDebugFromUsda(slot, i, carbFound.name, "Carbs", carbFound.per100, carbFound.usdaDescription, portion);
+            },
+          });
+        } else if (remainingCarbs > 0) {
+          const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n)))
+            ?? allowNames(["Brown Rice", "Quinoa", "Sweet Potato", "White Potato"]).find((n) => !usedCarbs.has(canon(n)));
+          if (fallbackName) {
+            const portion = fmtPortionG((remainingCarbs * 100) / 25);
+            const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Carbs");
+            subtract(est); addActual(est);
+            usedCarbs.add(canon(fallbackName));
+            items.push({ name: canonicalName(fallbackName), portion, category: "Carbs", est_macros: est });
+            pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
           } else {
-            const fallbackName = allowNames(candidates).find((n) => !usedProtein.has(canon(n)))
-              ?? allowNames(LEAN_PROTEIN_POOL).find((n) => !usedProtein.has(canon(n)));
-            if (!fallbackName) {
-              console.log(`[generate-foodlist-plan] no allowed protein source for ${slot} after exclusions`);
-              return;
-            }
+            console.log(`[generate-foodlist-plan] no allowed carb source for ${slot} after exclusions`);
+          }
+        }
+
+        // --- Protein ----------------------------------------------------------
+        const proteinDensity = Number(proteinFound?.per100?.protein_g ?? 0);
+        if (proteinFound && proteinDensity > 0) {
+          const asEggs = isEggName(proteinFound.name);
+          placements.push({
+            entry: {
+              label: proteinFound.name,
+              per100: proteinFound.per100,
+              macro: "protein_g",
+              min: asEggs ? 50 : 30,
+              max: asEggs ? 300 : 400,
+            },
+            round: (g) => (asEggs ? Math.max(1, Math.round(g / 50)) * 50 : roundPortionG(g)),
+            place: (g) => {
+              const portion = asEggs
+                ? `${Math.round(g / 50)} ${Math.round(g / 50) === 1 ? "egg" : "eggs"}`
+                : fmtPortionG(g);
+              const contrib = contributionAt(proteinFound.per100, g);
+              subtract(contrib);
+              usedProtein.add(canon(proteinFound.name));
+              items.push({ name: canonicalName(proteinFound.name), portion, category: "Protein", est_macros: contrib });
+              pushDebugFromUsda(slot, i, proteinFound.name, "Protein", proteinFound.per100, proteinFound.usdaDescription, portion);
+            },
+          });
+        } else if (remainingProtein > 0) {
+          const fallbackName = allowNames(proteinCandidates).find((n) => !usedProtein.has(canon(n)))
+            ?? allowNames(LEAN_PROTEIN_POOL).find((n) => !usedProtein.has(canon(n)));
+          if (!fallbackName) {
+            console.log(`[generate-foodlist-plan] no allowed protein source for ${slot} after exclusions`);
+          } else {
             let portion: string;
             if (isEggName(fallbackName)) {
               const count = Math.max(1, Math.round(remainingProtein / 6));
@@ -1091,46 +1134,92 @@ Deno.serve(async (req) => {
             items.push({ name: canonicalName(fallbackName), portion, category: "Protein", est_macros: est });
             pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
           }
+        }
 
-        };
-
-        const placeCarbFromFound = (found: { name: string; per100: Macros; usdaDescription: string }) => {
-          const grams = roundPortionG((Math.max(0, remainingCarbs) * 100) / Math.max(1, found.per100.carbs_g));
-          const portion = fmtPortionG(grams);
-          const contrib = contributionAt(found.per100, grams);
-          subtract(contrib);
-          usedCarbs.add(canon(found.name));
-          items.push({ name: canonicalName(found.name), portion, category: "Carbs", est_macros: contrib });
-          pushDebugFromUsda(slot, i, found.name, "Carbs", found.per100, found.usdaDescription, portion);
-        };
-
-        if (carbIsLegume && carbFound) {
-          // Legume pairing — Step 1: size legume to carb target, subtract ALL macros (incl. protein).
-          placeCarbFromFound(carbFound);
-          // Step 2/3 — force lean protein sized to REMAINING protein.
-          if (remainingProtein > 0) await placeProtein(allowNames(LEAN_PROTEIN_POOL));
+        // --- Fat ---------------------------------------------------------------
+        const fatDensity = Number(fatFound?.per100?.fat_g ?? 0);
+        const fatValid = !!fatFound && Number.isFinite(fatDensity) && fatDensity > 0;
+        if (fatValid && fatFound) {
+          const asOil = isOilName(fatFound.name);
+          placements.push({
+            entry: {
+              label: fatFound.name,
+              per100: fatFound.per100,
+              macro: "fat_g",
+              min: asOil ? 4.5 : 5,
+              max: asOil ? 45 : 250,
+            },
+            round: (g) => (asOil ? Math.max(1, Math.round(g / 4.5)) * 4.5 : roundPortionG(g)),
+            place: (g) => {
+              const portion = asOil ? `${Math.round(g / 4.5)} tsp` : fmtPortionG(g);
+              const contrib = contributionAt(fatFound.per100, g);
+              subtract(contrib);
+              usedFat.add(canon(fatFound.name));
+              items.push({ name: canonicalName(fatFound.name), portion, category: "Fat", est_macros: contrib });
+              pushDebugFromUsda(slot, i, fatFound.name, "Fat", fatFound.per100, fatFound.usdaDescription, portion);
+            },
+          });
+          skipGenericFat = true;
         } else {
-          // Standard order: carbs first (subtract all macros incl. protein), then protein
-          // sized to what remains — prevents protein overage from carb-side protein.
-          if (carbFound) {
-            placeCarbFromFound(carbFound);
-          } else if (remainingCarbs > 0) {
-            const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n)))
-              ?? allowNames(["Brown Rice", "Quinoa", "Sweet Potato", "White Potato"]).find((n) => !usedCarbs.has(canon(n)));
-            if (fallbackName) {
-              const portion = fmtPortionG((remainingCarbs * 100) / 25);
-              const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Carbs");
-              subtract(est); addActual(est);
-              usedCarbs.add(canon(fallbackName));
-              items.push({ name: canonicalName(fallbackName), portion, category: "Carbs", est_macros: est });
-              pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
-            } else {
-              console.log(`[generate-foodlist-plan] no allowed carb source for ${slot} after exclusions`);
-            }
+          if (fatFound && !fatValid) {
+            console.log(`[generate-foodlist-plan] Fat USDA result for "${fatFound.name}" had invalid fat density (${fatDensity}g/100g) — falling back to a pinned oil.`);
+          } else {
+            console.log(`[generate-foodlist-plan] Fat USDA lookup returned no valid match for ${slot} — falling back to a pinned oil.`);
           }
-          if (remainingProtein > 0) await placeProtein(cands.protein ?? []);
+          const OIL_FALLBACKS = ["Olive Oil", "Avocado Oil", "Coconut Oil"];
+          const oilName = allowNames(OIL_FALLBACKS).find((n) => !usedFat.has(canon(n))) ?? allowNames(OIL_FALLBACKS)[0];
+          if (!oilName) {
+            console.log(`[generate-foodlist-plan] no allowed fat source for ${slot} after exclusions`);
+          } else {
+            const OIL_PER100: Macros = { calories: 884, protein_g: 0, carbs_g: 0, fat_g: 100 };
+            placements.push({
+              entry: { label: oilName, per100: OIL_PER100, macro: "fat_g", min: 4.5, max: 45 },
+              round: (g) => Math.max(1, Math.round(g / 4.5)) * 4.5,
+              place: (g) => {
+                const tsp = Math.round(g / 4.5);
+                const portion = `${tsp} tsp`;
+                const contrib = rawContributionAt(OIL_PER100, g);
+                subtract(contrib);
+                addActual(contrib);
+                usedFat.add(canon(oilName));
+                items.push({ name: canonicalName(oilName), portion, category: "Fat", est_macros: {
+                  calories: Math.round(contrib.calories),
+                  protein_g: Math.round(contrib.protein_g),
+                  carbs_g: Math.round(contrib.carbs_g),
+                  fat_g: Math.round(contrib.fat_g),
+                } });
+                pushDebugEstimated(slot, i, oilName, "Fat", portion);
+              },
+            });
+            skipGenericFat = true;
+          }
+        }
+
+        // --- Solve all placements together, then round one at a time -----------
+        if (placements.length) {
+          const solveTarget = {
+            protein_g: remainingProtein,
+            carbs_g: remainingCarbs,
+            fat_g: remainingFat,
+          };
+          const entries = placements.map((p) => p.entry);
+          const fixed: Array<number | null> = placements.map(() => null);
+          let solved = solveMealGrams(entries, solveTarget, fixed);
+          for (let k = 0; k < placements.length; k += 1) {
+            if (solved.capped[k]) {
+              console.log(`[generate-foodlist-plan] PORTION CAP BOUND — ${slot}: "${entries[k].label}" (${entries[k].macro}) clamped to ${solved.grams[k].toFixed(1)}g [min ${entries[k].min} / max ${entries[k].max}]; residual left on the variance line.`);
+            }
+            const g = placements[k].round(Math.max(0, solved.grams[k]));
+            fixed[k] = g;
+            if (k < placements.length - 1) solved = solveMealGrams(entries, solveTarget, fixed);
+          }
+          for (let k = 0; k < placements.length; k += 1) {
+            const g = fixed[k] ?? 0;
+            if (g > 0) placements[k].place(g);
+          }
         }
       }
+
 
 
       // Step 5 — FAT sized to remaining fat. No deadband: any meal still short on
