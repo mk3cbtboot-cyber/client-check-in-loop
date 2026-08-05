@@ -301,11 +301,18 @@ const BREAKFAST_PROTEIN_POOL: PinnedFood[] = [
   { name: "Low-Fat Cottage Cheese", per100: { calories: 72, protein_g: 12.4, carbs_g: 2.7, fat_g: 1.0 } },
 ];
 
-// Fat source for a yoghurt / cottage-cheese breakfast — mixes in, unlike oil.
-const BREAKFAST_DAIRY_FAT: PinnedFood = {
-  name: "Ground Flaxseed",
-  per100: { calories: 534, protein_g: 18.3, carbs_g: 28.9, fat_g: 42.2 },
-};
+// Fat sources for a yoghurt / cottage-cheese breakfast — all mix in, unlike oil.
+// Multi-macro, so they are sized by the existing fixed-point solve.
+const BREAKFAST_DAIRY_FATS: PinnedFood[] = [
+  { name: "Ground Flaxseed", per100: { calories: 534, protein_g: 18.3, carbs_g: 28.9, fat_g: 42.2 } },
+  { name: "Chia Seeds", per100: { calories: 486, protein_g: 16.5, carbs_g: 42.1, fat_g: 30.7 } },
+  { name: "Almonds", per100: { calories: 579, protein_g: 21.2, carbs_g: 21.6, fat_g: 49.9 } },
+  { name: "Walnuts", per100: { calories: 654, protein_g: 15.2, carbs_g: 13.7, fat_g: 65.2 } },
+  { name: "Pecans", per100: { calories: 691, protein_g: 9.2, carbs_g: 13.9, fat_g: 72.0 } },
+  { name: "Pumpkin Seeds", per100: { calories: 559, protein_g: 30.2, carbs_g: 10.7, fat_g: 49.1 } },
+  { name: "Sunflower Seeds", per100: { calories: 584, protein_g: 20.8, carbs_g: 20.0, fat_g: 51.5 } },
+  { name: "Hemp Seeds", per100: { calories: 553, protein_g: 31.6, carbs_g: 8.7, fat_g: 48.8 } },
+];
 
 const BREAKFAST_SLOW_CARBS: PinnedFood[] = [
   { name: "Oats", per100: OATS_PER100 },
