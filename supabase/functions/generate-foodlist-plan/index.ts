@@ -250,9 +250,16 @@ type PinnedFood = { name: string; per100: Macros };
 const BREAKFAST_PROTEIN_POOL: PinnedFood[] = [
   { name: "Whole Egg", per100: { calories: 143, protein_g: 12.6, carbs_g: 0.6, fat_g: 9.5 } },
   { name: "Liquid Egg Whites", per100: { calories: 52, protein_g: 11, carbs_g: 0.7, fat_g: 0.2 } },
-  { name: "Plain Greek Yoghurt", per100: { calories: 59, protein_g: 10, carbs_g: 3.6, fat_g: 0.4 } },
-  { name: "Cottage Cheese", per100: { calories: 98, protein_g: 11, carbs_g: 3.4, fat_g: 4.3 } },
+  // Low-fat / non-fat versions — the dairy breakfast takes its fat from flaxseed.
+  { name: "Non-Fat Greek Yoghurt", per100: { calories: 59, protein_g: 10.3, carbs_g: 3.6, fat_g: 0.2 } },
+  { name: "Low-Fat Cottage Cheese", per100: { calories: 72, protein_g: 12.4, carbs_g: 2.7, fat_g: 1.0 } },
 ];
+
+// Fat source for a yoghurt / cottage-cheese breakfast — mixes in, unlike oil.
+const BREAKFAST_DAIRY_FAT: PinnedFood = {
+  name: "Ground Flaxseed",
+  per100: { calories: 534, protein_g: 18.3, carbs_g: 28.9, fat_g: 42.2 },
+};
 
 const BREAKFAST_SLOW_CARBS: PinnedFood[] = [
   { name: "Oats", per100: OATS_PER100 },
@@ -783,8 +790,24 @@ Deno.serve(async (req) => {
       };
       // isEggName is defined at module scope.
 
-      // Step 2 — VEG first (fixed 100g, 2 servings).
-      const vegCount = 2;
+      // --- Breakfast protein is decided up-front ------------------------------
+      // A yoghurt / cottage-cheese breakfast gets no vegetables and a different
+      // sizing order (fat first, then protein, then carbs), so the pick has to
+      // happen before the veg step.
+      const pick = <T,>(arr: T[]): T | null => (arr.length ? arr[Math.floor(Math.random() * arr.length)] : null);
+      const bfPool = i === 0 ? allowPinned(BREAKFAST_PROTEIN_POOL) : [];
+      const bfEggWhole = bfPool.find((f) => f.name === "Whole Egg") ?? null;
+      const bfEggWhites = bfPool.find((f) => f.name === "Liquid Egg Whites") ?? null;
+      // Treat the egg pair as a single option so eggs don't get double weight.
+      const bfPick = i === 0 ? pick(bfPool.filter((f) => f.name !== "Liquid Egg Whites")) : null;
+      const bfIsEgg = !!bfPick && bfPick.name === "Whole Egg";
+      const bfIsDairy = i === 0 && !!bfPick && !bfIsEgg;
+      // Set when the dairy breakfast has already covered its fat with flaxseed.
+      let skipGenericFat = false;
+
+      // Step 2 — VEG first (fixed 100g, 2 servings). A yoghurt / cottage-cheese
+      // breakfast gets no vegetables.
+      const vegCount = bfIsDairy ? 0 : 2;
       for (let v = 0; v < vegCount; v += 1) {
         const found = await findUSDAFood(cands.veg ?? [], usedVeg, "Veg");
         const grams = 100;
@@ -811,8 +834,6 @@ Deno.serve(async (req) => {
       if (i === 0) {
         // Meal 1 — curated, pinned-density breakfast pools. Every pool is passed
         // through the hard exclusion filter first, so nothing excluded can be picked.
-        const pick = <T,>(arr: T[]): T | null => (arr.length ? arr[Math.floor(Math.random() * arr.length)] : null);
-
         const placePinned = (food: PinnedFood, grams: number, portion: string, category: Category, usedSet: Set<string>) => {
           if (grams <= 0) return;
           const factor = grams / 100;
@@ -822,6 +843,8 @@ Deno.serve(async (req) => {
             carbs_g: food.per100.carbs_g * factor,
             fat_g: food.per100.fat_g * factor,
           };
+          // Every pinned food subtracts its FULL contribution — protein, carbs
+          // AND fat — from all three running totals before the next step.
           remainingProtein -= raw.protein_g;
           remainingCarbs -= raw.carbs_g;
           remainingFat -= raw.fat_g;
@@ -841,78 +864,128 @@ Deno.serve(async (req) => {
           pushDebugFromUsda(slot, i, food.name, category, food.per100, `${food.name} (pinned density, per 100g)`, portion);
         };
 
-        // --- Breakfast carbs: a slow carb and a fast carb, sized jointly ---
-        const slowPick = pick(allowPinned(BREAKFAST_SLOW_CARBS));
-        const fastPick = pick(allowPinned(BREAKFAST_FAST_CARBS));
-        if (remainingCarbs > 0 && (slowPick || fastPick)) {
-          const carbTarget = remainingCarbs;
-          const slowShare = slowPick && fastPick ? 0.6 : slowPick ? 1 : 0;
-          if (slowPick && slowShare > 0) {
-            const grams = Math.max(5, Math.round(((carbTarget * slowShare) / slowPick.per100.carbs_g) * 100 / 5) * 5);
-            placePinned(slowPick, grams, `${grams}g`, "Carbs", usedCarbs);
+        const placeBreakfastCarbs = () => {
+          const slowPick = pick(allowPinned(BREAKFAST_SLOW_CARBS));
+          const fastPick = pick(allowPinned(BREAKFAST_FAST_CARBS));
+          if (remainingCarbs > 0 && (slowPick || fastPick)) {
+            const carbTarget = remainingCarbs;
+            const slowShare = slowPick && fastPick ? 0.6 : slowPick ? 1 : 0;
+            if (slowPick && slowShare > 0) {
+              const grams = Math.max(5, Math.round(((carbTarget * slowShare) / slowPick.per100.carbs_g) * 100 / 5) * 5);
+              placePinned(slowPick, grams, `${grams}g`, "Carbs", usedCarbs);
+            }
+            if (fastPick && remainingCarbs > 0) {
+              const grams = Math.max(5, Math.round((remainingCarbs / fastPick.per100.carbs_g) * 100 / 5) * 5);
+              placePinned(fastPick, grams, `${grams}g`, "Carbs", usedCarbs);
+            }
+            return true;
           }
-          if (fastPick && remainingCarbs > 0) {
-            const grams = Math.max(5, Math.round((remainingCarbs / fastPick.per100.carbs_g) * 100 / 5) * 5);
-            placePinned(fastPick, grams, `${grams}g`, "Carbs", usedCarbs);
-          }
-        } else if (remainingCarbs > 0) {
+          return false;
+        };
+
+        const placeBreakfastCarbFallback = async () => {
           console.log(`[generate-foodlist-plan] breakfast: all pinned carbs excluded — falling back to AI carb candidates`);
           const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n)));
-          if (fallbackName) {
-            const portion = fmtPortionG((remainingCarbs * 100) / 25);
-            const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Carbs");
-            subtract(est); addActual(est);
-            usedCarbs.add(canon(fallbackName));
-            items.push({ name: canonicalName(fallbackName), portion, category: "Carbs", est_macros: est });
-            pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
-          }
-        }
+          if (!fallbackName) return;
+          const portion = fmtPortionG((remainingCarbs * 100) / 25);
+          const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Carbs");
+          subtract(est); addActual(est);
+          usedCarbs.add(canon(fallbackName));
+          items.push({ name: canonicalName(fallbackName), portion, category: "Carbs", est_macros: est });
+          pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
+        };
 
-        // --- Breakfast protein: one pick from the curated pool ---
-        const proteinPool = allowPinned(BREAKFAST_PROTEIN_POOL);
-        const eggWhole = proteinPool.find((f) => f.name === "Whole Egg") ?? null;
-        const eggWhites = proteinPool.find((f) => f.name === "Liquid Egg Whites") ?? null;
-        // Treat the egg pair as a single option so eggs don't get double weight.
-        const options: PinnedFood[] = proteinPool.filter((f) => f.name !== "Liquid Egg Whites");
-        const proteinPick = pick(options);
-
-        if (proteinPick && proteinPick.name === "Whole Egg" && eggWhole) {
-          // Egg path — whole eggs derive fat from the yolks, liquid whites fill protein.
-          let wholeCount = Math.floor(Math.max(0, target.fat_g) / 4.75);
-          wholeCount = Math.min(Math.max(wholeCount, 1), 3);
-          placePinned(eggWhole, wholeCount * 50, `${wholeCount} ${wholeCount === 1 ? "egg" : "eggs"}`, "Protein", usedProtein);
-          if (eggWhites && remainingProtein > 0) {
-            const grams = Math.max(0, Math.round(((remainingProtein / eggWhites.per100.protein_g) * 100) / 5) * 5);
-            if (grams > 0) placePinned(eggWhites, grams, `${grams}g`, "Protein", usedProtein);
+        if (bfIsDairy && bfPick) {
+          // --- Yoghurt / cottage-cheese breakfast -------------------------
+          // Sizing order: fat (flaxseed) → protein → carbs. Every one of these
+          // foods carries protein, carbs AND fat, so the sizes are solved
+          // together (fixed-point) and then placed, which means each food's
+          // full contribution is accounted against all three targets.
+          const flax = allowPinned([BREAKFAST_DAIRY_FAT])[0] ?? null;
+          const slowPick = pick(allowPinned(BREAKFAST_SLOW_CARBS));
+          const fastPick = pick(allowPinned(BREAKFAST_FAST_CARBS));
+          const tP = remainingProtein, tC = remainingCarbs, tF = remainingFat;
+          const per = (f: PinnedFood | null, k: "protein_g" | "carbs_g" | "fat_g") => (f ? f.per100[k] : 0);
+          let gFlax = 0, gProt = 0, gSlow = 0, gFast = 0;
+          const contrib = (k: "protein_g" | "carbs_g" | "fat_g", skip: string) =>
+            (skip === "flax" ? 0 : per(flax, k) * gFlax / 100) +
+            (skip === "prot" ? 0 : per(bfPick, k) * gProt / 100) +
+            (skip === "slow" ? 0 : per(slowPick, k) * gSlow / 100) +
+            (skip === "fast" ? 0 : per(fastPick, k) * gFast / 100);
+          for (let it = 0; it < 10; it += 1) {
+            gFlax = flax && tF > 0 ? Math.max(0, (tF - contrib("fat_g", "flax")) * 100 / flax.per100.fat_g) : 0;
+            gProt = Math.max(0, (tP - contrib("protein_g", "prot")) * 100 / Math.max(1, bfPick.per100.protein_g));
+            const cAfter = Math.max(0, tC - (per(flax, "carbs_g") * gFlax + per(bfPick, "carbs_g") * gProt) / 100);
+            const slowShare = slowPick && fastPick ? 0.6 : slowPick ? 1 : 0;
+            gSlow = slowPick ? (cAfter * slowShare) * 100 / slowPick.per100.carbs_g : 0;
+            gFast = fastPick ? Math.max(0, cAfter - per(slowPick, "carbs_g") * gSlow / 100) * 100 / fastPick.per100.carbs_g : 0;
           }
-        } else if (proteinPick) {
-          const grams = roundPortionG((Math.max(0, remainingProtein) * 100) / Math.max(1, proteinPick.per100.protein_g));
-          placePinned(proteinPick, grams, `${grams}g`, "Protein", usedProtein);
-        } else if (remainingProtein > 0) {
-          console.log(`[generate-foodlist-plan] breakfast: all pinned proteins excluded — falling back to AI protein candidates`);
-          const found = await findUSDAFood(cands.protein ?? [], usedProtein, "Protein");
-          if (found) {
-            const grams = roundPortionG((Math.max(0, remainingProtein) * 100) / Math.max(1, found.per100.protein_g));
-            const portion = fmtPortionG(grams);
-            const contrib = contributionAt(found.per100, grams);
-            subtract(contrib);
-            usedProtein.add(canon(found.name));
-            items.push({ name: canonicalName(found.name), portion, category: "Protein", est_macros: contrib });
-            pushDebugFromUsda(slot, i, found.name, "Protein", found.per100, found.usdaDescription, portion);
-          } else {
-            const fallbackName = allowNames([...(cands.protein ?? []), ...LEAN_PROTEIN_POOL]).find((n) => !usedProtein.has(canon(n)));
-            if (fallbackName) {
-              const portion = fmtPortionG((remainingProtein * 100) / 30);
-              const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Protein");
-              subtract(est); addActual(est);
-              usedProtein.add(canon(fallbackName));
-              items.push({ name: canonicalName(fallbackName), portion, category: "Protein", est_macros: est });
-              pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
+          // Round sequentially, re-solving the remainder after each rounding so
+          // rounding error never accumulates into a big over/undershoot.
+          const r5 = (g: number) => Math.max(5, Math.round(g / 5) * 5);
+          if (flax && gFlax > 0) {
+            const grams = Math.max(5, Math.round(gFlax));
+            placePinned(flax, grams, `${grams}g`, "Fat", usedFat);
+            skipGenericFat = true;
+          }
+          if (remainingProtein > 0) {
+            const pAfterCarbs = remainingProtein - (per(slowPick, "protein_g") * gSlow + per(fastPick, "protein_g") * gFast) / 100;
+            const grams = roundPortionG(Math.max(0, pAfterCarbs) * 100 / Math.max(1, bfPick.per100.protein_g));
+            placePinned(bfPick, grams, `${grams}g`, "Protein", usedProtein);
+          }
+          if (remainingCarbs > 0 && (slowPick || fastPick)) {
+            const cAfter = remainingCarbs;
+            const slowShare = slowPick && fastPick ? 0.6 : slowPick ? 1 : 0;
+            if (slowPick && slowShare > 0) {
+              const grams = r5((cAfter * slowShare) * 100 / slowPick.per100.carbs_g);
+              placePinned(slowPick, grams, `${grams}g`, "Carbs", usedCarbs);
+            }
+            if (fastPick && remainingCarbs > 0) {
+              const grams = r5(remainingCarbs * 100 / fastPick.per100.carbs_g);
+              placePinned(fastPick, grams, `${grams}g`, "Carbs", usedCarbs);
+            }
+          } else if (remainingCarbs > 0) {
+            await placeBreakfastCarbFallback();
+          }
+        } else {
+          // --- Egg breakfast (unchanged) — carbs, then eggs for protein/fat ---
+          if (remainingCarbs > 0 && !placeBreakfastCarbs()) await placeBreakfastCarbFallback();
+
+          if (bfIsEgg && bfEggWhole) {
+            // Whole eggs derive fat from the yolks, liquid whites fill protein.
+            let wholeCount = Math.floor(Math.max(0, target.fat_g) / 4.75);
+            wholeCount = Math.min(Math.max(wholeCount, 1), 3);
+            placePinned(bfEggWhole, wholeCount * 50, `${wholeCount} ${wholeCount === 1 ? "egg" : "eggs"}`, "Protein", usedProtein);
+            if (bfEggWhites && remainingProtein > 0) {
+              const grams = Math.max(0, Math.round(((remainingProtein / bfEggWhites.per100.protein_g) * 100) / 5) * 5);
+              if (grams > 0) placePinned(bfEggWhites, grams, `${grams}g`, "Protein", usedProtein);
+            }
+          } else if (remainingProtein > 0) {
+            console.log(`[generate-foodlist-plan] breakfast: all pinned proteins excluded — falling back to AI protein candidates`);
+            const found = await findUSDAFood(cands.protein ?? [], usedProtein, "Protein");
+            if (found) {
+              const grams = roundPortionG((Math.max(0, remainingProtein) * 100) / Math.max(1, found.per100.protein_g));
+              const portion = fmtPortionG(grams);
+              const contrib = contributionAt(found.per100, grams);
+              subtract(contrib);
+              usedProtein.add(canon(found.name));
+              items.push({ name: canonicalName(found.name), portion, category: "Protein", est_macros: contrib });
+              pushDebugFromUsda(slot, i, found.name, "Protein", found.per100, found.usdaDescription, portion);
+            } else {
+              const fallbackName = allowNames([...(cands.protein ?? []), ...LEAN_PROTEIN_POOL]).find((n) => !usedProtein.has(canon(n)));
+              if (fallbackName) {
+                const portion = fmtPortionG((remainingProtein * 100) / 30);
+                const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Protein");
+                subtract(est); addActual(est);
+                usedProtein.add(canon(fallbackName));
+                items.push({ name: canonicalName(fallbackName), portion, category: "Protein", est_macros: est });
+                pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
+              }
             }
           }
         }
-        // The shared fat step below runs for breakfast too, so a non-egg protein
-        // (yoghurt / cottage cheese) still gets a real fat source.
+        // The shared fat step below still runs for a non-egg breakfast when
+        // flaxseed was excluded, so there is always a real fat source.
       } else {
 
 
@@ -1016,7 +1089,7 @@ Deno.serve(async (req) => {
 
       // Step 5 — FAT sized to remaining fat. No deadband: any meal still short on
       // fat gets a fat source sized to cover the remainder.
-      if (remainingFat > 0) {
+      if (remainingFat > 0 && !skipGenericFat) {
         const found = await findUSDAFood(cands.fat ?? [], usedFat, "Fat");
         const foundFatPer100 = Number(found?.per100?.fat_g ?? 0);
         const foundValid = !!found && Number.isFinite(foundFatPer100) && foundFatPer100 > 0;
