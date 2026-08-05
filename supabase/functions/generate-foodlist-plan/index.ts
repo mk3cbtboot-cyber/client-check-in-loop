@@ -967,7 +967,9 @@ Deno.serve(async (req) => {
           // foods carries protein, carbs AND fat, so the sizes are solved
           // together (fixed-point) and then placed, which means each food's
           // full contribution is accounted against all three targets.
-          const flax = allowPinned([BREAKFAST_DAIRY_FAT])[0] ?? null;
+          // Mix-in fat: flax / chia / nuts / seeds, one per generation, after exclusions.
+          const flax = pick(allowPinned(BREAKFAST_DAIRY_FATS));
+          console.log(`[generate-foodlist-plan] breakfast dairy fat: picked ${flax?.name ?? "none (all excluded)"}`);
           const slowPick = pick(allowPinned(BREAKFAST_SLOW_CARBS));
           const fastPick = pick(allowPinned(BREAKFAST_FAST_CARBS));
           const tP = remainingProtein, tC = remainingCarbs, tF = remainingFat;
