@@ -1,66 +1,49 @@
-# MB PDF Parser
+# Fixed-point macro solve for every meal
 
-Parse a client's MB meal plan PDF and populate their food data in Supabase, with a practitioner review step before save.
+Extend the breakfast dairy-path solver so meals 2-5 hit their protein/carb/fat targets the same way, replacing the greedy "size one food at a time" pass that currently overshoots fat and undershoots protein.
 
-## 1. Database / storage
+## Approach
 
-New migration:
+Today each meal sizes foods in sequence: vegetables at a fixed 100g each, then carbs, then protein, then fat, each one subtracting only from the target it was chosen for and leaving its other two macros to distort whatever comes next. A 100g avocado sized for fat also drops ~9g carbs the carb step never knew about.
 
-- Add columns to `public.clients`:
-  - Phase 2 proteins: `food_fish`, `food_seafood`, `food_milk_products`, `food_yogurt`, `food_nuts`, `food_meat`, `food_poultry`, `food_cheese`, `food_legumes`, `food_pumpkin_seeds`, `food_sunflower_seeds` (text, default `''`)
-  - Phase 2 carbs: `food_vegetables`, `food_veg_lettuce`, `food_starch`, `food_bread`, `food_fruit` (text, default `''`)
-  - Meal plan grams (per meal): `breakfast_protein_category`, `breakfast_protein_grams`, `breakfast_veg_grams`, and the same for `lunch_*` and `dinner_*`
-  - Limits: `eggs_min_per_week` (int), `eggs_max_per_week` (int), `water_target_litres` (numeric, default 2.5)
-  - New Phase 3 fields: `phase3_mb_meat`, `phase3_mb_sprouts`, `phase3_mb_veg_lettuce` (text, default `''`)
-  - `mb_pdf_path` (text) — storage object path of the uploaded PDF
-- Create private storage bucket `mb-pdfs` with RLS so a practitioner can read/write only files under `clients/<client_id>/...` for clients they own.
+New flow per meal (2-5):
 
-## 2. Edge function: `parse-mb-pdf`
+1. Select the same foods as today (veg x2, one protein, one carb, one fat) and resolve their per-100g densities exactly as now.
+2. Vegetables are fixed at 100g each and are **pre-deducted**: their protein, carbs and fat come off all three meal targets before the solve runs, producing residual targets tP/tC/tF.
+3. Solve the three unknown gram weights (protein, carb, fat food) against the residual targets with the same fixed-point iteration the dairy breakfast uses: on each pass, each food is re-sized from its own primary target minus what the *other* foods currently contribute to that macro. ~10 iterations, which converges well within a gram for these density ranges.
+4. Round each solved weight (5g steps, oils to whole tsp) and re-solve the remaining foods against the post-rounding residual so rounding error does not accumulate.
+5. Place the foods and subtract their real contributions, so the existing `actual` accumulator and variance line stay accurate.
 
-- Input: `{ clientId, storagePath }`. Verifies the caller is the client's practitioner.
-- Downloads the PDF from `mb-pdfs` using the service-role client.
-- Extracts text using `unpdf` (`npm:unpdf`) — pure JS, works in Deno edge runtime.
-- Anchors used to slice the document:
-  - `Personal Food List - Protein`
-  - `Personal Food List - Carbohydrates`
-  - `Additional Information about the Meal Plan`
-  - `$$CA_PHASE3$$`
-  - `Extended personal Food List`
-- Parses:
-  - Meal table (page before the food list): regex per meal column for protein category + grams and Vegetable/Veg.Lettuce grams.
-  - Phase 2 protein/carb categories: split section by known category labels, capture food items until the next label.
-  - Egg limits: regex like `(\d+)\s*-\s*(\d+)\s*eggs?\s*per week` (with min/max variants).
-  - Water: regex matching `(\d+(?:\s*[½¼¾]|\.\d+)?)\s*l(?:iters|itres)?` and normalises `½/¼/¾`.
-  - Phase 3 extended list: same category-split approach, mapped to `phase3_mb_*`.
-- Returns a structured JSON object with each field plus a per-field `extracted: boolean` flag so the UI can mark unextracted fields.
-- Does **not** write to `clients` — review/save is a separate step done from the client.
+## Extracted vs new
 
-## 3. Practitioner UI (client profile page in `src/pages/Dashboard.tsx`)
+One shared solver only. The iteration currently inlined in the dairy breakfast branch gets lifted into a single helper (e.g. `solveMealGrams`) that takes a list of `{ per100, primaryMacro, min, max, roundTo }` plus residual targets and returns gram weights. The dairy breakfast is switched over to call it — its flax/protein/slow-carb/fast-carb layout is just a four-food instance of the same problem — so there is exactly one implementation, not two.
 
-New component `src/components/MbPdfImport.tsx`:
+Replaced in meals 2-5:
+- the greedy `grams = remainingProtein * 100 / proteinPer100` sizing inside `placeProtein`
+- the equivalent one-shot carb sizing in `placeCarbFromFound`
+- the fat sizing and the `fatPer100 > 7` "fatty-protein cap" hack, which exists only to paper over the greedy ordering and becomes unnecessary
+- the implicit assumption that vegetables are macro-free
 
-- "Upload MB PDF" button → file input (PDF only).
-- On select: uploads to `mb-pdfs/clients/<clientId>/<timestamp>.pdf`, then invokes `parse-mb-pdf`.
-- Shows a review modal/sheet with all extracted fields grouped:
-  - Meal plan grams (3 meal cards)
-  - Phase 2 — Proteins
-  - Phase 2 — Carbohydrates
-  - Additional info (eggs min/max, water litres)
-  - Phase 3 extended list
-- Every field is editable (text inputs for comma-separated lists, number inputs for grams/eggs/water).
-- Fields flagged as unextracted render with a warning style and a "Not extracted — please fill in" hint.
-- Footer buttons: **Re-upload** (resets, opens file picker again) and **Confirm and Save** (writes all fields to `clients` row, sets `mb_pdf_path`, closes modal, refreshes dashboard data).
+## Untouched
 
-Wire the button into the existing client profile/expanded card area in `Dashboard.tsx`.
+No changes to: the exclusion filter and its synonym groups, the output-level exclusion drop, the brand filter and final brand scrub, the zero-macro guarantee and `CATEGORY_DEFAULT_PER100` fallback, `canonicalName` naming normalization, the oil `N tsp` display format, the egg breakfast path, and the dairy breakfast path's food choices and behaviour (only its solver call site moves to the shared helper; its outputs must stay identical).
 
-## 4. Out of scope
+## Food selection
 
-- No changes to other features (messaging, office hours, HUD).
-- AI interceptor integration with the stored PDF will be wired up in a later task — this task only stores the PDF path.
+Unchanged. AI candidate lists, `findUSDAFood` matching and its category filters, the pinned pools, fat rotation across slots, legume pairing detection, and all fallbacks pick the same foods as today. Only the gram weights they are placed at change.
+
+## Edge cases
+
+- **Negative residual** (vegetables or a multi-macro protein already exceed a target): the solver clamps that food's weight at its floor rather than emitting a negative or zero portion; the residual is reported in the variance line rather than being forced onto another food.
+- **Portion caps**: per-category min/max grams (e.g. protein 60-300g, carbs 20-250g, oils 1-4 tsp, avocado capped) so the solve can never produce an absurd 700g portion to chase a macro. When a cap binds, the solver re-solves the remaining foods against the leftover.
+- **Non-convergence / unreachable target**: after the iterations, take the best result and let the existing variance logging record the gap. No silent retry loops.
+- **Rounding**: solve in continuous grams, round once at placement, re-solve the not-yet-placed foods after each rounding.
+- **Old failure modes avoided**: fat overshoot from avocado is impossible because the avocado's carbs/protein are in the solve; protein undershoot is impossible because protein is solved jointly rather than last-in-line.
+
+## Verification
+
+Run several generations across meal counts (3, 4 and 5 meals/day) and different candidate sets, then read the per-meal variance lines the function already logs. Pass criterion: every meal within ~2g on protein, carbs and fat. Also run control generations for both breakfast paths (egg and dairy) and confirm the produced foods and gram weights are byte-identical to today's output. Report the actual per-meal numbers for a few generations before calling it done.
 
 ## Technical notes
 
-- `unpdf` is used in the edge function because it has no native deps and runs in Deno; PDF text comes back per-page which is enough for the anchor-based parser.
-- All grams/eggs/water values are coerced to numbers in the review step before save; blank = `null`.
-- Storage path is saved in `clients.mb_pdf_path` so later features can fetch the same PDF.
-- Frontend uses the existing `supabase` client; edge function uses `verify_jwt = false` plus an in-function auth check (same pattern as `client-messages`), and is added to `supabase/config.toml`.
+All work is contained to `supabase/functions/generate-foodlist-plan/index.ts`. The density model, `src/lib/macros.ts`, `src/lib/portion.ts`, the editors and the client portal are untouched — the function still emits the same item shape with `withDensityModel` applied.
