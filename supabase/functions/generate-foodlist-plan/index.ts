@@ -852,8 +852,20 @@ Deno.serve(async (req) => {
       const bfPool = i === 0 ? allowPinned(BREAKFAST_PROTEIN_POOL) : [];
       const bfEggWhole = bfPool.find((f) => f.name === "Whole Egg") ?? null;
       const bfEggWhites = bfPool.find((f) => f.name === "Liquid Egg Whites") ?? null;
-      // Treat the egg pair as a single option so eggs don't get double weight.
-      const bfPick = i === 0 ? pick(bfPool.filter((f) => f.name !== "Liquid Egg Whites")) : null;
+      // Even 1-in-3 rotation across the three breakfast options. The egg pair
+      // (whole egg + liquid whites) counts as ONE option so eggs are not
+      // under- or over-weighted relative to the two dairy options.
+      const bfOptions: PinnedFood[] = i === 0
+        ? [
+            bfEggWhole,
+            bfPool.find((f) => f.name === "Non-Fat Greek Yoghurt") ?? null,
+            bfPool.find((f) => f.name === "Low-Fat Cottage Cheese") ?? null,
+          ].filter((f): f is PinnedFood => !!f)
+        : [];
+      const bfPick = bfOptions.length ? bfOptions[Math.floor(Math.random() * bfOptions.length)] : null;
+      if (i === 0) {
+        console.log(`[generate-foodlist-plan] breakfast protein rotation: ${bfOptions.length} option(s) [${bfOptions.map((f) => f.name).join(", ")}] → picked ${bfPick?.name ?? "none"}`);
+      }
       const bfIsEgg = !!bfPick && bfPick.name === "Whole Egg";
       const bfIsDairy = i === 0 && !!bfPick && !bfIsEgg;
       // Set when the dairy breakfast has already covered its fat with flaxseed.
