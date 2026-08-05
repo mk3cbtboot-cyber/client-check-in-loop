@@ -301,11 +301,18 @@ const BREAKFAST_PROTEIN_POOL: PinnedFood[] = [
   { name: "Low-Fat Cottage Cheese", per100: { calories: 72, protein_g: 12.4, carbs_g: 2.7, fat_g: 1.0 } },
 ];
 
-// Fat source for a yoghurt / cottage-cheese breakfast — mixes in, unlike oil.
-const BREAKFAST_DAIRY_FAT: PinnedFood = {
-  name: "Ground Flaxseed",
-  per100: { calories: 534, protein_g: 18.3, carbs_g: 28.9, fat_g: 42.2 },
-};
+// Fat sources for a yoghurt / cottage-cheese breakfast — all mix in, unlike oil.
+// Multi-macro, so they are sized by the existing fixed-point solve.
+const BREAKFAST_DAIRY_FATS: PinnedFood[] = [
+  { name: "Ground Flaxseed", per100: { calories: 534, protein_g: 18.3, carbs_g: 28.9, fat_g: 42.2 } },
+  { name: "Chia Seeds", per100: { calories: 486, protein_g: 16.5, carbs_g: 42.1, fat_g: 30.7 } },
+  { name: "Almonds", per100: { calories: 579, protein_g: 21.2, carbs_g: 21.6, fat_g: 49.9 } },
+  { name: "Walnuts", per100: { calories: 654, protein_g: 15.2, carbs_g: 13.7, fat_g: 65.2 } },
+  { name: "Pecans", per100: { calories: 691, protein_g: 9.2, carbs_g: 13.9, fat_g: 72.0 } },
+  { name: "Pumpkin Seeds", per100: { calories: 559, protein_g: 30.2, carbs_g: 10.7, fat_g: 49.1 } },
+  { name: "Sunflower Seeds", per100: { calories: 584, protein_g: 20.8, carbs_g: 20.0, fat_g: 51.5 } },
+  { name: "Hemp Seeds", per100: { calories: 553, protein_g: 31.6, carbs_g: 8.7, fat_g: 48.8 } },
+];
 
 const BREAKFAST_SLOW_CARBS: PinnedFood[] = [
   { name: "Oats", per100: OATS_PER100 },
@@ -790,7 +797,8 @@ Deno.serve(async (req) => {
       // Hard exclusion filter over EVERY candidate source, AI or hard-coded.
       cands.veg = allowNames([...(cands.veg ?? []), ...VEG_POOL]);
       cands.protein = allowNames(cands.protein ?? []);
-      cands.carbs = allowNames(cands.carbs ?? []);
+      // Oats are a breakfast-only carb — strip them from meals 2-5.
+      cands.carbs = allowNames(cands.carbs ?? []).filter((n) => i === 0 || !isOatsName(n));
       cands.fat = allowNames(cands.fat ?? []);
       const items: FoodItem[] = [];
 
@@ -844,8 +852,20 @@ Deno.serve(async (req) => {
       const bfPool = i === 0 ? allowPinned(BREAKFAST_PROTEIN_POOL) : [];
       const bfEggWhole = bfPool.find((f) => f.name === "Whole Egg") ?? null;
       const bfEggWhites = bfPool.find((f) => f.name === "Liquid Egg Whites") ?? null;
-      // Treat the egg pair as a single option so eggs don't get double weight.
-      const bfPick = i === 0 ? pick(bfPool.filter((f) => f.name !== "Liquid Egg Whites")) : null;
+      // Even 1-in-3 rotation across the three breakfast options. The egg pair
+      // (whole egg + liquid whites) counts as ONE option so eggs are not
+      // under- or over-weighted relative to the two dairy options.
+      const bfOptions: PinnedFood[] = i === 0
+        ? [
+            bfEggWhole,
+            bfPool.find((f) => f.name === "Non-Fat Greek Yoghurt") ?? null,
+            bfPool.find((f) => f.name === "Low-Fat Cottage Cheese") ?? null,
+          ].filter((f): f is PinnedFood => !!f)
+        : [];
+      const bfPick = bfOptions.length ? bfOptions[Math.floor(Math.random() * bfOptions.length)] : null;
+      if (i === 0) {
+        console.log(`[generate-foodlist-plan] breakfast protein rotation: ${bfOptions.length} option(s) [${bfOptions.map((f) => f.name).join(", ")}] → picked ${bfPick?.name ?? "none"}`);
+      }
       const bfIsEgg = !!bfPick && bfPick.name === "Whole Egg";
       const bfIsDairy = i === 0 && !!bfPick && !bfIsEgg;
       // Set when the dairy breakfast has already covered its fat with flaxseed.
@@ -947,7 +967,9 @@ Deno.serve(async (req) => {
           // foods carries protein, carbs AND fat, so the sizes are solved
           // together (fixed-point) and then placed, which means each food's
           // full contribution is accounted against all three targets.
-          const flax = allowPinned([BREAKFAST_DAIRY_FAT])[0] ?? null;
+          // Mix-in fat: flax / chia / nuts / seeds, one per generation, after exclusions.
+          const flax = pick(allowPinned(BREAKFAST_DAIRY_FATS));
+          console.log(`[generate-foodlist-plan] breakfast dairy fat: picked ${flax?.name ?? "none (all excluded)"}`);
           const slowPick = pick(allowPinned(BREAKFAST_SLOW_CARBS));
           const fastPick = pick(allowPinned(BREAKFAST_FAST_CARBS));
           const tP = remainingProtein, tC = remainingCarbs, tF = remainingFat;
