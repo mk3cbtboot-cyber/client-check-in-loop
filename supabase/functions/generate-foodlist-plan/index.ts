@@ -1080,12 +1080,36 @@ Deno.serve(async (req) => {
           const fallbackName = (cands.carbs ?? []).find((n) => !usedCarbs.has(canon(n)))
             ?? allowNames(["Brown Rice", "Quinoa", "Sweet Potato", "White Potato"]).find((n) => !usedCarbs.has(canon(n)));
           if (fallbackName) {
-            const portion = fmtPortionG((remainingCarbs * 100) / 25);
-            const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Carbs");
-            subtract(est); addActual(est);
-            usedCarbs.add(canon(fallbackName));
-            items.push({ name: canonicalName(fallbackName), portion, category: "Carbs", est_macros: est });
-            pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
+            // Probe the estimator at a nominal portion, back out a per-100g
+            // density, then let the joint solve size it like any other food.
+            const probePortion = fmtPortionG((Math.max(1, remainingCarbs) * 100) / 25);
+            const probeG = Math.max(1, gramsFromPortion(probePortion));
+            const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, probePortion, "Carbs");
+            const per100 = scalePer100(est, (100 / probeG) * 100);
+            if (Number(per100.carbs_g) > 0) {
+              placements.push({
+                entry: { label: fallbackName, per100, macro: "carbs_g", min: 15, max: 400 },
+                round: roundPortionG,
+                place: (g) => {
+                  const portion = fmtPortionG(g);
+                  const contrib = rawContributionAt(per100, g);
+                  subtract(contrib); addActual(contrib);
+                  usedCarbs.add(canon(fallbackName));
+                  items.push({ name: canonicalName(fallbackName), portion, category: "Carbs", est_macros: {
+                    calories: Math.round(contrib.calories),
+                    protein_g: Math.round(contrib.protein_g),
+                    carbs_g: Math.round(contrib.carbs_g),
+                    fat_g: Math.round(contrib.fat_g),
+                  } });
+                  pushDebugEstimated(slot, i, fallbackName, "Carbs", portion);
+                },
+              });
+            } else {
+              subtract(est); addActual(est);
+              usedCarbs.add(canon(fallbackName));
+              items.push({ name: canonicalName(fallbackName), portion: probePortion, category: "Carbs", est_macros: est });
+              pushDebugEstimated(slot, i, fallbackName, "Carbs", probePortion);
+            }
           } else {
             console.log(`[generate-foodlist-plan] no allowed carb source for ${slot} after exclusions`);
           }
@@ -1121,20 +1145,45 @@ Deno.serve(async (req) => {
           if (!fallbackName) {
             console.log(`[generate-foodlist-plan] no allowed protein source for ${slot} after exclusions`);
           } else {
-            let portion: string;
-            if (isEggName(fallbackName)) {
-              const count = Math.max(1, Math.round(remainingProtein / 6));
-              portion = `${count} ${count === 1 ? "egg" : "eggs"}`;
+            const asEggs = isEggName(fallbackName);
+            const probePortion = asEggs
+              ? `${Math.max(1, Math.round(remainingProtein / 6))} ${Math.max(1, Math.round(remainingProtein / 6)) === 1 ? "egg" : "eggs"}`
+              : fmtPortionG((Math.max(1, remainingProtein) * 100) / 30);
+            const probeG = Math.max(1, gramsFromPortion(probePortion));
+            const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, probePortion, "Protein");
+            const per100 = scalePer100(est, (100 / probeG) * 100);
+            if (Number(per100.protein_g) > 0) {
+              placements.push({
+                entry: {
+                  label: fallbackName, per100, macro: "protein_g",
+                  min: asEggs ? 50 : 30, max: asEggs ? 300 : 400,
+                },
+                round: (g) => (asEggs ? Math.max(1, Math.round(g / 50)) * 50 : roundPortionG(g)),
+                place: (g) => {
+                  const portion = asEggs
+                    ? `${Math.round(g / 50)} ${Math.round(g / 50) === 1 ? "egg" : "eggs"}`
+                    : fmtPortionG(g);
+                  const contrib = rawContributionAt(per100, g);
+                  subtract(contrib); addActual(contrib);
+                  usedProtein.add(canon(fallbackName));
+                  items.push({ name: canonicalName(fallbackName), portion, category: "Protein", est_macros: {
+                    calories: Math.round(contrib.calories),
+                    protein_g: Math.round(contrib.protein_g),
+                    carbs_g: Math.round(contrib.carbs_g),
+                    fat_g: Math.round(contrib.fat_g),
+                  } });
+                  pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
+                },
+              });
             } else {
-              portion = fmtPortionG((remainingProtein * 100) / 30);
+              subtract(est); addActual(est);
+              usedProtein.add(canon(fallbackName));
+              items.push({ name: canonicalName(fallbackName), portion: probePortion, category: "Protein", est_macros: est });
+              pushDebugEstimated(slot, i, fallbackName, "Protein", probePortion);
             }
-            const { macros: est } = await estimateMacrosGuaranteed(apiKey, fallbackName, portion, "Protein");
-            subtract(est); addActual(est);
-            usedProtein.add(canon(fallbackName));
-            items.push({ name: canonicalName(fallbackName), portion, category: "Protein", est_macros: est });
-            pushDebugEstimated(slot, i, fallbackName, "Protein", portion);
           }
         }
+
 
         // --- Fat ---------------------------------------------------------------
         const fatDensity = Number(fatFound?.per100?.fat_g ?? 0);
