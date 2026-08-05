@@ -1146,10 +1146,13 @@ Deno.serve(async (req) => {
               label: fatFound.name,
               per100: fatFound.per100,
               macro: "fat_g",
-              min: asOil ? 4.5 : 5,
+              // Floor of 0: when the protein/carb foods already cover the fat
+              // target, a forced minimum portion would push fat over. A zero
+              // solve simply means this meal needs no separate fat source.
+              min: 0,
               max: asOil ? 45 : 250,
             },
-            round: (g) => (asOil ? Math.max(1, Math.round(g / 4.5)) * 4.5 : roundPortionG(g)),
+            round: (g) => (g < 2.5 ? 0 : asOil ? Math.round(g / 4.5) * 4.5 : roundPortionG(g)),
             place: (g) => {
               const portion = asOil ? `${Math.round(g / 4.5)} tsp` : fmtPortionG(g);
               const contrib = contributionAt(fatFound.per100, g);
