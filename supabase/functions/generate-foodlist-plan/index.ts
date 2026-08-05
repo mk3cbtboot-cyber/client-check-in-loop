@@ -790,7 +790,8 @@ Deno.serve(async (req) => {
       // Hard exclusion filter over EVERY candidate source, AI or hard-coded.
       cands.veg = allowNames([...(cands.veg ?? []), ...VEG_POOL]);
       cands.protein = allowNames(cands.protein ?? []);
-      cands.carbs = allowNames(cands.carbs ?? []);
+      // Oats are a breakfast-only carb — strip them from meals 2-5.
+      cands.carbs = allowNames(cands.carbs ?? []).filter((n) => i === 0 || !isOatsName(n));
       cands.fat = allowNames(cands.fat ?? []);
       const items: FoodItem[] = [];
 
