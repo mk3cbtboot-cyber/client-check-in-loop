@@ -118,6 +118,52 @@ function fmtPortionG(g: number): string {
   return `${roundPortionG(g)}g`;
 }
 
+// ---- Shared fixed-point meal solver -------------------------------------
+// Every food in a meal carries protein, carbs AND fat, so sizing them one at a
+// time (greedy) makes each pick distort the macros the later picks are chasing.
+// This solves all gram weights together: on each pass a food is re-sized from
+// its own primary macro target minus what every OTHER food currently
+// contributes to that macro. Converges in a handful of passes.
+type SolveMacroKey = "protein_g" | "carbs_g" | "fat_g";
+interface SolveEntry {
+  label: string;
+  per100: Macros;
+  macro: SolveMacroKey;
+  min: number;
+  max: number;
+}
+
+function solveMealGrams(
+  entries: SolveEntry[],
+  target: { protein_g: number; carbs_g: number; fat_g: number },
+  fixed: Array<number | null> = [],
+  iterations = 20,
+): { grams: number[]; capped: boolean[] } {
+  const grams = entries.map((_, k) => fixed[k] ?? 0);
+  const capped = entries.map(() => false);
+  for (let it = 0; it < iterations; it += 1) {
+    for (let k = 0; k < entries.length; k += 1) {
+      const pinned = fixed[k];
+      if (pinned !== null && pinned !== undefined) { grams[k] = pinned; continue; }
+      const e = entries[k];
+      const dens = Number(e.per100[e.macro] ?? 0);
+      if (!Number.isFinite(dens) || dens <= 0) { grams[k] = 0; continue; }
+      let others = 0;
+      for (let j = 0; j < entries.length; j += 1) {
+        if (j === k) continue;
+        others += (Number(entries[j].per100[e.macro] ?? 0) * grams[j]) / 100;
+      }
+      const want = ((target[e.macro] - others) * 100) / dens;
+      const clamped = Math.min(e.max, Math.max(e.min, want));
+      if (it === iterations - 1) capped[k] = Math.abs(clamped - want) > 0.5;
+      grams[k] = clamped;
+    }
+  }
+  return { grams, capped };
+}
+
+
+
 // ---- Guaranteed-macro estimation ---------------------------------------
 // No generated food may ever be stored with 0/0/0. When USDA has no match we
 // ask the model, retry once, then fall back to a category-default density.
