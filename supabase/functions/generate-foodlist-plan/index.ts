@@ -1176,8 +1176,8 @@ Deno.serve(async (req) => {
           } else {
             const OIL_PER100: Macros = { calories: 884, protein_g: 0, carbs_g: 0, fat_g: 100 };
             placements.push({
-              entry: { label: oilName, per100: OIL_PER100, macro: "fat_g", min: 4.5, max: 45 },
-              round: (g) => Math.max(1, Math.round(g / 4.5)) * 4.5,
+              entry: { label: oilName, per100: OIL_PER100, macro: "fat_g", min: 0, max: 45 },
+              round: (g) => (g < 2.5 ? 0 : Math.round(g / 4.5) * 4.5),
               place: (g) => {
                 const tsp = Math.round(g / 4.5);
                 const portion = `${tsp} tsp`;
