@@ -798,7 +798,7 @@ Deno.serve(async (req) => {
       let remainingProtein = target.protein_g;
       let remainingCarbs = target.carbs_g;
       let remainingFat = target.fat_g;
-      let proteinWasFatty = false;
+      
 
       // Actual accumulator — raw (unrounded) contributions, including hard-coded foods
       // (Whole Egg, Egg White, Liquid Egg Whites, Oats) and USDA-fetched foods alike.
