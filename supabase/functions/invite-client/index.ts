@@ -12,6 +12,26 @@ const BodySchema = z.object({
   height_cm: z.number().positive().max(300).optional(),
 });
 
+const GENERIC_MAILBOX_LOCALS = new Set([
+  "info", "hello", "admin", "contact", "support", "team", "office", "no-reply", "noreply",
+]);
+
+function firstNameFromEmail(email: string | null | undefined): string | null {
+  if (!email || typeof email !== "string") return null;
+  const local = (email.split("@")[0] ?? "").toLowerCase();
+  if (GENERIC_MAILBOX_LOCALS.has(local)) return null;
+  const letters = local.replace(/[^a-z]/g, "");
+  if (!letters) return null;
+  return letters.charAt(0).toUpperCase() + letters.slice(1);
+}
+
+function resolvePractName(prof: { display_name?: string | null; email?: string | null } | null | undefined): string {
+  const dn = prof?.display_name;
+  if (dn && dn.trim()) return dn.trim();
+  return firstNameFromEmail(prof?.email) ?? "your practitioner";
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
