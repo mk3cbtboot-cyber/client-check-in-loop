@@ -105,6 +105,13 @@ function normalizeNotes(raw: unknown): FoodListNotes {
   };
 }
 
+function normalizeStale(raw: unknown): Record<string, boolean> {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const out: Record<string, boolean> = {};
+  for (const k of Object.keys(r)) out[k] = r[k] === true;
+  return out;
+}
+
 type MealKey = "meal_1" | "meal_2" | "meal_3" | "meal_4" | "meal_5";
 type MacroAllocation = Partial<Record<MealKey, { calories: number; protein_g: number; carbs_g: number; fat_g: number }>>;
 
@@ -112,12 +119,13 @@ interface Props {
   clientId: string;
   initialList: unknown;
   initialNotes: unknown;
+  initialNotesStale?: unknown;
   initialMealsPerDay?: number;
   planFormat?: "food_list" | "food_list_generated";
   macros?: MacroSet | null;
   macroAllocation?: MacroAllocation | null;
   onGoToMacros?: () => void;
-  onClientPatched?: (patch: { food_list?: unknown; food_list_notes?: unknown }) => void;
+  onClientPatched?: (patch: { food_list?: unknown; food_list_notes?: unknown; food_list_notes_stale?: unknown }) => void;
 }
 
 export async function estimateFoodMacros(name: string, portion: string, category?: FoodCategoryKind): Promise<{ est_calories: number; est_protein_g: number; est_carbs_g: number; est_fat_g: number }> {
@@ -139,9 +147,10 @@ export async function estimateFoodMacros(name: string, portion: string, category
   }
 }
 
-export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialMealsPerDay, planFormat, macros, macroAllocation, onGoToMacros, onClientPatched }: Props) {
+export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialNotesStale, initialMealsPerDay, planFormat, macros, macroAllocation, onGoToMacros, onClientPatched }: Props) {
   const [list, setList] = useState<FoodList>(() => normalizeList(initialList));
   const [notes, setNotes] = useState<FoodListNotes>(() => normalizeNotes(initialNotes));
+  const [notesStale, setNotesStale] = useState<Record<string, boolean>>(() => normalizeStale(initialNotesStale));
   const [mealsPerDay, setMealsPerDay] = useState<number>(() => {
     const v = Number(initialMealsPerDay ?? 3);
     return v === 4 || v === 5 ? v : 3;
@@ -154,6 +163,8 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
   useEffect(() => { setList(normalizeList(initialList)); }, [clientId]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setNotes(normalizeNotes(initialNotes)); }, [clientId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setNotesStale(normalizeStale(initialNotesStale)); }, [clientId]);
   useEffect(() => {
     const v = Number(initialMealsPerDay ?? 3);
     setMealsPerDay(v === 4 || v === 5 ? v : 3);
@@ -166,7 +177,7 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
       .from("clients")
       .update({ food_list: next } as never)
       .eq("id", clientId)
-      .select("food_list");
+      .select("food_list, food_list_notes_stale");
     if (error || !data || data.length === 0) {
       setList(prev);
       toast.error(error ? "Failed to save food list" : "Save was not confirmed. Please try again.");
@@ -174,9 +185,10 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     }
     // Reflect the committed server value so a later save cannot overwrite it
     // with a stale local copy, and push it into the parent's cached client row.
-    const committed = (data[0] as { food_list?: unknown }).food_list;
-    setList(normalizeList(committed));
-    onClientPatched?.({ food_list: committed });
+    const row = data[0] as { food_list?: unknown; food_list_notes_stale?: unknown };
+    setList(normalizeList(row.food_list));
+    setNotesStale(normalizeStale(row.food_list_notes_stale));
+    onClientPatched?.({ food_list: row.food_list, food_list_notes_stale: row.food_list_notes_stale });
   }
 
   async function saveNotes(next: FoodListNotes) {
@@ -186,15 +198,34 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
       .from("clients")
       .update({ food_list_notes: next } as never)
       .eq("id", clientId)
-      .select("food_list_notes");
+      .select("food_list_notes, food_list_notes_stale");
     if (error || !data || data.length === 0) {
       setNotes(prev);
       toast.error(error ? "Failed to save notes" : "Save was not confirmed. Please try again.");
       return;
     }
-    const committed = (data[0] as { food_list_notes?: unknown }).food_list_notes;
-    setNotes(normalizeNotes(committed));
-    onClientPatched?.({ food_list_notes: committed });
+    const row = data[0] as { food_list_notes?: unknown; food_list_notes_stale?: unknown };
+    setNotes(normalizeNotes(row.food_list_notes));
+    setNotesStale(normalizeStale(row.food_list_notes_stale));
+    onClientPatched?.({ food_list_notes: row.food_list_notes, food_list_notes_stale: row.food_list_notes_stale });
+  }
+
+  async function dismissStale(slot: SlotKey) {
+    const next = { ...notesStale, [slot]: false };
+    setNotesStale(next);
+    const { data, error } = await supabase
+      .from("clients")
+      .update({ food_list_notes_stale: next } as never)
+      .eq("id", clientId)
+      .select("food_list_notes_stale");
+    if (error || !data || data.length === 0) {
+      setNotesStale(notesStale);
+      toast.error("Failed to dismiss the note warning");
+      return;
+    }
+    const committed = (data[0] as { food_list_notes_stale?: unknown }).food_list_notes_stale;
+    setNotesStale(normalizeStale(committed));
+    onClientPatched?.({ food_list_notes_stale: committed });
   }
 
   const visible = visibleSlotKeys(mealsPerDay);
@@ -261,6 +292,8 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
             label={customSlotLabel(s.key, mealsPerDay)}
             items={list[s.key]}
             note={notes[s.key]}
+            noteStale={notesStale[s.key] === true && (notes[s.key] ?? "").trim().length > 0}
+            onDismissStale={() => { void dismissStale(s.key); }}
             emptyMessage="No foods added yet. Use Add food to build this meal slot."
             onItemsChange={(items) => saveList({ ...list, [s.key]: items })}
             onNoteBlur={(value) => {
@@ -278,6 +311,8 @@ interface SlotPanelProps {
   label: string;
   items: FoodItem[];
   note: string;
+  noteStale?: boolean;
+  onDismissStale?: () => void;
   emptyMessage?: string;
   onItemsChange: (items: FoodItem[]) => void;
   onNoteBlur: (value: string) => void;
@@ -292,7 +327,7 @@ function isEggItem(name: string, category: FoodCategoryKind): boolean {
   return category === "Protein" && /\begg/i.test(name);
 }
 
-function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur }: SlotPanelProps) {
+function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage, onItemsChange, onNoteBlur }: SlotPanelProps) {
   const [adding, setAdding] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draftName, setDraftName] = useState("");
@@ -635,6 +670,17 @@ function SlotPanel({ label, items, note, emptyMessage, onItemsChange, onNoteBlur
 
       <div className="space-y-1">
         <Label className="text-xs">Notes (optional)</Label>
+        {noteStale && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+            <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+            <span className="flex-1">This note may be out of date, review it.</span>
+            {onDismissStale && (
+              <button type="button" className="underline underline-offset-2 shrink-0" onClick={onDismissStale}>
+                Dismiss
+              </button>
+            )}
+          </div>
+        )}
         <Textarea
           value={localNote}
           onChange={(e) => setLocalNote(e.target.value)}
