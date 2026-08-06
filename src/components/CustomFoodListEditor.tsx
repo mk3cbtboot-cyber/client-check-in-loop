@@ -170,7 +170,7 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     setMealsPerDay(v === 4 || v === 5 ? v : 3);
   }, [initialMealsPerDay]);
 
-  async function saveList(next: FoodList) {
+  async function saveList(next: FoodList): Promise<boolean> {
     const prev = list;
     setList(next);
     const { data, error } = await supabase
@@ -180,8 +180,13 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
       .select("food_list, food_list_notes_stale");
     if (error || !data || data.length === 0) {
       setList(prev);
+      console.error("[CustomFoodListEditor] food_list save failed; rolled back local state", {
+        clientId,
+        error,
+        returnedRows: data?.length ?? 0,
+      });
       toast.error(error ? "Failed to save food list" : "Save was not confirmed. Please try again.");
-      return;
+      return false;
     }
     // Reflect the committed server value so a later save cannot overwrite it
     // with a stale local copy, and push it into the parent's cached client row.
@@ -189,7 +194,9 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     setList(normalizeList(row.food_list));
     setNotesStale(normalizeStale(row.food_list_notes_stale));
     onClientPatched?.({ food_list: row.food_list, food_list_notes_stale: row.food_list_notes_stale });
+    return true;
   }
+
 
   async function saveNotes(next: FoodListNotes) {
     const prev = notes;
