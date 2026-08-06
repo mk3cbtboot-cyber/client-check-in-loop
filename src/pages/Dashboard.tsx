@@ -703,7 +703,12 @@ export default function Dashboard() {
       const { data, error } = await supabase.functions.invoke("invite-client", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success("Client invited — magic link emailed");
+      if (data?.emailSent) {
+        toast.success("Client created — invite email sent");
+      } else {
+        console.error("Invite email failed", data?.emailError);
+        toast.warning("Client created, but the invite email could not be sent.");
+      }
       setName(""); setEmail(""); setGender(""); setHeightCm(""); setHeightFt(""); setHeightIn(""); setHeightUnit("cm"); setNewClientType(null); setOpen(false);
       await load();
     } catch (err: any) {
