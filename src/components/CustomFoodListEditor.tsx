@@ -395,20 +395,29 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
     setOriginalName(it.name);
   }
 
-  async function onNameBlur() {
+  /**
+   * Estimate macros for the draft once it is complete (name + resolvable grams +
+   * category) and the practitioner has not typed macros of their own. Called from
+   * the name blur, the portion blur and the category change so the first complete
+   * manual entry auto-populates regardless of field order.
+   */
+  async function maybeEstimate(overrides?: { category?: FoodCategoryKind; portionNum?: string }) {
     const name = draftName.trim();
-    if (!name || name === originalName.trim()) return;
+    const category = overrides?.category ?? draftCategory;
+    if (!name) return;
     if (macrosDirty) return;
-    const grams = draftGrams();
+    // Same-name guard: skip a redundant refetch unless the category changed.
+    if (name === originalName.trim() && category === estimatedCategory) return;
+    const grams = draftGrams(overrides?.portionNum ?? draftPortionNum, category);
     if (grams === null) {
       // Can't derive densities without a resolvable gram weight; clear stale ones
       // so the old food's numbers don't leak onto the new name.
-      setDensities({});
+      if (name !== originalName.trim()) setDensities({});
       return;
     }
     const portion = `${Math.round(grams)}g`;
     setEstimating(true);
-    const e = await estimateFoodMacros(name, portion, draftCategory);
+    const e = await estimateFoodMacros(name, portion, category);
     setEstimating(false);
     if (macrosDirty) return; // practitioner edited during fetch
     setDraftProtein(String(round1(e.est_protein_g)));
@@ -420,7 +429,13 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
       f: (e.est_fat_g / grams) * 100,
     });
     setOriginalName(name);
+    setEstimatedCategory(category);
   }
+
+  async function onNameBlur() {
+    await maybeEstimate();
+  }
+
 
   const [estimating, setEstimating] = useState(false);
 
