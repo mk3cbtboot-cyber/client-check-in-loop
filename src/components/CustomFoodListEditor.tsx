@@ -170,7 +170,7 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     setMealsPerDay(v === 4 || v === 5 ? v : 3);
   }, [initialMealsPerDay]);
 
-  async function saveList(next: FoodList) {
+  async function saveList(next: FoodList): Promise<boolean> {
     const prev = list;
     setList(next);
     const { data, error } = await supabase
@@ -180,8 +180,13 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
       .select("food_list, food_list_notes_stale");
     if (error || !data || data.length === 0) {
       setList(prev);
+      console.error("[CustomFoodListEditor] food_list save failed; rolled back local state", {
+        clientId,
+        error,
+        returnedRows: data?.length ?? 0,
+      });
       toast.error(error ? "Failed to save food list" : "Save was not confirmed. Please try again.");
-      return;
+      return false;
     }
     // Reflect the committed server value so a later save cannot overwrite it
     // with a stale local copy, and push it into the parent's cached client row.
@@ -189,7 +194,9 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
     setList(normalizeList(row.food_list));
     setNotesStale(normalizeStale(row.food_list_notes_stale));
     onClientPatched?.({ food_list: row.food_list, food_list_notes_stale: row.food_list_notes_stale });
+    return true;
   }
+
 
   async function saveNotes(next: FoodListNotes) {
     const prev = notes;
@@ -314,7 +321,7 @@ interface SlotPanelProps {
   noteStale?: boolean;
   onDismissStale?: () => void;
   emptyMessage?: string;
-  onItemsChange: (items: FoodItem[]) => void;
+  onItemsChange: (items: FoodItem[]) => void | Promise<boolean>;
   onNoteBlur: (value: string) => void;
 }
 
@@ -341,6 +348,7 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
   const [densities, setDensities] = useState<{ p?: number; c?: number; f?: number }>({});
   const [originalName, setOriginalName] = useState("");
   const [confirmRemoveIdx, setConfirmRemoveIdx] = useState<number | null>(null);
+  const [removing, setRemoving] = useState(false);
   const [localNote, setLocalNote] = useState(note);
 
   useEffect(() => { setLocalNote(note); }, [note]);
@@ -513,9 +521,18 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
   }
 
 
-  function removeAt(idx: number) {
-    onItemsChange(items.filter((_, i) => i !== idx));
-    setConfirmRemoveIdx(null);
+  async function removeAt(idx: number) {
+    if (removing) return;
+    setRemoving(true);
+    try {
+      const result = await onItemsChange(items.filter((_, i) => i !== idx));
+      // Only close the dialog once the write is confirmed; keep it open on failure.
+      if (result !== false) setConfirmRemoveIdx(null);
+    } catch (err) {
+      console.error("[CustomFoodListEditor] remove food failed", err);
+    } finally {
+      setRemoving(false);
+    }
   }
 
   const showForm = adding || editingIndex != null;
@@ -690,7 +707,7 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
         />
       </div>
 
-      <AlertDialog open={confirmRemoveIdx != null} onOpenChange={(o) => !o && setConfirmRemoveIdx(null)}>
+      <AlertDialog open={confirmRemoveIdx != null} onOpenChange={(o) => { if (!o && !removing) setConfirmRemoveIdx(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove food?</AlertDialogTitle>
@@ -701,9 +718,15 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => confirmRemoveIdx != null && removeAt(confirmRemoveIdx)}>
-              Remove
+            <AlertDialogCancel disabled={removing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={removing}
+              onClick={(e) => {
+                e.preventDefault();
+                if (confirmRemoveIdx != null) void removeAt(confirmRemoveIdx);
+              }}
+            >
+              {removing ? "Removing..." : "Remove"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
