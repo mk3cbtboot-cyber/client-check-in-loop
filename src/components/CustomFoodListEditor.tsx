@@ -630,6 +630,8 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
                 step={eggMode || spoonUnit ? 1 : 1}
                 value={draftPortionNum}
                 onChange={(e) => onPortionChange(e.target.value)}
+                onBlur={(e) => { void maybeEstimate({ portionNum: e.target.value }); }}
+
                 placeholder={eggMode ? "e.g. 2" : spoonUnit ? "e.g. 3" : "e.g. 150"}
                 className="h-8"
               />
