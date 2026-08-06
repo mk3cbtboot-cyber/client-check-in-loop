@@ -168,7 +168,11 @@ Deno.serve(async (req) => {
     const list = (c.food_list ?? {}) as Record<string, FoodItem[]>;
     const notesAll = (c.food_list_notes ?? {}) as Record<string, string>;
     const foods = Array.isArray(list[slot_key]) ? list[slot_key] : [];
-    const slotNote = typeof notesAll[slot_key] === "string" ? notesAll[slot_key] : "";
+    // A note flagged stale (slot foods changed since the note was written) is
+    // withheld from AI context until the practitioner reviews it.
+    const staleAll = (c.food_list_notes_stale ?? {}) as Record<string, unknown>;
+    const noteIsStale = staleAll[slot_key] === true;
+    const slotNote = !noteIsStale && typeof notesAll[slot_key] === "string" ? notesAll[slot_key] : "";
 
     if (foods.length === 0) {
       return new Response(JSON.stringify({ error: "No foods set for this slot." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
