@@ -397,6 +397,8 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
       f: it.density_fat_per_100g,
     });
     setOriginalName(it.name);
+    setEstimatedCategory(it.category);
+
   }
 
   /**
