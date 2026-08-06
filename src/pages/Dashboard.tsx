@@ -2303,6 +2303,7 @@ export default function Dashboard() {
                                   clientId={client.id}
                                   initialList={(client as unknown as { food_list?: unknown }).food_list}
                                   initialNotes={(client as unknown as { food_list_notes?: unknown }).food_list_notes}
+                                  initialNotesStale={(client as unknown as { food_list_notes_stale?: unknown }).food_list_notes_stale}
                                   initialMealsPerDay={(client as unknown as { meals_per_day?: number }).meals_per_day ?? 3}
                                   planFormat={client.plan_format as "food_list" | "food_list_generated"}
                                   macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}

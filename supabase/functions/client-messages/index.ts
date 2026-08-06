@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
             .from("clients")
             .select([
               "name", "phase", "batch_cooking_mode",
-              "plan_format", "food_list", "food_list_notes", "meals_per_day",
+              "plan_format", "food_list", "food_list_notes", "food_list_notes_stale", "meals_per_day",
               "breakfast_protein_category", "breakfast_protein_grams", "breakfast_veg_grams",
               "lunch_protein_category", "lunch_protein_grams", "lunch_veg_grams",
               "dinner_protein_category", "dinner_protein_grams", "dinner_veg_grams",
@@ -477,6 +477,9 @@ Deno.serve(async (req) => {
           const buildFoodListSummary = (): string => {
             const fl = (f.food_list ?? {}) as Record<string, Array<{ name?: string; portion?: string; category?: string }>>;
             const notes = (f.food_list_notes ?? {}) as Record<string, string>;
+            // Notes flagged stale (slot foods changed since the note was written)
+            // are withheld until the practitioner reviews them.
+            const notesStale = (f.food_list_notes_stale ?? {}) as Record<string, unknown>;
             const meals = Number(f.meals_per_day ?? 3);
             const visible = visibleFoodListSlots(meals);
             const lines: string[] = ["Client meal plan:"];
@@ -489,7 +492,7 @@ Deno.serve(async (req) => {
                     return parts.join(" · ");
                   }).filter(Boolean).join(", ")
                 : "(no foods listed)";
-              const note = typeof notes[key] === "string" ? notes[key].trim() : "";
+              const note = notesStale[key] === true || typeof notes[key] !== "string" ? "" : notes[key].trim();
               lines.push(`${label}: [${itemStr}]${note ? ` Note: ${note}` : ""}`);
             });
             return lines.join("\n");
