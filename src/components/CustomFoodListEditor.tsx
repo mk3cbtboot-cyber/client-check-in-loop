@@ -442,12 +442,13 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
   const round1 = (n: number) => Math.round(n * 10) / 10;
 
   /** Grams for the current draft, using the shared unit conversion. */
-  function draftGrams(numStr = draftPortionNum): number | null {
+  function draftGrams(numStr = draftPortionNum, category: FoodCategoryKind = draftCategory): number | null {
     const qty = Number(numStr);
     if (!Number.isFinite(qty) || qty <= 0) return null;
-    const unit = draftPortionUnit.trim() || (isEggItem(draftName, draftCategory) ? "eggs" : "g");
+    const unit = draftPortionUnit.trim() || (isEggItem(draftName, category) ? "eggs" : "g");
     return portionToGrams(`${qty} ${unit}`, draftName);
   }
+
 
   function onPortionChange(v: string) {
     setDraftPortionNum(v);
