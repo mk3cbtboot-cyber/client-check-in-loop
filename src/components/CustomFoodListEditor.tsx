@@ -347,6 +347,8 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
   const [macrosDirty, setMacrosDirty] = useState(false);
   const [densities, setDensities] = useState<{ p?: number; c?: number; f?: number }>({});
   const [originalName, setOriginalName] = useState("");
+  const [estimatedCategory, setEstimatedCategory] = useState<FoodCategoryKind | null>(null);
+
   const [confirmRemoveIdx, setConfirmRemoveIdx] = useState<number | null>(null);
   const [removing, setRemoving] = useState(false);
   const [localNote, setLocalNote] = useState(note);
