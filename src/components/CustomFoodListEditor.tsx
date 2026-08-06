@@ -368,6 +368,8 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
     setMacrosDirty(false);
     setDensities({});
     setOriginalName("");
+    setEstimatedCategory(null);
+
   }
 
   function startAdd() {
