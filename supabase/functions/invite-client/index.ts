@@ -12,6 +12,26 @@ const BodySchema = z.object({
   height_cm: z.number().positive().max(300).optional(),
 });
 
+const GENERIC_MAILBOX_LOCALS = new Set([
+  "info", "hello", "admin", "contact", "support", "team", "office", "no-reply", "noreply",
+]);
+
+function firstNameFromEmail(email: string | null | undefined): string | null {
+  if (!email || typeof email !== "string") return null;
+  const local = (email.split("@")[0] ?? "").toLowerCase();
+  if (GENERIC_MAILBOX_LOCALS.has(local)) return null;
+  const letters = local.replace(/[^a-z]/g, "");
+  if (!letters) return null;
+  return letters.charAt(0).toUpperCase() + letters.slice(1);
+}
+
+function resolvePractName(prof: { display_name?: string | null; email?: string | null } | null | undefined): string {
+  const dn = prof?.display_name;
+  if (dn && dn.trim()) return dn.trim();
+  return firstNameFromEmail(prof?.email) ?? "your practitioner";
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -65,28 +85,58 @@ Deno.serve(async (req) => {
       .single();
     if (insertErr) throw insertErr;
 
-    // Build magic link from request origin
-    const origin = req.headers.get("origin") ?? req.headers.get("referer")?.replace(/\/$/, "") ?? "";
-    const link = `${origin}/checkin/${client.magic_token}`;
+    // Build the portal link from the configured base URL. No guessing.
+    const portalBase = (Deno.env.get("PORTAL_BASE_URL") ?? "").trim().replace(/\/$/, "");
+    let link: string | null = null;
+    let emailSent = false;
+    let emailError: string | null = null;
 
-    // Send invite email via transactional email function (best-effort)
-    try {
-      await admin.functions.invoke("send-transactional-email", {
-        body: {
-          templateName: "client-invite",
-          recipientEmail: email,
-          idempotencyKey: `client-invite-${client.id}`,
-          templateData: { name, checkinUrl: link },
-        },
-      });
-    } catch (emailErr) {
-      console.warn("Email send failed (non-fatal):", emailErr);
+    if (!portalBase) {
+      emailError = "PORTAL_BASE_URL is not configured";
+      console.error("invite-client: PORTAL_BASE_URL is not set; cannot build portal link or send invite email");
+    } else {
+      link = `${portalBase}/portal/${client.magic_token}`;
+
+      // Resolve practitioner display name (same rule as client-messages)
+      const { data: prof } = await admin
+        .from("profiles")
+        .select("display_name, email")
+        .eq("id", practitionerId)
+        .maybeSingle();
+      const practitionerName = resolvePractName(prof);
+
+      const clientFirstName = (name.trim().split(/\s+/)[0] || "there");
+
+      try {
+        const { data: emailRes, error: fnErr } = await admin.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "client-invite",
+            recipientEmail: email,
+            idempotencyKey: `client-invite-${client.id}`,
+            templateData: {
+              client_first_name: clientFirstName,
+              practitioner_name: practitionerName,
+              portal_url: link,
+            },
+          },
+        });
+        if (fnErr) throw fnErr;
+        if (emailRes?.error) throw new Error(String(emailRes.error));
+        emailSent = Boolean(emailRes?.queued);
+        if (!emailSent) emailError = emailRes?.suppressed ? "Recipient address is suppressed" : "Email was not queued";
+      } catch (err: any) {
+        emailError = err?.message ?? "Failed to send invite email";
+        console.error("invite-client: invite email failed", { clientId: client.id, email, error: err });
+      }
     }
 
-    return new Response(JSON.stringify({ ok: true, magicLink: link, clientId: client.id }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ ok: true, magicLink: link, clientId: client.id, emailSent, emailError }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   } catch (err: any) {
     console.error("invite-client error:", err);
     return new Response(JSON.stringify({ error: err.message ?? "Server error" }), {
