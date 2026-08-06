@@ -347,6 +347,8 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
   const [macrosDirty, setMacrosDirty] = useState(false);
   const [densities, setDensities] = useState<{ p?: number; c?: number; f?: number }>({});
   const [originalName, setOriginalName] = useState("");
+  const [estimatedCategory, setEstimatedCategory] = useState<FoodCategoryKind | null>(null);
+
   const [confirmRemoveIdx, setConfirmRemoveIdx] = useState<number | null>(null);
   const [removing, setRemoving] = useState(false);
   const [localNote, setLocalNote] = useState(note);
@@ -366,6 +368,8 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
     setMacrosDirty(false);
     setDensities({});
     setOriginalName("");
+    setEstimatedCategory(null);
+
   }
 
   function startAdd() {
@@ -393,22 +397,33 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
       f: it.density_fat_per_100g,
     });
     setOriginalName(it.name);
+    setEstimatedCategory(it.category);
+
   }
 
-  async function onNameBlur() {
+  /**
+   * Estimate macros for the draft once it is complete (name + resolvable grams +
+   * category) and the practitioner has not typed macros of their own. Called from
+   * the name blur, the portion blur and the category change so the first complete
+   * manual entry auto-populates regardless of field order.
+   */
+  async function maybeEstimate(overrides?: { category?: FoodCategoryKind; portionNum?: string }) {
     const name = draftName.trim();
-    if (!name || name === originalName.trim()) return;
+    const category = overrides?.category ?? draftCategory;
+    if (!name) return;
     if (macrosDirty) return;
-    const grams = draftGrams();
+    // Same-name guard: skip a redundant refetch unless the category changed.
+    if (name === originalName.trim() && category === estimatedCategory) return;
+    const grams = draftGrams(overrides?.portionNum ?? draftPortionNum, category);
     if (grams === null) {
       // Can't derive densities without a resolvable gram weight; clear stale ones
       // so the old food's numbers don't leak onto the new name.
-      setDensities({});
+      if (name !== originalName.trim()) setDensities({});
       return;
     }
     const portion = `${Math.round(grams)}g`;
     setEstimating(true);
-    const e = await estimateFoodMacros(name, portion, draftCategory);
+    const e = await estimateFoodMacros(name, portion, category);
     setEstimating(false);
     if (macrosDirty) return; // practitioner edited during fetch
     setDraftProtein(String(round1(e.est_protein_g)));
@@ -420,19 +435,26 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
       f: (e.est_fat_g / grams) * 100,
     });
     setOriginalName(name);
+    setEstimatedCategory(category);
   }
+
+  async function onNameBlur() {
+    await maybeEstimate();
+  }
+
 
   const [estimating, setEstimating] = useState(false);
 
   const round1 = (n: number) => Math.round(n * 10) / 10;
 
   /** Grams for the current draft, using the shared unit conversion. */
-  function draftGrams(numStr = draftPortionNum): number | null {
+  function draftGrams(numStr = draftPortionNum, category: FoodCategoryKind = draftCategory): number | null {
     const qty = Number(numStr);
     if (!Number.isFinite(qty) || qty <= 0) return null;
-    const unit = draftPortionUnit.trim() || (isEggItem(draftName, draftCategory) ? "eggs" : "g");
+    const unit = draftPortionUnit.trim() || (isEggItem(draftName, category) ? "eggs" : "g");
     return portionToGrams(`${qty} ${unit}`, draftName);
   }
+
 
   function onPortionChange(v: string) {
     setDraftPortionNum(v);
@@ -608,6 +630,8 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
                 step={eggMode || spoonUnit ? 1 : 1}
                 value={draftPortionNum}
                 onChange={(e) => onPortionChange(e.target.value)}
+                onBlur={(e) => { void maybeEstimate({ portionNum: e.target.value }); }}
+
                 placeholder={eggMode ? "e.g. 2" : spoonUnit ? "e.g. 3" : "e.g. 150"}
                 className="h-8"
               />
@@ -617,7 +641,14 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Category</Label>
-              <Select value={draftCategory} onValueChange={(v) => setDraftCategory(v as FoodCategoryKind)}>
+              <Select
+                value={draftCategory}
+                onValueChange={(v) => {
+                  const cat = v as FoodCategoryKind;
+                  setDraftCategory(cat);
+                  void maybeEstimate({ category: cat });
+                }}
+              >
                 <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
