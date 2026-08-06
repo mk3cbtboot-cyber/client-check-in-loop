@@ -641,7 +641,14 @@ function SlotPanel({ label, items, note, noteStale, onDismissStale, emptyMessage
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Category</Label>
-              <Select value={draftCategory} onValueChange={(v) => setDraftCategory(v as FoodCategoryKind)}>
+              <Select
+                value={draftCategory}
+                onValueChange={(v) => {
+                  const cat = v as FoodCategoryKind;
+                  setDraftCategory(cat);
+                  void maybeEstimate({ category: cat });
+                }}
+              >
                 <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
