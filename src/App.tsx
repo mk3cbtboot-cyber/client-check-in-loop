@@ -11,6 +11,7 @@ import CheckIn from "./pages/CheckIn";
 import ClientPortal from "./pages/ClientPortal";
 import Onboarding from "./pages/Onboarding";
 import OAuthConsent from "./pages/OAuthConsent";
+import Unsubscribe from "./pages/Unsubscribe";
 import NotFound from "./pages/NotFound.tsx";
 
 
