@@ -47,17 +47,15 @@ const Unsubscribe = () => {
   const confirm = async () => {
     setBusy(true);
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/handle-email-unsubscribe`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string,
-          },
-          body: JSON.stringify({ token }),
+      const res = await fetch(FN_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: API_KEY,
+          Authorization: `Bearer ${API_KEY}`,
         },
-      );
+        body: JSON.stringify({ token }),
+      });
       const out = await res.json();
       setState(out?.ok ? "done" : "invalid");
     } catch {
