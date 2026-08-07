@@ -97,6 +97,50 @@ Deno.serve(async (req) => {
     status: 'pending',
   })
 
+  // Get-or-create the one-click unsubscribe token for this recipient.
+  const normalizedEmail = recipientEmail.toLowerCase()
+  let unsubscribeToken: string | null = null
+  {
+    const { data: existing } = await supabase
+      .from('email_unsubscribe_tokens')
+      .select('token')
+      .eq('email', normalizedEmail)
+      .maybeSingle()
+    if (existing?.token) {
+      unsubscribeToken = existing.token
+    } else {
+      const fresh = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '')
+      const { data: inserted, error: tokenErr } = await supabase
+        .from('email_unsubscribe_tokens')
+        .insert({ token: fresh, email: normalizedEmail })
+        .select('token')
+        .maybeSingle()
+      if (tokenErr) {
+        // Unique-violation race: re-read.
+        const { data: retry } = await supabase
+          .from('email_unsubscribe_tokens')
+          .select('token')
+          .eq('email', normalizedEmail)
+          .maybeSingle()
+        unsubscribeToken = retry?.token ?? null
+      } else {
+        unsubscribeToken = inserted?.token ?? fresh
+      }
+    }
+  }
+
+  if (!unsubscribeToken) {
+    console.error('send-transactional-email: could not resolve unsubscribe token', { recipientEmail })
+    await supabase.from('email_send_log').insert({
+      message_id: messageId,
+      template_name: templateName,
+      recipient_email: recipientEmail,
+      status: 'failed',
+      error_message: 'Could not create unsubscribe token',
+    })
+    return json({ error: 'Could not create unsubscribe token' }, 500)
+  }
+
   const { error: enqueueError } = await supabase.rpc('enqueue_email', {
     queue_name: 'transactional_emails',
     payload: {
