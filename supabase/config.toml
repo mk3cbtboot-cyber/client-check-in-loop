@@ -9,6 +9,8 @@ project_id = "mzwsjiuwctmlioloqswj"
     verify_jwt = false
   [functions.generate-foodlist-recipe]
     verify_jwt = false
+  [functions.handle-email-unsubscribe]
+    verify_jwt = false
   [functions.log-foodlist-meal]
     verify_jwt = false
   [functions.log-recipe-meal]

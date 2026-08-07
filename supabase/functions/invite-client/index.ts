@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
           body: {
             templateName: "client-invite",
             recipientEmail: email,
-            idempotencyKey: `client-invite-${client.id}`,
+            idempotencyKey: `client-invite-${client.id}-${Date.now()}`,
             templateData: {
               client_first_name: clientFirstName,
               practitioner_name: practitionerName,
