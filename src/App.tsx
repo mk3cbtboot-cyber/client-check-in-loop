@@ -34,6 +34,7 @@ const App = () => (
           <Route path="/checkin/:token" element={<CheckIn />} />
           <Route path="/portal/:token" element={<ClientPortal />} />
           <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+          <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="*" element={<NotFound />} />
 
         </Routes>
