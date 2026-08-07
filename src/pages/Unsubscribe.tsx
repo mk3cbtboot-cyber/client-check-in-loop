@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 
 type State = "loading" | "confirm" | "done" | "already" | "invalid";
+
+const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/handle-email-unsubscribe`;
+const API_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
 const Unsubscribe = () => {
   const [params] = useSearchParams();
@@ -20,23 +22,14 @@ const Unsubscribe = () => {
         setState("invalid");
         return;
       }
-      const { data, error } = await supabase.functions.invoke("handle-email-unsubscribe", {
-        body: { probe: true },
-        method: "GET",
-        // token is passed via query string below
-      } as never).catch(() => ({ data: null, error: true }) as never);
-      // Fallback: direct GET with query param
-      let result: any = data;
-      if (error || !result) {
-        try {
-          const res = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/handle-email-unsubscribe?token=${encodeURIComponent(token)}`,
-            { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string } },
-          );
-          result = await res.json();
-        } catch {
-          result = null;
-        }
+      let result: any = null;
+      try {
+        const res = await fetch(`${FN_URL}?token=${encodeURIComponent(token)}`, {
+          headers: { apikey: API_KEY, Authorization: `Bearer ${API_KEY}` },
+        });
+        result = await res.json();
+      } catch {
+        result = null;
       }
       if (cancelled) return;
       if (!result?.valid) {
