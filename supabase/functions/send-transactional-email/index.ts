@@ -154,6 +154,7 @@ Deno.serve(async (req) => {
       purpose: 'transactional',
       label: templateName,
       idempotency_key: messageId,
+      unsubscribe_token: unsubscribeToken,
       queued_at: new Date().toISOString(),
     },
   })
