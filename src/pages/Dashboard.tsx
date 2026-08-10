@@ -700,6 +700,7 @@ export default function Dashboard() {
     setSubmitting(true);
     try {
       if (!newClientType) throw new Error("Please choose a client type first");
+      if (!tierAllowsType(tier, newClientType)) throw new Error("Your practice type does not allow creating this client type");
       if (email.trim().toLowerCase() === userEmail.toLowerCase()) {
         throw new Error("You cannot invite yourself as a client");
       }
