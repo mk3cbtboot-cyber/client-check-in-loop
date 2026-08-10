@@ -387,7 +387,7 @@ export default function Dashboard() {
     };
   }, [navigate]);
 
-  const saveTier = async (next: PractitionerTier) => {
+  const applyTier = async (next: PractitionerTier) => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) return;
     setSavingTier(true);
@@ -398,9 +398,24 @@ export default function Dashboard() {
     setSavingTier(false);
     if (error) return toast.error("Could not update practice type");
     setTier(next);
+    setPendingTier(null);
     setSettingsOpen(false);
     toast.success("Practice type updated");
   };
+
+  const saveTier = async (next: PractitionerTier) => {
+    if (next === tier) return;
+    const warning = tierTransitionWarning(next, {
+      mb: clients.filter((c) => c.client_type !== "custom").length,
+      custom: clients.filter((c) => c.client_type === "custom").length,
+    });
+    if (warning) {
+      setPendingTier(next);
+      return;
+    }
+    await applyTier(next);
+  };
+
 
   const saveDisplayName = async () => {
     const { data } = await supabase.auth.getSession();
