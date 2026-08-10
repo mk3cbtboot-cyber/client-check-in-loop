@@ -1106,7 +1106,7 @@ export default function Dashboard() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {!isDetailView && tierShowsCustom(tier) && (
+            {!isDetailView && (tierShowsCustom(tier) || hasCustomClients) && (
               <Button variant="outline" size="sm" onClick={() => setRecipeLibOpen(true)}>
                 <BookOpen className="h-4 w-4" /> Recipe Library
               </Button>
@@ -1417,7 +1417,7 @@ export default function Dashboard() {
                   Archived ({clients.filter((c) => !!c.archived_at).length})
                 </button>
               </div>
-              {!showArchived && tierShowsCustom(tier) && tierShowsMb(tier) && (
+              {!showArchived && showTypeTabs && (
                 <div role="group" aria-label="Client type filter" className="inline-flex rounded-md border overflow-hidden text-xs">
                   {([
                     { v: "all", label: `All (${clients.filter((c) => !c.archived_at).length})` },
@@ -1885,11 +1885,11 @@ export default function Dashboard() {
 
 
                     <Tabs defaultValue="overview" className="w-full" value={(client as unknown as { _activeTab?: string })._activeTab ?? undefined} onValueChange={(v) => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: v } as typeof x) : x)))}>
-                      <TabsList className={`grid w-full ${tierShowsCustom(tier) && client.system_mode === "own_practice" && client.plan_format === "food_list_generated" ? "grid-cols-6" : "grid-cols-5"}`}>
+                      <TabsList className={`grid w-full ${client.system_mode === "own_practice" && client.plan_format === "food_list_generated" ? "grid-cols-6" : "grid-cols-5"}`}>
                         <TabsTrigger value="overview">Overview</TabsTrigger>
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="progress">Progress</TabsTrigger>
-                        {tierShowsCustom(tier) && client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
+                        {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                           <TabsTrigger value="macros">Macros / MPG</TabsTrigger>
                         )}
                         <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
@@ -2267,7 +2267,7 @@ export default function Dashboard() {
                         </Collapsible>
                       </TabsContent>
 
-                      {tierShowsCustom(tier) && client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
+                      {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                       <TabsContent value="macros" className="pt-3 space-y-6">
                         <MacrosTab
                           client={client as unknown as Parameters<typeof MacrosTab>[0]["client"]}
