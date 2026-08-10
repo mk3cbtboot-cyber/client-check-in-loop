@@ -417,6 +417,11 @@ export default function Dashboard() {
     await applyTier(next);
   };
 
+  // What client types the practitioner ACTUALLY has (derived, no extra query).
+  const hasMbClients = clients.some((c) => c.client_type !== "custom");
+  const hasCustomClients = clients.some((c) => c.client_type === "custom");
+  const showTypeTabs = hasMbClients && hasCustomClients;
+
 
   const saveDisplayName = async () => {
     const { data } = await supabase.auth.getSession();
