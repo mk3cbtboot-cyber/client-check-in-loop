@@ -1712,6 +1712,14 @@ export default function Dashboard() {
                             </button>
                           </div>
                         )}
+                        {!tierShowsToggle(tier) && (
+                          <span
+                            className="px-2 py-0.5 rounded border bg-muted text-xs"
+                            title="Client type (conversion is not available in your current practice type)"
+                          >
+                            {client.system_mode === "own_practice" ? "Custom" : "MB"}
+                          </span>
+                        )}
 
                         <span className="whitespace-nowrap">
                           {client.email}
