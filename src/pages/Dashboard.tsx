@@ -1438,7 +1438,17 @@ export default function Dashboard() {
               )}
             </div>
             {!showArchived && (
-              <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setNewClientType(null); }}>
+              <Dialog
+                open={open}
+                onOpenChange={(o) => {
+                  setOpen(o);
+                  if (!o) setNewClientType(null);
+                  else {
+                    const allowed = (["mb", "custom"] as const).filter((t) => tierAllowsType(tier, t));
+                    setNewClientType(allowed.length === 1 ? allowed[0] : null);
+                  }
+                }}
+              >
                 <DialogTrigger asChild><Button>Add client</Button></DialogTrigger>
                 <DialogContent>
                   <DialogHeader><DialogTitle>Add a new client</DialogTitle></DialogHeader>
@@ -1446,22 +1456,26 @@ export default function Dashboard() {
                     <div className="space-y-3">
                       <p className="text-sm text-muted-foreground">Choose the client type to get started.</p>
                       <div className="grid gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setNewClientType("mb")}
-                          className="text-left rounded-lg border p-4 hover:border-primary hover:bg-accent transition-colors"
-                        >
-                          <p className="font-medium">MB</p>
-                          <p className="text-xs text-muted-foreground mt-1">Metabolic Balance client. Uses MB food plans and phases.</p>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setNewClientType("custom")}
-                          className="text-left rounded-lg border p-4 hover:border-primary hover:bg-accent transition-colors"
-                        >
-                          <p className="font-medium">Custom</p>
-                          <p className="text-xs text-muted-foreground mt-1">Your own nutrition protocol. Uses food-list or recipe plans.</p>
-                        </button>
+                        {tierAllowsType(tier, "mb") && (
+                          <button
+                            type="button"
+                            onClick={() => setNewClientType("mb")}
+                            className="text-left rounded-lg border p-4 hover:border-primary hover:bg-accent transition-colors"
+                          >
+                            <p className="font-medium">MB</p>
+                            <p className="text-xs text-muted-foreground mt-1">Metabolic Balance client. Uses MB food plans and phases.</p>
+                          </button>
+                        )}
+                        {tierAllowsType(tier, "custom") && (
+                          <button
+                            type="button"
+                            onClick={() => setNewClientType("custom")}
+                            className="text-left rounded-lg border p-4 hover:border-primary hover:bg-accent transition-colors"
+                          >
+                            <p className="font-medium">Custom</p>
+                            <p className="text-xs text-muted-foreground mt-1">Your own nutrition protocol. Uses food-list or recipe plans.</p>
+                          </button>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1470,10 +1484,13 @@ export default function Dashboard() {
                         <span className="text-xs">
                           Type: <span className="font-medium">{newClientType === "mb" ? "MB" : "Custom"}</span>
                         </span>
-                        <button type="button" className="text-xs text-primary hover:underline" onClick={() => setNewClientType(null)}>
-                          Change
-                        </button>
+                        {tierAllowsType(tier, "mb") && tierAllowsType(tier, "custom") && (
+                          <button type="button" className="text-xs text-primary hover:underline" onClick={() => setNewClientType(null)}>
+                            Change
+                          </button>
+                        )}
                       </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="cname">Name</Label>
                         <Input id="cname" required value={name} onChange={(e) => setName(e.target.value)} />
