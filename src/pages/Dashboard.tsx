@@ -347,8 +347,8 @@ export default function Dashboard() {
         return;
       }
       setTier(t);
-      if (!tierShowsCustom(t)) setTypeFilter("mb");
-      else if (!tierShowsMb(t)) setTypeFilter("custom");
+      // Tier gates CREATION only — never hide existing clients. Filter starts at "all".
+
       void loadRef.current();
     };
 
