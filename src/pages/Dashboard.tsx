@@ -184,6 +184,7 @@ export default function Dashboard() {
   const [heightIn, setHeightIn] = useState<string>("");
   const [newClientType, setNewClientType] = useState<"mb" | "custom" | null>(null);
   const [typeFilter, setTypeFilter] = useState<"all" | "mb" | "custom">("all");
+  const [pendingTier, setPendingTier] = useState<PractitionerTier | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [practitionerId, setPractitionerId] = useState<string>("");
