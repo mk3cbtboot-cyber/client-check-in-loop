@@ -1113,6 +1113,30 @@ export default function Dashboard() {
               </Button>
             )}
             <RecipeLibrary open={recipeLibOpen} onOpenChange={setRecipeLibOpen} />
+            <AlertDialog open={!!pendingTier} onOpenChange={(v) => { if (!v) setPendingTier(null); }}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Change practice type?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {pendingTier
+                      ? tierTransitionWarning(pendingTier, {
+                          mb: clients.filter((c) => c.client_type !== "custom").length,
+                          custom: clients.filter((c) => c.client_type === "custom").length,
+                        })
+                      : null}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => { if (pendingTier) void applyTier(pendingTier); }}
+                    disabled={savingTier}
+                  >
+                    Continue
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" aria-label="Settings">
