@@ -49,6 +49,40 @@ export function tierShowsToggle(t: PractitionerTier | null | undefined): boolean
   return t === "practitioner_rx";
 }
 
+/** Creation gating: can this tier CREATE new MB clients / convert into MB? */
+export function tierCanCreateMb(t: PractitionerTier | null | undefined): boolean {
+  return tierShowsMb(t);
+}
+
+/** Creation gating: can this tier CREATE new Custom clients / convert into Custom? */
+export function tierCanCreateCustom(t: PractitionerTier | null | undefined): boolean {
+  return tierShowsCustom(t);
+}
+
+export function tierAllowsType(t: PractitionerTier | null | undefined, type: "mb" | "custom"): boolean {
+  return type === "mb" ? tierCanCreateMb(t) : tierCanCreateCustom(t);
+}
+
+/**
+ * Count-aware warning shown before switching practice type.
+ * Returns null when the switch restricts nothing the practitioner is using.
+ * Never implies data loss — existing clients are grandfathered.
+ */
+export function tierTransitionWarning(
+  next: PractitionerTier,
+  counts: { mb: number; custom: number },
+): string | null {
+  const label = tierLabel(next);
+  if (!tierCanCreateMb(next) && counts.mb > 0) {
+    return `Switching to ${label}. You have ${counts.mb} Metabolic Balance client${counts.mb === 1 ? "" : "s"}; they stay fully accessible and editable, but you will not be able to create new MB clients. No data is deleted.`;
+  }
+  if (!tierCanCreateCustom(next) && counts.custom > 0) {
+    return `Switching to ${label}. You have ${counts.custom} Custom client${counts.custom === 1 ? "" : "s"}; they stay fully accessible and editable, but you will not be able to create new Custom clients. No data is deleted.`;
+  }
+  return null;
+}
+
 export function defaultSystemMode(t: PractitionerTier | null | undefined): "mb" | "own_practice" {
   return t === "custom_rx" ? "own_practice" : "mb";
 }
+

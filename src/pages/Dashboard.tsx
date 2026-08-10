@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { X, ArrowLeft, Settings as SettingsIcon, BookOpen, Loader2 } from "lucide-react";
 import RecipeLibrary from "@/components/RecipeLibrary";
 import { resolvePhase2Categories, type FoodCategory } from "@/lib/phase2-food-list";
-import { TIERS, tierLabel, tierShowsToggle, tierShowsCustom, tierShowsMb, defaultSystemMode, type PractitionerTier } from "@/lib/tiers";
+import { TIERS, tierLabel, tierShowsToggle, tierShowsCustom, tierAllowsType, tierTransitionWarning, defaultSystemMode, type PractitionerTier } from "@/lib/tiers";
 import {
   DAY_KEYS, DAY_LABELS, defaultOfficeHours, normalizeOfficeHours, checkAvailability,
   type OfficeHours, type DayKey,
@@ -184,6 +184,7 @@ export default function Dashboard() {
   const [heightIn, setHeightIn] = useState<string>("");
   const [newClientType, setNewClientType] = useState<"mb" | "custom" | null>(null);
   const [typeFilter, setTypeFilter] = useState<"all" | "mb" | "custom">("all");
+  const [pendingTier, setPendingTier] = useState<PractitionerTier | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [practitionerId, setPractitionerId] = useState<string>("");
@@ -347,8 +348,8 @@ export default function Dashboard() {
         return;
       }
       setTier(t);
-      if (!tierShowsCustom(t)) setTypeFilter("mb");
-      else if (!tierShowsMb(t)) setTypeFilter("custom");
+      // Tier gates CREATION only — never hide existing clients. Filter starts at "all".
+
       void loadRef.current();
     };
 
@@ -387,7 +388,7 @@ export default function Dashboard() {
     };
   }, [navigate]);
 
-  const saveTier = async (next: PractitionerTier) => {
+  const applyTier = async (next: PractitionerTier) => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) return;
     setSavingTier(true);
@@ -398,9 +399,29 @@ export default function Dashboard() {
     setSavingTier(false);
     if (error) return toast.error("Could not update practice type");
     setTier(next);
+    setPendingTier(null);
     setSettingsOpen(false);
     toast.success("Practice type updated");
   };
+
+  const saveTier = async (next: PractitionerTier) => {
+    if (next === tier) return;
+    const warning = tierTransitionWarning(next, {
+      mb: clients.filter((c) => c.client_type !== "custom").length,
+      custom: clients.filter((c) => c.client_type === "custom").length,
+    });
+    if (warning) {
+      setPendingTier(next);
+      return;
+    }
+    await applyTier(next);
+  };
+
+  // What client types the practitioner ACTUALLY has (derived, no extra query).
+  const hasMbClients = clients.some((c) => c.client_type !== "custom");
+  const hasCustomClients = clients.some((c) => c.client_type === "custom");
+  const showTypeTabs = hasMbClients && hasCustomClients;
+
 
   const saveDisplayName = async () => {
     const { data } = await supabase.auth.getSession();
@@ -679,6 +700,7 @@ export default function Dashboard() {
     setSubmitting(true);
     try {
       if (!newClientType) throw new Error("Please choose a client type first");
+      if (!tierAllowsType(tier, newClientType)) throw new Error("Your practice type does not allow creating this client type");
       if (email.trim().toLowerCase() === userEmail.toLowerCase()) {
         throw new Error("You cannot invite yourself as a client");
       }
@@ -1085,12 +1107,36 @@ export default function Dashboard() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {!isDetailView && tierShowsCustom(tier) && (
+            {!isDetailView && (tierShowsCustom(tier) || hasCustomClients) && (
               <Button variant="outline" size="sm" onClick={() => setRecipeLibOpen(true)}>
                 <BookOpen className="h-4 w-4" /> Recipe Library
               </Button>
             )}
             <RecipeLibrary open={recipeLibOpen} onOpenChange={setRecipeLibOpen} />
+            <AlertDialog open={!!pendingTier} onOpenChange={(v) => { if (!v) setPendingTier(null); }}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Change practice type?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {pendingTier
+                      ? tierTransitionWarning(pendingTier, {
+                          mb: clients.filter((c) => c.client_type !== "custom").length,
+                          custom: clients.filter((c) => c.client_type === "custom").length,
+                        })
+                      : null}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => { if (pendingTier) void applyTier(pendingTier); }}
+                    disabled={savingTier}
+                  >
+                    Continue
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" aria-label="Settings">
@@ -1396,7 +1442,7 @@ export default function Dashboard() {
                   Archived ({clients.filter((c) => !!c.archived_at).length})
                 </button>
               </div>
-              {!showArchived && tierShowsCustom(tier) && tierShowsMb(tier) && (
+              {!showArchived && showTypeTabs && (
                 <div role="group" aria-label="Client type filter" className="inline-flex rounded-md border overflow-hidden text-xs">
                   {([
                     { v: "all", label: `All (${clients.filter((c) => !c.archived_at).length})` },
@@ -1417,7 +1463,17 @@ export default function Dashboard() {
               )}
             </div>
             {!showArchived && (
-              <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setNewClientType(null); }}>
+              <Dialog
+                open={open}
+                onOpenChange={(o) => {
+                  setOpen(o);
+                  if (!o) setNewClientType(null);
+                  else {
+                    const allowed = (["mb", "custom"] as const).filter((t) => tierAllowsType(tier, t));
+                    setNewClientType(allowed.length === 1 ? allowed[0] : null);
+                  }
+                }}
+              >
                 <DialogTrigger asChild><Button>Add client</Button></DialogTrigger>
                 <DialogContent>
                   <DialogHeader><DialogTitle>Add a new client</DialogTitle></DialogHeader>
@@ -1425,22 +1481,26 @@ export default function Dashboard() {
                     <div className="space-y-3">
                       <p className="text-sm text-muted-foreground">Choose the client type to get started.</p>
                       <div className="grid gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setNewClientType("mb")}
-                          className="text-left rounded-lg border p-4 hover:border-primary hover:bg-accent transition-colors"
-                        >
-                          <p className="font-medium">MB</p>
-                          <p className="text-xs text-muted-foreground mt-1">Metabolic Balance client. Uses MB food plans and phases.</p>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setNewClientType("custom")}
-                          className="text-left rounded-lg border p-4 hover:border-primary hover:bg-accent transition-colors"
-                        >
-                          <p className="font-medium">Custom</p>
-                          <p className="text-xs text-muted-foreground mt-1">Your own nutrition protocol. Uses food-list or recipe plans.</p>
-                        </button>
+                        {tierAllowsType(tier, "mb") && (
+                          <button
+                            type="button"
+                            onClick={() => setNewClientType("mb")}
+                            className="text-left rounded-lg border p-4 hover:border-primary hover:bg-accent transition-colors"
+                          >
+                            <p className="font-medium">MB</p>
+                            <p className="text-xs text-muted-foreground mt-1">Metabolic Balance client. Uses MB food plans and phases.</p>
+                          </button>
+                        )}
+                        {tierAllowsType(tier, "custom") && (
+                          <button
+                            type="button"
+                            onClick={() => setNewClientType("custom")}
+                            className="text-left rounded-lg border p-4 hover:border-primary hover:bg-accent transition-colors"
+                          >
+                            <p className="font-medium">Custom</p>
+                            <p className="text-xs text-muted-foreground mt-1">Your own nutrition protocol. Uses food-list or recipe plans.</p>
+                          </button>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1449,10 +1509,13 @@ export default function Dashboard() {
                         <span className="text-xs">
                           Type: <span className="font-medium">{newClientType === "mb" ? "MB" : "Custom"}</span>
                         </span>
-                        <button type="button" className="text-xs text-primary hover:underline" onClick={() => setNewClientType(null)}>
-                          Change
-                        </button>
+                        {tierAllowsType(tier, "mb") && tierAllowsType(tier, "custom") && (
+                          <button type="button" className="text-xs text-primary hover:underline" onClick={() => setNewClientType(null)}>
+                            Change
+                          </button>
+                        )}
                       </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="cname">Name</Label>
                         <Input id="cname" required value={name} onChange={(e) => setName(e.target.value)} />
@@ -1691,6 +1754,14 @@ export default function Dashboard() {
                             </button>
                           </div>
                         )}
+                        {!tierShowsToggle(tier) && (
+                          <span
+                            className="px-2 py-0.5 rounded border bg-muted text-xs"
+                            title="Client type (conversion is not available in your current practice type)"
+                          >
+                            {client.system_mode === "own_practice" ? "Custom" : "MB"}
+                          </span>
+                        )}
 
                         <span className="whitespace-nowrap">
                           {client.email}
@@ -1864,11 +1935,11 @@ export default function Dashboard() {
 
 
                     <Tabs defaultValue="overview" className="w-full" value={(client as unknown as { _activeTab?: string })._activeTab ?? undefined} onValueChange={(v) => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: v } as typeof x) : x)))}>
-                      <TabsList className={`grid w-full ${tierShowsCustom(tier) && client.system_mode === "own_practice" && client.plan_format === "food_list_generated" ? "grid-cols-6" : "grid-cols-5"}`}>
+                      <TabsList className={`grid w-full ${client.system_mode === "own_practice" && client.plan_format === "food_list_generated" ? "grid-cols-6" : "grid-cols-5"}`}>
                         <TabsTrigger value="overview">Overview</TabsTrigger>
                         <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="progress">Progress</TabsTrigger>
-                        {tierShowsCustom(tier) && client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
+                        {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                           <TabsTrigger value="macros">Macros / MPG</TabsTrigger>
                         )}
                         <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
@@ -2246,7 +2317,7 @@ export default function Dashboard() {
                         </Collapsible>
                       </TabsContent>
 
-                      {tierShowsCustom(tier) && client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
+                      {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                       <TabsContent value="macros" className="pt-3 space-y-6">
                         <MacrosTab
                           client={client as unknown as Parameters<typeof MacrosTab>[0]["client"]}
