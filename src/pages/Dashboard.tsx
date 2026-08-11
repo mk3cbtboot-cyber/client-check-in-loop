@@ -2046,6 +2046,28 @@ export default function Dashboard() {
                                 </Select>
                               </div>
                             )}
+                            {client.system_mode === "own_practice" ? (
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs" htmlFor={`wt-${client.id}`}>Water target (litres/day)</Label>
+                                <Input
+                                  id={`wt-${client.id}`}
+                                  type="number"
+                                  min={0.5}
+                                  max={8}
+                                  step={0.25}
+                                  className="h-8 w-24"
+                                  defaultValue={waterTargetOf(client)}
+                                  key={`wt-${client.id}-${waterTargetOf(client)}`}
+                                  onBlur={(e) => setWaterTarget(client.id, e.target.value)}
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span>Water target: {waterTargetOf(client)} L/day</span>
+                                <span className="opacity-70">(from MB plan)</span>
+                              </div>
+                            )}
+
                             <Button variant="outline" size="sm"
                               onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
                               Copy portal link
