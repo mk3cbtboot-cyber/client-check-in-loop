@@ -1046,6 +1046,27 @@ export default function Dashboard() {
     toast.success(`Meals per day: ${next}`);
   };
 
+  const setWaterTarget = async (clientId: string, raw: string) => {
+    const c = clients.find((x) => x.id === clientId);
+    const prev = waterTargetOf(c);
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0.5 || n > 8 || Math.round(n * 100) % 25 !== 0) {
+      toast.error("Water target must be between 0.5 and 8 L, in 0.25 L steps");
+      setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, water_target_litres: prev } as typeof x) : x)));
+      return;
+    }
+    if (n === prev) return;
+    setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, water_target_litres: n } as typeof x) : x)));
+    const { error } = await supabase.from("clients").update({ water_target_litres: n } as never).eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, water_target_litres: prev } as typeof x) : x)));
+      return toast.error("Could not update water target");
+    }
+    toast.success(`Water target: ${n} L/day`);
+  };
+
+
+
   const setShow8Rules = async (clientId: string, value: boolean) => {
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, show_8_rules: value } : c)));
     const { error } = await supabase.from("clients").update({ show_8_rules: value }).eq("id", clientId);
