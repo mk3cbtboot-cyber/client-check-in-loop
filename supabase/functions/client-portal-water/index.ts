@@ -10,9 +10,9 @@ const Body = z.object({
   set_litres: z.number().min(0).max(20).optional(),
 });
 const today = () => new Date().toISOString().slice(0, 10);
-const WATER_TARGET = 2.5;
+const DEFAULT_WATER_TARGET = 2.5;
 
-function computeStreak(rows: { log_date: string; litres: number }[], todayStr: string): number {
+function computeStreak(rows: { log_date: string; litres: number }[], todayStr: string, WATER_TARGET: number): number {
   // rows sorted desc by log_date
   const map = new Map(rows.map(r => [r.log_date, Number(r.litres)]));
   let streak = 0;
@@ -38,8 +38,9 @@ Deno.serve(async (req) => {
     const parsed = Body.safeParse(await req.json());
     if (!parsed.success) return new Response(JSON.stringify({ error: "invalid" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: c } = await admin.from("clients").select("id, water_today_litres, water_date").eq("magic_token", parsed.data.token).maybeSingle();
+    const { data: c } = await admin.from("clients").select("id, water_today_litres, water_date, water_target_litres").eq("magic_token", parsed.data.token).maybeSingle();
     if (!c) return new Response(JSON.stringify({ error: "invalid" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const WATER_TARGET = Number(c.water_target_litres ?? DEFAULT_WATER_TARGET) || DEFAULT_WATER_TARGET;
     const td = today();
     let next: number;
     if (parsed.data.set_litres !== undefined) {
@@ -68,7 +69,7 @@ Deno.serve(async (req) => {
       .eq("client_id", c.id)
       .order("log_date", { ascending: false })
       .limit(400);
-    const streak = computeStreak(rows ?? [], td);
+    const streak = computeStreak(rows ?? [], td, WATER_TARGET);
 
     return new Response(JSON.stringify({ water_today_litres: next, water_streak: streak, just_hit_target: justHit }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

@@ -113,6 +113,7 @@ interface Client {
   phase3_mb_fat_oil: string;
   show_8_rules: boolean;
   height_cm: number | null;
+  water_target_litres: number | null;
   gender: "female" | "male" | "unspecified" | null;
   water_today_litres: number | null;
   water_date: string | null;
@@ -280,8 +281,10 @@ export default function Dashboard() {
     return streak;
   };
 
-  const WATER_TARGET = 2.5;
-  const computeWaterStreak = (rows: { log_date: string; litres: number }[], todayStr: string): number => {
+  const DEFAULT_WATER_TARGET = 2.5;
+  const waterTargetOf = (c: { water_target_litres?: number | null } | undefined | null): number =>
+    Number(c?.water_target_litres ?? DEFAULT_WATER_TARGET) || DEFAULT_WATER_TARGET;
+  const computeWaterStreak = (rows: { log_date: string; litres: number }[], todayStr: string, WATER_TARGET: number): number => {
     const map = new Map(rows.map((r) => [r.log_date, Number(r.litres)]));
     let streak = 0;
     const d = new Date(todayStr + "T00:00:00Z");
@@ -521,7 +524,7 @@ export default function Dashboard() {
       const ws: Record<string, number> = {};
       ids.forEach((id) => {
         const rows = (waterRows ?? []).filter((w: any) => w.client_id === id);
-        ws[id] = computeWaterStreak(rows, todayStr);
+        ws[id] = computeWaterStreak(rows, todayStr, waterTargetOf(clientRows.find((c) => c.id === id) as { water_target_litres?: number | null }));
       });
       setWaterStreaks(ws);
 
@@ -1043,6 +1046,27 @@ export default function Dashboard() {
     toast.success(`Meals per day: ${next}`);
   };
 
+  const setWaterTarget = async (clientId: string, raw: string) => {
+    const c = clients.find((x) => x.id === clientId);
+    const prev = waterTargetOf(c);
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0.5 || n > 8 || Math.round(n * 100) % 25 !== 0) {
+      toast.error("Water target must be between 0.5 and 8 L, in 0.25 L steps");
+      setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, water_target_litres: prev } as typeof x) : x)));
+      return;
+    }
+    if (n === prev) return;
+    setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, water_target_litres: n } as typeof x) : x)));
+    const { error } = await supabase.from("clients").update({ water_target_litres: n } as never).eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, water_target_litres: prev } as typeof x) : x)));
+      return toast.error("Could not update water target");
+    }
+    toast.success(`Water target: ${n} L/day`);
+  };
+
+
+
   const setShow8Rules = async (clientId: string, value: boolean) => {
     setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, show_8_rules: value } : c)));
     const { error } = await supabase.from("clients").update({ show_8_rules: value }).eq("id", clientId);
@@ -1325,7 +1349,7 @@ export default function Dashboard() {
             const matchesFilter = typeFilter === "all" || (typeFilter === "mb" ? c.client_type === "mb" : c.client_type === "custom");
             if (matchesFilter && computeStreak(list) >= 7) streaks += 1;
             const today = new Date().toISOString().slice(0, 10);
-            if (matchesFilter && c.water_date === today && Number(c.water_today_litres ?? 0) >= 2.5) waterHit += 1;
+            if (matchesFilter && c.water_date === today && Number(c.water_today_litres ?? 0) >= waterTargetOf(c)) waterHit += 1;
             if (matchesFilter && needsAttention(c, list)) attention += 1;
           });
 
@@ -2022,6 +2046,28 @@ export default function Dashboard() {
                                 </Select>
                               </div>
                             )}
+                            {client.system_mode === "own_practice" ? (
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs" htmlFor={`wt-${client.id}`}>Water target (litres/day)</Label>
+                                <Input
+                                  id={`wt-${client.id}`}
+                                  type="number"
+                                  min={0.5}
+                                  max={8}
+                                  step={0.25}
+                                  className="h-8 w-24"
+                                  defaultValue={waterTargetOf(client)}
+                                  key={`wt-${client.id}-${waterTargetOf(client)}`}
+                                  onBlur={(e) => setWaterTarget(client.id, e.target.value)}
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span>Water target: {waterTargetOf(client)} L/day</span>
+                                <span className="opacity-70">(from MB plan)</span>
+                              </div>
+                            )}
+
                             <Button variant="outline" size="sm"
                               onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
                               Copy portal link
@@ -2110,7 +2156,7 @@ export default function Dashboard() {
                         })()}
 
                         {(() => {
-                          const WATER_TARGET = 2.5;
+                          const WATER_TARGET = waterTargetOf(client);
                           const MEAL_TARGET = 3;
                           const waterByDay = new Map<string, number>();
                           for (const ci of list) {
