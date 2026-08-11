@@ -113,6 +113,7 @@ interface Client {
   phase3_mb_fat_oil: string;
   show_8_rules: boolean;
   height_cm: number | null;
+  water_target_litres: number | null;
   gender: "female" | "male" | "unspecified" | null;
   water_today_litres: number | null;
   water_date: string | null;
@@ -280,8 +281,10 @@ export default function Dashboard() {
     return streak;
   };
 
-  const WATER_TARGET = 2.5;
-  const computeWaterStreak = (rows: { log_date: string; litres: number }[], todayStr: string): number => {
+  const DEFAULT_WATER_TARGET = 2.5;
+  const waterTargetOf = (c: { water_target_litres?: number | null } | undefined | null): number =>
+    Number(c?.water_target_litres ?? DEFAULT_WATER_TARGET) || DEFAULT_WATER_TARGET;
+  const computeWaterStreak = (rows: { log_date: string; litres: number }[], todayStr: string, WATER_TARGET: number): number => {
     const map = new Map(rows.map((r) => [r.log_date, Number(r.litres)]));
     let streak = 0;
     const d = new Date(todayStr + "T00:00:00Z");
@@ -521,7 +524,7 @@ export default function Dashboard() {
       const ws: Record<string, number> = {};
       ids.forEach((id) => {
         const rows = (waterRows ?? []).filter((w: any) => w.client_id === id);
-        ws[id] = computeWaterStreak(rows, todayStr);
+        ws[id] = computeWaterStreak(rows, todayStr, waterTargetOf(clientRows.find((c) => c.id === id) as { water_target_litres?: number | null }));
       });
       setWaterStreaks(ws);
 
@@ -1325,7 +1328,7 @@ export default function Dashboard() {
             const matchesFilter = typeFilter === "all" || (typeFilter === "mb" ? c.client_type === "mb" : c.client_type === "custom");
             if (matchesFilter && computeStreak(list) >= 7) streaks += 1;
             const today = new Date().toISOString().slice(0, 10);
-            if (matchesFilter && c.water_date === today && Number(c.water_today_litres ?? 0) >= 2.5) waterHit += 1;
+            if (matchesFilter && c.water_date === today && Number(c.water_today_litres ?? 0) >= waterTargetOf(c)) waterHit += 1;
             if (matchesFilter && needsAttention(c, list)) attention += 1;
           });
 
@@ -2110,7 +2113,7 @@ export default function Dashboard() {
                         })()}
 
                         {(() => {
-                          const WATER_TARGET = 2.5;
+                          const WATER_TARGET = waterTargetOf(client);
                           const MEAL_TARGET = 3;
                           const waterByDay = new Map<string, number>();
                           for (const ci of list) {
