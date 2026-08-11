@@ -2164,12 +2164,12 @@ export default function Dashboard() {
                           const WATER_TARGET = waterTargetOf(client);
                           const MEAL_TARGET = 3;
                           const waterByDay = new Map<string, number>();
-                          for (const ci of list) {
-                            if (ci.water_litres == null) continue;
-                            const k = new Date(ci.created_at).toISOString().slice(0, 10);
-                            const v = Number(ci.water_litres);
-                            waterByDay.set(k, Math.max(waterByDay.get(k) ?? 0, v));
+                          for (const w of waterLogs[client.id] ?? []) {
+                            if (w.litres == null) continue;
+                            const v = Number(w.litres);
+                            waterByDay.set(w.log_date, Math.max(waterByDay.get(w.log_date) ?? 0, v));
                           }
+
                           const recipesList = recipes[client.id] ?? [];
                           const mealsByDay = new Map<string, number>();
                           for (const r of recipesList) {
