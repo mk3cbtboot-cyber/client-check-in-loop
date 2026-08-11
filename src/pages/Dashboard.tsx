@@ -171,6 +171,7 @@ export default function Dashboard() {
   const [clients, setClients] = useState<Client[]>([]);
   const [generatingPlans, setGeneratingPlans] = useState<Record<string, boolean>>({});
   const [checkIns, setCheckIns] = useState<Record<string, CheckIn[]>>({});
+  const [waterLogs, setWaterLogs] = useState<Record<string, { log_date: string; litres: number }[]>>({});
   const [recipes, setRecipes] = useState<Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]>>({});
   const [weeklyAcks, setWeeklyAcks] = useState<Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]>>({});
   const [waterStreaks, setWaterStreaks] = useState<Record<string, number>>({});
@@ -522,11 +523,15 @@ export default function Dashboard() {
 
       const todayStr = new Date().toISOString().slice(0, 10);
       const ws: Record<string, number> = {};
+      const wg: Record<string, { log_date: string; litres: number }[]> = {};
       ids.forEach((id) => {
         const rows = (waterRows ?? []).filter((w: any) => w.client_id === id);
+        wg[id] = rows.map((w: any) => ({ log_date: w.log_date, litres: Number(w.litres) }));
         ws[id] = computeWaterStreak(rows, todayStr, waterTargetOf(clientRows.find((c) => c.id === id) as { water_target_litres?: number | null }));
       });
+      setWaterLogs(wg);
       setWaterStreaks(ws);
+
 
       // All non-attended appointments per client (used to surface upcoming + missed).
       const { data: apptRows } = await supabase
@@ -2159,12 +2164,12 @@ export default function Dashboard() {
                           const WATER_TARGET = waterTargetOf(client);
                           const MEAL_TARGET = 3;
                           const waterByDay = new Map<string, number>();
-                          for (const ci of list) {
-                            if (ci.water_litres == null) continue;
-                            const k = new Date(ci.created_at).toISOString().slice(0, 10);
-                            const v = Number(ci.water_litres);
-                            waterByDay.set(k, Math.max(waterByDay.get(k) ?? 0, v));
+                          for (const w of waterLogs[client.id] ?? []) {
+                            if (w.litres == null) continue;
+                            const v = Number(w.litres);
+                            waterByDay.set(w.log_date, Math.max(waterByDay.get(w.log_date) ?? 0, v));
                           }
+
                           const recipesList = recipes[client.id] ?? [];
                           const mealsByDay = new Map<string, number>();
                           for (const r of recipesList) {
