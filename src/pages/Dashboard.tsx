@@ -523,11 +523,15 @@ export default function Dashboard() {
 
       const todayStr = new Date().toISOString().slice(0, 10);
       const ws: Record<string, number> = {};
+      const wg: Record<string, { log_date: string; litres: number }[]> = {};
       ids.forEach((id) => {
         const rows = (waterRows ?? []).filter((w: any) => w.client_id === id);
+        wg[id] = rows.map((w: any) => ({ log_date: w.log_date, litres: Number(w.litres) }));
         ws[id] = computeWaterStreak(rows, todayStr, waterTargetOf(clientRows.find((c) => c.id === id) as { water_target_litres?: number | null }));
       });
+      setWaterLogs(wg);
       setWaterStreaks(ws);
+
 
       // All non-attended appointments per client (used to surface upcoming + missed).
       const { data: apptRows } = await supabase
