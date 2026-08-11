@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     // Sync today's water into daily_water_logs and compute streak
-    const WATER_TARGET = 2.5;
+    const WATER_TARGET = Number(c.water_target_litres ?? 2.5) || 2.5;
     const todayLitres = c.water_date === td ? Number(c.water_today_litres) : 0;
     if (c.water_date === td) {
       await admin.from("daily_water_logs").upsert({
@@ -173,6 +173,7 @@ Deno.serve(async (req) => {
         food_limits: c.food_limits ?? {},
         food_limit_counts: c.food_limit_counts ?? {},
         water_today_litres: Number(c.water_today_litres), meal_streak: c.meal_streak,
+        water_target_litres: WATER_TARGET,
         water_streak: waterStreak,
         mb_pdf_path: c.mb_pdf_path ?? null,
         phase3_additional_foods: c.phase3_additional_foods ?? "",

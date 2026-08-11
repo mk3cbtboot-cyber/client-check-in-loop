@@ -37,6 +37,7 @@ interface ClientState {
   food_limits: Record<string, number>;
   food_limit_counts: Record<string, number>;
   water_today_litres: number;
+  water_target_litres?: number | null;
   meal_streak: number;
   water_streak: number;
   mb_pdf_path: string | null;
@@ -653,7 +654,7 @@ export default function ClientPortal() {
   );
 
   // Eggs limit/used now sourced from food_limits / food_limit_counts where needed.
-  const waterTarget = 2.5;
+  const waterTarget = Number(client.water_target_litres ?? 2.5) || 2.5;
 
   // My Plan categories — uses practitioner-customised list when set, otherwise defaults.
   const planCategories = (() => {
@@ -743,7 +744,7 @@ export default function ClientPortal() {
           <div className="grid grid-cols-3 gap-3">
             <Card className="p-4">
               <p className="text-xs uppercase text-muted-foreground">Water Today</p>
-              <p className="text-2xl font-semibold">{client.water_today_litres.toFixed(2)}L<span className="text-sm text-muted-foreground"> / 2.5L</span></p>
+              <p className="text-2xl font-semibold">{client.water_today_litres.toFixed(2)}L<span className="text-sm text-muted-foreground"> / {waterTarget}L</span></p>
               <Button size="sm" variant="outline" className="mt-2 w-full" onClick={addWater}>+ Glass (250ml)</Button>
             </Card>
             <Card className="p-4">
@@ -782,7 +783,7 @@ export default function ClientPortal() {
           <div className="grid grid-cols-3 gap-3">
             <Card className="p-4">
               <p className="text-xs uppercase text-muted-foreground">Water Today</p>
-              <p className="text-2xl font-semibold">{client.water_today_litres.toFixed(2)}L<span className="text-sm text-muted-foreground"> / 2.5L</span></p>
+              <p className="text-2xl font-semibold">{client.water_today_litres.toFixed(2)}L<span className="text-sm text-muted-foreground"> / {waterTarget}L</span></p>
               <Button size="sm" variant="outline" className="mt-2 w-full" onClick={addWater}>+ Glass (250ml)</Button>
             </Card>
             <Card className="p-4">
