@@ -67,6 +67,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MbPdfImport } from "@/components/MbPdfImport";
+import { MbPlanSetup } from "@/components/MbPlanSetup";
 import { MacrosTab } from "@/components/MacrosTab";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
@@ -2079,6 +2080,13 @@ export default function Dashboard() {
                             </Button>
                             {client.system_mode !== "own_practice" && (
                               <MbPdfImport clientId={client.id} onSaved={load} hasUpload={!!client.mb_pdf_path} />
+                            )}
+                            {client.system_mode !== "own_practice" && (
+                              <MbPlanSetup
+                                clientId={client.id}
+                                mbPlan={(client as unknown as { mb_plan?: unknown }).mb_plan}
+                                onSaved={load}
+                              />
                             )}
                             {client.system_mode === "own_practice" && client.plan_format === "food_list" && (
                               <FoodListDocImport
