@@ -259,8 +259,10 @@ export type Database = {
           macros_adjusted: Json | null
           macros_shared: boolean
           magic_token: string
+          mb_food_limits: Json
           mb_meal_options: Json
           mb_pdf_path: string | null
+          mb_plan: Json
           meal_streak: number
           meals_per_day: number
           medical_conditions: string
@@ -366,8 +368,10 @@ export type Database = {
           macros_adjusted?: Json | null
           macros_shared?: boolean
           magic_token?: string
+          mb_food_limits?: Json
           mb_meal_options?: Json
           mb_pdf_path?: string | null
+          mb_plan?: Json
           meal_streak?: number
           meals_per_day?: number
           medical_conditions?: string
@@ -473,8 +477,10 @@ export type Database = {
           macros_adjusted?: Json | null
           macros_shared?: boolean
           magic_token?: string
+          mb_food_limits?: Json
           mb_meal_options?: Json
           mb_pdf_path?: string | null
+          mb_plan?: Json
           meal_streak?: number
           meals_per_day?: number
           medical_conditions?: string
