@@ -423,6 +423,118 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
             </div>
           ))}
 
+          <div className="rounded-lg border p-3 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold">Food caps</p>
+                <p className="text-xs text-muted-foreground">
+                  Stored as a draft only — not yet enforced anywhere.
+                </p>
+              </div>
+              <Button
+                type="button" variant="outline" size="sm" className="h-7 text-xs"
+                onClick={() =>
+                  mutateLimits((rows) => [
+                    ...rows,
+                    { id: uid(), food: "", type: "weekly", min: null, max: null, unit: "count" },
+                  ])
+                }
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add cap
+              </Button>
+            </div>
+
+            {legacyEntries.length > 0 && (
+              <div className="rounded-md bg-muted/50 p-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Existing caps (read-only, current system)
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {legacyEntries.map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                </p>
+              </div>
+            )}
+
+            {limits.length === 0 && <p className="text-xs text-muted-foreground">No caps yet.</p>}
+
+            {limits.map((row) => (
+              <div key={row.id} className="rounded-md border p-2 space-y-1.5">
+                <div className="flex gap-1.5">
+                  <Input
+                    className="h-8 text-xs"
+                    placeholder="Food (e.g. Eggs)"
+                    value={row.food}
+                    onChange={(e) => setLimit(row.id, { food: e.target.value })}
+                  />
+                  <Select
+                    value={row.type}
+                    onValueChange={(v) => setLimit(row.id, { type: v as MbLimitType })}
+                  >
+                    <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="per_day">Per day</SelectItem>
+                      <SelectItem value="combination">Combination</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button" variant="ghost" size="icon" className="h-8 w-8"
+                    aria-label="Remove cap"
+                    onClick={() => mutateLimits((rows) => rows.filter((r) => r.id !== row.id))}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+
+                <div className="flex gap-1.5">
+                  <Input
+                    className="h-8 w-20 text-xs" type="number" inputMode="decimal" placeholder="Min"
+                    value={row.min ?? ""}
+                    onChange={(e) =>
+                      setLimit(row.id, { min: e.target.value === "" ? null : Number(e.target.value) })
+                    }
+                  />
+                  <Input
+                    className="h-8 w-20 text-xs" type="number" inputMode="decimal" placeholder="Max"
+                    value={row.max ?? ""}
+                    onChange={(e) =>
+                      setLimit(row.id, { max: e.target.value === "" ? null : Number(e.target.value) })
+                    }
+                  />
+                  <Input
+                    className="h-8 w-28 text-xs"
+                    placeholder="Unit (count / serving / g)"
+                    value={row.unit ?? ""}
+                    onChange={(e) => setLimit(row.id, { unit: e.target.value })}
+                  />
+                </div>
+
+                {row.type === "combination" && (
+                  <Input
+                    className="h-8 text-xs"
+                    placeholder="Combines with (comma separated)"
+                    value={(row.combines_with ?? []).join(", ")}
+                    onChange={(e) =>
+                      setLimit(row.id, {
+                        combines_with: e.target.value
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                  />
+                )}
+
+                <Input
+                  className="h-8 text-xs"
+                  placeholder="Note (optional)"
+                  value={row.note ?? ""}
+                  onChange={(e) => setLimit(row.id, { note: e.target.value })}
+                />
+              </div>
+            ))}
+          </div>
+
           <p className="text-xs text-muted-foreground">
             Draft autosaves. Publishing to clients comes in a later step.
           </p>
