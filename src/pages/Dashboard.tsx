@@ -2085,6 +2085,8 @@ export default function Dashboard() {
                               <MbPlanSetup
                                 clientId={client.id}
                                 mbPlan={(client as unknown as { mb_plan?: unknown }).mb_plan}
+                                mbFoodLimits={(client as unknown as { mb_food_limits?: unknown }).mb_food_limits}
+                                legacyFoodLimits={client.food_limits ?? {}}
                                 onSaved={load}
                               />
                             )}
