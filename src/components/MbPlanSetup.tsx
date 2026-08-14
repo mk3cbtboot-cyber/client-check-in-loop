@@ -17,8 +17,11 @@ import { ArrowDown, ArrowUp, Copy, Loader2, Plus, Trash2 } from "lucide-react";
 import { MB_FOODS, type MealType } from "@/lib/mb-foods";
 import {
   MB_COLOURS,
+  parseMbFoodLimits,
   parseMbPlan,
   type MbColour,
+  type MbFoodLimit,
+  type MbLimitType,
   type MbPlan,
   type MbPlanItem,
   type MbSuggestion,
