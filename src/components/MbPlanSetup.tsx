@@ -260,6 +260,16 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
           </DialogDescription>
         </DialogHeader>
 
+        {plan.confirmed_at && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              You are editing a live plan (confirmed {new Date(plan.confirmed_at).toLocaleString()}).
+              Changes autosave; re-confirm to republish.
+            </p>
+          </div>
+        )}
+
+
         <div className="space-y-4">
           {plan.suggestions.map((s) => (
             <div key={s.colour} className="rounded-lg border p-3 space-y-3">
