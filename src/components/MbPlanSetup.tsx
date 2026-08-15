@@ -583,9 +583,30 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
             ))}
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Draft autosaves. Publishing to clients comes in a later step.
-          </p>
+          {issues.length > 0 && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
+              <p className="text-xs font-semibold text-destructive">Cannot confirm — incomplete plan</p>
+              <ul className="mt-1 list-disc pl-4 text-xs text-destructive">
+                {issues.map((i) => (
+                  <li key={i}>{i}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Draft autosaves.{" "}
+              {plan.confirmed_at
+                ? `Confirmed ${new Date(plan.confirmed_at).toLocaleString()}.`
+                : "Confirm to mark this plan as live."}
+            </p>
+            <Button type="button" size="sm" onClick={() => void confirmPlan()} disabled={confirming || saving}>
+              {confirming && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              {plan.confirmed_at ? "Re-confirm plan" : "Confirm plan"}
+            </Button>
+          </div>
+
         </div>
       </DialogContent>
     </Dialog>
