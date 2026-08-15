@@ -97,6 +97,8 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
   const [plan, setPlan] = useState<MbPlan>(() => parseMbPlan(mbPlan) ?? blankPlan());
   const [limits, setLimits] = useState<MbFoodLimit[]>(() => parseMbFoodLimits(mbFoodLimits));
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [issues, setIssues] = useState<string[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
 
@@ -104,6 +106,7 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
   useEffect(() => {
     if (open) {
       dirty.current = false;
+      setIssues([]);
       setPlan(parseMbPlan(mbPlan) ?? blankPlan());
       setLimits(parseMbFoodLimits(mbFoodLimits));
     }
@@ -111,18 +114,25 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
   }, [open, clientId]);
 
   const save = useCallback(
-    async (next: MbPlan, nextLimits: MbFoodLimit[]) => {
+    async (next: MbPlan, nextLimits: MbFoodLimit[], confirmedAt?: string | null) => {
       setSaving(true);
-      const payload = { ...next, version: 1, confirmed_at: null };
+      const payload = {
+        ...next,
+        version: 1,
+        confirmed_at: confirmedAt === undefined ? next.confirmed_at ?? null : confirmedAt,
+      };
       const { error } = await supabase
         .from("clients")
-        // draft only — confirmed_at stays null until slice 4.
         // mb_food_limits is stored only; clients.food_limits is never touched here.
         .update({ mb_plan: payload as never, mb_food_limits: nextLimits as never })
         .eq("id", clientId);
       setSaving(false);
-      if (error) toast.error(`Draft not saved: ${error.message}`);
-      else onSaved?.();
+      if (error) {
+        toast.error(`Not saved: ${error.message}`);
+        return false;
+      }
+      onSaved?.();
+      return true;
     },
     [clientId, onSaved],
   );
@@ -136,6 +146,44 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
       if (timer.current) clearTimeout(timer.current);
     };
   }, [plan, limits, open, save]);
+
+  const validate = (p: MbPlan): string[] => {
+    const problems: string[] = [];
+    for (const colour of MB_COLOURS) {
+      const s = p.suggestions.find((x) => x.colour === colour);
+      if (!s) {
+        problems.push(`${COLOUR_NAME[colour]}: missing entirely`);
+        continue;
+      }
+      for (const meal of MEALS) {
+        const items = (s.meals?.[meal]?.items ?? []).filter((i) => i.label.trim() !== "");
+        if (items.length === 0) {
+          problems.push(`${COLOUR_NAME[colour]} — ${MEAL_LABEL[meal]}: needs at least one item`);
+        }
+      }
+    }
+    return problems;
+  };
+
+  const confirmPlan = async () => {
+    const problems = validate(plan);
+    setIssues(problems);
+    if (problems.length > 0) {
+      toast.error("Plan is incomplete — see the list below.");
+      return;
+    }
+    setConfirming(true);
+    if (timer.current) clearTimeout(timer.current);
+    const stamp = new Date().toISOString();
+    const ok = await save(plan, limits, stamp);
+    setConfirming(false);
+    if (ok) {
+      dirty.current = false;
+      setPlan((p) => ({ ...p, confirmed_at: stamp }));
+      toast.success("Plan confirmed.");
+    }
+  };
+
 
   const mutate = (fn: (draft: MbPlan) => MbPlan) => {
     dirty.current = true;
@@ -211,6 +259,16 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
             Build the three colour days by hand. Saved as a draft — clients see nothing until it is published.
           </DialogDescription>
         </DialogHeader>
+
+        {plan.confirmed_at && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              You are editing a live plan (confirmed {new Date(plan.confirmed_at).toLocaleString()}).
+              Changes autosave; re-confirm to republish.
+            </p>
+          </div>
+        )}
+
 
         <div className="space-y-4">
           {plan.suggestions.map((s) => (
@@ -535,9 +593,30 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
             ))}
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Draft autosaves. Publishing to clients comes in a later step.
-          </p>
+          {issues.length > 0 && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
+              <p className="text-xs font-semibold text-destructive">Cannot confirm — incomplete plan</p>
+              <ul className="mt-1 list-disc pl-4 text-xs text-destructive">
+                {issues.map((i) => (
+                  <li key={i}>{i}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Draft autosaves.{" "}
+              {plan.confirmed_at
+                ? `Confirmed ${new Date(plan.confirmed_at).toLocaleString()}.`
+                : "Confirm to mark this plan as live."}
+            </p>
+            <Button type="button" size="sm" onClick={() => void confirmPlan()} disabled={confirming || saving}>
+              {confirming && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              {plan.confirmed_at ? "Re-confirm plan" : "Confirm plan"}
+            </Button>
+          </div>
+
         </div>
       </DialogContent>
     </Dialog>
