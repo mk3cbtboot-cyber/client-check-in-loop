@@ -116,8 +116,8 @@ export default function MealRecipeSection({
     });
   }, [lockedSelections]);
 
-  const restrictedItems = (sources: (keyof typeof MB_FOODS)[], componentKey: string): string[] => {
-    const base = filteredSources(sources);
+  const restrictedItems = (sources: (keyof typeof MB_FOODS)[], componentKey: string, explicit?: string[]): string[] => {
+    const base = explicit && explicit.length ? explicit : filteredSources(sources);
     const lockedPick = lockedSelections[componentKey];
     if (lockedPick) return base.filter((i) => i === lockedPick);
     return base;
@@ -359,7 +359,7 @@ export default function MealRecipeSection({
           <p key={i} className="text-sm text-muted-foreground">Fixed: <span className="font-medium text-foreground">{f.label} — {f.qty}</span></p>
         ))}
         {allComponents.map((comp) => {
-          const items = restrictedItems(comp.sources, comp.key);
+          const items = restrictedItems(comp.sources, comp.key, (comp as { items?: string[] }).items);
           const showOilBefore = oilAllow && comp.key === "fruit";
           const eggMeal = !!optionDef.fixed?.some((f) => /egg/i.test(f.label));
           const carbAdd = isLunchCarb(comp.sources, meal) ? lunchCarbBonus : 0;

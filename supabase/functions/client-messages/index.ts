@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
               "phase3_mb_fish", "phase3_mb_seafood", "phase3_mb_meat", "phase3_mb_cheese",
               "phase3_mb_legumes", "phase3_mb_vegetables", "phase3_mb_veg_lettuce",
               "phase3_mb_sprouts", "phase3_mb_fat_oil",
-              "eggs_min_per_week",
+              "eggs_min_per_week", "mb_plan",
               "water_target_litres", "food_limits", "food_limit_counts",
               "food_exclusions",
               "keys_to_success", "digestion_protocol", "recommended_supplements",
@@ -261,7 +261,7 @@ Deno.serve(async (req) => {
           };
 
           // Embedded MB option catalogue (must stay in sync with src/lib/mb-foods.ts).
-          type Comp = { key: string; label: string; qty: string; sources: string[]; optional?: boolean };
+          type Comp = { key: string; label: string; qty: string; sources: string[]; optional?: boolean; items?: string[] };
           type Opt = { id: number; label: string; components: Comp[]; fixed?: { label: string; qty: string }[] };
           const MB_OPTIONS: Record<"breakfast" | "lunch" | "dinner", Opt[]> = {
             breakfast: [
@@ -329,12 +329,46 @@ Deno.serve(async (req) => {
             ],
           };
 
+          // Practitioner-confirmed MB colour plan wins over the embedded catalogue:
+          // its items carry the client's real portions and approved foods.
+          const mbPlanRaw = f.mb_plan;
+          const mbConfirmed = !!(mbPlanRaw && typeof mbPlanRaw === "object" && mbPlanRaw.confirmed_at
+            && Array.isArray(mbPlanRaw.suggestions) && mbPlanRaw.suggestions.length);
+          if (mbConfirmed) {
+            const fmt = (it: any): string => {
+              if (it.unit === "as_listed") return String(it.note || "as listed");
+              if (typeof it.qty !== "number") return String(it.note || "");
+              if (it.unit === "g") return `${it.qty}g`;
+              if (it.unit === "ml") return `${it.qty}ml`;
+              return String(it.qty);
+            };
+            for (const slot of ["breakfast", "lunch", "dinner"] as const) {
+              MB_OPTIONS[slot] = mbPlanRaw.suggestions.map((sug: any, idx: number) => {
+                const items: any[] = Array.isArray(sug?.meals?.[slot]?.items) ? sug.meals[slot].items : [];
+                const fixed = items.filter((it) => it.category === "fixed").map((it) => ({ label: String(it.label), qty: fmt(it) }));
+                const components: Comp[] = items
+                  .filter((it) => it.category !== "fixed")
+                  .map((it, i) => ({
+                    key: `${it.category || "item"}-${i}`,
+                    label: String(it.label ?? ""),
+                    qty: fmt(it),
+                    sources: it.category ? [String(it.category)] : [],
+                    optional: it.optional === true,
+                    items: Array.isArray(it.options) && it.options.length ? it.options.map(String) : undefined,
+                  }));
+                return { id: idx + 1, label: String(sug?.label || `Suggestion ${idx + 1}`), components, ...(fixed.length ? { fixed } : {}) };
+              });
+            }
+          }
+
           const componentLine = (comp: Comp, selection: any): string => {
             // Foods available for this component, drawn ONLY from the client's plan.
-            const fromSources = comp.sources
-              .map(sourceFoods)
-              .filter((s) => s.length > 0)
-              .join(", ");
+            const fromSources = comp.items?.length
+              ? comp.items.join(", ")
+              : comp.sources
+                  .map(sourceFoods)
+                  .filter((s) => s.length > 0)
+                  .join(", ");
             const selectedFood = selection && typeof selection[comp.key] === "string" ? selection[comp.key] : "";
             const foods = selectedFood || fromSources || "(none listed in plan)";
             const qty = comp.qty ? ` at ${comp.qty}` : "";

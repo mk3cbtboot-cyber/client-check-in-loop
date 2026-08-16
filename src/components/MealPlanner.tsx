@@ -47,6 +47,8 @@ interface WeeklyPlan {
 interface Props {
   token: string;
   filteredSources: (sources: (keyof typeof MB_FOODS)[]) => string[];
+  /** Resolved MB structure + portions (confirmed colour plan, or legacy MB_OPTIONS). */
+  mealOptions?: Record<MealType, OptionDef[]>;
   weeklyFoodLimits?: FoodLimits | null;
   eggsMaxPerWeek?: number | null;
   onPlanChanged?: (plan: WeeklyPlan | null) => void;
@@ -138,7 +140,8 @@ function categoryForSources(sources: (keyof typeof MB_FOODS)[]): string {
   return "Other";
 }
 
-export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, eggsMaxPerWeek = null, onPlanChanged, oilAllowed = false, batchCookingMode = "3-day", lunchProteinBonus = 0, lunchCarbBonus = 0 }: Props) {
+export default function MealPlanner({ token, filteredSources, mealOptions, weeklyFoodLimits, eggsMaxPerWeek = null, onPlanChanged, oilAllowed = false, batchCookingMode = "3-day", lunchProteinBonus = 0, lunchCarbBonus = 0 }: Props) {
+  const OPTS = mealOptions ?? MB_OPTIONS;
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<WeeklyPlan | null>(null);
   const [weekStart, setWeekStart] = useState<string>("");
@@ -197,7 +200,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
   const selectedOption = (m: MealType, slot: "primary" | "alt"): OptionDef | null => {
     const id = mealIdFor(m, slot);
     if (!id) return null;
-    const base = MB_OPTIONS[m].find((o) => o.id === id) ?? null;
+    const base = OPTS[m].find((o) => o.id === id) ?? null;
     return base ? withOil(base, oilAllowed) : null;
   };
 
@@ -297,7 +300,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
     // Egg flow — when picking a primary egg-containing meal that would exceed the weekly budget
     // across all days in the period, open the blocking dialog so the client picks a non-egg backup meal.
     if (slot === "primary" && !toggling && eggsBudgeted) {
-      const base = MB_OPTIONS[m].find((o) => o.id === optId) ?? null;
+      const base = OPTS[m].find((o) => o.id === optId) ?? null;
       const recipeEggs = eggsPerServingFor(base ? withOil(base, oilAllowed) : null);
       const period = batchCookingMode === "3-day" ? 3 : 7;
       if (recipeEggs > 0 && recipeEggs * period > (eggsMaxPerWeek ?? 0)) {
@@ -310,9 +313,9 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
     await applyChoose(m, slot, optId, toggling);
   };
 
-  const openPicker = (slot: "primary" | "alt", m: MealType, c: { key: string; label: string; sources: (keyof typeof MB_FOODS)[] }) => {
+  const openPicker = (slot: "primary" | "alt", m: MealType, c: { key: string; label: string; sources: (keyof typeof MB_FOODS)[]; items?: string[] }) => {
     if (confirmed) return;
-    setPicker({ slot, meal: m, componentKey: c.key, label: c.label, items: filteredSources(c.sources), sources: c.sources as string[] });
+    setPicker({ slot, meal: m, componentKey: c.key, label: c.label, items: c.items?.length ? c.items : filteredSources(c.sources), sources: c.sources as string[] });
   };
 
   const pickItem = async (food: string) => {
@@ -494,7 +497,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {MEALS.map((m) => {
-          const options = MB_OPTIONS[m];
+          const options = OPTS[m];
           const primaryOpt = selectedOption(m, "primary");
           const lc = limitCheck(m);
           const storedDays = primaryDaysFor(m);
@@ -765,7 +768,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
           {eggConfirm && (
             <div className="max-h-[40vh] overflow-y-auto space-y-2 py-2">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Backup options (egg-free)</p>
-              {MB_OPTIONS[eggConfirm.meal]
+              {OPTS[eggConfirm.meal]
                 .filter((o) => o.id !== eggConfirm.optId && eggsPerServingFor(withOil(o, oilAllowed)) === 0)
                 .map((o) => {
                   const selected = eggConfirm.backupId === o.id;
@@ -780,7 +783,7 @@ export default function MealPlanner({ token, filteredSources, weeklyFoodLimits, 
                     </Button>
                   );
                 })}
-              {MB_OPTIONS[eggConfirm.meal].filter((o) => o.id !== eggConfirm.optId && eggsPerServingFor(withOil(o, oilAllowed)) === 0).length === 0 && (
+              {OPTS[eggConfirm.meal].filter((o) => o.id !== eggConfirm.optId && eggsPerServingFor(withOil(o, oilAllowed)) === 0).length === 0 && (
                 <p className="text-xs text-muted-foreground">No egg-free alternatives available for this meal slot.</p>
               )}
             </div>

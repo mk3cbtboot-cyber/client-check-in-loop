@@ -34,9 +34,12 @@ Deno.serve(async (req) => {
 
     // Phase 3 lunch portion bonuses — applied to protein and carb/bread ingredients on lunch only.
     // Egg-based lunch meals: skip the protein bonus (eggs come in whole units; the carb bonus still applies).
+    // A practitioner-confirmed MB colour plan already carries final per-client
+    // portions, so the Phase 3 lunch bonuses must not be applied on top.
+    const mbPlanConfirmed = !!(c.mb_plan && typeof c.mb_plan === "object" && (c.mb_plan as Record<string, unknown>).confirmed_at);
     const isEggLunch = meal_type === "lunch" && rawIngredients.some((i) => /egg/i.test(i.label));
-    const proteinBonus = c.phase === "phase3" && meal_type === "lunch" && !isEggLunch ? Number(c.phase3_lunch_protein_bonus ?? 0) : 0;
-    const carbBonus = c.phase === "phase3" && meal_type === "lunch" ? Number(c.phase3_lunch_carb_bonus ?? 0) : 0;
+    const proteinBonus = !mbPlanConfirmed && c.phase === "phase3" && meal_type === "lunch" && !isEggLunch ? Number(c.phase3_lunch_protein_bonus ?? 0) : 0;
+    const carbBonus = !mbPlanConfirmed && c.phase === "phase3" && meal_type === "lunch" ? Number(c.phase3_lunch_carb_bonus ?? 0) : 0;
     const PROTEIN_LABELS = /^(poultry|fish( or seafood)?|seafood|meat|cheese|legumes)\b/i;
     const CARB_LABELS = /^(bread|starches?)\b/i;
     const bumpQty = (qty: string, add: number): string => {

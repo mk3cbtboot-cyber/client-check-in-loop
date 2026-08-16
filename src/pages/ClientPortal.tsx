@@ -17,6 +17,7 @@ import ChatThread, { type ChatMessage } from "@/components/ChatThread";
 import ClientWelcome from "@/components/ClientWelcome";
 
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
+import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS } from "@/lib/mb-plan";
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
 import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
@@ -480,8 +481,8 @@ export default function ClientPortal() {
     if (!m || !weeklyPlan) return null;
     return ((weeklyPlan as any)[`${m}_meal_id`] as number | null) ?? null;
   };
-  const restrictedItems = (sources: (keyof typeof MB_FOODS)[], componentKey: string): string[] => {
-    const base = filteredSources(sources);
+  const restrictedItems = (sources: (keyof typeof MB_FOODS)[], componentKey: string, explicit?: string[]): string[] => {
+    const base = explicit && explicit.length ? explicit : filteredSources(sources);
     if (!weekConfirmed) return base;
     const lockedPrimary = lockedSelectionsForMeal(meal)[componentKey];
     const lockedAlt = meal && weeklyPlan
@@ -491,13 +492,18 @@ export default function ClientPortal() {
     if (!allowed.length) return base;
     return base.filter((i) => allowed.includes(i));
   };
+  // Runtime MB structure + portions: the practitioner-confirmed colour plan when
+  // one exists, otherwise the legacy hardcoded MB_OPTIONS (identical to before).
+  const mbPlanConfirmed = isMbPlanConfirmed(client as any);
+  const resolvedOptions = mbOptions(client as any);
+
   const optionsForMeal = (m: MealType): OptionDef[] => {
-    if (!weekConfirmed) return MB_OPTIONS[m];
+    if (!weekConfirmed) return resolvedOptions[m];
     const lockedId = lockedMealIdFor(m);
     const altId = weeklyPlan ? ((weeklyPlan as any)[`${m}_meal_id_alt`] as number | null) : null;
     const ids = [lockedId, altId].filter((v): v is number => typeof v === "number");
-    if (!ids.length) return MB_OPTIONS[m];
-    return MB_OPTIONS[m].filter((o) => ids.includes(o.id));
+    if (!ids.length) return resolvedOptions[m];
+    return resolvedOptions[m].filter((o) => ids.includes(o.id));
   };
 
   // Auto-apply locked picks when the user enters the recipe builder after confirming the week
@@ -944,8 +950,8 @@ export default function ClientPortal() {
                 const primaryLogCount = Number(wp[`${meal}_primary_log_count`] ?? 0);
                 const isSplit = altId != null && primaryDays < 7;
                 const hidePrimary = isSplit && primaryLogCount >= primaryDays;
-                const primaryOption = primaryId != null ? MB_OPTIONS[meal].find((o) => o.id === primaryId) ?? null : null;
-                const altOption = altId != null ? MB_OPTIONS[meal].find((o) => o.id === altId) ?? null : null;
+                const primaryOption = primaryId != null ? resolvedOptions[meal].find((o) => o.id === primaryId) ?? null : null;
+                const altOption = altId != null ? resolvedOptions[meal].find((o) => o.id === altId) ?? null : null;
                 const batchMode = (client.phase === "phase4" ? "off" : (((client as any).batch_cooking_mode ?? "3-day"))) as "3-day" | "off";
                 const batchActive = (start: string | null | undefined): boolean => {
                   if (!start) return false;
@@ -989,7 +995,7 @@ export default function ClientPortal() {
                 };
 
                 if (batchMode === "off") {
-                  const allOptions = MB_OPTIONS[meal];
+                  const allOptions = resolvedOptions[meal];
                   const expandedId = expandedOptionId[meal];
                   return (
                     <div className="space-y-3">
@@ -1024,8 +1030,8 @@ export default function ClientPortal() {
                                 filteredSources={filteredSources}
                                 onLogged={refetchAll}
                                 fullScreenOnSelect
-                                lunchProteinBonus={client.phase === "phase3" ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
-                                lunchCarbBonus={client.phase === "phase3" ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
+                                lunchProteinBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
+                                lunchCarbBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
                               />
                             )}
                           </div>
@@ -1061,8 +1067,8 @@ export default function ClientPortal() {
                           filteredSources={filteredSources}
                           onLogged={refetchAll}
                           blockGeneration={block}
-                          lunchProteinBonus={client.phase === "phase3" ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
-                          lunchCarbBonus={client.phase === "phase3" ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
+                          lunchProteinBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
+                          lunchCarbBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
                         />
                       );
                     })()}
@@ -1082,8 +1088,8 @@ export default function ClientPortal() {
                         extraComponents={buildExtras(altOption)}
                         filteredSources={filteredSources}
                         onLogged={refetchAll}
-                        lunchProteinBonus={client.phase === "phase3" ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
-                        lunchCarbBonus={client.phase === "phase3" ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
+                        lunchProteinBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
+                        lunchCarbBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
                       />
                     )}
                   </div>
@@ -1271,6 +1277,47 @@ export default function ClientPortal() {
               <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseShort(client.phase)}</span></p>
             )}
           </Card>
+          {mbPlanConfirmed && (
+            <Card className="p-4 space-y-4">
+              <div>
+                <p className="font-medium">Your 3 suggestion days</p>
+                <p className="text-sm text-muted-foreground">
+                  Each suggestion is a complete day. Follow one suggestion for the whole day — breakfast, lunch and dinner from the same colour.
+                </p>
+              </div>
+              {getMbPlan(client as any).suggestions.map((sug, i) => (
+                <div key={sug.colour} className="rounded border p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-block h-3 w-3 rounded-full ${
+                        sug.colour === "blue" ? "bg-sky-500" : sug.colour === "green" ? "bg-emerald-500" : "bg-orange-500"
+                      }`}
+                      aria-hidden
+                    />
+                    <p className="font-medium">{sug.label}</p>
+                  </div>
+                  {(["breakfast", "lunch", "dinner"] as MealType[]).map((m) => (
+                    <div key={m} className="text-sm">
+                      <p className="text-xs uppercase text-muted-foreground">{m}</p>
+                      <ul className="list-disc pl-5">
+                        {sug.meals[m].items.map((it) => (
+                          <li key={it.id}>
+                            {it.label}
+                            {it.qty != null && it.unit !== "as_listed"
+                              ? ` · ${it.qty}${it.unit === "g" ? "g" : it.unit === "ml" ? "ml" : ""}`
+                              : it.note
+                                ? ` · ${it.note}`
+                                : ""}
+                          </li>
+                        ))}
+                        {sug.meals[m].items.length === 0 && <li className="text-muted-foreground">Not set</li>}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </Card>
+          )}
           {client.macros_shared && client.macros && (
             <Card className="p-4">
               <p className="font-medium mb-2">My Macro Targets</p>
@@ -1440,10 +1487,10 @@ export default function ClientPortal() {
                 </p>
               </Card>
 
-              {client.phase === "phase3" && (() => {
+              {client.phase === "phase3" && !mbPlanConfirmed && (() => {
                 const pBonus = client.phase3_lunch_protein_bonus ?? 0;
                 const cBonus = client.phase3_lunch_carb_bonus ?? 0;
-                const lunchOpts = MB_OPTIONS.lunch;
+                const lunchOpts = resolvedOptions.lunch;
                 const proteinKeys = new Set(["poultry","fish","seafood","meat","cheese","legumes"]);
                 const carbKeys = new Set(["bread","starch"]);
                 const rows: { label: string; base: string; total: string; kind: "protein" | "carb" }[] = [];
@@ -1601,13 +1648,14 @@ export default function ClientPortal() {
             <MealPlanner
               token={token!}
               filteredSources={filteredSources}
+              mealOptions={resolvedOptions}
               weeklyFoodLimits={foodLimits}
               eggsMaxPerWeek={Number(foodLimits.eggs ?? 0) || null}
               onPlanChanged={(p) => setWeeklyPlan(p)}
               oilAllowed={oilAllowed(client.phase)}
               batchCookingMode={client.batch_cooking_mode ?? "3-day"}
-              lunchProteinBonus={client.phase === "phase3" ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
-              lunchCarbBonus={client.phase === "phase3" ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
+              lunchProteinBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
+              lunchCarbBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
             />
 
           )}

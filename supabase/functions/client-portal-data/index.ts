@@ -176,6 +176,9 @@ Deno.serve(async (req) => {
         water_target_litres: WATER_TARGET,
         water_streak: waterStreak,
         mb_pdf_path: c.mb_pdf_path ?? null,
+        // Confirmed colour-day plan (null/unconfirmed → portal falls back to legacy structure)
+        mb_plan: c.mb_plan ?? null,
+        mb_food_limits: c.mb_food_limits ?? [],
         phase3_additional_foods: c.phase3_additional_foods ?? "",
         phase3_meat: c.phase3_meat ?? "",
         phase3_fish: c.phase3_fish ?? "",
