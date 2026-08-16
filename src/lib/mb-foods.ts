@@ -21,7 +21,7 @@ export type MealType = "breakfast" | "lunch" | "dinner";
 export interface OptionDef {
   id: number;
   label: string;
-  components: { key: string; label: string; qty: string; sources: (keyof typeof MB_FOODS)[]; optional?: boolean }[];
+  components: { key: string; label: string; qty: string; sources: (keyof typeof MB_FOODS)[]; optional?: boolean; /** Explicit approved foods for this component (confirmed MB plans). Overrides `sources`. */ items?: string[] }[];
   fixed?: { label: string; qty: string }[]; // ingredients with no choice (e.g. eggs)
 }
 

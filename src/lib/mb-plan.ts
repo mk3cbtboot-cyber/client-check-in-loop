@@ -321,3 +321,74 @@ export function getMbPlanDraft(client: MbPlanClient | null | undefined): MbPlan 
     }
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* OptionDef adapter — lets today's UI read the resolved plan           */
+/* ------------------------------------------------------------------ */
+
+/** True when the practitioner has confirmed (published) a colour plan. */
+export function isMbPlanConfirmed(client: MbPlanClient | null | undefined): boolean {
+  return !!parseMbPlan(client?.mb_plan)?.confirmed_at;
+}
+
+function fmtQty(item: MbPlanItem): string {
+  if (item.unit === "as_listed") return (item.note || "as listed").trim();
+  if (item.qty == null) return (item.note || "").trim();
+  if (item.unit === "g") return `${item.qty}g`;
+  if (item.unit === "ml") return `${item.qty}ml`;
+  return `${item.qty}`;
+}
+
+function optionFromSuggestion(s: MbSuggestion, meal: MealType, idx: number): OptionDef {
+  const m = s.meals[meal] ?? { items: [] };
+  const fixed: { label: string; qty: string }[] = [];
+  const components: OptionDef["components"] = [];
+  m.items.forEach((it, i) => {
+    if (it.category === "fixed") {
+      fixed.push({ label: it.label, qty: fmtQty(it) });
+      return;
+    }
+    components.push({
+      key: `${it.category || "item"}-${i}`,
+      label: it.label,
+      qty: fmtQty(it),
+      sources: [it.category as keyof typeof MB_FOODS].filter((c) => !!MB_FOODS[c]) as (keyof typeof MB_FOODS)[],
+      optional: it.optional === true,
+      items: it.options && it.options.length ? it.options : undefined,
+    });
+  });
+  return {
+    id: idx + 1,
+    label: s.label || COLOUR_LABEL[s.colour],
+    components,
+    ...(fixed.length ? { fixed } : {}),
+  };
+}
+
+/**
+ * The meal options today's planner/portal should render.
+ * Unconfirmed clients get the untouched hardcoded MB_OPTIONS (byte-identical
+ * to pre-resolver behaviour); confirmed clients get their real colour days.
+ */
+export function mbOptionsForMeal(
+  client: MbPlanClient | null | undefined,
+  meal: MealType,
+): OptionDef[] {
+  if (!isMbPlanConfirmed(client)) return MB_OPTIONS[meal];
+  return getMbPlan(client).suggestions.map((s, i) => optionFromSuggestion(s, meal, i));
+}
+
+export function mbOptions(
+  client: MbPlanClient | null | undefined,
+): Record<MealType, OptionDef[]> {
+  return {
+    breakfast: mbOptionsForMeal(client, "breakfast"),
+    lunch: mbOptionsForMeal(client, "lunch"),
+    dinner: mbOptionsForMeal(client, "dinner"),
+  };
+}
+
+/** Colour of the Nth suggestion (options are ordered by colour). */
+export function mbColourForIndex(i: number): MbColour | null {
+  return MB_COLOURS[i] ?? null;
+}
