@@ -1277,6 +1277,47 @@ export default function ClientPortal() {
               <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseShort(client.phase)}</span></p>
             )}
           </Card>
+          {mbPlanConfirmed && (
+            <Card className="p-4 space-y-4">
+              <div>
+                <p className="font-medium">Your 3 suggestion days</p>
+                <p className="text-sm text-muted-foreground">
+                  Each suggestion is a complete day. Follow one suggestion for the whole day — breakfast, lunch and dinner from the same colour.
+                </p>
+              </div>
+              {getMbPlan(client as any).suggestions.map((sug, i) => (
+                <div key={sug.colour} className="rounded border p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-block h-3 w-3 rounded-full ${
+                        sug.colour === "blue" ? "bg-sky-500" : sug.colour === "green" ? "bg-emerald-500" : "bg-orange-500"
+                      }`}
+                      aria-hidden
+                    />
+                    <p className="font-medium">{sug.label}</p>
+                  </div>
+                  {(["breakfast", "lunch", "dinner"] as MealType[]).map((m) => (
+                    <div key={m} className="text-sm">
+                      <p className="text-xs uppercase text-muted-foreground">{m}</p>
+                      <ul className="list-disc pl-5">
+                        {sug.meals[m].items.map((it) => (
+                          <li key={it.id}>
+                            {it.label}
+                            {it.qty != null && it.unit !== "as_listed"
+                              ? ` · ${it.qty}${it.unit === "g" ? "g" : it.unit === "ml" ? "ml" : ""}`
+                              : it.note
+                                ? ` · ${it.note}`
+                                : ""}
+                          </li>
+                        ))}
+                        {sug.meals[m].items.length === 0 && <li className="text-muted-foreground">Not set</li>}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </Card>
+          )}
           {client.macros_shared && client.macros && (
             <Card className="p-4">
               <p className="font-medium mb-2">My Macro Targets</p>
@@ -1446,7 +1487,7 @@ export default function ClientPortal() {
                 </p>
               </Card>
 
-              {client.phase === "phase3" && (() => {
+              {client.phase === "phase3" && !mbPlanConfirmed && (() => {
                 const pBonus = client.phase3_lunch_protein_bonus ?? 0;
                 const cBonus = client.phase3_lunch_carb_bonus ?? 0;
                 const lunchOpts = resolvedOptions.lunch;
