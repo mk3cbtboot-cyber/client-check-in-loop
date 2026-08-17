@@ -483,6 +483,11 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
               </div>
             </div>
           ))}
+          </div>
+
+          <MbPersonalFoodList clientId={clientId} client={client} onSaved={onSaved} />
+
+
 
           <div className="rounded-lg border p-3 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
