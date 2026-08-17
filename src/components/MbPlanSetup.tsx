@@ -207,8 +207,6 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
       return d;
     });
 
-  const legacyEntries = Object.entries(legacyFoodLimits ?? {});
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
