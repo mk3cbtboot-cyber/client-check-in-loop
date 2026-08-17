@@ -2087,6 +2087,7 @@ export default function Dashboard() {
                                 mbPlan={(client as unknown as { mb_plan?: unknown }).mb_plan}
                                 mbFoodLimits={(client as unknown as { mb_food_limits?: unknown }).mb_food_limits}
                                 legacyFoodLimits={client.food_limits ?? {}}
+                                client={client as unknown as Record<string, unknown>}
                                 onSaved={load}
                               />
                             )}
