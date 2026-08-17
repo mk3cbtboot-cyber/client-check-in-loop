@@ -17,7 +17,9 @@ import ChatThread, { type ChatMessage } from "@/components/ChatThread";
 import ClientWelcome from "@/components/ClientWelcome";
 
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
-import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS } from "@/lib/mb-plan";
+import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS, parseMbFoodLimits } from "@/lib/mb-plan";
+import { resolveMbFoodList } from "@/lib/mb-food-list";
+import MbRunPlanner from "@/components/MbRunPlanner";
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
 import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
@@ -96,6 +98,8 @@ interface ClientState {
   phase3_portions_confirmed: boolean;
   phase3_lunch_prompt_last_dismissed_on: string | null;
   client_type?: "mb" | "custom";
+  mb_food_list?: unknown;
+  mb_run?: unknown;
   plan_format?: string;
   food_list?: Record<string, Array<{ name: string; portion: string; category: string }>>;
   food_list_notes?: Record<string, string>;
@@ -1277,46 +1281,16 @@ export default function ClientPortal() {
               <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseShort(client.phase)}</span></p>
             )}
           </Card>
-          {mbPlanConfirmed && (
-            <Card className="p-4 space-y-4">
-              <div>
-                <p className="font-medium">Your 3 suggestion days</p>
-                <p className="text-sm text-muted-foreground">
-                  Each suggestion is a complete day. Follow one suggestion for the whole day — breakfast, lunch and dinner from the same colour.
-                </p>
-              </div>
-              {getMbPlan(client as any).suggestions.map((sug, i) => (
-                <div key={sug.colour} className="rounded border p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-block h-3 w-3 rounded-full ${
-                        sug.colour === "blue" ? "bg-sky-500" : sug.colour === "green" ? "bg-emerald-500" : "bg-orange-500"
-                      }`}
-                      aria-hidden
-                    />
-                    <p className="font-medium">{sug.label}</p>
-                  </div>
-                  {(["breakfast", "lunch", "dinner"] as MealType[]).map((m) => (
-                    <div key={m} className="text-sm">
-                      <p className="text-xs uppercase text-muted-foreground">{m}</p>
-                      <ul className="list-disc pl-5">
-                        {sug.meals[m].items.map((it) => (
-                          <li key={it.id}>
-                            {it.label}
-                            {it.qty != null && it.unit !== "as_listed"
-                              ? ` · ${it.qty}${it.unit === "g" ? "g" : it.unit === "ml" ? "ml" : ""}`
-                              : it.note
-                                ? ` · ${it.note}`
-                                : ""}
-                          </li>
-                        ))}
-                        {sug.meals[m].items.length === 0 && <li className="text-muted-foreground">Not set</li>}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </Card>
+          {mbPlanConfirmed && client.client_type !== "custom" && (
+            <MbRunPlanner
+              token={token!}
+              suggestions={getMbPlan(client as any).suggestions}
+              foodList={resolveMbFoodList(client as unknown as Record<string, unknown>)}
+              enrichedLimits={parseMbFoodLimits((client as any).mb_food_limits)}
+              legacyLimits={foodLimits}
+              initialRun={(client as any).mb_run}
+              onGoHome={() => changeTab("home")}
+            />
           )}
           {client.macros_shared && client.macros && (
             <Card className="p-4">
@@ -1709,6 +1683,7 @@ export default function ClientPortal() {
           ] as { key: TabKey; label: string; Icon: typeof Home }[])
             .filter(({ key }) => !(client.client_type === "custom" && (client.plan_format === "food_list" || client.plan_format === "food_list_generated" || client.plan_format === "recipe") && key === "planner"))
             .filter(({ key }) => !(client.phase === "phase4" && key === "planner"))
+            .filter(({ key }) => !(client.client_type !== "custom" && mbPlanConfirmed && key === "planner"))
             .filter(({ key }) => !(phase4CheckinHidden && key === "checkin"));
           return (
         <div className={`max-w-5xl mx-auto grid`} style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}>

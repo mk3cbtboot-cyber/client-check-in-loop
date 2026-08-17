@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Copy, Loader2, Plus, Trash2 } from "lucide-react";
 import { MB_FOODS, type MealType } from "@/lib/mb-foods";
+import MbPersonalFoodList from "@/components/MbPersonalFoodList";
+
 import {
   MB_COLOURS,
   parseMbFoodLimits,
@@ -89,10 +91,13 @@ interface Props {
   mbFoodLimits?: unknown;
   /** Legacy flat caps (clients.food_limits) — shown read-only for reference. */
   legacyFoodLimits?: Record<string, number> | null;
+  /** Full client row — seeds the Personal Food List from the food_* columns. */
+  client?: Record<string, unknown> | null;
   onSaved?: () => void;
 }
 
-export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, onSaved }: Props) {
+export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, client, onSaved }: Props) {
+
   const [open, setOpen] = useState(false);
   const [plan, setPlan] = useState<MbPlan>(() => parseMbPlan(mbPlan) ?? blankPlan());
   const [limits, setLimits] = useState<MbFoodLimit[]>(() => parseMbFoodLimits(mbFoodLimits));
@@ -249,7 +254,7 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">MB Plan Setup</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             MB Plan Setup
@@ -271,7 +276,9 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
 
 
         <div className="space-y-4">
+          <div className="grid gap-4 xl:grid-cols-3">
           {plan.suggestions.map((s) => (
+
             <div key={s.colour} className="rounded-lg border p-3 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`h-3 w-3 rounded-full ${COLOUR_DOT[s.colour]}`} />
@@ -300,7 +307,7 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
                 </div>
               </div>
 
-              <div className="grid gap-3 lg:grid-cols-3">
+              <div className="grid gap-3">
                 {MEALS.map((meal) => {
                   const items = s.meals[meal].items;
                   return (
@@ -480,6 +487,11 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
               </div>
             </div>
           ))}
+          </div>
+
+          <MbPersonalFoodList clientId={clientId} client={client} onSaved={onSaved} />
+
+
 
           <div className="rounded-lg border p-3 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
