@@ -274,7 +274,9 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
 
 
         <div className="space-y-4">
+          <div className="grid gap-4 xl:grid-cols-3">
           {plan.suggestions.map((s) => (
+
             <div key={s.colour} className="rounded-lg border p-3 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`h-3 w-3 rounded-full ${COLOUR_DOT[s.colour]}`} />
