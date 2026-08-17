@@ -307,7 +307,7 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
                 </div>
               </div>
 
-              <div className="grid gap-3 lg:grid-cols-3">
+              <div className="grid gap-3">
                 {MEALS.map((meal) => {
                   const items = s.meals[meal].items;
                   return (
