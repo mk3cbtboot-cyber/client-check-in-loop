@@ -181,6 +181,7 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
       dirty.current = false;
       setPlan((p) => ({ ...p, confirmed_at: stamp }));
       toast.success("Plan confirmed.");
+      setOpen(false);
     }
   };
 
