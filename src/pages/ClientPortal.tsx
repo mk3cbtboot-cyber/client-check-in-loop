@@ -17,7 +17,9 @@ import ChatThread, { type ChatMessage } from "@/components/ChatThread";
 import ClientWelcome from "@/components/ClientWelcome";
 
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
-import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS } from "@/lib/mb-plan";
+import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS, parseMbFoodLimits } from "@/lib/mb-plan";
+import { resolveMbFoodList } from "@/lib/mb-food-list";
+import MbRunPlanner from "@/components/MbRunPlanner";
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
 import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
@@ -96,6 +98,8 @@ interface ClientState {
   phase3_portions_confirmed: boolean;
   phase3_lunch_prompt_last_dismissed_on: string | null;
   client_type?: "mb" | "custom";
+  mb_food_list?: unknown;
+  mb_run?: unknown;
   plan_format?: string;
   food_list?: Record<string, Array<{ name: string; portion: string; category: string }>>;
   food_list_notes?: Record<string, string>;
@@ -1277,7 +1281,18 @@ export default function ClientPortal() {
               <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseShort(client.phase)}</span></p>
             )}
           </Card>
-          {mbPlanConfirmed && (
+          {mbPlanConfirmed && client.client_type !== "custom" && (
+            <MbRunPlanner
+              token={token!}
+              suggestions={getMbPlan(client as any).suggestions}
+              foodList={resolveMbFoodList(client as unknown as Record<string, unknown>)}
+              enrichedLimits={parseMbFoodLimits((client as any).mb_food_limits)}
+              legacyLimits={foodLimits}
+              initialRun={(client as any).mb_run}
+              onGoHome={() => changeTab("home")}
+            />
+          )}
+          {false && mbPlanConfirmed && (
             <Card className="p-4 space-y-4">
               <div>
                 <p className="font-medium">Your 3 suggestion days</p>
@@ -1709,6 +1724,7 @@ export default function ClientPortal() {
           ] as { key: TabKey; label: string; Icon: typeof Home }[])
             .filter(({ key }) => !(client.client_type === "custom" && (client.plan_format === "food_list" || client.plan_format === "food_list_generated" || client.plan_format === "recipe") && key === "planner"))
             .filter(({ key }) => !(client.phase === "phase4" && key === "planner"))
+            .filter(({ key }) => !(client.client_type !== "custom" && mbPlanConfirmed && key === "planner"))
             .filter(({ key }) => !(phase4CheckinHidden && key === "checkin"));
           return (
         <div className={`max-w-5xl mx-auto grid`} style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}>
