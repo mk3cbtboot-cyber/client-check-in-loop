@@ -89,10 +89,13 @@ interface Props {
   mbFoodLimits?: unknown;
   /** Legacy flat caps (clients.food_limits) — shown read-only for reference. */
   legacyFoodLimits?: Record<string, number> | null;
+  /** Full client row — seeds the Personal Food List from the food_* columns. */
+  client?: Record<string, unknown> | null;
   onSaved?: () => void;
 }
 
-export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, onSaved }: Props) {
+export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, client, onSaved }: Props) {
+
   const [open, setOpen] = useState(false);
   const [plan, setPlan] = useState<MbPlan>(() => parseMbPlan(mbPlan) ?? blankPlan());
   const [limits, setLimits] = useState<MbFoodLimit[]>(() => parseMbFoodLimits(mbFoodLimits));
