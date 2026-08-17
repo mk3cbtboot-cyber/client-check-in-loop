@@ -275,211 +275,151 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
           <div className="grid gap-4 xl:grid-cols-3">
           {plan.suggestions.map((s) => (
 
-            <div key={s.colour} className="rounded-lg border p-3 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`h-3 w-3 rounded-full ${COLOUR_DOT[s.colour]}`} />
-                <span className="text-xs font-medium w-14">{COLOUR_NAME[s.colour]}</span>
-                <Input
-                  className="h-8 w-56"
-                  value={s.label}
-                  onChange={(e) =>
-                    mutate((d) => {
-                      const t = d.suggestions.find((x) => x.colour === s.colour);
-                      if (t) t.label = e.target.value;
-                      return d;
-                    })
-                  }
-                />
-                <div className="ml-auto flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground">Duplicate colour into</Label>
-                  <Select value="" onValueChange={(v) => duplicateColour(s.colour, v as MbColour)}>
-                    <SelectTrigger className="h-8 w-36"><SelectValue placeholder="Choose…" /></SelectTrigger>
-                    <SelectContent>
-                      {MB_COLOURS.filter((c) => c !== s.colour).map((c) => (
-                        <SelectItem key={c} value={c}>{COLOUR_NAME[c]}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            <div key={s.colour} className="rounded-lg border overflow-hidden space-y-0">
+              <div className={`h-3 ${COLOUR_BAR[s.colour]}`} />
+              <div className="p-3">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span className="text-sm font-semibold">{COLOUR_LABEL[s.colour]}</span>
+                  <span className="text-xs text-muted-foreground">{COLOUR_NAME[s.colour]}</span>
                 </div>
-              </div>
 
-              <div className="grid gap-3">
-                {MEALS.map((meal) => {
-                  const items = s.meals[meal].items;
-                  return (
-                    <div key={meal} className="rounded-md border p-2 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
+                <div className="grid gap-3">
+                  {MEALS.map((meal) => {
+                    const items = s.meals[meal].items;
+                    return (
+                      <div key={meal} className="rounded-md border p-2 space-y-2">
                         <p className="text-xs font-semibold uppercase tracking-wide">{MEAL_LABEL[meal]}</p>
-                        <Select value="" onValueChange={(v) => copyMealFrom({ colour: s.colour, meal }, v)}>
-                          <SelectTrigger className="h-7 w-32 text-xs">
-                            <SelectValue placeholder="Copy from…" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {copySources
-                              .filter((o) => o.key !== `${s.colour}:${meal}`)
-                              .map((o) => (
-                                <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
 
-                      {items.length === 0 && (
-                        <p className="text-xs text-muted-foreground">No items yet.</p>
-                      )}
+                        {items.length === 0 && (
+                          <p className="text-xs text-muted-foreground">No items yet.</p>
+                        )}
 
-                      {items.map((item, idx) => (
-                        <div key={item.id} className="rounded border p-2 space-y-1.5">
-                          <div className="flex gap-1.5">
-                            <Select
-                              value={item.category || "other"}
-                              onValueChange={(v) =>
-                                setItems(s.colour, meal, (list) =>
-                                  list.map((i) => (i.id === item.id ? { ...i, category: v } : i)),
-                                )
-                              }
-                            >
-                              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {CATEGORIES.map((c) => (
-                                  <SelectItem key={c} value={c}>{CATEGORY_LABEL(c)}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <div className="flex items-center gap-0.5">
-                              <Button
-                                type="button" variant="ghost" size="icon" className="h-8 w-7"
-                                aria-label="Move up" disabled={idx === 0}
-                                onClick={() =>
-                                  setItems(s.colour, meal, (list) => {
-                                    const n = [...list];
-                                    [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]];
-                                    return n;
-                                  })
+                        {items.map((item, idx) => (
+                          <div key={item.id} className="rounded border p-2 space-y-1.5">
+                            <div className="flex items-start gap-1.5">
+                              <Input
+                                className="h-8 text-xs"
+                                placeholder="Food / category (e.g. Chicken breast)"
+                                value={item.label}
+                                onChange={(e) =>
+                                  setItems(s.colour, meal, (list) =>
+                                    list.map((i) => (i.id === item.id ? { ...i, label: e.target.value } : i)),
+                                  )
+                                }
+                              />
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <Button
+                                  type="button" variant="ghost" size="icon" className="h-8 w-7"
+                                  aria-label="Move up" disabled={idx === 0}
+                                  onClick={() =>
+                                    setItems(s.colour, meal, (list) => {
+                                      const n = [...list];
+                                      [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]];
+                                      return n;
+                                    })
+                                  }
+                                >
+                                  <ArrowUp className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  type="button" variant="ghost" size="icon" className="h-8 w-7"
+                                  aria-label="Move down" disabled={idx === items.length - 1}
+                                  onClick={() =>
+                                    setItems(s.colour, meal, (list) => {
+                                      const n = [...list];
+                                      [n[idx + 1], n[idx]] = [n[idx], n[idx + 1]];
+                                      return n;
+                                    })
+                                  }
+                                >
+                                  <ArrowDown className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  type="button" variant="ghost" size="icon" className="h-8 w-7"
+                                  aria-label="Remove item"
+                                  onClick={() =>
+                                    setItems(s.colour, meal, (list) => list.filter((i) => i.id !== item.id))
+                                  }
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-1.5">
+                              <Input
+                                className="h-8 w-20 text-xs"
+                                type="number"
+                                inputMode="decimal"
+                                placeholder="Qty"
+                                value={item.qty ?? ""}
+                                onChange={(e) =>
+                                  setItems(s.colour, meal, (list) =>
+                                    list.map((i) =>
+                                      i.id === item.id
+                                        ? { ...i, qty: e.target.value === "" ? null : Number(e.target.value) }
+                                        : i,
+                                    ),
+                                  )
+                                }
+                              />
+                              <Select
+                                value={item.unit}
+                                onValueChange={(v) =>
+                                  setItems(s.colour, meal, (list) =>
+                                    list.map((i) => (i.id === item.id ? { ...i, unit: v as MbUnit } : i)),
+                                  )
                                 }
                               >
-                                <ArrowUp className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                type="button" variant="ghost" size="icon" className="h-8 w-7"
-                                aria-label="Move down" disabled={idx === items.length - 1}
-                                onClick={() =>
-                                  setItems(s.colour, meal, (list) => {
-                                    const n = [...list];
-                                    [n[idx + 1], n[idx]] = [n[idx], n[idx + 1]];
-                                    return n;
-                                  })
-                                }
-                              >
-                                <ArrowDown className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                type="button" variant="ghost" size="icon" className="h-8 w-7"
-                                aria-label="Remove item"
-                                onClick={() =>
-                                  setItems(s.colour, meal, (list) => list.filter((i) => i.id !== item.id))
-                                }
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
+                                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {UNITS.map((u) => (
+                                    <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                           </div>
+                        ))}
 
-                          <Input
-                            className="h-8 text-xs"
-                            placeholder="Label (e.g. Chicken breast)"
-                            value={item.label}
-                            onChange={(e) =>
-                              setItems(s.colour, meal, (list) =>
-                                list.map((i) => (i.id === item.id ? { ...i, label: e.target.value } : i)),
-                              )
-                            }
-                          />
-
-                          <div className="flex gap-1.5">
-                            <Input
-                              className="h-8 w-20 text-xs"
-                              type="number"
-                              inputMode="decimal"
-                              placeholder="Qty"
-                              value={item.qty ?? ""}
-                              onChange={(e) =>
-                                setItems(s.colour, meal, (list) =>
-                                  list.map((i) =>
-                                    i.id === item.id
-                                      ? { ...i, qty: e.target.value === "" ? null : Number(e.target.value) }
-                                      : i,
-                                  ),
-                                )
-                              }
-                            />
-                            <Select
-                              value={item.unit}
-                              onValueChange={(v) =>
-                                setItems(s.colour, meal, (list) =>
-                                  list.map((i) => (i.id === item.id ? { ...i, unit: v as MbUnit } : i)),
-                                )
+                        <div className="flex gap-1.5">
+                          <Button
+                            type="button" variant="outline" size="sm" className="h-7 text-xs"
+                            onClick={() => setItems(s.colour, meal, (list) => [...list, blankItem()])}
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Add item
+                          </Button>
+                          {items.length > 0 && (
+                            <Button
+                              type="button" variant="ghost" size="sm" className="h-7 text-xs"
+                              onClick={() =>
+                                setItems(s.colour, meal, (list) => [
+                                  ...list,
+                                  { ...list[list.length - 1], id: uid() },
+                                ])
                               }
                             >
-                              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {UNITS.map((u) => (
-                                  <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <Input
-                            className="h-8 text-xs"
-                            placeholder="Note (optional)"
-                            value={item.note ?? ""}
-                            onChange={(e) =>
-                              setItems(s.colour, meal, (list) =>
-                                list.map((i) => (i.id === item.id ? { ...i, note: e.target.value } : i)),
-                              )
-                            }
-                          />
+                              <Copy className="h-3.5 w-3.5 mr-1" /> Duplicate last
+                            </Button>
+                          )}
                         </div>
-                      ))}
 
-                      <div className="flex gap-1.5">
-                        <Button
-                          type="button" variant="outline" size="sm" className="h-7 text-xs"
-                          onClick={() => setItems(s.colour, meal, (list) => [...list, blankItem()])}
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" /> Add item
-                        </Button>
-                        {items.length > 0 && (
-                          <Button
-                            type="button" variant="ghost" size="sm" className="h-7 text-xs"
-                            onClick={() =>
-                              setItems(s.colour, meal, (list) => [
-                                ...list,
-                                { ...list[list.length - 1], id: uid() },
-                              ])
-                            }
-                          >
-                            <Copy className="h-3.5 w-3.5 mr-1" /> Duplicate last
-                          </Button>
-                        )}
+                        <Input
+                          className="h-8 text-xs"
+                          placeholder="Meal note (optional)"
+                          value={s.meals[meal].note ?? ""}
+                          onChange={(e) =>
+                            mutate((d) => {
+                              const t = d.suggestions.find((x) => x.colour === s.colour);
+                              if (t) t.meals[meal].note = e.target.value;
+                              return d;
+                            })
+                          }
+                        />
                       </div>
-
-                      <Input
-                        className="h-8 text-xs"
-                        placeholder="Meal note (optional)"
-                        value={s.meals[meal].note ?? ""}
-                        onChange={(e) =>
-                          mutate((d) => {
-                            const t = d.suggestions.find((x) => x.colour === s.colour);
-                            if (t) t.meals[meal].note = e.target.value;
-                            return d;
-                          })
-                        }
-                      />
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           ))}
