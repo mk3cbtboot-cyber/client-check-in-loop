@@ -207,42 +207,7 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
       return d;
     });
 
-  const copySources = useMemo(
-    () =>
-      plan.suggestions.flatMap((s) =>
-        MEALS.map((m) => ({
-          key: `${s.colour}:${m}`,
-          label: `${s.label} — ${MEAL_LABEL[m]}`,
-        })),
-      ),
-    [plan],
-  );
-
-  const copyMealFrom = (target: { colour: MbColour; meal: MealType }, sourceKey: string) => {
-    const [c, m] = sourceKey.split(":") as [MbColour, MealType];
-    mutate((d) => {
-      const src = d.suggestions.find((x) => x.colour === c)?.meals[m];
-      const dst = d.suggestions.find((x) => x.colour === target.colour);
-      if (src && dst) {
-        dst.meals[target.meal] = {
-          note: src.note ?? "",
-          items: src.items.map((i) => ({ ...i, id: uid() })),
-        };
-      }
-      return d;
-    });
-  };
-
-  const duplicateColour = (from: MbColour, to: MbColour) =>
-    mutate((d) => {
-      const src = d.suggestions.find((x) => x.colour === from);
-      const dst = d.suggestions.find((x) => x.colour === to);
-      if (src && dst) {
-        dst.meals = structuredClone(src.meals);
-        for (const m of MEALS) dst.meals[m].items = dst.meals[m].items.map((i) => ({ ...i, id: uid() }));
-      }
-      return d;
-    });
+  const legacyEntries = Object.entries(legacyFoodLimits ?? {});
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
