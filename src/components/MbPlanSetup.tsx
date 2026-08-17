@@ -13,8 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Copy, Loader2, Plus, Trash2 } from "lucide-react";
-import { MB_FOODS, type MealType } from "@/lib/mb-foods";
+import { ArrowDown, ArrowUp, Loader2, Plus, Trash2 } from "lucide-react";
+import { type MealType } from "@/lib/mb-foods";
 import MbPersonalFoodList from "@/components/MbPersonalFoodList";
 
 import {
@@ -42,15 +42,11 @@ const COLOUR_LABEL: Record<MbColour, string> = {
   orange: "Suggestion 3",
 };
 const COLOUR_NAME: Record<MbColour, string> = { blue: "Blue", green: "Green", orange: "Orange" };
-const COLOUR_DOT: Record<MbColour, string> = {
+const COLOUR_BAR: Record<MbColour, string> = {
   blue: "bg-sky-500",
   green: "bg-emerald-500",
   orange: "bg-amber-500",
 };
-
-const CATEGORIES = [...Object.keys(MB_FOODS), "other"];
-const CATEGORY_LABEL = (c: string) =>
-  c === "other" ? "Other" : c.replace(/([A-Z])/g, " $1").replace(/^./, (m) => m.toUpperCase());
 
 const UNITS: { value: MbUnit; label: string }[] = [
   { value: "g", label: "g" },
