@@ -179,6 +179,8 @@ Deno.serve(async (req) => {
         // Confirmed colour-day plan (null/unconfirmed → portal falls back to legacy structure)
         mb_plan: c.mb_plan ?? null,
         mb_food_limits: c.mb_food_limits ?? [],
+        mb_food_list: c.mb_food_list ?? {},
+        mb_run: c.mb_run ?? {},
         phase3_additional_foods: c.phase3_additional_foods ?? "",
         phase3_meat: c.phase3_meat ?? "",
         phase3_fish: c.phase3_fish ?? "",
