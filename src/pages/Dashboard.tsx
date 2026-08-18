@@ -42,6 +42,20 @@ const PHASE2_PARSED_GROUPS: { title: string; field: string }[] = [
   { title: "Fruit", field: "food_fruit" },
 ];
 
+/** Phase 3 read-only groups parsed from the MB PDF (shown in MB Plan Setup). */
+const PHASE3_GROUPS: { title: string; field: string }[] = [
+  { title: "Fish", field: "phase3_mb_fish" },
+  { title: "Seafood", field: "phase3_mb_seafood" },
+  { title: "Meat", field: "phase3_mb_meat" },
+  { title: "Cheese", field: "phase3_mb_cheese" },
+  { title: "Legumes", field: "phase3_mb_legumes" },
+  { title: "Vegetables", field: "phase3_mb_vegetables" },
+  { title: "Veg / Lettuce", field: "phase3_mb_veg_lettuce" },
+  { title: "Sprouts", field: "phase3_mb_sprouts" },
+  { title: "Oils (Cold-Pressed)", field: "phase3_mb_fat_oil" },
+];
+
+
 function categoriesFromParsedFields(client: Record<string, unknown>): FoodCategory[] {
   return PHASE2_PARSED_GROUPS
     .map((g) => ({
