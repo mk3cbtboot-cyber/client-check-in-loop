@@ -235,22 +235,57 @@ export function MbRunPlanner({
             {items.length === 0 && <p className="text-sm text-muted-foreground">Not set.</p>}
 
             {items.map((it) => {
-              if (it.category === "fixed") {
+              const isFixed = it.category === "fixed";
+              const picked = rm?.picks[it.id] ?? "";
+              // Cap food: fixed items are named by their label (eggs live here),
+              // pick items by the client's chosen food.
+              const capFood = isFixed ? (it.label ?? "").trim() : picked;
+              const perMeal = perMealQty(it);
+              const conflict = capFood
+                ? capBlocksRun(capFood, perMeal, RUN_DAYS, enrichedLimits, legacyLimits)
+                : { blocked: false, cap: null as number | null, needed: 0 };
+
+              const conflictPanel = conflict.blocked ? (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 space-y-2">
+                  <p className="text-xs text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    {capFood} is limited to {conflict.cap} per week, and this run needs{" "}
+                    {conflict.needed} over {RUN_DAYS} days. Swap this whole meal to another
+                    suggestion for one of those days to continue.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Swap this meal to</span>
+                    <Select value="" onValueChange={(v) => swapMealColour(meal, v as MbColour)}>
+                      <SelectTrigger className="h-8 w-48 text-xs">
+                        <SelectValue placeholder="Choose a suggestion" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {suggestions
+                          .filter((o) => o.colour !== mealColour)
+                          .map((o) => (
+                            <SelectItem key={o.colour} value={o.colour}>{o.label}</SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ) : null;
+
+              if (isFixed) {
                 return (
-                  <div key={it.id} className="text-sm">
-                    <span className="font-medium">{it.label}</span>
-                    {fmtQty(it) ? <span className="text-muted-foreground"> · {fmtQty(it)}</span> : null}
+                  <div key={it.id} className="space-y-1.5">
+                    <div className="text-sm">
+                      <span className="font-medium">{it.label}</span>
+                      {fmtQty(it) ? <span className="text-muted-foreground"> · {fmtQty(it)}</span> : null}
+                    </div>
+                    {conflictPanel}
                   </div>
                 );
               }
+
               const options = (foodList[it.category] ?? []).length
                 ? foodList[it.category]
                 : (it.options ?? []);
-              const picked = rm?.picks[it.id] ?? "";
-              const perMeal = it.unit === "count" && it.qty ? it.qty : 1;
-              const conflict = picked
-                ? capBlocksRun(picked, perMeal, RUN_DAYS, enrichedLimits, legacyLimits)
-                : { blocked: false, cap: null as number | null, needed: 0 };
               return (
                 <div key={it.id} className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
@@ -275,33 +310,11 @@ export function MbRunPlanner({
                     </Select>
                   )}
 
-                  {conflict.blocked && (
-                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 space-y-2">
-                      <p className="text-xs text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
-                        <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                        {picked} is limited to {conflict.cap} per week, so it can't cover all {RUN_DAYS} days
-                        of this run. For one of those days, swap this whole meal to another suggestion.
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Swap this meal to</span>
-                        <Select value="" onValueChange={(v) => swapMealColour(meal, v as MbColour)}>
-                          <SelectTrigger className="h-8 w-48 text-xs">
-                            <SelectValue placeholder="Choose a suggestion" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {suggestions
-                              .filter((o) => o.colour !== mealColour)
-                              .map((o) => (
-                                <SelectItem key={o.colour} value={o.colour}>{o.label}</SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  )}
+                  {conflictPanel}
                 </div>
               );
             })}
+
           </div>
         );
       })}
