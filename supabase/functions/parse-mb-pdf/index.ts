@@ -258,7 +258,15 @@ function extractPositionedTextForPage(page: unknown): PositionedText[] {
     .filter((item) => item.text);
 }
 
+type MbItemUnit = "g" | "ml" | "count" | "as_listed";
+type MealItem = {
+  category: string;
+  qty: number | null;
+  unit: MbItemUnit;
+};
 type MealOption = {
+  /** Ordered items exactly as they appear on this suggestion's line. */
+  items: MealItem[];
   protein_category: string | null;
   protein_grams: number | null;
   veg_grams: number | null;
@@ -273,7 +281,7 @@ type PositionedText = {
 type MealKey = "breakfast" | "lunch" | "dinner";
 type MealOptionsMap = Record<MealKey, MealOption[]>;
 const EMPTY_OPTION = (): MealOption => ({
-  protein_category: null, protein_grams: null, veg_grams: null, has_fruit: false, has_bread: false,
+  items: [], protein_category: null, protein_grams: null, veg_grams: null, has_fruit: false, has_bread: false,
 });
 function createEmptyMealOptions(): MealOptionsMap {
   return {
@@ -294,6 +302,112 @@ function isSeedMealProtein(label: string): boolean {
   const normalized = label.replace(/\s+/g, " ").trim().toLowerCase();
   return ["sunflower seeds", "pumpkin seeds", "sesame seeds", "hemp seeds", "flaxseeds"].includes(normalized);
 }
+
+/* ------------------------------------------------------------------ */
+/* Meal item tokenizer                                                 */
+/*                                                                     */
+/* Reads one suggestion's own chunk of PDF text and returns every food */
+/* category actually written on it, with its real quantity and unit.   */
+/* Nothing is inferred from neighbouring options or from bare numbers. */
+/* ------------------------------------------------------------------ */
+
+const MEAL_ITEM_CATEGORY_CANON: Record<string, string> = {
+  "milk products": "Milk Products",
+  "vegetables": "Vegetables",
+  "vegetable": "Vegetables",
+  "veg./lettuce": "Veg./Lettuce",
+  "veg. /lettuce": "Veg./Lettuce",
+  "veg/lettuce": "Veg./Lettuce",
+  "vegetable/lettuce": "Veg./Lettuce",
+  "fat/oil": "Fat/Oil",
+  "fat / oil": "Fat/Oil",
+};
+
+const MEAL_ITEM_CATEGORIES: string[] = [
+  ...Object.keys(PHASE2_PROTEIN_CATEGORIES),
+  "Vegetables",
+  "Vegetable",
+  "Veg./Lettuce",
+  "Veg. /Lettuce",
+  "Veg/Lettuce",
+  "Vegetable/Lettuce",
+  "Starch",
+  "Bread",
+  "Fruit",
+  "Fat/Oil",
+  "Fat / Oil",
+];
+
+function canonCategory(label: string): string {
+  const key = label.replace(/\s+/g, " ").trim().toLowerCase();
+  return MEAL_ITEM_CATEGORY_CANON[key] ??
+    (label.replace(/\s+/g, " ").trim().replace(/\b\w/g, (c) => c.toUpperCase()));
+}
+
+function buildMealItemRegex(): RegExp {
+  const alt = [...MEAL_ITEM_CATEGORIES]
+    .sort((a, b) => b.length - a.length)
+    .map((l) => escapeRegExp(l))
+    .join("|");
+  return new RegExp(
+    `(\\d{1,4})\\s*(g|ml)\\s+(${alt})\\b` + // "200 ml Milk Products"
+    `|(${alt})\\s+(\\d{1,4})\\s*(g|ml)\\b` + // "Milk Products 200 ml"
+    `|(\\d{1,2})\\s+Eggs?\\b` + // "2 Eggs"
+    `|(${alt})\\b`, // bare "Fruit" / "Bread"
+    "gi",
+  );
+}
+
+function tokenizeMealItems(chunk: string): MealItem[] {
+  const re = buildMealItemRegex();
+  const out: MealItem[] = [];
+  const byCategory = new Map<string, MealItem>();
+
+  const push = (category: string, qty: number | null, unit: MbItemUnit) => {
+    const existing = byCategory.get(category);
+    if (existing) {
+      // A later, quantified mention upgrades an earlier bare one.
+      if (existing.qty == null && qty != null) {
+        existing.qty = qty;
+        existing.unit = unit;
+      }
+      return;
+    }
+    const item: MealItem = { category, qty, unit };
+    byCategory.set(category, item);
+    out.push(item);
+  };
+
+  let m: RegExpExecArray | null;
+  re.lastIndex = 0;
+  while ((m = re.exec(chunk)) !== null) {
+    if (m[3]) {
+      push(canonCategory(m[3]), parseInt(m[1], 10), m[2].toLowerCase() as MbItemUnit);
+    } else if (m[4]) {
+      push(canonCategory(m[4]), parseInt(m[5], 10), m[6].toLowerCase() as MbItemUnit);
+    } else if (m[7]) {
+      push("Eggs", parseInt(m[7], 10), "count");
+    } else if (m[8]) {
+      push(canonCategory(m[8]), null, "as_listed");
+    }
+  }
+
+  return out;
+}
+
+/** Fill the legacy MealOption fields from the parsed item list. */
+function applyItemsToOption(option: MealOption, items: MealItem[]) {
+  option.items = items;
+  const protein = items.find((it) => it.category === "Eggs" || isProteinLabel(it.category));
+  const veg = items.find((it) => isVegLabel(it.category));
+  option.protein_category = protein ? (protein.category === "Eggs" ? "Eggs" : protein.category) : null;
+  option.protein_grams = protein && protein.unit !== "count" ? protein.qty : null;
+  option.veg_grams = veg?.qty ?? null;
+  option.has_fruit = items.some((it) => it.category === "Fruit");
+  option.has_bread = items.some((it) => it.category === "Bread");
+}
+
+
 
 function getTrailingClientNamePatterns(firstName: string, lastName: string): string[] {
   const patterns: string[] = [];
@@ -474,10 +588,9 @@ function parseMealTable(
   const allLabels = [...proteinLabels, ...vegLabels];
   allLabels.sort((a, b) => b.length - a.length);
   const labelAlt = allLabels.map((l) => escapeRegExp(l)).join("|");
-  const vegLabelAlt = vegLabels.map((l) => escapeRegExp(l)).join("|");
-
-  const gramRe = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
-  const gramReReversed = new RegExp(`(${labelAlt})\\s+(\\d{2,4})\\s*g\\b`, "gi");
+  // Anchors accept ml as well as g so "200 ml Milk Products" is a real option.
+  const gramRe = new RegExp(`(\\d{2,4})\\s*(?:g|ml)\\s+(${labelAlt})\\b`, "gi");
+  const gramReReversed = new RegExp(`(${labelAlt})\\s+(\\d{2,4})\\s*(?:g|ml)\\b`, "gi");
   const eggsRe = /(\d+)\s+Egg/gi;
 
   type Candidate = { kind: "protein" | "veg" | "eggs"; label: string; grams: number | null; idx: number; end: number };
@@ -553,38 +666,21 @@ function parseMealTable(
   debug.meal_protein_candidates = proteinCandidates.map((c) => ({ label: c.label, grams: c.grams, idx: c.idx }));
   debug.meal_veg_candidates = vegCandidates.map((c) => ({ label: c.label, grams: c.grams, idx: c.idx }));
 
-  const extractVegGramsForSlot = (slotChunk: string, proteinGrams: number | null): number | null => {
-    const explicitForward = new RegExp(`(\\d{2,4})\\s*g\\s+(?:${vegLabelAlt})\\b`, "i");
-    const explicitReverse = new RegExp(`(?:${vegLabelAlt})\\s+(\\d{2,4})\\s*g\\b`, "i");
-    const forwardMatch = slotChunk.match(explicitForward);
-    if (forwardMatch) {
-      const grams = parseInt(forwardMatch[1], 10);
-      if (Number.isFinite(grams) && grams !== proteinGrams) return grams;
-    }
-    const reverseMatch = slotChunk.match(explicitReverse);
-    if (reverseMatch) {
-      const grams = parseInt(reverseMatch[1], 10);
-      if (Number.isFinite(grams) && grams !== proteinGrams) return grams;
-    }
-
-    const numberMatches = Array.from(slotChunk.matchAll(/\b(\d{2,4})\b(?:\s*g\b)?/gi))
-      .map((match) => parseInt(match[1], 10))
-      .filter((grams) => Number.isFinite(grams) && grams !== proteinGrams && grams >= 80 && grams <= 250);
-
-    const preferred = numberMatches.find((grams) => grams >= 100 && grams <= 200);
-    return preferred ?? numberMatches[0] ?? null;
-  };
-
+  // Each suggestion owns the slice of text from its own protein anchor up to
+  // the next one. Everything it contains (Starch, Vegetables, Fruit, Bread,
+  // Fat/Oil, units) is read from that slice only — no scavenging of numbers
+  // and no meal-wide stamping.
   for (let i = 0; i < Math.min(9, proteinCandidates.length); i++) {
     const mi = Math.floor(i / 3);
     const oi = i % 3;
-    options[mealKeys[mi]][oi].protein_category = proteinCandidates[i].label;
-    options[mealKeys[mi]][oi].protein_grams = proteinCandidates[i].grams;
     const nextProteinIdx = proteinCandidates[i + 1]?.idx ?? region.length;
-    const slotChunk = region.slice(proteinCandidates[i].end, nextProteinIdx);
-    options[mealKeys[mi]][oi].veg_grams = extractVegGramsForSlot(slotChunk, proteinCandidates[i].grams);
-    if (options[mealKeys[mi]][oi].veg_grams == null && vegCandidates[i]) {
-      options[mealKeys[mi]][oi].veg_grams = vegCandidates[i].grams;
+    const slotChunk = region.slice(proteinCandidates[i].idx, nextProteinIdx);
+    const items = tokenizeMealItems(slotChunk);
+    applyItemsToOption(options[mealKeys[mi]][oi], items);
+    // The candidate scan is the authority on which protein anchors this slot.
+    if (!options[mealKeys[mi]][oi].protein_category) {
+      options[mealKeys[mi]][oi].protein_category = proteinCandidates[i].label;
+      options[mealKeys[mi]][oi].protein_grams = proteinCandidates[i].grams;
     }
   }
 
@@ -603,23 +699,11 @@ function parseMealTable(
     mealChunksByKey[mealBoundaries[bi].meal] = region.slice(start, end);
   }
   debug.meal_chunks = mealChunksByKey;
-  const _mealLabels: Record<MealKey, string> = {
-    breakfast: 'BREAKFAST RAW:',
-    lunch: 'LUNCH RAW:',
-    dinner: 'DINNER RAW:',
-  };
-  for (const mk of mealKeys) {
-    const chunk = mealChunksByKey[mk];
-    console.log(_mealLabels[mk], chunk);
-    const hasFruit = /\bFruit\b/i.test(chunk);
-    const hasBread = /\bBread\b/i.test(chunk);
-    for (let i = 0; i < 3; i++) {
-      if (options[mk][i].protein_category) {
-        options[mk][i].has_fruit = hasFruit;
-        options[mk][i].has_bread = hasBread;
-      }
-    }
-  }
+  debug.meal_items = mealKeys.reduce((acc, mk) => {
+    acc[mk] = options[mk].map((o) => o.items);
+    return acc;
+  }, {} as Record<string, MealItem[][]>);
+
 
   for (let mi = 0; mi < 3; mi++) {
     const first = options[mealKeys[mi]][0];

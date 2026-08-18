@@ -9,8 +9,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, UploadCloud, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { mbPlanFromParsedOptions } from "@/lib/mb-plan-parsed";
 
+type MealItem = { category: string; qty: number | null; unit: string };
 type MealOption = {
+  items?: MealItem[];
   protein_category: string | null;
   protein_grams: number | null;
   veg_grams: number | null;
@@ -19,7 +22,7 @@ type MealOption = {
 };
 type MealKey = "breakfast" | "lunch" | "dinner";
 type MealOptionsMap = Record<MealKey, MealOption[]>;
-const EMPTY_OPTION = (): MealOption => ({ protein_category: null, protein_grams: null, veg_grams: null, has_fruit: false, has_bread: false });
+const EMPTY_OPTION = (): MealOption => ({ items: [], protein_category: null, protein_grams: null, veg_grams: null, has_fruit: false, has_bread: false });
 const EMPTY_MEAL_OPTIONS = (): MealOptionsMap => ({
   breakfast: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
   lunch: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
@@ -199,11 +202,44 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
     setFields((f) => (f ? { ...f, [key]: { value, extracted: true } } : f));
   };
 
+  // Review-dialog edits touch the flat legacy fields; mirror them back into the
+  // parsed item list so Starch / ml portions parsed from the PDF are preserved.
+  const reconcileItems = (opt: MealOption): MealOption => {
+    const items = [...(opt.items ?? [])];
+    const isVeg = (c: string) => /^(veg|vegetable)/i.test(c);
+    const isProtein = (c: string) => !isVeg(c) && !/^(starch|bread|fruit|fat)/i.test(c);
+
+    const pi = items.findIndex((it) => isProtein(it.category));
+    if (opt.protein_category) {
+      const unit = opt.protein_grams == null
+        ? "as_listed"
+        : /egg/i.test(opt.protein_category)
+          ? "count"
+          : (pi >= 0 && items[pi].unit === "ml" ? "ml" : "g");
+      const next = { category: opt.protein_category, qty: opt.protein_grams, unit };
+      if (pi >= 0) items[pi] = next; else items.unshift(next);
+    } else if (pi >= 0) items.splice(pi, 1);
+
+    const vi = items.findIndex((it) => isVeg(it.category));
+    if (opt.veg_grams != null) {
+      const next = { category: vi >= 0 ? items[vi].category : "Vegetables", qty: opt.veg_grams, unit: "g" };
+      if (vi >= 0) items[vi] = next; else items.push(next);
+    } else if (vi >= 0) items.splice(vi, 1);
+
+    for (const [flag, category] of [[opt.has_fruit, "Fruit"], [opt.has_bread, "Bread"]] as const) {
+      const i = items.findIndex((it) => it.category.toLowerCase() === category.toLowerCase());
+      if (flag && i < 0) items.push({ category, qty: null, unit: "as_listed" });
+      if (!flag && i >= 0) items.splice(i, 1);
+    }
+
+    return { ...opt, items };
+  };
+
   const updateOption = (meal: MealKey, idx: number, patch: Partial<MealOption>) => {
-    setMealOptions((m) => {
-      const next = { ...m, [meal]: m[meal].map((o, i) => (i === idx ? { ...o, ...patch } : o)) };
-      return next;
-    });
+    setMealOptions((m) => ({
+      ...m,
+      [meal]: m[meal].map((o, i) => (i === idx ? reconcileItems({ ...o, ...patch }) : o)),
+    }));
   };
 
 
@@ -254,6 +290,9 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       }
       // Persist 3 options per meal into the jsonb column.
       update.mb_meal_options = mealOptions;
+      // Seed the colour plan straight from the parsed items (draft, unconfirmed)
+      // so Starch / ml portions are not lost through the legacy flat fields.
+      update.mb_plan = mbPlanFromParsedOptions(mealOptions);
       update.food_exclusions = foodExclusions && foodExclusions.length ? foodExclusions : null;
       const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
 
