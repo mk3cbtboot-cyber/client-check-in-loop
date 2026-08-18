@@ -10,7 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, UploadCloud, AlertTriangle, CheckCircle2 } from "lucide-react";
 
+type MealItem = { category: string; qty: number | null; unit: string };
 type MealOption = {
+  items?: MealItem[];
   protein_category: string | null;
   protein_grams: number | null;
   veg_grams: number | null;
@@ -19,7 +21,7 @@ type MealOption = {
 };
 type MealKey = "breakfast" | "lunch" | "dinner";
 type MealOptionsMap = Record<MealKey, MealOption[]>;
-const EMPTY_OPTION = (): MealOption => ({ protein_category: null, protein_grams: null, veg_grams: null, has_fruit: false, has_bread: false });
+const EMPTY_OPTION = (): MealOption => ({ items: [], protein_category: null, protein_grams: null, veg_grams: null, has_fruit: false, has_bread: false });
 const EMPTY_MEAL_OPTIONS = (): MealOptionsMap => ({
   breakfast: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
   lunch: [EMPTY_OPTION(), EMPTY_OPTION(), EMPTY_OPTION()],
