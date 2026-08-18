@@ -92,7 +92,6 @@ import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
 import { formatDistanceToNow } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import ClientTrendGraphs from "@/components/ClientTrendGraphs";
-import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
 import PractitionerMessages from "@/components/PractitionerMessages";
 import MealsOverviewSection from "@/components/MealsOverviewSection";
 import AppointmentDialog, { type Appointment } from "@/components/AppointmentDialog";
