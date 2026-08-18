@@ -7,8 +7,12 @@ import { toast } from "sonner";
 import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import type { MealType } from "@/lib/mb-foods";
 import type { MbColour, MbFoodLimit, MbPlanItem, MbSuggestion } from "@/lib/mb-plan";
-import { capBlocksRun, categoryLabel, type MbFoodListMap } from "@/lib/mb-food-list";
+import {
+  capBlocksRun, categoryLabel, evaluateRunCaps, perMealQty, describeViolation,
+  type MbFoodListMap,
+} from "@/lib/mb-food-list";
 import { RUN_DAYS, RUN_MEALS, emptyRun, fmtQty, parseMbRun, resolveRunMeal, startRun, type MbRun } from "@/lib/mb-run";
+
 
 const MEAL_LABEL: Record<MealType, string> = {
   breakfast: "Breakfast",
@@ -43,6 +47,8 @@ export function MbRunPlanner({
 }: Props) {
   const [run, setRun] = useState<MbRun>(() => parseMbRun(initialRun));
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
 
@@ -101,7 +107,39 @@ export function MbRunPlanner({
       .every((i) => !!rm.picks[i.id]);
   };
 
-  const runReady = !!run.colour && RUN_MEALS.every((m) => mealComplete(m));
+  /** Same shared evaluator the mb-run edge function runs on confirm. */
+  const violations = useMemo(
+    () => evaluateRunCaps(run, suggestions, enrichedLimits, legacyLimits, RUN_DAYS),
+    [run, suggestions, enrichedLimits, legacyLimits],
+  );
+  const allPicked = !!run.colour && RUN_MEALS.every((m) => mealComplete(m));
+  const runReady = allPicked && violations.length === 0;
+
+  const confirmRun = async () => {
+    setConfirming(true);
+    if (timer.current) clearTimeout(timer.current);
+    const { data, error } = await supabase.functions.invoke("mb-run", {
+      body: { token, action: "confirm", run },
+    });
+    setConfirming(false);
+    const payload = (data ?? {}) as { error?: string; message?: string; run?: unknown };
+    if (error || payload.error) {
+      setServerError(
+        payload.message ??
+          (payload.error === "cap_exceeded"
+            ? "This run exceeds a weekly food cap."
+            : "Couldn't confirm your run — please try again."),
+      );
+      toast.error(payload.message ?? "Couldn't confirm your run.");
+      return;
+    }
+    setServerError(null);
+    dirty.current = false;
+    setRun(parseMbRun(payload.run));
+    toast.success("Run confirmed.");
+    onGoHome();
+  };
+
 
   /* ---------------- colour choice ---------------- */
   if (!run.colour) {
@@ -197,22 +235,57 @@ export function MbRunPlanner({
             {items.length === 0 && <p className="text-sm text-muted-foreground">Not set.</p>}
 
             {items.map((it) => {
-              if (it.category === "fixed") {
+              const isFixed = it.category === "fixed";
+              const picked = rm?.picks[it.id] ?? "";
+              // Cap food: fixed items are named by their label (eggs live here),
+              // pick items by the client's chosen food.
+              const capFood = isFixed ? (it.label ?? "").trim() : picked;
+              const perMeal = perMealQty(it);
+              const conflict = capFood
+                ? capBlocksRun(capFood, perMeal, RUN_DAYS, enrichedLimits, legacyLimits)
+                : { blocked: false, cap: null as number | null, needed: 0 };
+
+              const conflictPanel = conflict.blocked ? (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 space-y-2">
+                  <p className="text-xs text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    {capFood} is limited to {conflict.cap} per week, and this run needs{" "}
+                    {conflict.needed} over {RUN_DAYS} days. Swap this whole meal to another
+                    suggestion for one of those days to continue.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Swap this meal to</span>
+                    <Select value="" onValueChange={(v) => swapMealColour(meal, v as MbColour)}>
+                      <SelectTrigger className="h-8 w-48 text-xs">
+                        <SelectValue placeholder="Choose a suggestion" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {suggestions
+                          .filter((o) => o.colour !== mealColour)
+                          .map((o) => (
+                            <SelectItem key={o.colour} value={o.colour}>{o.label}</SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ) : null;
+
+              if (isFixed) {
                 return (
-                  <div key={it.id} className="text-sm">
-                    <span className="font-medium">{it.label}</span>
-                    {fmtQty(it) ? <span className="text-muted-foreground"> · {fmtQty(it)}</span> : null}
+                  <div key={it.id} className="space-y-1.5">
+                    <div className="text-sm">
+                      <span className="font-medium">{it.label}</span>
+                      {fmtQty(it) ? <span className="text-muted-foreground"> · {fmtQty(it)}</span> : null}
+                    </div>
+                    {conflictPanel}
                   </div>
                 );
               }
+
               const options = (foodList[it.category] ?? []).length
                 ? foodList[it.category]
                 : (it.options ?? []);
-              const picked = rm?.picks[it.id] ?? "";
-              const perMeal = it.unit === "count" && it.qty ? it.qty : 1;
-              const conflict = picked
-                ? capBlocksRun(picked, perMeal, RUN_DAYS, enrichedLimits, legacyLimits)
-                : { blocked: false, cap: null as number | null, needed: 0 };
               return (
                 <div key={it.id} className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
@@ -237,50 +310,58 @@ export function MbRunPlanner({
                     </Select>
                   )}
 
-                  {conflict.blocked && (
-                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 space-y-2">
-                      <p className="text-xs text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
-                        <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                        {picked} is limited to {conflict.cap} per week, so it can't cover all {RUN_DAYS} days
-                        of this run. For one of those days, swap this whole meal to another suggestion.
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Swap this meal to</span>
-                        <Select value="" onValueChange={(v) => swapMealColour(meal, v as MbColour)}>
-                          <SelectTrigger className="h-8 w-48 text-xs">
-                            <SelectValue placeholder="Choose a suggestion" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {suggestions
-                              .filter((o) => o.colour !== mealColour)
-                              .map((o) => (
-                                <SelectItem key={o.colour} value={o.colour}>{o.label}</SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  )}
+                  {conflictPanel}
                 </div>
               );
             })}
+
           </div>
         );
       })}
+
+      {violations.length > 0 && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 space-y-1">
+          <p className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+            <AlertTriangle className="h-4 w-4" /> This run goes over a weekly food cap
+          </p>
+          <ul className="text-xs text-amber-700 dark:text-amber-400 list-disc pl-5">
+            {violations.map((v) => (
+              <li key={`${v.meal}-${v.item_id}`}>{describeViolation(v)}</li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted-foreground">
+            Swap the affected meal to another suggestion for one of the days — then you can
+            confirm your run.
+          </p>
+        </div>
+      )}
+
+      {serverError && (
+        <p className="text-xs text-destructive">{serverError}</p>
+      )}
 
       {runReady ? (
         <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
           <p className="text-sm font-medium">Your run is ready</p>
           <p className="text-sm text-muted-foreground">
-            All three meals are picked. Head to Home to generate recipes for what you chose.
+            All three meals are picked and within your weekly caps. Confirm to start cooking.
           </p>
-          <Button size="sm" onClick={onGoHome}>Go to Home</Button>
+          <Button size="sm" onClick={() => void confirmRun()} disabled={confirming}>
+            {confirming && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+            Confirm run
+          </Button>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">
-          Pick a food for every group above to finish your run.
-        </p>
+        <div className="space-y-2">
+          <Button size="sm" disabled>Confirm run</Button>
+          <p className="text-xs text-muted-foreground">
+            {allPicked
+              ? "Resolve the cap conflict above to confirm your run."
+              : "Pick a food for every group above to finish your run."}
+          </p>
+        </div>
       )}
+
     </Card>
   );
 }

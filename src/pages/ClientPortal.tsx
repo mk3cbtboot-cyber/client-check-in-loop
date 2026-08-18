@@ -20,6 +20,7 @@ import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@
 import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS, parseMbFoodLimits } from "@/lib/mb-plan";
 import { resolveMbFoodList } from "@/lib/mb-food-list";
 import MbRunPlanner from "@/components/MbRunPlanner";
+import { parseMbRun } from "@/lib/mb-run";
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
 import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
@@ -500,6 +501,11 @@ export default function ClientPortal() {
   // one exists, otherwise the legacy hardcoded MB_OPTIONS (identical to before).
   const mbPlanConfirmed = isMbPlanConfirmed(client as any);
   const resolvedOptions = mbOptions(client as any);
+  // MB colour-run gate: cooking surfaces stay closed until the client confirms a
+  // cap-clean run (server-validated). MB clients only — Custom is unaffected.
+  const mbRunConfirmed = !!parseMbRun((client as any).mb_run).confirmed_on;
+  const mbRunGateActive =
+    client.client_type !== "custom" && mbPlanConfirmed && !mbRunConfirmed;
 
   const optionsForMeal = (m: MealType): OptionDef[] => {
     if (!weekConfirmed) return resolvedOptions[m];
@@ -846,7 +852,17 @@ export default function ClientPortal() {
               )}
             </Card>
           )}
-          {client.phase !== "phase4" && (
+          {mbRunGateActive && (
+            <Card className="p-4 space-y-2 border-primary/40 bg-primary/5">
+              <p className="text-sm font-medium">Finish and confirm your run in My Plan</p>
+              <p className="text-sm text-muted-foreground">
+                Pick a suggestion and a food for every group, stay within your weekly food
+                caps, then confirm. Your meals unlock here straight after.
+              </p>
+              <Button size="sm" onClick={() => changeTab("plan")}>Go to My Plan</Button>
+            </Card>
+          )}
+          {client.phase !== "phase4" && !mbRunGateActive && (
             <>
           {/* Trackers */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

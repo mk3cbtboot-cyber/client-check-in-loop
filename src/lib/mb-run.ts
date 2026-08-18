@@ -25,12 +25,15 @@ export interface MbRunMeal {
 export interface MbRun {
   colour: MbColour | null;
   started_on: string | null;
+  /** Set by the server when the client confirms a cap-clean run. */
+  confirmed_on: string | null;
   meals: Record<MealType, MbRunMeal | null>;
 }
 
 export const emptyRun = (): MbRun => ({
   colour: null,
   started_on: null,
+  confirmed_on: null,
   meals: { breakfast: null, lunch: null, dinner: null },
 });
 
@@ -40,6 +43,7 @@ export function parseMbRun(raw: unknown): MbRun {
   const o = raw as Record<string, unknown>;
   if (MB_COLOURS.includes(o.colour as MbColour)) out.colour = o.colour as MbColour;
   if (typeof o.started_on === "string") out.started_on = o.started_on;
+  if (typeof o.confirmed_on === "string") out.confirmed_on = o.confirmed_on;
   const meals = (o.meals ?? {}) as Record<string, unknown>;
   for (const m of RUN_MEALS) {
     const rm = meals[m] as Record<string, unknown> | undefined;
@@ -62,6 +66,7 @@ export function startRun(colour: MbColour): MbRun {
   return {
     colour,
     started_on: new Date().toISOString().slice(0, 10),
+    confirmed_on: null,
     meals: {
       breakfast: { colour, picks: {} },
       lunch: { colour, picks: {} },
