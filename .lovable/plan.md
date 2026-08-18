@@ -1,63 +1,60 @@
-# MB practitioner portal: "Client Plan" mirror + editor relocation
+# MB weekly-cap enforcement fixes
 
-Gated entirely by **client type = MB** (`client.system_mode !== "own_practice"`). Tier plays no part.
+Scope: MB clients only. Custom (`own_practice`) code paths untouched. Both cap stores stay exactly as they are — `mb_food_limits` stays authoritative, `food_limits` stays the fallback. No migration, no consolidation.
 
-## a) New component: `src/components/MbPlanMirror.tsx`
+## 1. Cap check must run on `fixed` items
 
-Read-only presentational component. No token, no Supabase calls, no writes, no selects/dropdowns/buttons that mutate.
+**File:** `src/components/MbRunPlanner.tsx`
 
-Props:
-- `suggestions: MbSuggestion[]` (from the resolver)
-- `foodList: MbFoodListMap`
-- `run: unknown` (raw `clients.mb_run`)
-- `confirmed: boolean` (whether the plan is live)
-- `clientName: string`
+Today the item loop hits `if (it.category === "fixed") return (...)` and returns before `capBlocksRun` is ever called. Eggs are stored as `fixed`, so they are invisible to the checker.
 
-Shared libs reused — exactly the ones the client planner uses:
-- `@/lib/mb-plan` — `getMbPlan`, `MbSuggestion`, `MbPlanItem`, `MbColour`
-- `@/lib/mb-run` — `parseMbRun`, `RUN_DAYS`, `RUN_MEALS`
-- `@/lib/mb-food-list` — `categoryLabel`
-- The same `fmtQty` item formatter currently living in `MbRunPlanner` — it moves to a shared export (`src/lib/mb-run.ts` or a small `mb-format` helper) and both components import it, so the two views can never drift.
+Change: compute the cap result for every item — fixed or pick — before the fixed-item early return. The fixed branch then renders its label/qty line plus the same amber warn-and-block block (warning text + "swap this meal to another suggestion" selector) when `conflict.blocked` is true. For fixed items the food name used for the cap lookup is `it.label` (there is no dropdown pick).
 
-Branching rule (single decision, mirrors the planner):
-```
-const run = parseMbRun(client.mb_run)
-run?.colour  → locked view
-otherwise    → three-card view
-```
-- **Locked view (per-meal colour override respected):** `mb_run.meals[x].colour` can differ from `run.colour` after a cap-conflict whole-meal swap, and the mirror must follow it. `MbRunPlanner`'s resolution (`const mealColour = rm?.colour ?? run.colour; const s = byColour.get(mealColour); const swapped = mealColour !== run.colour`) is extracted into a shared helper — `resolveRunMeal(run, suggestions, meal)` in `src/lib/mb-run.ts`, returning `{ colour, suggestion, items, picks, swapped }`. `MbRunPlanner` is refactored to call it (no behaviour change) and `MbPlanMirror` calls the same helper, so the two can never diverge. Each meal row renders with that meal's own colour bar/label, its items from that colour's suggestion, and a "swapped from <locked colour>" marker when `swapped` — matching what the client sees. Items with no pick render as "Not picked yet" in muted text. Header shows the locked run colour and the run's day span (`RUN_DAYS`).
-- **Three-card view:** the same three colour cards the client sees before locking — colour bar, Suggestion label, meal panels with item label + qty/unit — rendered read-only.
-- If the plan is not confirmed, it shows the existing "no live plan yet" empty state pointing at MB Plan Setup.
+The pick branch keeps its existing behaviour unchanged.
 
-Data source in Dashboard: `load()` already does `select("*")`, so `mb_run`, `mb_food_list`, `mb_plan`, `mb_food_limits` are all on the client row already. **No fetch change needed.**
+## 2. Per-meal quantity must reflect the real amount
 
-## b) Relocating the two editors into MB Plan Setup
+**File:** `src/lib/mb-run.ts` (new exported helper) + used from `MbRunPlanner.tsx`
 
-`src/components/MbPlanSetup.tsx` gains two new sections inside the existing scrollable dialog body, placed after `<MbPersonalFoodList />` and before the "Food caps" card:
+Today: `perMeal = it.unit === "count" && it.qty ? it.qty : 1`. So a `count` item works, but `as_listed` items ("2 eggs" living in `note`/`label`) always count as 1, and a 3-day run reads as 3 against a cap of 5 instead of 6.
 
-1. **Phase 2 food list editor** — the section/item delete UI, "Restore Defaults" dialog, the phase2/phase3 headings and empty states, moved verbatim from `Dashboard.tsx`'s `mealplan` tab. It keeps calling the exact same Dashboard handlers (`restorePhase2Defaults`, `deletePhase2Section`, `deletePhase2Item`) — these are passed into `MbPlanSetup` as props rather than reimplemented, so what is written (`phase2_food_list` + legacy columns) is unchanged, and `categoriesForPhase` stays the single resolver.
-2. **Weekly limits** — `<WeeklyLimitsEditor value={client.food_limits ?? {}} onSave={…saveWeeklyFoodLimits} />` moved as-is, with the read-only weekly-acknowledgement notice directly beneath it (acks passed in as a prop from `weeklyAcks[client.id]`).
+New helper `perMealQty(item): number`:
+- `unit === "count"` and `qty > 0` → `qty`.
+- `unit === "g"` / `"ml"` → `1` (cap counts servings, not grams; unchanged from today).
+- `unit === "as_listed"` → parse a leading integer from `note`, else from `label`, with a strict regex: a whole number 1–20 that is immediately followed by the food word or a unit-free space (`/^\s*(\d{1,2})\b/`). No match, non-finite, zero, or > 20 → fall back to `1`. Fractions and ranges ("1-2") are deliberately not counted above their lower bound; we take the first integer, which is the conservative reading and never invents a quantity that isn't written down.
 
-Also relocated: the Phase 3 read-only extended food list block, so nothing from the old tab is lost.
+This is read-only string parsing — nothing is written back to the plan, so a bad parse can only make the check behave the way it does today (count of 1), never corrupt data.
 
-Write behaviour and runtime consumption are unchanged: same columns (`phase2_food_list`, `food_limits`), same handlers, same optimistic-update/rollback logic in Dashboard, same reads in the portal and edge functions. This is a move, not a rewrite. The parallel legacy/new stores (two food-list stores, two caps stores) are left exactly as they are — out of scope.
+`capBlocksRun(food, perMealQty(it), RUN_DAYS, ...)` then compares `qty × 3` against the cap, which is what the requirement asks for.
 
-## c) Gating the rename and body swap
+`MbPlanMirror.tsx` keeps using `resolveRunMeal`/`fmtQty` as-is — no behaviour change there.
 
-In `src/pages/Dashboard.tsx`:
-- Tab trigger (line ~1975) becomes `{client.system_mode === "own_practice" ? "Meal Plan" : "Client Plan"}`.
-- `<TabsContent value="mealplan">`: the existing `client.system_mode === "own_practice" ? (…) : (…)` branch stays. The **true** branch (Custom: `CustomFoodListEditor` / `RecipePlanAssignments` / fallback text) is left byte-for-byte identical — no reindentation, no prop changes. The **false** branch (all the phase2/phase3/weekly-limits JSX) is replaced with a single `<MbPlanMirror … />`, with the removed JSX moved into `MbPlanSetup`.
-- The tab `value` stays `"mealplan"` so `_activeTab` navigation and the Custom "go to macros"/plan-generation flows keep working.
+## 3. Correct the cap-editor copy
 
-## d) Verification plan
+**File:** `src/components/MbPlanSetup.tsx`
 
-MB client (Scott Strong or similar, confirmed plan):
-1. Before a pick — clear/absent `mb_run`: Client Plan tab shows three read-only Suggestion cards matching the client's My Plan pre-lock view; no dropdowns, no buttons.
-2. After a pick — lock a colour and pick foods in the client portal, reload the practitioner view: Client Plan shows only the locked colour with those exact picks; screenshot both sides for a like-for-like comparison.
-2b. Cap-conflict swap — perform a whole-meal colour swap on one meal in the portal (or write a `meals[x].colour` override): the mirror shows that one meal in the swapped colour with the swapped colour's items and a "swapped" marker, while the other two meals stay on the locked colour. Side-by-side screenshots against My Plan.
+- "Food caps" (`mb_food_limits`) subtitle: replace "Stored as a draft only — not yet enforced anywhere." with copy stating it is the live cap used for MB runs, e.g. *"Live caps — these are enforced when a client picks foods for a run."*
+- Weekly Food Limits (`food_limits`, rendered by `WeeklyLimitsEditor`): label it as the fallback, e.g. heading stays but the description becomes *"Legacy fallback — only used when a food has no entry in Food caps above."*
 
-3. Open MB Plan Setup: Phase 2 food list editor present and functional (delete an item, confirm it persists to `phase2_food_list` via a DB read, then restore defaults); Weekly Limits saves to `clients.food_limits` (verified by DB read); acknowledgement notice renders when acks exist.
-4. Unconfirmed MB client: Client Plan shows the empty state, no crash.
+**File:** `src/components/WeeklyLimitsEditor.tsx` — the description string lives here; it will take the wording change (and it is used only by the MB setup dialog now).
 
-Custom client:
-5. Tab still reads "Meal Plan"; `CustomFoodListEditor` (food_list and food_list_generated) and the recipe-plan branch render and save unchanged; git diff shows no edits inside the `own_practice` branch.
+## 4. Fix the snap-back regression in Weekly Food Limits
+
+**File:** `src/components/WeeklyLimitsEditor.tsx` (primary) and `src/components/MbPlanSetup.tsx` (secondary)
+
+Cause: MB Plan Setup's 700 ms debounced autosave calls `onSaved()` → Dashboard `load()` → a fresh `food_limits` object identity → the editor's `useEffect([value])` rebuilds rows from the prop and discards the row being typed.
+
+Change in `WeeklyLimitsEditor`: the sync effect keeps dirty rows instead of blowing them away. For each row coming from `value`, if a local row with the same `savedName` exists and is dirty (name or limit differs from what's persisted), keep the local row; otherwise take the incoming one. Unsaved (`savedName === null`) rows are preserved as they already are. Result: background reloads can no longer revert in-progress typing, and an explicit save/remove still round-trips normally.
+
+Change in `MbPlanSetup`: the debounced draft autosave stops calling `onSaved()` on every tick — it only notifies the parent on dialog close / explicit save, so a draft-cap keystroke no longer forces a full client reload. Explicit saves keep their existing refresh.
+
+## Verification
+
+- Playwright, practitioner + client portal, against an MB test client (Carson Strong; data restored afterwards):
+  1. Set a `mb_food_limits` weekly cap of 5 on eggs. Client locks a suggestion whose lunch is a **fixed** "2 eggs" item → amber warning appears (6 needed vs cap 5) with the whole-meal swap selector. Today it is silent.
+  2. Same with an `as_listed` "2 Eggs" item → `needed` reads 6, not 3.
+  3. Raise the cap to 6 → warning disappears.
+  4. In MB Plan Setup, edit an existing Weekly Food Limits row and keep typing across the 700 ms autosave window → value no longer snaps back; check mark saves it.
+  5. Read both editor descriptions on screen to confirm the new copy.
+- `tsgo` typecheck.
+- Confirm by diff that no Custom/`own_practice` file or branch is touched (`MealPlanner.tsx`, `CustomFoodListEditor.tsx`, Dashboard's Custom branch), and that neither cap store's schema, precedence in `weeklyCapFor`, nor write paths change.
