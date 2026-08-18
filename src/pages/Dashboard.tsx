@@ -82,6 +82,10 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MbPdfImport } from "@/components/MbPdfImport";
 import { MbPlanSetup } from "@/components/MbPlanSetup";
+import MbPlanMirror from "@/components/MbPlanMirror";
+import { getMbPlan, isMbPlanConfirmed } from "@/lib/mb-plan";
+import { resolveMbFoodList } from "@/lib/mb-food-list";
+
 import { MacrosTab } from "@/components/MacrosTab";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
