@@ -58,3 +58,58 @@ Change in `MbPlanSetup`: the debounced draft autosave stops calling `onSaved()` 
   5. Read both editor descriptions on screen to confirm the new copy.
 - `tsgo` typecheck.
 - Confirm by diff that no Custom/`own_practice` file or branch is touched (`MealPlanner.tsx`, `CustomFoodListEditor.tsx`, Dashboard's Custom branch), and that neither cap store's schema, precedence in `weeklyCapFor`, nor write paths change.
+
+---
+
+## 5. The block must actually stop the run (client gate)
+
+**How a run is finalised today:** there is no explicit confirm step. `MbRunPlanner` computes `runReady` (a colour is locked and every non-optional pick is filled), then shows a "Your run is ready" panel whose only action is `onGoHome()` → `ClientPortal` `changeTab("home")`, where Home generates recipes from the saved `mb_run` (`generate-mb-recipe`). Saving is a 500 ms debounced `mb-run { action: "save" }`. So "finalising" = the run reaching ready + the client handing off to Home to cook it.
+
+**Files:** `src/components/MbRunPlanner.tsx`, `src/pages/ClientPortal.tsx`, `supabase/functions/mb-run/index.ts`.
+
+**Change — make the handoff an explicit, gated confirm:**
+- Compute `capViolations = evaluateRunCaps(...)` (the shared evaluator, section 7) for the whole run, across all three meals and every item, fixed and pick.
+- `runReady` becomes `allPicked && capViolations.length === 0`. While any violation exists, the ready panel is replaced by a blocking amber panel listing each offending meal/food ("Lunch — eggs: 6 needed for a 3-day run, cap is 5") and the sanctioned remedy only: the whole-meal swap selector to another suggestion for that meal. No "acknowledge", no override, no dismiss.
+- The "Go to Home" button is replaced by **Confirm run**, which is `disabled` while violations exist and calls `mb-run { action: "confirm", run }`. Only on a 200 does the planner call `onGoHome()`. A rejection surfaces the server's message inline (toast + the same amber panel) and the client stays on the planner.
+- `mb_run` gains a `confirmed_on: string | null` field (set by the server on a successful confirm, cleared by any subsequent `save`), so Home can tell a confirmed run from a half-picked draft. `parseMbRun` / `startRun` / `emptyRun` in `src/lib/mb-run.ts` carry it.
+- `ClientPortal` Home: MB recipe generation reads the run only when `confirmed_on` is set; otherwise Home shows "Finish and confirm your run in My Plan" and links back. That is where the gate bites in the client flow — an unconfirmable run can never reach the cooking surface.
+
+Autosave (`action: "save"`) stays permissive so a client can keep editing mid-conflict; only `confirm` is gated.
+
+## 6. Server-side backstop in `supabase/functions/mb-run`
+
+**File:** `supabase/functions/mb-run/index.ts`
+
+Today it validates shape with Zod and writes whatever is posted. Add:
+- Widen the select to `id, client_type, mb_run, mb_plan, mb_food_limits, food_limits` plus the food-list columns needed to resolve items (the confirmed colour plan is the source of the item list — the client cannot post its own items, so it cannot lie about quantities).
+- New `action: "confirm"`. It resolves each meal's suggestion from the stored `mb_plan` honouring the per-meal `colour` override, walks every item (fixed and pick), and runs the **same shared evaluator** as the client.
+- If violations exist → `409 { error: "cap_exceeded", violations: [{ meal, food, needed, cap, per_meal }] }`. Nothing is written.
+- If clean → write `mb_run` with `confirmed_on = today` and return it.
+- `action: "save"` is unchanged except that it clears `confirmed_on`, so a client cannot edit their way past a cap after confirming.
+
+The client surfaces `error` / `violations` verbatim in the amber panel, so a stale client build still gets blocked with a readable reason.
+
+## 7. One shared cap-evaluation path (client + server in lockstep)
+
+**New file:** `supabase/functions/_shared/mb-cap.ts` — dependency-free, no Deno or DOM APIs, plain TS.
+
+Exports:
+- `perMealQty(item)` — the quantity logic from section 2, verbatim, one implementation.
+- `weeklyCapFor(food, enrichedLimits, legacyLimits)` — moved here; `mb_food_limits` first, `food_limits` fallback. Precedence and both stores unchanged.
+- `capBlocksRun(...)` and `evaluateRunCaps(run, suggestions, enriched, legacy, runDays)` → `Violation[]`.
+
+Wiring:
+- The edge function imports it as `../_shared/mb-cap.ts` (deploys with the function).
+- The client imports the same file: `src/lib/mb-food-list.ts` re-exports `weeklyCapFor` / `capBlocksRun` from `../../supabase/functions/_shared/mb-cap` so existing call sites keep their imports, and `MbRunPlanner` uses `evaluateRunCaps`. Vite resolves the path at build time; nothing is duplicated. If that cross-root import proves awkward in the Vite build, the fallback is a single source file plus a checked-in generated copy with a unit test asserting the two are byte-identical — but the direct import is the intent.
+- A vitest case in `src/test/` covers: fixed 2-egg item vs cap 5 → blocked; as_listed "2 Eggs" → needed 6; cap 6 → clean; and the same fixtures run through the evaluator the server calls, proving one code path.
+
+## Verification additions
+
+6. Client with a fixed 2-egg lunch and an egg cap of 5: **Confirm run** is disabled, the amber panel lists the violation and offers only the whole-meal swap; after swapping lunch to another colour, Confirm enables and succeeds.
+7. Direct `mb-run` call posting the violating run with `action: "confirm"` (bypassing the UI) returns `409 cap_exceeded` and leaves `mb_run` unwritten.
+8. Home refuses to generate MB recipes until `confirmed_on` is set.
+
+## Unchanged, restated
+
+- Custom (`own_practice`) is untouched: no edits to `MealPlanner.tsx`, `CustomFoodListEditor.tsx`, or Dashboard's Custom branch. `checkMealLimits` and its use of `food_limits` on the legacy/Custom path keep working exactly as today.
+- Both cap stores stay in place with the same authority: `mb_food_limits` first, `food_limits` fallback. No migration, no consolidation, no schema change beyond the additive `confirmed_on` key inside the existing `mb_run` jsonb.
