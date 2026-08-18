@@ -109,10 +109,9 @@ export default function WeeklyLimitsEditor({ value, onSave }: Props) {
     <div className="space-y-2">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <p className="text-sm font-medium">Weekly Food Limits</p>
+          <p className="text-sm font-medium">Weekly Food Limits (legacy fallback)</p>
           <p className="text-xs text-muted-foreground">
-            Used by the Meal Planner to warn the client when a meal would exceed their allowance.
-            Examples: <code>eggs · 5</code>, <code>salmon · 2</code>, <code>avocado · 3</code>.
+            Fallback only — used when a food has no entry in Food caps above. Examples: <code>eggs · 5</code>, <code>salmon · 2</code>, <code>avocado · 3</code>.
           </p>
         </div>
         <Button type="button" size="sm" variant="outline" onClick={add}>

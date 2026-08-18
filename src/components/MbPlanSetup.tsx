@@ -581,7 +581,7 @@ export function MbPlanSetup({
               <div>
                 <p className="text-sm font-semibold">Food caps</p>
                 <p className="text-xs text-muted-foreground">
-                  Stored as a draft only — not yet enforced anywhere.
+                  Live caps — enforced when a client picks and confirms a run.
                 </p>
               </div>
               <Button
