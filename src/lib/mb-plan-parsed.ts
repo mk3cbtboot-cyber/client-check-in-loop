@@ -50,6 +50,8 @@ const CATEGORY_KEY: Record<string, string> = {
   "veg./lettuce": "vegLettuce",
   "veg/lettuce": "vegLettuce",
   "vegetable/lettuce": "vegLettuce",
+  "sprouts": "vegetables",
+  "tofu": "legumes",
   "starch": "starch",
   "bread": "bread",
   "fruit": "fruit",
