@@ -667,38 +667,21 @@ function parseMealTable(
   debug.meal_protein_candidates = proteinCandidates.map((c) => ({ label: c.label, grams: c.grams, idx: c.idx }));
   debug.meal_veg_candidates = vegCandidates.map((c) => ({ label: c.label, grams: c.grams, idx: c.idx }));
 
-  const extractVegGramsForSlot = (slotChunk: string, proteinGrams: number | null): number | null => {
-    const explicitForward = new RegExp(`(\\d{2,4})\\s*g\\s+(?:${vegLabelAlt})\\b`, "i");
-    const explicitReverse = new RegExp(`(?:${vegLabelAlt})\\s+(\\d{2,4})\\s*g\\b`, "i");
-    const forwardMatch = slotChunk.match(explicitForward);
-    if (forwardMatch) {
-      const grams = parseInt(forwardMatch[1], 10);
-      if (Number.isFinite(grams) && grams !== proteinGrams) return grams;
-    }
-    const reverseMatch = slotChunk.match(explicitReverse);
-    if (reverseMatch) {
-      const grams = parseInt(reverseMatch[1], 10);
-      if (Number.isFinite(grams) && grams !== proteinGrams) return grams;
-    }
-
-    const numberMatches = Array.from(slotChunk.matchAll(/\b(\d{2,4})\b(?:\s*g\b)?/gi))
-      .map((match) => parseInt(match[1], 10))
-      .filter((grams) => Number.isFinite(grams) && grams !== proteinGrams && grams >= 80 && grams <= 250);
-
-    const preferred = numberMatches.find((grams) => grams >= 100 && grams <= 200);
-    return preferred ?? numberMatches[0] ?? null;
-  };
-
+  // Each suggestion owns the slice of text from its own protein anchor up to
+  // the next one. Everything it contains (Starch, Vegetables, Fruit, Bread,
+  // Fat/Oil, units) is read from that slice only — no scavenging of numbers
+  // and no meal-wide stamping.
   for (let i = 0; i < Math.min(9, proteinCandidates.length); i++) {
     const mi = Math.floor(i / 3);
     const oi = i % 3;
-    options[mealKeys[mi]][oi].protein_category = proteinCandidates[i].label;
-    options[mealKeys[mi]][oi].protein_grams = proteinCandidates[i].grams;
     const nextProteinIdx = proteinCandidates[i + 1]?.idx ?? region.length;
-    const slotChunk = region.slice(proteinCandidates[i].end, nextProteinIdx);
-    options[mealKeys[mi]][oi].veg_grams = extractVegGramsForSlot(slotChunk, proteinCandidates[i].grams);
-    if (options[mealKeys[mi]][oi].veg_grams == null && vegCandidates[i]) {
-      options[mealKeys[mi]][oi].veg_grams = vegCandidates[i].grams;
+    const slotChunk = region.slice(proteinCandidates[i].idx, nextProteinIdx);
+    const items = tokenizeMealItems(slotChunk);
+    applyItemsToOption(options[mealKeys[mi]][oi], items);
+    // The candidate scan is the authority on which protein anchors this slot.
+    if (!options[mealKeys[mi]][oi].protein_category) {
+      options[mealKeys[mi]][oi].protein_category = proteinCandidates[i].label;
+      options[mealKeys[mi]][oi].protein_grams = proteinCandidates[i].grams;
     }
   }
 
@@ -717,23 +700,11 @@ function parseMealTable(
     mealChunksByKey[mealBoundaries[bi].meal] = region.slice(start, end);
   }
   debug.meal_chunks = mealChunksByKey;
-  const _mealLabels: Record<MealKey, string> = {
-    breakfast: 'BREAKFAST RAW:',
-    lunch: 'LUNCH RAW:',
-    dinner: 'DINNER RAW:',
-  };
-  for (const mk of mealKeys) {
-    const chunk = mealChunksByKey[mk];
-    console.log(_mealLabels[mk], chunk);
-    const hasFruit = /\bFruit\b/i.test(chunk);
-    const hasBread = /\bBread\b/i.test(chunk);
-    for (let i = 0; i < 3; i++) {
-      if (options[mk][i].protein_category) {
-        options[mk][i].has_fruit = hasFruit;
-        options[mk][i].has_bread = hasBread;
-      }
-    }
-  }
+  debug.meal_items = mealKeys.reduce((acc, mk) => {
+    acc[mk] = options[mk].map((o) => o.items);
+    return acc;
+  }, {} as Record<string, MealItem[][]>);
+
 
   for (let mi = 0; mi < 3; mi++) {
     const first = options[mealKeys[mi]][0];
