@@ -289,6 +289,9 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       }
       // Persist 3 options per meal into the jsonb column.
       update.mb_meal_options = mealOptions;
+      // Seed the colour plan straight from the parsed items (draft, unconfirmed)
+      // so Starch / ml portions are not lost through the legacy flat fields.
+      update.mb_plan = mbPlanFromParsedOptions(mealOptions);
       update.food_exclusions = foodExclusions && foodExclusions.length ? foodExclusions : null;
       const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
 
