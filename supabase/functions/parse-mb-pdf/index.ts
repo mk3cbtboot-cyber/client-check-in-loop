@@ -588,10 +588,9 @@ function parseMealTable(
   const allLabels = [...proteinLabels, ...vegLabels];
   allLabels.sort((a, b) => b.length - a.length);
   const labelAlt = allLabels.map((l) => escapeRegExp(l)).join("|");
-  const vegLabelAlt = vegLabels.map((l) => escapeRegExp(l)).join("|");
-
-  const gramRe = new RegExp(`(\\d{2,4})\\s*g\\s+(${labelAlt})\\b`, "gi");
-  const gramReReversed = new RegExp(`(${labelAlt})\\s+(\\d{2,4})\\s*g\\b`, "gi");
+  // Anchors accept ml as well as g so "200 ml Milk Products" is a real option.
+  const gramRe = new RegExp(`(\\d{2,4})\\s*(?:g|ml)\\s+(${labelAlt})\\b`, "gi");
+  const gramReReversed = new RegExp(`(${labelAlt})\\s+(\\d{2,4})\\s*(?:g|ml)\\b`, "gi");
   const eggsRe = /(\d+)\s+Egg/gi;
 
   type Candidate = { kind: "protein" | "veg" | "eggs"; label: string; grams: number | null; idx: number; end: number };
