@@ -105,7 +105,39 @@ export function MbRunPlanner({
       .every((i) => !!rm.picks[i.id]);
   };
 
-  const runReady = !!run.colour && RUN_MEALS.every((m) => mealComplete(m));
+  /** Same shared evaluator the mb-run edge function runs on confirm. */
+  const violations = useMemo(
+    () => evaluateRunCaps(run, suggestions, enrichedLimits, legacyLimits, RUN_DAYS),
+    [run, suggestions, enrichedLimits, legacyLimits],
+  );
+  const allPicked = !!run.colour && RUN_MEALS.every((m) => mealComplete(m));
+  const runReady = allPicked && violations.length === 0;
+
+  const confirmRun = async () => {
+    setConfirming(true);
+    if (timer.current) clearTimeout(timer.current);
+    const { data, error } = await supabase.functions.invoke("mb-run", {
+      body: { token, action: "confirm", run },
+    });
+    setConfirming(false);
+    const payload = (data ?? {}) as { error?: string; message?: string; run?: unknown };
+    if (error || payload.error) {
+      setServerError(
+        payload.message ??
+          (payload.error === "cap_exceeded"
+            ? "This run exceeds a weekly food cap."
+            : "Couldn't confirm your run — please try again."),
+      );
+      toast.error(payload.message ?? "Couldn't confirm your run.");
+      return;
+    }
+    setServerError(null);
+    dirty.current = false;
+    setRun(parseMbRun(payload.run));
+    toast.success("Run confirmed.");
+    onGoHome();
+  };
+
 
   /* ---------------- colour choice ---------------- */
   if (!run.colour) {
