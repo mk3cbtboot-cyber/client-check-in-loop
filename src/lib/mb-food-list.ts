@@ -86,48 +86,19 @@ export function categoryLabel(key: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/* Weekly caps (read-only consumption of the existing cap data)        */
+/* Weekly caps — re-exported from the ONE shared evaluator that the     */
+/* mb-run edge function also imports, so client and server can never    */
+/* disagree. Store precedence is unchanged: mb_food_limits first,       */
+/* food_limits as the legacy fallback.                                  */
 /* ------------------------------------------------------------------ */
 
-const norm = (s: string) => s.trim().toLowerCase();
+export {
+  weeklyCapFor,
+  capBlocksRun,
+  perMealQty,
+  capFoodFor,
+  evaluateRunCaps,
+  describeViolation,
+} from "../../supabase/functions/_shared/mb-cap";
+export type { CapViolation } from "../../supabase/functions/_shared/mb-cap";
 
-/**
- * The weekly max for a food, from the enriched caps first and the legacy
- * flat food_limits map second. Returns null when the food is uncapped.
- */
-export function weeklyCapFor(
-  food: string,
-  enriched: MbFoodLimit[] | null | undefined,
-  legacy: Record<string, number> | null | undefined,
-): number | null {
-  const f = norm(food);
-  for (const row of enriched ?? []) {
-    if (row.type !== "weekly" || row.max == null) continue;
-    const rf = norm(row.food);
-    if (rf === f || f.includes(rf) || rf.includes(f)) return row.max;
-  }
-  for (const [k, v] of Object.entries(legacy ?? {})) {
-    const rk = norm(k);
-    const n = Number(v);
-    if (!Number.isFinite(n) || n <= 0) continue;
-    if (rk === f || f.includes(rk) || rk.includes(f)) return n;
-  }
-  return null;
-}
-
-/**
- * True when a weekly-capped food cannot cover every day of the run at the
- * item's per-meal quantity.
- */
-export function capBlocksRun(
-  food: string,
-  perMealQty: number | null,
-  runDays: number,
-  enriched: MbFoodLimit[] | null | undefined,
-  legacy: Record<string, number> | null | undefined,
-): { blocked: boolean; cap: number | null; needed: number } {
-  const cap = weeklyCapFor(food, enriched, legacy);
-  const per = perMealQty && perMealQty > 0 ? perMealQty : 1;
-  const needed = per * runDays;
-  return { blocked: cap != null && needed > cap, cap, needed };
-}
