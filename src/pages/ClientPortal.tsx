@@ -500,6 +500,11 @@ export default function ClientPortal() {
   // one exists, otherwise the legacy hardcoded MB_OPTIONS (identical to before).
   const mbPlanConfirmed = isMbPlanConfirmed(client as any);
   const resolvedOptions = mbOptions(client as any);
+  // MB colour-run gate: cooking surfaces stay closed until the client confirms a
+  // cap-clean run (server-validated). MB clients only — Custom is unaffected.
+  const mbRunConfirmed = !!parseMbRun((client as any).mb_run).confirmed_on;
+  const mbRunGateActive =
+    client.client_type !== "custom" && mbPlanConfirmed && !mbRunConfirmed;
 
   const optionsForMeal = (m: MealType): OptionDef[] => {
     if (!weekConfirmed) return resolvedOptions[m];
