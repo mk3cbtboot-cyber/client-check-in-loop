@@ -8,7 +8,7 @@ import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import type { MealType } from "@/lib/mb-foods";
 import type { MbColour, MbFoodLimit, MbPlanItem, MbSuggestion } from "@/lib/mb-plan";
 import { capBlocksRun, categoryLabel, type MbFoodListMap } from "@/lib/mb-food-list";
-import { RUN_DAYS, RUN_MEALS, emptyRun, parseMbRun, startRun, type MbRun } from "@/lib/mb-run";
+import { RUN_DAYS, RUN_MEALS, emptyRun, fmtQty, parseMbRun, resolveRunMeal, startRun, type MbRun } from "@/lib/mb-run";
 
 const MEAL_LABEL: Record<MealType, string> = {
   breakfast: "Breakfast",
@@ -21,12 +21,6 @@ const COLOUR_DOT: Record<MbColour, string> = {
   orange: "bg-amber-500",
 };
 
-function fmtQty(it: MbPlanItem): string {
-  if (it.unit === "g" && it.qty != null) return `${it.qty}g`;
-  if (it.unit === "ml" && it.qty != null) return `${it.qty}ml`;
-  if (it.unit === "count" && it.qty != null) return `${it.qty}`;
-  return (it.note ?? "").trim();
-}
 
 interface Props {
   token: string;
@@ -175,10 +169,8 @@ export function MbRunPlanner({
 
       {RUN_MEALS.map((meal) => {
         const rm = run.meals[meal];
-        const mealColour = rm?.colour ?? run.colour!;
-        const s = byColour.get(mealColour);
-        const items = s?.meals?.[meal]?.items ?? [];
-        const swapped = mealColour !== run.colour;
+        const { colour: mealColour, suggestion: s, items, swapped } = resolveRunMeal(run, suggestions, meal);
+
         return (
           <div key={meal} className="rounded-lg border p-3 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

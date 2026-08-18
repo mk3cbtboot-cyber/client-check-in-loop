@@ -1,10 +1,19 @@
 // The MB client's current colour-locked 3-day run (clients.mb_run).
 
 import type { MealType } from "@/lib/mb-foods";
-import { MB_COLOURS, type MbColour } from "@/lib/mb-plan";
+import { MB_COLOURS, type MbColour, type MbPlanItem, type MbSuggestion } from "@/lib/mb-plan";
 
 export const RUN_DAYS = 3;
 export const RUN_MEALS: MealType[] = ["breakfast", "lunch", "dinner"];
+
+/** Shared item quantity formatter — used by both the client planner and the practitioner mirror. */
+export function fmtQty(it: MbPlanItem): string {
+  if (it.unit === "g" && it.qty != null) return `${it.qty}g`;
+  if (it.unit === "ml" && it.qty != null) return `${it.qty}ml`;
+  if (it.unit === "count" && it.qty != null) return `${it.qty}`;
+  return (it.note ?? "").trim();
+}
+
 
 export interface MbRunMeal {
   /** Colour this meal is actually taken from (differs only after a cap swap). */
@@ -58,5 +67,38 @@ export function startRun(colour: MbColour): MbRun {
       lunch: { colour, picks: {} },
       dinner: { colour, picks: {} },
     },
+  };
+}
+
+export interface ResolvedRunMeal {
+  /** Colour this meal is actually taken from (may differ after a cap swap). */
+  colour: MbColour;
+  suggestion: MbSuggestion | undefined;
+  items: MbPlanItem[];
+  picks: Record<string, string>;
+  /** True when the meal was swapped away from the locked run colour. */
+  swapped: boolean;
+}
+
+/**
+ * Single source of truth for "which suggestion does this meal come from".
+ * Honours the per-meal colour override written by a cap-conflict whole-meal swap.
+ * Both MbRunPlanner (client) and MbPlanMirror (practitioner) use this so the two
+ * views can never diverge.
+ */
+export function resolveRunMeal(
+  run: MbRun,
+  suggestions: MbSuggestion[],
+  meal: MealType,
+): ResolvedRunMeal {
+  const rm = run.meals[meal];
+  const colour = (rm?.colour ?? run.colour) as MbColour;
+  const suggestion = suggestions.find((s) => s.colour === colour);
+  return {
+    colour,
+    suggestion,
+    items: suggestion?.meals?.[meal]?.items ?? [],
+    picks: rm?.picks ?? {},
+    swapped: !!run.colour && colour !== run.colour,
   };
 }

@@ -12,9 +12,22 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Copy, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Loader2, Plus, Trash2, X } from "lucide-react";
 import { type MealType } from "@/lib/mb-foods";
 import MbPersonalFoodList from "@/components/MbPersonalFoodList";
+import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 
 import {
   MB_COLOURS,
@@ -79,6 +92,17 @@ const blankPlan = (): MbPlan => ({
   })) as MbSuggestion[],
 });
 
+interface Phase2Category {
+  title: string;
+  items: string[];
+}
+
+interface WeeklyAck {
+  food_name: string;
+  limit_value: number;
+  acknowledged_at: string;
+}
+
 interface Props {
   clientId: string;
   mbPlan: unknown;
@@ -89,9 +113,27 @@ interface Props {
   /** Full client row — seeds the Personal Food List from the food_* columns. */
   client?: Record<string, unknown> | null;
   onSaved?: () => void;
+
+  /* --- relocated from the practitioner Meal Plan tab (unchanged behaviour) --- */
+  clientName?: string;
+  phase?: string | null;
+  phase2Categories?: Phase2Category[];
+  phase2Customised?: boolean;
+  phase3Groups?: Phase2Category[];
+  weeklyAcks?: WeeklyAck[];
+  onRestorePhase2Defaults?: () => void;
+  onDeletePhase2Section?: (title: string) => void;
+  onDeletePhase2Item?: (title: string, item: string) => void;
+  onSaveWeeklyLimits?: (limits: Record<string, number>) => void;
 }
 
-export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, client, onSaved }: Props) {
+export function MbPlanSetup({
+  clientId, mbPlan, mbFoodLimits, legacyFoodLimits, client, onSaved,
+  clientName = "This client", phase, phase2Categories = [], phase2Customised = false,
+  phase3Groups = [], weeklyAcks = [],
+  onRestorePhase2Defaults, onDeletePhase2Section, onDeletePhase2Item, onSaveWeeklyLimits,
+}: Props) {
+
 
   const [open, setOpen] = useState(false);
   const [plan, setPlan] = useState<MbPlan>(() => parseMbPlan(mbPlan) ?? blankPlan());
@@ -389,6 +431,148 @@ export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, 
           </div>
 
           <MbPersonalFoodList clientId={clientId} client={client} onSaved={onSaved} />
+
+          {(phase === "phase2_strict" || phase === "phase2_extended") && (
+            <div className="rounded-lg border p-3 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <p className="text-sm font-medium">
+                    {phase === "phase2_extended"
+                      ? "Phase 2 Extended — Personal Food List"
+                      : "Phase 2 Strict — Personal Food List"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {phase === "phase2_extended"
+                      ? "Same food list as Phase 2 Strict, with treat meals allowed. Remove sections or items — changes save instantly."
+                      : "Remove entire sections or individual items. Changes save instantly and appear in the client's My Plan."}
+                  </p>
+                </div>
+                {phase2Customised && onRestorePhase2Defaults && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button type="button" size="sm" variant="outline">Restore Defaults</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Restore default food list?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will reset {clientName}'s Phase 2 Strict food list back to the full default list. Any sections or items you've removed will be restored.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onRestorePhase2Defaults()}>Restore Defaults</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
+              {phase2Categories.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {phase2Customised
+                    ? 'All sections have been removed. Use "Restore Defaults" to bring the list back.'
+                    : "No food list yet — upload this client's MB PDF to populate it."}
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {phase2Categories.map((cat) => (
+                    <div key={cat.title} className="border rounded-md p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium">{cat.title}</p>
+                        {onDeletePhase2Section && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button type="button" size="sm" variant="ghost" className="text-destructive hover:text-destructive">Delete Section</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remove section?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to remove the entire {cat.title} section from this client's plan?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDeletePhase2Section(cat.title)}>Remove Section</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
+                      {cat.items.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No items left in this section.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {cat.items.map((item) => (
+                            <span key={item} className="inline-flex items-center gap-1 rounded-full bg-secondary text-secondary-foreground text-xs pl-2.5 pr-1 py-1">
+                              {item}
+                              {onDeletePhase2Item && (
+                                <button
+                                  type="button"
+                                  aria-label={`Remove ${item}`}
+                                  onClick={() => onDeletePhase2Item(cat.title, item)}
+                                  className="rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {phase === "phase3" && phase3Groups.length > 0 && (
+            <div className="rounded-lg border p-3 space-y-3">
+              <div>
+                <p className="text-sm font-medium">Phase 3 — Extended Personal Food List</p>
+                <p className="text-xs text-muted-foreground">Parsed from this client's MB PDF.</p>
+              </div>
+              <div className="space-y-3">
+                {phase3Groups.map((cat) => (
+                  <div key={cat.title} className="border rounded-md p-3 space-y-2">
+                    <p className="text-sm font-medium">{cat.title}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {cat.items.map((item) => (
+                        <span key={item} className="inline-flex items-center rounded-full bg-secondary text-secondary-foreground text-xs px-2.5 py-1">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {onSaveWeeklyLimits && (
+            <div className="rounded-lg border p-3 space-y-3">
+              <WeeklyLimitsEditor
+                value={legacyFoodLimits ?? {}}
+                onSave={(next) => onSaveWeeklyLimits(next)}
+              />
+              {weeklyAcks.length > 0 && (
+                <div className="rounded-md border border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20 p-3 space-y-1">
+                  {weeklyAcks.map((a) => {
+                    const d = new Date(a.acknowledged_at);
+                    const when = d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+                    return (
+                      <p key={a.food_name} className="text-xs">
+                        ⚠️ {clientName.split(" ")[0]} acknowledged a weekly {a.food_name.toLowerCase()} limit warning on {when}.
+                      </p>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+
 
 
 

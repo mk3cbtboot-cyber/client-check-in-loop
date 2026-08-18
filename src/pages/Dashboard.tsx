@@ -42,6 +42,20 @@ const PHASE2_PARSED_GROUPS: { title: string; field: string }[] = [
   { title: "Fruit", field: "food_fruit" },
 ];
 
+/** Phase 3 read-only groups parsed from the MB PDF (shown in MB Plan Setup). */
+const PHASE3_GROUPS: { title: string; field: string }[] = [
+  { title: "Fish", field: "phase3_mb_fish" },
+  { title: "Seafood", field: "phase3_mb_seafood" },
+  { title: "Meat", field: "phase3_mb_meat" },
+  { title: "Cheese", field: "phase3_mb_cheese" },
+  { title: "Legumes", field: "phase3_mb_legumes" },
+  { title: "Vegetables", field: "phase3_mb_vegetables" },
+  { title: "Veg / Lettuce", field: "phase3_mb_veg_lettuce" },
+  { title: "Sprouts", field: "phase3_mb_sprouts" },
+  { title: "Oils (Cold-Pressed)", field: "phase3_mb_fat_oil" },
+];
+
+
 function categoriesFromParsedFields(client: Record<string, unknown>): FoodCategory[] {
   return PHASE2_PARSED_GROUPS
     .map((g) => ({
@@ -68,13 +82,16 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MbPdfImport } from "@/components/MbPdfImport";
 import { MbPlanSetup } from "@/components/MbPlanSetup";
+import MbPlanMirror from "@/components/MbPlanMirror";
+import { getMbPlan, isMbPlanConfirmed } from "@/lib/mb-plan";
+import { resolveMbFoodList } from "@/lib/mb-food-list";
+
 import { MacrosTab } from "@/components/MacrosTab";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
 import { formatDistanceToNow } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import ClientTrendGraphs from "@/components/ClientTrendGraphs";
-import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
 import PractitionerMessages from "@/components/PractitionerMessages";
 import MealsOverviewSection from "@/components/MealsOverviewSection";
 import AppointmentDialog, { type Appointment } from "@/components/AppointmentDialog";
@@ -1972,7 +1989,7 @@ export default function Dashboard() {
                         {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                           <TabsTrigger value="macros">Macros / MPG</TabsTrigger>
                         )}
-                        <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
+                        <TabsTrigger value="mealplan">{client.system_mode === "own_practice" ? "Meal Plan" : "Client Plan"}</TabsTrigger>
                         <TabsTrigger value="messages" className="relative">
                           Messages
                           {hasUnreadFromClient(client) && (
@@ -2089,8 +2106,23 @@ export default function Dashboard() {
                                 legacyFoodLimits={client.food_limits ?? {}}
                                 client={client as unknown as Record<string, unknown>}
                                 onSaved={load}
+                                clientName={client.name}
+                                phase={client.phase}
+                                phase2Categories={categoriesForPhase(client.phase2_food_list, client.phase, client.phase3_mb_fat_oil, client as unknown as Record<string, unknown>)}
+                                phase2Customised={Array.isArray(client.phase2_food_list)}
+                                phase3Groups={PHASE3_GROUPS.map((g) => ({
+                                  title: g.title,
+                                  items: String(((client as unknown as Record<string, unknown>)[g.field] as string) ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+                                })).filter((g) => g.items.length > 0)}
+
+                                weeklyAcks={weeklyAcks[client.id] ?? []}
+                                onRestorePhase2Defaults={() => restorePhase2Defaults(client.id)}
+                                onDeletePhase2Section={(title) => deletePhase2Section(client.id, title)}
+                                onDeletePhase2Item={(title, item) => deletePhase2Item(client.id, title, item)}
+                                onSaveWeeklyLimits={(next) => saveWeeklyFoodLimits(client.id, next)}
                               />
                             )}
+
                             {client.system_mode === "own_practice" && client.plan_format === "food_list" && (
                               <FoodListDocImport
                                 clientId={client.id}
@@ -2469,177 +2501,16 @@ export default function Dashboard() {
                           ) : (
                             <p className="text-sm text-muted-foreground">No meal plan tools available for this plan format.</p>
                           )
-                        ) : (client.phase === "phase2_strict" || client.phase === "phase2_extended") ? (() => {
-                          const cats = categoriesForPhase(client.phase2_food_list, client.phase, client.phase3_mb_fat_oil, client as unknown as Record<string, unknown>);
-                          const isCustomised = Array.isArray(client.phase2_food_list);
-                          const isExtended = client.phase === "phase2_extended";
-                          if (!isCustomised && cats.length === 0) {
-                            return (
-                              <div className="rounded-md border p-6 text-center space-y-2">
-                                <p className="text-sm font-medium">No meal plan uploaded yet</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Upload this client's MB PDF to populate their Phase 2 personal food list.
-                                </p>
-                              </div>
-                            );
-                          }
-                          const heading = isExtended
-                            ? "Phase 2 Extended — Personal Food List"
-                            : "Phase 2 Strict — Personal Food List";
-                          const helper = isExtended
-                            ? "Same food list as Phase 2 Strict, with treat meals allowed. Remove sections or items — changes save instantly."
-                            : "Remove entire sections or individual items. Changes save instantly and appear in the client's My Plan.";
-                          return (
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between flex-wrap gap-2">
-                                <div>
-                                  <p className="text-sm font-medium">{heading}</p>
-                                  <p className="text-xs text-muted-foreground">{helper}</p>
-                                </div>
-                                {isCustomised && (
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button type="button" size="sm" variant="outline">Restore Defaults</Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Restore default food list?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          This will reset {client.name}'s Phase 2 Strict food list back to the full default list. Any sections or items you've removed will be restored.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => restorePhase2Defaults(client.id)}>Restore Defaults</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                )}
-                              </div>
-                              {cats.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">All sections have been removed. Use "Restore Defaults" to bring the list back.</p>
-                              ) : (
-                                <div className="space-y-3">
-                                  {cats.map((cat) => (
-                                    <div key={cat.title} className="border rounded-md p-3 space-y-2">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <p className="text-sm font-medium">{cat.title}</p>
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <Button type="button" size="sm" variant="ghost" className="text-destructive hover:text-destructive">Delete Section</Button>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>Remove section?</AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                Are you sure you want to remove the entire {cat.title} section from this client's plan?
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => deletePhase2Section(client.id, cat.title)}>Remove Section</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
-                                      </div>
-                                      {cat.items.length === 0 ? (
-                                        <p className="text-xs text-muted-foreground">No items left in this section.</p>
-                                      ) : (
-                                        <div className="flex flex-wrap gap-1.5">
-                                          {cat.items.map((item) => (
-                                            <span key={item} className="inline-flex items-center gap-1 rounded-full bg-secondary text-secondary-foreground text-xs pl-2.5 pr-1 py-1">
-                                              {item}
-                                              <button
-                                                type="button"
-                                                aria-label={`Remove ${item}`}
-                                                onClick={() => deletePhase2Item(client.id, cat.title, item)}
-                                                className="rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
-                                              >
-                                                <X className="h-3 w-3" />
-                                              </button>
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              <div className="border-t pt-3 space-y-3">
-                                <WeeklyLimitsEditor
-                                  value={client.food_limits ?? {}}
-                                  onSave={(next) => saveWeeklyFoodLimits(client.id, next)}
-                                />
-                                {(weeklyAcks[client.id] ?? []).length > 0 && (
-                                  <div className="rounded-md border border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20 p-3 space-y-1">
-                                    {(weeklyAcks[client.id] ?? []).map((a) => {
-                                      const d = new Date(a.acknowledged_at);
-                                      const when = d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
-                                      return (
-                                        <p key={a.food_name} className="text-xs">
-                                          ⚠️ {client.name.split(" ")[0]} acknowledged a weekly {a.food_name.toLowerCase()} limit warning on {when}.
-                                        </p>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })() : client.phase === "phase3" ? (() => {
-                          const parsedGroups: { title: string; field: keyof Client }[] = [
-                            { title: "Fish", field: "phase3_mb_fish" },
-                            { title: "Seafood", field: "phase3_mb_seafood" },
-                            { title: "Meat", field: "phase3_mb_meat" },
-                            { title: "Cheese", field: "phase3_mb_cheese" },
-                            { title: "Legumes", field: "phase3_mb_legumes" },
-                            { title: "Vegetables", field: "phase3_mb_vegetables" },
-                            { title: "Veg / Lettuce", field: "phase3_mb_veg_lettuce" },
-                            { title: "Sprouts", field: "phase3_mb_sprouts" },
-                            { title: "Oils (Cold-Pressed)", field: "phase3_mb_fat_oil" },
-                          ];
-                          const populated = parsedGroups
-                            .map((g) => ({
-                              title: g.title,
-                              items: ((client[g.field] as string) ?? "")
-                                .split(",")
-                                .map((s) => s.trim())
-                                .filter(Boolean),
-                            }))
-                            .filter((g) => g.items.length > 0);
-                          if (populated.length === 0) {
-                            return (
-                              <div className="rounded-md border p-6 text-center space-y-2">
-                                <p className="text-sm font-medium">No meal plan uploaded yet</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Upload this client's MB PDF to populate their Phase 3 extended food list.
-                                </p>
-                              </div>
-                            );
-                          }
-                          return (
-                            <div className="space-y-3">
-                              <div>
-                                <p className="text-sm font-medium">Phase 3 — Extended Personal Food List</p>
-                                <p className="text-xs text-muted-foreground">Parsed from this client's MB PDF.</p>
-                              </div>
-                              <div className="space-y-3">
-                                {populated.map((cat) => (
-                                  <div key={cat.title} className="border rounded-md p-3 space-y-2">
-                                    <p className="text-sm font-medium">{cat.title}</p>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {cat.items.map((item) => (
-                                        <span key={item} className="inline-flex items-center rounded-full bg-secondary text-secondary-foreground text-xs px-2.5 py-1">
-                                          {item}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })() : null}
+                        ) : (
+                          <MbPlanMirror
+                            suggestions={getMbPlan(client as unknown as Record<string, unknown>).suggestions}
+                            foodList={resolveMbFoodList(client as unknown as Record<string, unknown>)}
+                            run={(client as unknown as { mb_run?: unknown }).mb_run}
+                            confirmed={isMbPlanConfirmed(client as unknown as Record<string, unknown>)}
+                            clientName={client.name}
+                          />
+                        )}
+
                       </TabsContent>
                       <TabsContent value="messages" className="pt-3">
                         <PractitionerMessages clientId={client.id} clientName={client.name} onRead={() => markPractitionerRead(client.id)} />
