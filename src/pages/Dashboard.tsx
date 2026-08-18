@@ -2089,8 +2089,22 @@ export default function Dashboard() {
                                 legacyFoodLimits={client.food_limits ?? {}}
                                 client={client as unknown as Record<string, unknown>}
                                 onSaved={load}
+                                clientName={client.name}
+                                phase={client.phase}
+                                phase2Categories={categoriesForPhase(client.phase2_food_list, client.phase, client.phase3_mb_fat_oil, client as unknown as Record<string, unknown>)}
+                                phase2Customised={Array.isArray(client.phase2_food_list)}
+                                phase3Groups={PHASE3_GROUPS.map((g) => ({
+                                  title: g.title,
+                                  items: ((client[g.field] as string) ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+                                })).filter((g) => g.items.length > 0)}
+                                weeklyAcks={weeklyAcks[client.id] ?? []}
+                                onRestorePhase2Defaults={() => restorePhase2Defaults(client.id)}
+                                onDeletePhase2Section={(title) => deletePhase2Section(client.id, title)}
+                                onDeletePhase2Item={(title, item) => deletePhase2Item(client.id, title, item)}
+                                onSaveWeeklyLimits={(next) => saveWeeklyFoodLimits(client.id, next)}
                               />
                             )}
+
                             {client.system_mode === "own_practice" && client.plan_format === "food_list" && (
                               <FoodListDocImport
                                 clientId={client.id}
