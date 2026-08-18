@@ -1972,7 +1972,7 @@ export default function Dashboard() {
                         {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                           <TabsTrigger value="macros">Macros / MPG</TabsTrigger>
                         )}
-                        <TabsTrigger value="mealplan">Meal Plan</TabsTrigger>
+                        <TabsTrigger value="mealplan">{client.system_mode === "own_practice" ? "Meal Plan" : "Client Plan"}</TabsTrigger>
                         <TabsTrigger value="messages" className="relative">
                           Messages
                           {hasUnreadFromClient(client) && (
