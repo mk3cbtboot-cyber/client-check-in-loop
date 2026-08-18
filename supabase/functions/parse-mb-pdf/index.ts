@@ -401,7 +401,7 @@ function applyItemsToOption(option: MealOption, items: MealItem[]) {
   const protein = items.find((it) => it.category === "Eggs" || isProteinLabel(it.category));
   const veg = items.find((it) => isVegLabel(it.category));
   option.protein_category = protein ? (protein.category === "Eggs" ? "Eggs" : protein.category) : null;
-  option.protein_grams = protein && protein.unit !== "count" ? protein.qty : protein?.qty ?? null;
+  option.protein_grams = protein && protein.unit !== "count" ? protein.qty : null;
   option.veg_grams = veg?.qty ?? null;
   option.has_fruit = items.some((it) => it.category === "Fruit");
   option.has_bread = items.some((it) => it.category === "Bread");
