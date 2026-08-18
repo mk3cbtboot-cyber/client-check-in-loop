@@ -201,11 +201,44 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
     setFields((f) => (f ? { ...f, [key]: { value, extracted: true } } : f));
   };
 
+  // Review-dialog edits touch the flat legacy fields; mirror them back into the
+  // parsed item list so Starch / ml portions parsed from the PDF are preserved.
+  const reconcileItems = (opt: MealOption): MealOption => {
+    const items = [...(opt.items ?? [])];
+    const isVeg = (c: string) => /^(veg|vegetable)/i.test(c);
+    const isProtein = (c: string) => !isVeg(c) && !/^(starch|bread|fruit|fat)/i.test(c);
+
+    const pi = items.findIndex((it) => isProtein(it.category));
+    if (opt.protein_category) {
+      const unit = opt.protein_grams == null
+        ? "as_listed"
+        : /egg/i.test(opt.protein_category)
+          ? "count"
+          : (pi >= 0 && items[pi].unit === "ml" ? "ml" : "g");
+      const next = { category: opt.protein_category, qty: opt.protein_grams, unit };
+      if (pi >= 0) items[pi] = next; else items.unshift(next);
+    } else if (pi >= 0) items.splice(pi, 1);
+
+    const vi = items.findIndex((it) => isVeg(it.category));
+    if (opt.veg_grams != null) {
+      const next = { category: vi >= 0 ? items[vi].category : "Vegetables", qty: opt.veg_grams, unit: "g" };
+      if (vi >= 0) items[vi] = next; else items.push(next);
+    } else if (vi >= 0) items.splice(vi, 1);
+
+    for (const [flag, category] of [[opt.has_fruit, "Fruit"], [opt.has_bread, "Bread"]] as const) {
+      const i = items.findIndex((it) => it.category.toLowerCase() === category.toLowerCase());
+      if (flag && i < 0) items.push({ category, qty: null, unit: "as_listed" });
+      if (!flag && i >= 0) items.splice(i, 1);
+    }
+
+    return { ...opt, items };
+  };
+
   const updateOption = (meal: MealKey, idx: number, patch: Partial<MealOption>) => {
-    setMealOptions((m) => {
-      const next = { ...m, [meal]: m[meal].map((o, i) => (i === idx ? { ...o, ...patch } : o)) };
-      return next;
-    });
+    setMealOptions((m) => ({
+      ...m,
+      [meal]: m[meal].map((o, i) => (i === idx ? reconcileItems({ ...o, ...patch }) : o)),
+    }));
   };
 
 
