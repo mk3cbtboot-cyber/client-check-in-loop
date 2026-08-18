@@ -1235,7 +1235,7 @@ Deno.serve(async (req) => {
     })();
 
     debug.step = "complete";
-    return new Response(JSON.stringify({ fields: result, mealOptions: mealOptionsResult, foodExclusions, storagePath, debug }), {
+    return new Response(JSON.stringify({ fields: result, mealOptions: mealOptionsResult, foodExclusions, storagePath }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
