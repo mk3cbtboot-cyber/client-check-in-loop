@@ -156,7 +156,12 @@ export function MbPlanSetup({
   }, [open, clientId]);
 
   const save = useCallback(
-    async (next: MbPlan, nextLimits: MbFoodLimit[], confirmedAt?: string | null) => {
+    async (
+      next: MbPlan,
+      nextLimits: MbFoodLimit[],
+      confirmedAt?: string | null,
+      notifyParent = true,
+    ) => {
       setSaving(true);
       const payload = {
         ...next,
@@ -173,7 +178,9 @@ export function MbPlanSetup({
         toast.error(`Not saved: ${error.message}`);
         return false;
       }
-      onSaved?.();
+      // Background autosave must NOT force a parent reload: the refreshed props
+      // would land mid-keystroke in the Weekly Food Limits editor.
+      if (notifyParent) onSaved?.();
       return true;
     },
     [clientId, onSaved],
@@ -183,7 +190,7 @@ export function MbPlanSetup({
   useEffect(() => {
     if (!open || !dirty.current) return;
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void save(plan, limits), 700);
+    timer.current = setTimeout(() => void save(plan, limits, undefined, false), 700);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
@@ -251,7 +258,14 @@ export function MbPlanSetup({
     });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        // Refresh the parent once, on close, instead of on every autosave tick.
+        if (!v) onSaved?.();
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">MB Plan Setup</Button>
       </DialogTrigger>
