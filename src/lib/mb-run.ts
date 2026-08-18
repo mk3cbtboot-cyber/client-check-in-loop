@@ -69,3 +69,36 @@ export function startRun(colour: MbColour): MbRun {
     },
   };
 }
+
+export interface ResolvedRunMeal {
+  /** Colour this meal is actually taken from (may differ after a cap swap). */
+  colour: MbColour;
+  suggestion: MbSuggestion | undefined;
+  items: MbPlanItem[];
+  picks: Record<string, string>;
+  /** True when the meal was swapped away from the locked run colour. */
+  swapped: boolean;
+}
+
+/**
+ * Single source of truth for "which suggestion does this meal come from".
+ * Honours the per-meal colour override written by a cap-conflict whole-meal swap.
+ * Both MbRunPlanner (client) and MbPlanMirror (practitioner) use this so the two
+ * views can never diverge.
+ */
+export function resolveRunMeal(
+  run: MbRun,
+  suggestions: MbSuggestion[],
+  meal: MealType,
+): ResolvedRunMeal {
+  const rm = run.meals[meal];
+  const colour = (rm?.colour ?? run.colour) as MbColour;
+  const suggestion = suggestions.find((s) => s.colour === colour);
+  return {
+    colour,
+    suggestion,
+    items: suggestion?.meals?.[meal]?.items ?? [],
+    picks: rm?.picks ?? {},
+    swapped: !!run.colour && colour !== run.colour,
+  };
+}
