@@ -25,7 +25,7 @@ const run = parseMbRun(client.mb_run)
 run?.colour  → locked view
 otherwise    → three-card view
 ```
-- **Locked view:** the locked colour's header bar + label, and for each of the 3 meals the item rows showing the client's actual pick (`run.meals[meal].picks`) with the plan item's qty/unit; any item the client hasn't picked yet renders as "Not picked yet" in muted text. Includes the run's day/date span (`RUN_DAYS`) the same way the client sees it.
+- **Locked view (per-meal colour override respected):** `mb_run.meals[x].colour` can differ from `run.colour` after a cap-conflict whole-meal swap, and the mirror must follow it. `MbRunPlanner`'s resolution (`const mealColour = rm?.colour ?? run.colour; const s = byColour.get(mealColour); const swapped = mealColour !== run.colour`) is extracted into a shared helper — `resolveRunMeal(run, suggestions, meal)` in `src/lib/mb-run.ts`, returning `{ colour, suggestion, items, picks, swapped }`. `MbRunPlanner` is refactored to call it (no behaviour change) and `MbPlanMirror` calls the same helper, so the two can never diverge. Each meal row renders with that meal's own colour bar/label, its items from that colour's suggestion, and a "swapped from <locked colour>" marker when `swapped` — matching what the client sees. Items with no pick render as "Not picked yet" in muted text. Header shows the locked run colour and the run's day span (`RUN_DAYS`).
 - **Three-card view:** the same three colour cards the client sees before locking — colour bar, Suggestion label, meal panels with item label + qty/unit — rendered read-only.
 - If the plan is not confirmed, it shows the existing "no live plan yet" empty state pointing at MB Plan Setup.
 
