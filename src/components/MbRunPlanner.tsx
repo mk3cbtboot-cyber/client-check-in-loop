@@ -319,19 +319,49 @@ export function MbRunPlanner({
         );
       })}
 
+      {violations.length > 0 && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 space-y-1">
+          <p className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+            <AlertTriangle className="h-4 w-4" /> This run goes over a weekly food cap
+          </p>
+          <ul className="text-xs text-amber-700 dark:text-amber-400 list-disc pl-5">
+            {violations.map((v) => (
+              <li key={`${v.meal}-${v.item_id}`}>{describeViolation(v)}</li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted-foreground">
+            Swap the affected meal to another suggestion for one of the days — then you can
+            confirm your run.
+          </p>
+        </div>
+      )}
+
+      {serverError && (
+        <p className="text-xs text-destructive">{serverError}</p>
+      )}
+
       {runReady ? (
         <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
           <p className="text-sm font-medium">Your run is ready</p>
           <p className="text-sm text-muted-foreground">
-            All three meals are picked. Head to Home to generate recipes for what you chose.
+            All three meals are picked and within your weekly caps. Confirm to start cooking.
           </p>
-          <Button size="sm" onClick={onGoHome}>Go to Home</Button>
+          <Button size="sm" onClick={() => void confirmRun()} disabled={confirming}>
+            {confirming && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+            Confirm run
+          </Button>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">
-          Pick a food for every group above to finish your run.
-        </p>
+        <div className="space-y-2">
+          <Button size="sm" disabled>Confirm run</Button>
+          <p className="text-xs text-muted-foreground">
+            {allPicked
+              ? "Resolve the cap conflict above to confirm your run."
+              : "Pick a food for every group above to finish your run."}
+          </p>
+        </div>
       )}
+
     </Card>
   );
 }
