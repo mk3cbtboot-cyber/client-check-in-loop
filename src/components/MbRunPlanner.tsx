@@ -47,6 +47,8 @@ export function MbRunPlanner({
 }: Props) {
   const [run, setRun] = useState<MbRun>(() => parseMbRun(initialRun));
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
 
