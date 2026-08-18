@@ -2,7 +2,6 @@
 // Seeds from the legacy per-category food_* columns when the practitioner
 // hasn't materialised the list yet. MB clients only.
 
-import type { MbFoodLimit } from "@/lib/mb-plan";
 
 export interface MbFoodCategory {
   /** MB_FOODS-compatible key, also the mb_food_list json key. */
