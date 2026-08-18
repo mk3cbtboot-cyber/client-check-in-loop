@@ -852,7 +852,17 @@ export default function ClientPortal() {
               )}
             </Card>
           )}
-          {client.phase !== "phase4" && (
+          {mbRunGateActive && (
+            <Card className="p-4 space-y-2 border-primary/40 bg-primary/5">
+              <p className="text-sm font-medium">Finish and confirm your run in My Plan</p>
+              <p className="text-sm text-muted-foreground">
+                Pick a suggestion and a food for every group, stay within your weekly food
+                caps, then confirm. Your meals unlock here straight after.
+              </p>
+              <Button size="sm" onClick={() => changeTab("plan")}>Go to My Plan</Button>
+            </Card>
+          )}
+          {client.phase !== "phase4" && !mbRunGateActive && (
             <>
           {/* Trackers */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
