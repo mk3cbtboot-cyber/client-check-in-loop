@@ -79,6 +79,17 @@ const blankPlan = (): MbPlan => ({
   })) as MbSuggestion[],
 });
 
+interface Phase2Category {
+  title: string;
+  items: string[];
+}
+
+interface WeeklyAck {
+  food_name: string;
+  limit_value: number;
+  acknowledged_at: string;
+}
+
 interface Props {
   clientId: string;
   mbPlan: unknown;
@@ -89,9 +100,27 @@ interface Props {
   /** Full client row — seeds the Personal Food List from the food_* columns. */
   client?: Record<string, unknown> | null;
   onSaved?: () => void;
+
+  /* --- relocated from the practitioner Meal Plan tab (unchanged behaviour) --- */
+  clientName?: string;
+  phase?: string | null;
+  phase2Categories?: Phase2Category[];
+  phase2Customised?: boolean;
+  phase3Groups?: Phase2Category[];
+  weeklyAcks?: WeeklyAck[];
+  onRestorePhase2Defaults?: () => void;
+  onDeletePhase2Section?: (title: string) => void;
+  onDeletePhase2Item?: (title: string, item: string) => void;
+  onSaveWeeklyLimits?: (limits: Record<string, number>) => void;
 }
 
-export function MbPlanSetup({ clientId, mbPlan, mbFoodLimits, legacyFoodLimits, client, onSaved }: Props) {
+export function MbPlanSetup({
+  clientId, mbPlan, mbFoodLimits, legacyFoodLimits, client, onSaved,
+  clientName = "This client", phase, phase2Categories = [], phase2Customised = false,
+  phase3Groups = [], weeklyAcks = [],
+  onRestorePhase2Defaults, onDeletePhase2Section, onDeletePhase2Item, onSaveWeeklyLimits,
+}: Props) {
+
 
   const [open, setOpen] = useState(false);
   const [plan, setPlan] = useState<MbPlan>(() => parseMbPlan(mbPlan) ?? blankPlan());
