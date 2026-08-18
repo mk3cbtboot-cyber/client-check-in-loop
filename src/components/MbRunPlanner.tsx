@@ -7,8 +7,12 @@ import { toast } from "sonner";
 import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import type { MealType } from "@/lib/mb-foods";
 import type { MbColour, MbFoodLimit, MbPlanItem, MbSuggestion } from "@/lib/mb-plan";
-import { capBlocksRun, categoryLabel, type MbFoodListMap } from "@/lib/mb-food-list";
+import {
+  capBlocksRun, categoryLabel, evaluateRunCaps, perMealQty, describeViolation,
+  type MbFoodListMap,
+} from "@/lib/mb-food-list";
 import { RUN_DAYS, RUN_MEALS, emptyRun, fmtQty, parseMbRun, resolveRunMeal, startRun, type MbRun } from "@/lib/mb-run";
+
 
 const MEAL_LABEL: Record<MealType, string> = {
   breakfast: "Breakfast",
