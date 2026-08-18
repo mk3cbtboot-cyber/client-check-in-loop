@@ -258,7 +258,15 @@ function extractPositionedTextForPage(page: unknown): PositionedText[] {
     .filter((item) => item.text);
 }
 
+type MbItemUnit = "g" | "ml" | "count" | "as_listed";
+type MealItem = {
+  category: string;
+  qty: number | null;
+  unit: MbItemUnit;
+};
 type MealOption = {
+  /** Ordered items exactly as they appear on this suggestion's line. */
+  items: MealItem[];
   protein_category: string | null;
   protein_grams: number | null;
   veg_grams: number | null;
@@ -273,7 +281,7 @@ type PositionedText = {
 type MealKey = "breakfast" | "lunch" | "dinner";
 type MealOptionsMap = Record<MealKey, MealOption[]>;
 const EMPTY_OPTION = (): MealOption => ({
-  protein_category: null, protein_grams: null, veg_grams: null, has_fruit: false, has_bread: false,
+  items: [], protein_category: null, protein_grams: null, veg_grams: null, has_fruit: false, has_bread: false,
 });
 function createEmptyMealOptions(): MealOptionsMap {
   return {
