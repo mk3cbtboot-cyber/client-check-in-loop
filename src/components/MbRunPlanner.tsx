@@ -169,10 +169,8 @@ export function MbRunPlanner({
 
       {RUN_MEALS.map((meal) => {
         const rm = run.meals[meal];
-        const mealColour = rm?.colour ?? run.colour!;
-        const s = byColour.get(mealColour);
-        const items = s?.meals?.[meal]?.items ?? [];
-        const swapped = mealColour !== run.colour;
+        const { colour: mealColour, suggestion: s, items, swapped } = resolveRunMeal(run, suggestions, meal);
+
         return (
           <div key={meal} className="rounded-lg border p-3 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
