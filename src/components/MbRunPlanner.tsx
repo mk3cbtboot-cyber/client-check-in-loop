@@ -8,7 +8,7 @@ import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import type { MealType } from "@/lib/mb-foods";
 import type { MbColour, MbFoodLimit, MbPlanItem, MbSuggestion } from "@/lib/mb-plan";
 import { capBlocksRun, categoryLabel, type MbFoodListMap } from "@/lib/mb-food-list";
-import { RUN_DAYS, RUN_MEALS, emptyRun, parseMbRun, startRun, type MbRun } from "@/lib/mb-run";
+import { RUN_DAYS, RUN_MEALS, emptyRun, fmtQty, parseMbRun, resolveRunMeal, startRun, type MbRun } from "@/lib/mb-run";
 
 const MEAL_LABEL: Record<MealType, string> = {
   breakfast: "Breakfast",
@@ -21,12 +21,6 @@ const COLOUR_DOT: Record<MbColour, string> = {
   orange: "bg-amber-500",
 };
 
-function fmtQty(it: MbPlanItem): string {
-  if (it.unit === "g" && it.qty != null) return `${it.qty}g`;
-  if (it.unit === "ml" && it.qty != null) return `${it.qty}ml`;
-  if (it.unit === "count" && it.qty != null) return `${it.qty}`;
-  return (it.note ?? "").trim();
-}
 
 interface Props {
   token: string;
