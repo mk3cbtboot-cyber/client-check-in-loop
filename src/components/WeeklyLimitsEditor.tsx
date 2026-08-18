@@ -20,7 +20,9 @@ export default function WeeklyLimitsEditor({ value, onSave }: Props) {
   const [rows, setRows] = useState<Row[]>([]);
   const initialized = useRef(false);
 
-  // Sync from external value: keep any in-progress (unsaved) rows the user is typing.
+  // Sync from external value WITHOUT clobbering in-progress edits. Background
+  // autosaves elsewhere in MB Plan Setup hand us a fresh object identity on
+  // every tick; a dirty row must survive that.
   useEffect(() => {
     setRows((prev) => {
       const fromValue: Row[] = Object.entries(value || {}).map(([name, limit]) => ({
@@ -35,12 +37,27 @@ export default function WeeklyLimitsEditor({ value, onSave }: Props) {
         return fromValue;
       }
       const savedNames = new Set(Object.keys(value || {}));
+      const isDirty = (r: Row) =>
+        r.savedName === null ||
+        r.savedName !== r.name.trim() ||
+        String((value || {})[r.savedName] ?? "") !== r.limit;
+      // Keep the local copy of any row the user is still editing.
+      const dirtyByName = new Map<string, Row>();
+      for (const r of prev) {
+        if (r.savedName !== null && savedNames.has(r.savedName) && isDirty(r)) {
+          dirtyByName.set(r.savedName, r);
+        }
+      }
+      const merged = fromValue.map((r) =>
+        r.savedName && dirtyByName.has(r.savedName) ? dirtyByName.get(r.savedName)! : r,
+      );
       const unsaved = prev.filter(
         (r) => r.savedName === null || !savedNames.has(r.savedName),
       );
-      return [...fromValue, ...unsaved];
+      return [...merged, ...unsaved];
     });
   }, [value]);
+
 
   const update = (id: string, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
