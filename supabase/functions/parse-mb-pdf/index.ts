@@ -293,9 +293,13 @@ function createEmptyMealOptions(): MealOptionsMap {
 
 const VEG_LABEL_RE = /^(?:Vegetables?|Veg\.?\s*\/?\s*Lettuce|Veg\/Lettuce|Vegetable\/Lettuce)$/i;
 function isVegLabel(label: string): boolean { return VEG_LABEL_RE.test(label.trim()); }
+// Protein-ish meal rows that are not Phase-2 food_* columns but do anchor a
+// suggestion in the meal table (they appear as the option's main item).
+const EXTRA_MEAL_PROTEINS = ["Sprouts", "Tofu"];
 function isProteinLabel(label: string): boolean {
   const lc = label.trim().toLowerCase();
-  return Object.keys(PHASE2_PROTEIN_CATEGORIES).some((k) => k.toLowerCase() === lc);
+  return Object.keys(PHASE2_PROTEIN_CATEGORIES).some((k) => k.toLowerCase() === lc)
+    || EXTRA_MEAL_PROTEINS.some((k) => k.toLowerCase() === lc);
 }
 
 function isSeedMealProtein(label: string): boolean {
@@ -325,6 +329,7 @@ const MEAL_ITEM_CATEGORY_CANON: Record<string, string> = {
 
 const MEAL_ITEM_CATEGORIES: string[] = [
   ...Object.keys(PHASE2_PROTEIN_CATEGORIES),
+  ...EXTRA_MEAL_PROTEINS,
   "Vegetables",
   "Vegetable",
   "Veg./Lettuce",
@@ -351,7 +356,9 @@ function buildMealItemRegex(): RegExp {
     .join("|");
   return new RegExp(
     `(\\d{1,4})\\s*(g|ml)\\s+(${alt})\\b` + // "200 ml Milk Products"
-    `|(${alt})\\s+(\\d{1,4})\\s*(g|ml)\\b` + // "Milk Products 200 ml"
+    // "Milk Products 200 ml" — only when the number is NOT the start of a
+    // following "<qty> <unit> <Category>" row, which would steal its amount.
+    `|(${alt})\\s+(\\d{1,4})\\s*(g|ml)\\b(?!\\s+(?:${alt}))` +
     `|(\\d{1,2})\\s+Eggs?\\b` + // "2 Eggs"
     `|(${alt})\\b`, // bare "Fruit" / "Bread"
     "gi",
@@ -583,7 +590,7 @@ function parseMealTable(
   let region = text.slice(startIdx >= 0 ? startIdx : 0, endIdx > 0 ? endIdx : text.length);
   region = preprocessMealRegion(region);
 
-  const proteinLabels = Object.keys(PHASE2_PROTEIN_CATEGORIES);
+  const proteinLabels = [...Object.keys(PHASE2_PROTEIN_CATEGORIES), ...EXTRA_MEAL_PROTEINS];
   const vegLabels = ["Vegetables", "Vegetable", "Veg./Lettuce", "Veg. /Lettuce", "Veg/Lettuce", "Vegetable/Lettuce"];
   const allLabels = [...proteinLabels, ...vegLabels];
   allLabels.sort((a, b) => b.length - a.length);
@@ -666,24 +673,9 @@ function parseMealTable(
   debug.meal_protein_candidates = proteinCandidates.map((c) => ({ label: c.label, grams: c.grams, idx: c.idx }));
   debug.meal_veg_candidates = vegCandidates.map((c) => ({ label: c.label, grams: c.grams, idx: c.idx }));
 
-  // Each suggestion owns the slice of text from its own protein anchor up to
-  // the next one. Everything it contains (Starch, Vegetables, Fruit, Bread,
-  // Fat/Oil, units) is read from that slice only — no scavenging of numbers
-  // and no meal-wide stamping.
-  for (let i = 0; i < Math.min(9, proteinCandidates.length); i++) {
-    const mi = Math.floor(i / 3);
-    const oi = i % 3;
-    const nextProteinIdx = proteinCandidates[i + 1]?.idx ?? region.length;
-    const slotChunk = region.slice(proteinCandidates[i].idx, nextProteinIdx);
-    const items = tokenizeMealItems(slotChunk);
-    applyItemsToOption(options[mealKeys[mi]][oi], items);
-    // The candidate scan is the authority on which protein anchors this slot.
-    if (!options[mealKeys[mi]][oi].protein_category) {
-      options[mealKeys[mi]][oi].protein_category = proteinCandidates[i].label;
-      options[mealKeys[mi]][oi].protein_grams = proteinCandidates[i].grams;
-    }
-  }
-
+  // Meal boundaries first: option anchors are matched per meal, never by a
+  // blind i/3 split, so a suggestion carrying two protein-ish items (e.g.
+  // "30 g Nuts 20 g Sunflower Seeds") does not shift the following meals.
   const mealLabelRe = /\b(Breakfast|Lunch|Dinner)\b/gi;
   const mealBoundaries: { meal: MealKey; start: number }[] = [];
   for (const m of region.matchAll(mealLabelRe)) {
@@ -692,12 +684,41 @@ function parseMealTable(
       mealBoundaries.push({ meal: key, start: m.index ?? 0 });
     }
   }
+  const mealRanges: Record<MealKey, { start: number; end: number }> = {
+    breakfast: { start: 0, end: region.length },
+    lunch: { start: 0, end: region.length },
+    dinner: { start: 0, end: region.length },
+  };
   const mealChunksByKey: Record<MealKey, string> = { breakfast: "", lunch: "", dinner: "" };
   for (let bi = 0; bi < mealBoundaries.length; bi++) {
     const start = mealBoundaries[bi].start;
     const end = mealBoundaries[bi + 1]?.start ?? region.length;
+    mealRanges[mealBoundaries[bi].meal] = { start, end };
     mealChunksByKey[mealBoundaries[bi].meal] = region.slice(start, end);
   }
+
+  // Each suggestion owns the slice of text from its own protein anchor up to
+  // the next anchor (or the end of its meal). Everything it contains (Starch,
+  // Vegetables, Fruit, Bread, Fat/Oil, units) is read from that slice only —
+  // no scavenging of numbers and no meal-wide stamping.
+  const usedFallback = mealBoundaries.length < 3;
+  for (let mi = 0; mi < 3; mi++) {
+    const mealKey = mealKeys[mi];
+    const range = mealRanges[mealKey];
+    const anchors = usedFallback
+      ? proteinCandidates.slice(mi * 3, mi * 3 + 3)
+      : proteinCandidates.filter((c) => c.idx >= range.start && c.idx < range.end).slice(0, 3);
+    for (let oi = 0; oi < anchors.length; oi++) {
+      const nextIdx = anchors[oi + 1]?.idx ?? (usedFallback ? (proteinCandidates[mi * 3 + oi + 1]?.idx ?? region.length) : range.end);
+      const slotChunk = region.slice(anchors[oi].idx, nextIdx);
+      applyItemsToOption(options[mealKey][oi], tokenizeMealItems(slotChunk));
+      if (!options[mealKey][oi].protein_category) {
+        options[mealKey][oi].protein_category = anchors[oi].label;
+        options[mealKey][oi].protein_grams = anchors[oi].grams;
+      }
+    }
+  }
+
   debug.meal_chunks = mealChunksByKey;
   debug.meal_items = mealKeys.reduce((acc, mk) => {
     acc[mk] = options[mk].map((o) => o.items);
