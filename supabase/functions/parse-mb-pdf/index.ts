@@ -303,6 +303,112 @@ function isSeedMealProtein(label: string): boolean {
   return ["sunflower seeds", "pumpkin seeds", "sesame seeds", "hemp seeds", "flaxseeds"].includes(normalized);
 }
 
+/* ------------------------------------------------------------------ */
+/* Meal item tokenizer                                                 */
+/*                                                                     */
+/* Reads one suggestion's own chunk of PDF text and returns every food */
+/* category actually written on it, with its real quantity and unit.   */
+/* Nothing is inferred from neighbouring options or from bare numbers. */
+/* ------------------------------------------------------------------ */
+
+const MEAL_ITEM_CATEGORY_CANON: Record<string, string> = {
+  "milk products": "Milk Products",
+  "vegetables": "Vegetables",
+  "vegetable": "Vegetables",
+  "veg./lettuce": "Veg./Lettuce",
+  "veg. /lettuce": "Veg./Lettuce",
+  "veg/lettuce": "Veg./Lettuce",
+  "vegetable/lettuce": "Veg./Lettuce",
+  "fat/oil": "Fat/Oil",
+  "fat / oil": "Fat/Oil",
+};
+
+const MEAL_ITEM_CATEGORIES: string[] = [
+  ...Object.keys(PHASE2_PROTEIN_CATEGORIES),
+  "Vegetables",
+  "Vegetable",
+  "Veg./Lettuce",
+  "Veg. /Lettuce",
+  "Veg/Lettuce",
+  "Vegetable/Lettuce",
+  "Starch",
+  "Bread",
+  "Fruit",
+  "Fat/Oil",
+  "Fat / Oil",
+];
+
+function canonCategory(label: string): string {
+  const key = label.replace(/\s+/g, " ").trim().toLowerCase();
+  return MEAL_ITEM_CATEGORY_CANON[key] ??
+    (label.replace(/\s+/g, " ").trim().replace(/\b\w/g, (c) => c.toUpperCase()));
+}
+
+function buildMealItemRegex(): RegExp {
+  const alt = [...MEAL_ITEM_CATEGORIES]
+    .sort((a, b) => b.length - a.length)
+    .map((l) => escapeRegExp(l))
+    .join("|");
+  return new RegExp(
+    `(\\d{1,4})\\s*(g|ml)\\s+(${alt})\\b` + // "200 ml Milk Products"
+    `|(${alt})\\s+(\\d{1,4})\\s*(g|ml)\\b` + // "Milk Products 200 ml"
+    `|(\\d{1,2})\\s+Eggs?\\b` + // "2 Eggs"
+    `|(${alt})\\b`, // bare "Fruit" / "Bread"
+    "gi",
+  );
+}
+
+function tokenizeMealItems(chunk: string): MealItem[] {
+  const re = buildMealItemRegex();
+  const out: MealItem[] = [];
+  const byCategory = new Map<string, MealItem>();
+
+  const push = (category: string, qty: number | null, unit: MbItemUnit) => {
+    const existing = byCategory.get(category);
+    if (existing) {
+      // A later, quantified mention upgrades an earlier bare one.
+      if (existing.qty == null && qty != null) {
+        existing.qty = qty;
+        existing.unit = unit;
+      }
+      return;
+    }
+    const item: MealItem = { category, qty, unit };
+    byCategory.set(category, item);
+    out.push(item);
+  };
+
+  let m: RegExpExecArray | null;
+  re.lastIndex = 0;
+  while ((m = re.exec(chunk)) !== null) {
+    if (m[3]) {
+      push(canonCategory(m[3]), parseInt(m[1], 10), m[2].toLowerCase() as MbItemUnit);
+    } else if (m[4]) {
+      push(canonCategory(m[4]), parseInt(m[5], 10), m[6].toLowerCase() as MbItemUnit);
+    } else if (m[7]) {
+      push("Eggs", parseInt(m[7], 10), "count");
+    } else if (m[8]) {
+      push(canonCategory(m[8]), null, "as_listed");
+    }
+  }
+
+  return out;
+}
+
+/** Fill the legacy MealOption fields from the parsed item list. */
+function applyItemsToOption(option: MealOption, items: MealItem[]) {
+  option.items = items;
+  const protein = items.find((it) => it.category === "Eggs" || isProteinLabel(it.category));
+  const veg = items.find((it) => isVegLabel(it.category));
+  option.protein_category = protein ? (protein.category === "Eggs" ? "Eggs" : protein.category) : null;
+  option.protein_grams = protein && protein.unit !== "count" ? protein.qty : protein?.qty ?? null;
+  option.veg_grams = veg?.qty ?? null;
+  option.has_fruit = items.some((it) => it.category === "Fruit");
+  option.has_bread = items.some((it) => it.category === "Bread");
+}
+
+
+
 function getTrailingClientNamePatterns(firstName: string, lastName: string): string[] {
   const patterns: string[] = [];
   if (firstName && lastName) patterns.push(`\\s+${escapeRegExp(firstName)}\\s+${escapeRegExp(lastName)}$`);
