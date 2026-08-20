@@ -210,12 +210,15 @@ describe("planRunAgainstLedger — eggs capped at 4/week, 2-egg breakfast", () =
     expect(res.rows).toHaveLength(0);
   });
 
-  it("clears once the window rolls to the next 7 days", () => {
+  it("clears the spent allowance once the window rolls to the next 7 days", () => {
     const consumed: CapConsumed = { "2026-08-03": { Eggs: 4 } };
     const res = planRunAgainstLedger(run("2026-08-10"), plan, limits, {}, consumed, { anchor });
-    expect(res.blocks).toHaveLength(0);
+    // Fresh allowance: days 1 and 2 pass again, day 3 blocks as in week 0.
+    expect(res.blocks.map((b) => b.date)).toEqual(["2026-08-12"]);
+    expect(res.rows).toHaveLength(2);
     expect(res.rows.every((r) => r.week_start === "2026-08-10")).toBe(true);
   });
+
 
   it("charges each day to its own window when a run straddles the roll", () => {
     // Days 08-09 (week 0, already spent), 08-10 and 08-11 (week 1, free).
