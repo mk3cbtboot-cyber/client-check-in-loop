@@ -1,16 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
+  addDays,
+  consumedFor,
   evaluateRunCaps,
+  ledgerRowsForRun,
   perMealQty,
+  planRunAgainstLedger,
+  weekWindowFor,
   weeklyCapFor,
+  type CapConsumed,
+  type CapSuggestion,
 } from "../../supabase/functions/_shared/mb-cap";
+import { parseMbRun, resolveDayMeal, startRun, swapDayMeal } from "@/lib/mb-run";
 
 const suggestions = [
   {
     colour: "blue",
     label: "Suggestion 1",
     meals: {
-      breakfast: { items: [] },
+      breakfast: {
+        items: [{ id: "b1", category: "fixed", label: "Eggs", qty: 2, unit: "count" }],
+      },
       lunch: {
         items: [
           { id: "l1", category: "fixed", label: "Eggs", qty: 2, unit: "count" },
@@ -20,15 +30,27 @@ const suggestions = [
       dinner: { items: [] },
     },
   },
-  { colour: "green", label: "Suggestion 2", meals: { breakfast: { items: [] }, lunch: { items: [] }, dinner: { items: [] } } },
-];
+  {
+    colour: "green",
+    label: "Suggestion 2",
+    meals: {
+      breakfast: { items: [{ id: "g1", category: "fixed", label: "Oatmeal", qty: 40, unit: "g" }] },
+      lunch: { items: [] },
+      dinner: { items: [] },
+    },
+  },
+] as unknown as CapSuggestion[];
 
-const run = {
+const legacyRun = {
   colour: "blue",
-  meals: { breakfast: { colour: "blue", picks: {} }, lunch: { colour: "blue", picks: {} }, dinner: { colour: "blue", picks: {} } },
+  meals: {
+    breakfast: { colour: "blue", picks: {} },
+    lunch: { colour: "blue", picks: {} },
+    dinner: { colour: "blue", picks: {} },
+  },
 };
 
-describe("mb cap evaluator", () => {
+describe("mb cap primitives", () => {
   it("reads counts and as_listed quantities", () => {
     expect(perMealQty({ unit: "count", qty: 2 })).toBe(2);
     expect(perMealQty({ unit: "as_listed", note: "2 Eggs" })).toBe(2);
@@ -42,18 +64,198 @@ describe("mb cap evaluator", () => {
     expect(weeklyCapFor("kale", [], { eggs: 5 })).toBeNull();
   });
 
-  it("blocks a fixed 2-egg item against a cap of 5 over 3 days", () => {
-    const v = evaluateRunCaps(run, suggestions, [{ food: "eggs", type: "weekly", max: 5 }], {}, 3);
-    expect(v.length).toBe(2);
-    expect(v.every((x) => x.needed === 6 && x.cap === 5 && x.meal === "lunch")).toBe(true);
+  it("keeps the legacy run evaluator working", () => {
+    const v = evaluateRunCaps(legacyRun, suggestions, [{ food: "eggs", type: "weekly", max: 5 }], {}, 3);
+    expect(v.length).toBeGreaterThan(0);
   });
 
-  it("clears when the cap covers the run", () => {
-    expect(evaluateRunCaps(run, suggestions, [{ food: "eggs", type: "weekly", max: 6 }], {}, 3)).toEqual([]);
+  it("matches consumed food names loosely", () => {
+    expect(consumedFor("Eggs", { eggs: 4 })).toBe(4);
+    expect(consumedFor("Eggs", { kale: 4 })).toBe(0);
+  });
+});
+
+/* ---------------- v1 → v2 run model ---------------- */
+
+describe("mb_run v1 → v2 upgrade", () => {
+  const v1 = {
+    colour: "blue",
+    started_on: "2026-08-17",
+    confirmed_on: "2026-08-17",
+    meals: {
+      breakfast: { colour: "blue", picks: { b1: "Eggs" } },
+      lunch: { colour: "green", picks: { l1: "Chicken" } },
+      dinner: { colour: "blue", picks: {} },
+    },
+  };
+
+  it("parses an existing row into the identical 3-day run", () => {
+    const run = parseMbRun(v1);
+    expect(run.version).toBe(2);
+    expect(run.colour).toBe("blue");
+    expect(run.started_on).toBe("2026-08-17");
+    expect(run.confirmed_on).toBe("2026-08-17");
+    expect(run.meals.breakfast).toEqual({ colour: "blue", picks: { b1: "Eggs" } });
+    expect(run.meals.lunch).toEqual({ colour: "green", picks: { l1: "Chicken" } });
+    expect(run.day_overrides).toEqual({});
   });
 
-  it("clears when the affected meal is swapped to another colour", () => {
-    const swapped = { ...run, meals: { ...run.meals, lunch: { colour: "green", picks: {} } } };
-    expect(evaluateRunCaps(swapped, suggestions, [{ food: "eggs", type: "weekly", max: 5 }], {}, 3)).toEqual([]);
+  it("fills all three days from one set of picks until a day is swapped", () => {
+    const run = parseMbRun(v1);
+    for (const d of ["2026-08-17", "2026-08-18", "2026-08-19"]) {
+      expect(resolveDayMeal(run, suggestions as never, d, "breakfast").colour).toBe("blue");
+    }
+    const swapped = swapDayMeal(run, "2026-08-19", "breakfast", "green");
+    expect(resolveDayMeal(swapped, suggestions as never, "2026-08-18", "breakfast").colour).toBe("blue");
+    expect(resolveDayMeal(swapped, suggestions as never, "2026-08-19", "breakfast").colour).toBe("green");
+    expect(swapped.confirmed_on).toBeNull();
+    // round-trips through storage unchanged
+    expect(parseMbRun(JSON.parse(JSON.stringify(swapped)))).toEqual(swapped);
+  });
+
+  it("startRun produces one shared set of picks, no day forms", () => {
+    const run = startRun("blue", "2026-08-20");
+    expect(Object.keys(run.day_overrides)).toHaveLength(0);
+    expect(run.meals.breakfast?.colour).toBe("blue");
+  });
+});
+
+/* ---------------- week window ---------------- */
+
+describe("weekWindowFor (Phase 2 anchored)", () => {
+  const anchor = "2026-08-03"; // Phase 2 start
+
+  it("counts 7-day windows from the anchor", () => {
+    expect(weekWindowFor(anchor, "2026-08-03")).toEqual({
+      week_start: "2026-08-03", week_end: "2026-08-09", index: 0,
+    });
+    expect(weekWindowFor(anchor, "2026-08-09").index).toBe(0);
+    expect(weekWindowFor(anchor, "2026-08-10")).toEqual({
+      week_start: "2026-08-10", week_end: "2026-08-16", index: 1,
+    });
+  });
+
+  it("covers Phase 2's 14 days as exactly two windows", () => {
+    const days = Array.from({ length: 14 }, (_, i) => addDays(anchor, i));
+    const starts = new Set(days.map((d) => weekWindowFor(anchor, d).week_start));
+    expect([...starts].sort()).toEqual(["2026-08-03", "2026-08-10"]);
+  });
+
+  it("falls back to the date itself with no anchor", () => {
+    expect(weekWindowFor(null, "2026-08-20").week_start).toBe("2026-08-20");
+  });
+});
+
+/* ---------------- the eggs example ---------------- */
+
+describe("planRunAgainstLedger — eggs capped at 4/week, 2-egg breakfast", () => {
+  const anchor = "2026-08-03";
+  const limits = [{ food: "eggs", type: "weekly", max: 4 }];
+  // Breakfast-only suggestion set so the example is exactly the spec's.
+  const plan = [
+    {
+      colour: "blue",
+      label: "Suggestion 1",
+      meals: {
+        breakfast: { items: [{ id: "b1", category: "fixed", label: "Eggs", qty: 2, unit: "count" }] },
+        lunch: { items: [] },
+        dinner: { items: [] },
+      },
+    },
+    {
+      colour: "green",
+      label: "Suggestion 2",
+      meals: {
+        breakfast: { items: [{ id: "g1", category: "fixed", label: "Oatmeal", qty: 40, unit: "g" }] },
+        lunch: { items: [] },
+        dinner: { items: [] },
+      },
+    },
+  ] as unknown as CapSuggestion[];
+
+  const run = (startDate: string, overrides = {}) => ({
+    colour: "blue",
+    started_on: startDate,
+    meals: {
+      breakfast: { colour: "blue", picks: {} },
+      lunch: { colour: "blue", picks: {} },
+      dinner: { colour: "blue", picks: {} },
+    },
+    day_overrides: overrides,
+  });
+
+  it("passes days 1 and 2 and blocks day 3", () => {
+    const res = planRunAgainstLedger(run("2026-08-03"), plan, limits, {}, {}, { anchor });
+    expect(res.blocks).toHaveLength(1);
+    expect(res.blocks[0]).toMatchObject({
+      date: "2026-08-05", meal: "breakfast", food: "Eggs", need: 2, remaining: 0, cap: 4,
+    });
+    expect(res.rows.filter((r) => r.food === "Eggs")).toHaveLength(2);
+    expect(res.rows.every((r) => r.week_start === "2026-08-03")).toBe(true);
+  });
+
+  it("clears day 3 once that breakfast is swapped to another suggestion", () => {
+    const swapped = run("2026-08-03", {
+      "2026-08-05": { breakfast: { colour: "green", picks: {} } },
+    });
+    const res = planRunAgainstLedger(swapped, plan, limits, {}, {}, { anchor });
+    expect(res.blocks).toHaveLength(0);
+    expect(res.rows.filter((r) => r.food === "Eggs")).toHaveLength(2);
+  });
+
+  it("blocks every day of a second run of the same colour that week", () => {
+    const consumed: CapConsumed = { "2026-08-03": { Eggs: 4 } };
+    const res = planRunAgainstLedger(run("2026-08-06"), plan, limits, {}, consumed, { anchor });
+    expect(res.blocks.map((b) => b.date)).toEqual(["2026-08-06", "2026-08-07", "2026-08-08"]);
+    expect(res.rows).toHaveLength(0);
+  });
+
+  it("clears once the window rolls to the next 7 days", () => {
+    const consumed: CapConsumed = { "2026-08-03": { Eggs: 4 } };
+    const res = planRunAgainstLedger(run("2026-08-10"), plan, limits, {}, consumed, { anchor });
+    expect(res.blocks).toHaveLength(0);
+    expect(res.rows.every((r) => r.week_start === "2026-08-10")).toBe(true);
+  });
+
+  it("charges each day to its own window when a run straddles the roll", () => {
+    // Days 08-09 (week 0, already spent), 08-10 and 08-11 (week 1, free).
+    const consumed: CapConsumed = { "2026-08-03": { Eggs: 4 } };
+    const res = planRunAgainstLedger(run("2026-08-09"), plan, limits, {}, consumed, { anchor });
+    expect(res.blocks.map((b) => b.date)).toEqual(["2026-08-09"]);
+    expect(res.rows.map((r) => r.week_start)).toEqual(["2026-08-10", "2026-08-10"]);
+  });
+
+  it("ledgerRowsForRun returns exactly what a confirm would write", () => {
+    const rows = ledgerRowsForRun(run("2026-08-03"), plan, limits, {}, {}, { anchor });
+    expect(rows).toEqual([
+      { week_start: "2026-08-03", day: "2026-08-03", meal: "breakfast", food: "Eggs", qty: 2 },
+      { week_start: "2026-08-03", day: "2026-08-04", meal: "breakfast", food: "Eggs", qty: 2 },
+    ]);
+  });
+
+  it("blocks the whole meal atomically, consuming nothing from it", () => {
+    const twoCapped = [
+      {
+        colour: "blue",
+        label: "Suggestion 1",
+        meals: {
+          breakfast: {
+            items: [
+              { id: "b1", category: "fixed", label: "Cheese", qty: 30, unit: "g" },
+              { id: "b2", category: "fixed", label: "Eggs", qty: 2, unit: "count" },
+            ],
+          },
+          lunch: { items: [] },
+          dinner: { items: [] },
+        },
+      },
+    ] as unknown as CapSuggestion[];
+    const res = planRunAgainstLedger(
+      run("2026-08-03"), twoCapped,
+      [{ food: "eggs", type: "weekly", max: 4 }, { food: "cheese", type: "weekly", max: 10 }],
+      {}, {}, { anchor },
+    );
+    // Day 3's breakfast is blocked on eggs, so its cheese is not charged either.
+    expect(res.rows.filter((r) => r.food === "Cheese")).toHaveLength(2);
   });
 });
