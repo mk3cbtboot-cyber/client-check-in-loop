@@ -98,6 +98,20 @@ export {
   capFoodFor,
   evaluateRunCaps,
   describeViolation,
+  planRunAgainstLedger,
+  ledgerRowsForRun,
+  weekWindowFor,
+  consumedFor,
+  describeBlock,
+  addDays,
 } from "../../supabase/functions/_shared/mb-cap";
-export type { CapViolation } from "../../supabase/functions/_shared/mb-cap";
+export type {
+  CapViolation,
+  CapConsumed,
+  CapPlanResult,
+  CapDayPlanResult,
+  CapMealPlanResult,
+  CapWeekWindow,
+} from "../../supabase/functions/_shared/mb-cap";
+
 
