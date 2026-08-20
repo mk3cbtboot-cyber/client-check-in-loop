@@ -18,9 +18,10 @@ import ClientWelcome from "@/components/ClientWelcome";
 
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS, parseMbFoodLimits } from "@/lib/mb-plan";
-import { resolveMbFoodList } from "@/lib/mb-food-list";
+import { resolveMbFoodList, categoryLabel } from "@/lib/mb-food-list";
 import MbRunPlanner from "@/components/MbRunPlanner";
-import { parseMbRun } from "@/lib/mb-run";
+import { parseMbRun, resolveDayMeal, runDates, todayISO, fmtQty, RUN_DAYS, RUN_MEALS } from "@/lib/mb-run";
+
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
 import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
@@ -862,6 +863,51 @@ export default function ClientPortal() {
               <Button size="sm" onClick={() => changeTab("plan")}>Go to My Plan</Button>
             </Card>
           )}
+          {mbRunConfirmed && client.client_type !== "custom" && mbPlanConfirmed && (() => {
+            const r = parseMbRun((client as any).mb_run);
+            const today = todayISO();
+            const sugg = getMbPlan(client as any).suggestions;
+            const list = resolveMbFoodList(client as unknown as Record<string, unknown>);
+            const dates = runDates(r, RUN_DAYS);
+            const inRun = dates.includes(today);
+            return (
+              <Card className="p-4 space-y-3">
+                <p className="text-sm font-medium">
+                  {inRun ? "Today's meals" : "Your run has finished — pick a new one in My Plan"}
+                </p>
+                {inRun && RUN_MEALS.map((m) => {
+                  const { suggestion, items, picks, swapped } = resolveDayMeal(r, sugg, today, m);
+                  return (
+                    <div key={m} className="text-sm space-y-0.5">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                        {m === "breakfast" ? "Breakfast" : m === "lunch" ? "Lunch" : "Dinner"}
+                        {swapped && (
+                          <span className="normal-case font-normal">
+                            swapped to {suggestion?.label ?? "another suggestion"}
+                          </span>
+                        )}
+                      </p>
+                      <ul className="list-disc pl-5">
+                        {items.map((it) => (
+                          <li key={it.id}>
+                            {it.category === "fixed"
+                              ? it.label
+                              : (picks[it.id] || categoryLabel(it.category))}
+                            {fmtQty(it) ? ` · ${fmtQty(it)}` : ""}
+                          </li>
+                        ))}
+                        {items.length === 0 && <li className="text-muted-foreground">Not set</li>}
+                      </ul>
+                    </div>
+                  );
+                })}
+                {!inRun && (
+                  <Button size="sm" onClick={() => changeTab("plan")}>Go to My Plan</Button>
+                )}
+              </Card>
+            );
+          })()}
+
           {client.phase !== "phase4" && !mbRunGateActive && (
             <>
           {/* Trackers */}
