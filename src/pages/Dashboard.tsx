@@ -2503,12 +2503,17 @@ export default function Dashboard() {
                           )
                         ) : (
                           <MbPlanMirror
+                            clientId={client.id}
                             suggestions={getMbPlan(client as unknown as Record<string, unknown>).suggestions}
                             foodList={resolveMbFoodList(client as unknown as Record<string, unknown>)}
                             run={(client as unknown as { mb_run?: unknown }).mb_run}
                             confirmed={isMbPlanConfirmed(client as unknown as Record<string, unknown>)}
                             clientName={client.name}
+                            enrichedLimits={parseMbFoodLimits((client as unknown as { mb_food_limits?: unknown }).mb_food_limits)}
+                            legacyLimits={(client as unknown as { food_limits?: Record<string, number> }).food_limits ?? {}}
+                            anchor={client.phase2_strict_started_at}
                           />
+
                         )}
 
                       </TabsContent>
