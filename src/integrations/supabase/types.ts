@@ -659,6 +659,50 @@ export type Database = {
         }
         Relationships: []
       }
+      mb_cap_ledger: {
+        Row: {
+          client_id: string
+          created_at: string
+          day: string
+          food: string
+          id: string
+          meal: string
+          qty: number
+          run_started_on: string | null
+          week_start: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          day: string
+          food: string
+          id?: string
+          meal: string
+          qty?: number
+          run_started_on?: string | null
+          week_start: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          day?: string
+          food?: string
+          id?: string
+          meal?: string
+          qty?: number
+          run_started_on?: string | null
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mb_cap_ledger_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           body: string
