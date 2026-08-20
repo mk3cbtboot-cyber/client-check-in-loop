@@ -1,102 +1,110 @@
-# MB 7-Day Week Model (replacing the fixed 3-day run)
+# MB weekly cap ledger + per-day meal swap inside a 3-day run
 
-MB clients only (`client_type = 'mb'` / `system_mode !== 'own_practice'`). Custom is untouched: no edits to `MealPlanner.tsx`, `CustomFoodListEditor.tsx`, `FoodList*`, or Dashboard's Custom branch.
+MB / Metabolic Rx clients only (`client_type = 'mb'` / `system_mode !== 'own_practice'`). Custom is untouched: no edits to `MealPlanner.tsx`, `CustomFoodListEditor.tsx`, the `FoodList*` components, or Dashboard's Custom branch.
 
-## a) What `mb_run` can represent today
+Kept as-is: the 3-day colour-locked run, the explicit Confirm gate, `confirmed_on`, the server backstop in `mb-run`, and the single shared evaluator in `supabase/functions/_shared/mb-cap.ts`. What changes is the cap maths and the granularity of a swap.
 
-Current shape (`src/lib/mb-run.ts`):
+## a) How the run is stored today, and what it must gain
+
+Today (`src/lib/mb-run.ts`, `clients.mb_run`):
 
 ```text
 mb_run = {
-  colour: "blue" | "green" | "orange" | null,   // one colour for the whole run
-  started_on: "YYYY-MM-DD" | null,
-  confirmed_on: "YYYY-MM-DD" | null,
+  colour, started_on, confirmed_on,
   meals: { breakfast|lunch|dinner: { colour, picks: { itemId: "Food" } } | null }
 }
 ```
 
-Can represent: one locked colour, one set of food picks per meal, and a per-meal colour override (the cap-conflict whole-meal swap). Cap math treats the run as `RUN_DAYS = 3` and multiplies each item's per-meal quantity by 3.
+One meals object for the whole run. A swap replaces a meal for **all three days**. There is no per-day detail, so "eggs on days 1–2, swapped on day 3" is unrepresentable. There is also no history: the row is overwritten each run, so nothing knows what an earlier run in the same week already consumed.
 
-Cannot represent: anything per day. There is exactly one meals object shared by all days, so it cannot express "Mon+Tue blue, Wed green", different picks on different days, a swap that applies to one day only, partial planning (3 days assigned, 4 unassigned), or a cumulative weekly total. The cap check is "per-meal qty x 3 days", not a sum over assigned days.
-
-## b) Proposed data model (additive, `mb_run` stays the column)
+Proposed shape (same column, additive, `version: 2`):
 
 ```text
 mb_run = {
   version: 2,
-  week_start: "YYYY-MM-DD",            // anchor for the weekly cap window
-  confirmed_on: "YYYY-MM-DD" | null,   // unchanged semantics, now week-level
-  days: {
-    "YYYY-MM-DD": {
-      colour: "blue"|"green"|"orange",
+  colour, started_on, confirmed_on,       // unchanged meaning: one colour, 3 days
+  week_start: "YYYY-MM-DD",               // cap window this run was planned against
+  days: [
+    { date: "YYYY-MM-DD",
       meals: {
-        breakfast: { colour, picks: { itemId: "Food" } } | null,
-        lunch:     { ... } | null,
-        dinner:    { ... } | null
-      }
-    },
-    ...                                 // only assigned days appear; gaps = unplanned
-  },
-  // legacy v1 keys kept on the row but ignored by v2 readers
-  colour?, started_on?, meals?
+        breakfast: { colour, picks: { itemId: "Food" } },   // colour = run colour unless swapped
+        lunch:     { ... },
+        dinner:    { ... }
+      } },
+    ... exactly 3 entries
+  ],
+  // v1 keys left in place on old rows; ignored by v2 readers
+  meals?
 }
 ```
 
-- `days[date].colour` is the day's assigned Suggestion. `days[date].meals[m].colour` is the per-day per-meal swap (defaults to the day colour when absent) — the same override concept, now scoped to one day.
-- Picks are per day per meal, so the same colour on two days can carry different foods.
-- Parser `parseMbRun` gains a v1 -> v2 upgrade: a v1 run with `colour` set becomes 3 days starting at `started_on` (or today), each with the v1 colour and the v1 meal picks/overrides copied in; `confirmed_on` carries over. Nothing is written back until the client next saves, so the migration is read-time and non-destructive (no SQL migration, no data loss, rollback = revert code).
-- `mb_food_limits` stays authoritative, `food_limits` stays the fallback. No consolidation, no store changes.
+- `days[i].meals[m].colour` is the per-day per-meal swap. Default = the run colour; a swap sets it to another suggestion for that day only, everything else that day stays on the chosen colour.
+- Picks are per day, so a swapped day carries its own food choices.
+- `parseMbRun` gains a read-time v1 → v2 upgrade: a v1 run expands into 3 days from `started_on` (or today), each day copying the v1 meal colours/picks. No SQL migration, no data loss, rollback = revert code.
+- `mb_food_limits` stays authoritative, `food_limits` stays the fallback. No consolidation.
 
-## c) Client planner UI: 7-day week frame
+## b) Phase 2 start date as the week anchor
 
-`src/components/MbRunPlanner.tsx` becomes a week planner:
+It already exists: `clients.phase2_strict_started_at` (timestamptz), set when the practitioner starts Phase 2 strict.
 
-- Header: week label (`Mon 24 – Sun 30`) plus save/confirm state.
-- A 7-day strip. Each day is either unassigned (shows the three colour chips to assign) or assigned (colour dot + Suggestion label, tap to expand).
-- Chunk filling: assigning a colour offers "apply to the next N days" (defaults to the remaining unassigned run), so batching stays one tap. Days can be left blank and filled later.
-- Expanding a day shows that day's three meals with the same food dropdowns as today, plus the per-meal swap Select on a cap conflict (scoped to that day only, other days keep the food).
-- Running weekly totals for capped foods shown under the strip ("Eggs 4 / 5 this week").
-- Confirm gate unchanged in shape: Confirm is disabled while any assigned day has an unresolved cap breach or an unpicked required item.
+Anchor rule, one shared function `weekWindowFor(anchor, onDate)` in `_shared/mb-cap.ts`:
 
-Other components:
-- `src/pages/ClientPortal.tsx` — My Plan tab passes the same props; `mbRunGateActive` reads `confirmed_on` from the v2 run (no change in meaning). Home handoff (`onGoHome`) keeps working; the Home/recipe surface starts using *today's* assigned day's colour + picks instead of the single locked colour.
-- `src/components/MbPlanMirror.tsx` (practitioner, read-only) — mirrors the same week strip: 7 days with assigned colour, expanded picks, swap badges, and the weekly cap tallies. Still zero controls.
-- `src/pages/Dashboard.tsx` — passes `mb_run` through as today; no logic change.
-- `src/lib/mb-run.ts` — new v2 types, `parseMbRun` upgrade, `assignDay`, `assignRange`, `clearDay`, `resolveDayMeal` (the per-day successor to `resolveRunMeal`), `weekStartFor`.
+- `week_index = floor(days_between(anchor_date, on_date) / 7)`, `week_start = anchor_date + 7 * week_index`, `week_end = week_start + 6`.
+- Phase 2's 14 days is therefore exactly two consecutive windows off the same anchor; nothing special-cased.
+- Fallback when `phase2_strict_started_at` is null (Phase 3/4, or not yet started): anchor on the client's first confirmed run in the current model, persisted as `mb_run.week_start`; if that is also absent, anchor on today. The fallback is deterministic and stored, so the window never silently shifts under the client.
+- A 3-day run can straddle a window boundary. Each day is charged to the window that day falls in — the ledger is keyed by `week_start`, so a run spanning the roll simply writes to two windows and the reset happens mid-run exactly as the rules say.
 
-## d) Cap evaluation
+## c) The weekly ledger (consumption across runs)
 
-`supabase/functions/_shared/mb-cap.ts` (the one shared evaluator, imported by both browser and edge) changes from "per-meal qty x RUN_DAYS" to a cumulative weekly sum:
+`mb_run` is overwritten per run, so the ledger needs its own durable store. New MB-only table:
 
-1. For every assigned day in the week, for every meal, for every item (fixed items included), resolve the cap food (`label` for fixed, the pick otherwise) and `perMealQty` — unchanged logic, so `2 eggs` and `as_listed "2 Eggs"` still count as 2.
-2. Accumulate `total[food] += perMealQty`, tracking which day/meal/item contributed.
-3. A violation is any food whose weekly total exceeds `weeklyCapFor(food, mb_food_limits, food_limits)`. Violations are attributed to the day that pushed it over, so the block is day-scoped.
-4. Eggs: cap 5, 2-egg lunch on day 1 (2) and day 2 (4) pass; day 3 would be 6 -> that day is blocked, days 1-2 unaffected.
-5. Only remedy offered: swap that one day's affected meal to another colour. No same-category substitution, no cap override.
+```text
+public.mb_cap_ledger
+  id uuid pk
+  client_id uuid not null references public.clients(id) on delete cascade
+  week_start date not null          -- from the Phase 2 anchor
+  day date not null                 -- the day consumed
+  meal text not null                -- breakfast | lunch | dinner
+  food text not null                -- normalised cap food name
+  qty numeric not null              -- perMealQty for that item
+  run_started_on date               -- provenance
+  created_at timestamptz default now()
+  unique (client_id, day, meal, food)   -- re-confirming a run replaces, never double-counts
+```
 
-Existing tests in `src/test/mb-cap.test.ts` are rewritten for weekly totals plus new cases for partial weeks and per-day swaps.
+Grants (`authenticated` select, `service_role` all), RLS enabled: practitioners read their own clients' rows; writes are service-role only from the `mb-run` edge function. Clients reach it only through the token-authed function, exactly like `mb_run` today.
 
-**Decision for you — week anchoring:** I recommend a **calendar week anchored to Monday** (`week_start` = Monday of the current date, caps reset Monday 00:00 client-local). It matches how clients read "per week", makes the practitioner mirror unambiguous, and survives a client planning ahead. The alternative is **rolling from the plan/phase start date** (`phase2_strict_started_at`), which lines up cleanly with Phase 2's 14 days = exactly two windows but drifts against the calendar and is harder to explain. Either way Phase 2's 14 days spans two windows and each window resets independently. Tell me which you want; the anchor is one function (`weekStartFor`) so it is cheap to change but I do not want to guess.
+- Written on **confirm**, in one transaction-ish upsert: the function deletes the rows for that run's days and reinserts from the confirmed run, so editing and re-confirming a run is idempotent.
+- Read on **plan/pick**: `remaining(food) = cap(food) − sum(qty) for (client, week_start)`, excluding rows belonging to the run currently being edited (so a client editing an already-confirmed run isn't blocked by their own prior confirmation).
+- Only capped foods are recorded, keeping the table small (a handful of rows per week per client).
 
-## e) Confirm gate and server backstop
+## d) Selection-time enforcement
 
-- `supabase/functions/mb-run/index.ts` keeps the `get` / `save` / `confirm` actions and the same pattern: `save` is permissive and always clears `confirmed_on`; `confirm` re-runs the shared evaluator server-side against the practitioner's stored `mb_plan` suggestions (never client-supplied items), the same `mb_food_limits` -> `food_limits` precedence, and rejects with `409 cap_exceeded` plus per-day violation detail the planner surfaces inline on the offending day.
-- The zod `Run` schema is replaced with the v2 week schema (bounded: max 7 days, dates validated, picks capped in length as now). v1 payloads are upgraded server-side by the same shared parser so an old client tab cannot corrupt a row.
-- `confirmed_on` now means "this week's plan is confirmed"; the client portal cooking gate reads it exactly as it does today.
-- One evaluator, two callers — `src/lib/mb-food-list.ts` continues to re-export from `_shared/mb-cap.ts`, so client and server cannot diverge.
+The moment the client taps a Suggestion (before any confirm):
 
-## f) Shopping list coupling
+1. `startRun(colour)` builds the 3 dated days and fetches the week ledger via `mb-run action: "get"` (extended to return `{ run, week_start, consumed: { food: qty } }`).
+2. The shared evaluator runs `planRunAgainstLedger(run, suggestions, limits, consumed, capacityByFood)`: it walks days 1→3 in order, and for each meal/item resolves the cap food (fixed items by `label`, picks by chosen food) and `perMealQty` — unchanged logic, so "2 eggs" and `as_listed "2 Eggs"` still count as 2. It debits the running weekly total per day and returns, per day+meal, either `ok` or a `blocked` record `{ day, meal, food, need, remaining }`.
+3. Any blocked day/meal renders inline, immediately, on that day: an amber panel naming the food and the remaining allowance, with the only remedy — a Select offering the other two suggestions for **that meal on that day**. Choosing one rewrites `days[i].meals[m]` to the new colour with empty picks; the rest of that day stays on the run colour. The replacement meal is itself run through the evaluator (a swap can't smuggle in another over-cap food).
+4. Confirm stays disabled while any day/meal is blocked or any required pick is empty; the copy states the swap is the way forward.
+5. Because the ledger is consulted, a second run of the same colour later in the same week finds the allowance already spent and blocks that meal on **all** days of the new run until the window rolls — the worked example (eggs cap 4, 2-egg breakfast: days 1–2 keep it, day 3 swaps; next run same week swaps every day) is a direct consequence and becomes a named test.
 
-The MB shopping list today is inside `src/components/MealPlanner.tsx`, built from the legacy weekly meal plan selections, not from `mb_run`. It is therefore not broken by this change and **can follow in a later build**. The spec's "build the list from the colours assigned to the days being shopped" becomes straightforward once `mb_run.days` exists: sum the items of each assigned day's resolved meals over a chosen date range. I would ship the week model first, then the list, so each is testable on its own.
+## e) Components and server
 
-## g) Build order (each phase independently testable)
+- `src/lib/mb-run.ts` — v2 types, `parseMbRun` upgrade, `startRun(colour, dates)`, `setDayPick`, `swapDayMeal`, `resolveDayMeal` (per-day successor to `resolveRunMeal`).
+- `supabase/functions/_shared/mb-cap.ts` — keep `weeklyCapFor`, `perMealQty`, `capFoodFor` untouched. Replace the `needed = per × RUN_DAYS` rule with `planRunAgainstLedger` (sequential per-day debit against `cap − consumed`) plus `ledgerRowsForRun` (what to write on confirm) and `weekWindowFor`. Still the one module imported by both the browser (`src/lib/mb-food-list.ts` re-exports) and the edge function.
+- `src/components/MbRunPlanner.tsx` — the three-card colour choice is unchanged; after locking, the body becomes Day 1 / Day 2 / Day 3 sections, each with the three meals, per-day picks, per-day swap control on a blocked meal, a "remaining this week" line for capped foods, and the existing gated Confirm button and server-error surface.
+- `src/pages/ClientPortal.tsx` — My Plan tab props gain the ledger (returned by `mb-run get`); `mbRunGateActive` still keys off `confirmed_on`, unchanged. Home handoff (`onGoHome`) unchanged; the Home/recipe surface reads **today's** day entry from the run instead of the single meals object.
+- `src/components/MbPlanMirror.tsx` (practitioner, read-only) — mirrors the same Day 1–3 layout with swap badges and the week's consumed/remaining tallies. Still zero controls, zero writes.
+- `src/pages/Dashboard.tsx` — passes `mb_run` through as today plus the ledger for the mirror; no Custom-path change.
+- `supabase/functions/mb-run/index.ts` — `get` returns run + `week_start` + `consumed`; `save` stays permissive and clears `confirmed_on`; `confirm` re-runs `planRunAgainstLedger` server-side against the practitioner's stored `mb_plan` suggestions (never client-supplied items) and the ledger read under the service role, rejects with `409 cap_exceeded` carrying per-day/per-meal detail, and on success writes `confirmed_on` **and** upserts the ledger rows. Zod schema updated to the v2 run (exactly 3 dated days, bounded picks); v1 payloads upgraded by the same shared parser so a stale tab can't corrupt a row.
 
-1. **Model + parser** — v2 types, `parseMbRun` v1->v2 upgrade, day helpers, `weekStartFor`. Unit tests only, nothing rendered. Verifiable: existing MB rows parse into a 3-day week identical to their old run.
-2. **Cap evaluator** — cumulative weekly totals in `_shared/mb-cap.ts` + rewritten tests (eggs 5-cap example as a named case). No UI yet.
-3. **Client planner** — `MbRunPlanner` week strip, chunk assignment, per-day picks, per-day swap, running tallies, gated Confirm. Verified in the preview as an MB client.
-4. **Server backstop** — v2 schema + weekly evaluation in `mb-run`, deployed; verified by posting an over-cap week and getting `409`.
-5. **Practitioner mirror** — `MbPlanMirror` week view; verified side by side against the client portal.
-6. **Home handoff** — today's-day colour drives the recipe surface; gate still keyed on `confirmed_on`.
-7. *(Follow-up, not this build)* shopping list from assigned days.
+## f) Build order (each phase independently testable)
 
-Custom stays untouched in every phase; no file on the `own_practice` path is edited.
+1. **Model** — v2 `mb_run` types + read-time v1→v2 upgrade + day helpers in `src/lib/mb-run.ts`. Unit tests only; existing rows parse into an identical 3-day run.
+2. **Ledger table** — migration for `public.mb_cap_ledger` with grants, RLS and the uniqueness key. Verified by direct query; nothing reads it yet.
+3. **Evaluator** — `weekWindowFor`, `planRunAgainstLedger`, `ledgerRowsForRun` in `_shared/mb-cap.ts`, with `src/test/mb-cap.test.ts` rewritten around the eggs example (cap 4, 2-egg breakfast, days 1–2 ok / day 3 blocked; second run same week blocked on all days; window roll clears it).
+4. **Server** — `mb-run` `get`/`confirm` updated to read and write the ledger, deployed; verified by posting an over-cap run and getting `409`, then confirming a clean run and seeing ledger rows.
+5. **Client planner** — `MbRunPlanner` Day 1–3 layout, selection-time block, per-day swap, remaining-allowance copy, gated Confirm. Verified in the preview as an MB client.
+6. **Mirror + Home handoff** — `MbPlanMirror` week/ledger view and the Home surface reading today's day. Verified side by side against the client portal.
+
+Custom stays untouched in every phase; no file on the `own_practice` path is edited, and both cap stores stay exactly as they are.
