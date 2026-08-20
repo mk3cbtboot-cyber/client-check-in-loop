@@ -15,8 +15,11 @@ project_id = "mzwsjiuwctmlioloqswj"
     verify_jwt = false
   [functions.log-recipe-meal]
     verify_jwt = false
+  [functions.mb-run]
+    verify_jwt = false
   [functions.mcp]
     verify_jwt = false
+
   [functions.parse-foodlist-document]
     verify_jwt = false
   [functions.parse-mb-pdf]

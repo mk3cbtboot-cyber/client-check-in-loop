@@ -1,8 +1,13 @@
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
 import type { MealType } from "@/lib/mb-foods";
-import type { MbColour, MbSuggestion } from "@/lib/mb-plan";
-import { categoryLabel, type MbFoodListMap } from "@/lib/mb-food-list";
-import { RUN_DAYS, RUN_MEALS, fmtQty, parseMbRun, resolveRunMeal } from "@/lib/mb-run";
+import type { MbColour, MbFoodLimit, MbSuggestion } from "@/lib/mb-plan";
+import {
+  capFoodFor, categoryLabel, consumedFor, perMealQty, planRunAgainstLedger,
+  weekWindowFor, weeklyCapFor, type CapConsumed, type MbFoodListMap,
+} from "@/lib/mb-food-list";
+import { RUN_DAYS, RUN_MEALS, fmtQty, parseMbRun, resolveDayMeal, runDates, todayISO } from "@/lib/mb-run";
 
 const MEAL_LABEL: Record<MealType, string> = {
   breakfast: "Breakfast",
@@ -15,7 +20,11 @@ const COLOUR_DOT: Record<MbColour, string> = {
   orange: "bg-amber-500",
 };
 
+const dayLabel = (iso: string) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+
 interface Props {
+  clientId: string;
   suggestions: MbSuggestion[];
   foodList: MbFoodListMap;
   /** Raw clients.mb_run. */
@@ -23,16 +32,63 @@ interface Props {
   /** Whether the practitioner has confirmed (published) the plan. */
   confirmed: boolean;
   clientName: string;
+  enrichedLimits?: MbFoodLimit[];
+  legacyLimits?: Record<string, number>;
+  /** clients.phase2_strict_started_at — anchors the 7-day cap window. */
+  anchor?: string | null;
 }
 
 /**
  * Read-only mirror of the MB client's "My Plan" tab, for the practitioner.
- * Renders exactly what the client sees — pre-lock three-card view, or the
- * locked run with their picks (honouring per-meal colour swaps) — with no
- * selection controls, no dropdowns and no writes. MB clients only.
+ * Same day layout the client sees — one set of picks across the run, per-day
+ * swap badges where a cap forced a change, and the week's remaining allowance
+ * for capped foods. No controls, no writes.
  */
-export function MbPlanMirror({ suggestions, foodList, run: rawRun, confirmed, clientName }: Props) {
+export function MbPlanMirror({
+  clientId, suggestions, foodList, run: rawRun, confirmed, clientName,
+  enrichedLimits = [], legacyLimits = {}, anchor = null,
+}: Props) {
   const firstName = clientName.split(" ")[0] || "This client";
+  const [consumed, setConsumed] = useState<CapConsumed>({});
+
+  const run = useMemo(() => parseMbRun(rawRun), [rawRun]);
+  const start = run.started_on ?? todayISO();
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("mb_cap_ledger")
+        .select("week_start, food, qty, day")
+        .eq("client_id", clientId);
+      if (cancelled) return;
+      const dates = new Set(run.colour ? runDates(run, RUN_DAYS) : []);
+      const out: CapConsumed = {};
+      for (const r of (data ?? []) as Array<{ week_start: string; food: string; qty: number; day: string }>) {
+        if (dates.has(r.day)) continue; // this run's own days aren't "already used"
+        const w = (out[r.week_start] = out[r.week_start] ?? {});
+        w[r.food] = (w[r.food] ?? 0) + Number(r.qty || 0);
+      }
+      setConsumed(out);
+    })();
+    return () => { cancelled = true; };
+  }, [clientId, rawRun]);
+
+  const plan = useMemo(
+    () => planRunAgainstLedger(run, suggestions, enrichedLimits, legacyLimits, consumed, {
+      anchor, runDays: RUN_DAYS, startDate: start,
+    }),
+    [run, suggestions, enrichedLimits, legacyLimits, consumed, anchor, start],
+  );
+
+  const remainingLine = (food: string): string | null => {
+    if (!food) return null;
+    const cap = weeklyCapFor(food, enrichedLimits, legacyLimits);
+    if (cap == null) return null;
+    const week = weekWindowFor(anchor, start).week_start;
+    const already = consumedFor(food, consumed[week]);
+    return `${Math.max(0, cap - already)} of ${cap} left this week`;
+  };
 
   if (!confirmed || suggestions.length === 0) {
     return (
@@ -45,8 +101,6 @@ export function MbPlanMirror({ suggestions, foodList, run: rawRun, confirmed, cl
       </div>
     );
   }
-
-  const run = parseMbRun(rawRun);
 
   /* ---------------- not picked yet: three cards ---------------- */
   if (!run.colour) {
@@ -90,6 +144,9 @@ export function MbPlanMirror({ suggestions, foodList, run: rawRun, confirmed, cl
 
   /* ---------------- locked run ---------------- */
   const locked = suggestions.find((s) => s.colour === run.colour);
+  const dates = runDates(run, RUN_DAYS);
+  const blockFor = (date: string, meal: MealType) =>
+    plan.blocks.find((b) => b.date === date && b.meal === meal) ?? null;
 
   return (
     <Card className="p-4 space-y-4">
@@ -97,59 +154,80 @@ export function MbPlanMirror({ suggestions, foodList, run: rawRun, confirmed, cl
         <p className="font-medium flex items-center gap-2">
           <span className={`h-3 w-3 rounded-full ${COLOUR_DOT[run.colour]}`} aria-hidden />
           {locked?.label ?? "Their suggestion"}
+          {run.confirmed_on && (
+            <span className="text-xs font-normal text-muted-foreground">confirmed {run.confirmed_on}</span>
+          )}
         </p>
         <p className="text-sm text-muted-foreground">
-          Locked for {RUN_DAYS} days{run.started_on ? ` from ${new Date(run.started_on).toLocaleDateString()}` : ""}.
+          Locked for {RUN_DAYS} days{run.started_on ? ` from ${dayLabel(run.started_on)}` : ""}.
           Read-only — this is what {firstName} sees. Edit the plan in MB Plan Setup.
         </p>
       </div>
 
-      {RUN_MEALS.map((meal) => {
-        const { colour: mealColour, suggestion: s, items, picks, swapped } = resolveRunMeal(run, suggestions, meal);
-        return (
-          <div key={meal} className="rounded-lg border p-3 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide flex items-center gap-2">
-              {MEAL_LABEL[meal]}
-              {swapped && (
-                <span className="inline-flex items-center gap-1 normal-case text-[11px] font-normal text-muted-foreground">
-                  <span className={`h-2 w-2 rounded-full ${COLOUR_DOT[mealColour]}`} aria-hidden />
-                  swapped to {s?.label ?? "another suggestion"}
-                </span>
-              )}
-            </p>
-
-            {items.length === 0 && <p className="text-sm text-muted-foreground">Not set.</p>}
-
-            {items.map((it) => {
-              if (it.category === "fixed") {
-                return (
-                  <div key={it.id} className="text-sm">
-                    <span className="font-medium">{it.label}</span>
-                    {fmtQty(it) ? <span className="text-muted-foreground"> · {fmtQty(it)}</span> : null}
-                  </div>
-                );
-              }
-              const picked = picks[it.id] ?? "";
-              const hasOptions = ((foodList[it.category] ?? []).length || (it.options ?? []).length) > 0;
-              return (
-                <div key={it.id} className="text-sm flex flex-wrap items-baseline gap-x-2">
-                  <span className="font-medium">{categoryLabel(it.category)}</span>
-                  {fmtQty(it) && <span className="text-xs text-muted-foreground">{fmtQty(it)}</span>}
-                  {it.optional && <span className="text-xs text-muted-foreground">(optional)</span>}
-                  <span aria-hidden className="text-muted-foreground">→</span>
-                  {picked ? (
-                    <span>{picked}</span>
-                  ) : (
-                    <span className="text-muted-foreground italic">
-                      {hasOptions ? "Not picked yet" : "No approved foods listed for this group"}
+      {dates.map((date) => (
+        <div key={date} className="rounded-lg border p-3 space-y-3">
+          <p className="text-sm font-medium">{dayLabel(date)}</p>
+          {RUN_MEALS.map((meal) => {
+            const { colour: mealColour, suggestion: s, items, picks, swapped } =
+              resolveDayMeal(run, suggestions, date, meal);
+            const block = blockFor(date, meal);
+            return (
+              <div key={meal} className="space-y-1.5 border-t pt-2 first:border-t-0 first:pt-0">
+                <p className="text-xs font-semibold uppercase tracking-wide flex items-center gap-2">
+                  {MEAL_LABEL[meal]}
+                  {swapped && (
+                    <span className="inline-flex items-center gap-1 normal-case text-[11px] font-normal text-muted-foreground">
+                      <span className={`h-2 w-2 rounded-full ${COLOUR_DOT[mealColour]}`} aria-hidden />
+                      swapped to {s?.label ?? "another suggestion"}
                     </span>
                   )}
-                </div>
-              );
-            })}
-          </div>
-        );
-      })}
+                  {block && (
+                    <span className="normal-case text-[11px] font-normal text-amber-700 dark:text-amber-400">
+                      over cap — {block.food}: needs {block.need}, {block.remaining} left of {block.cap}
+                    </span>
+                  )}
+                </p>
+
+                {items.length === 0 && <p className="text-sm text-muted-foreground">Not set.</p>}
+
+                {items.map((it) => {
+                  const picked = picks[it.id] ?? "";
+                  const food = capFoodFor(it, picked);
+                  const remaining = remainingLine(food);
+                  if (it.category === "fixed") {
+                    return (
+                      <div key={it.id} className="text-sm">
+                        <span className="font-medium">{it.label}</span>
+                        {fmtQty(it) ? <span className="text-muted-foreground"> · {fmtQty(it)}</span> : null}
+                        {remaining && (
+                          <span className="text-xs text-muted-foreground"> · {remaining} (uses {perMealQty(it)})</span>
+                        )}
+                      </div>
+                    );
+                  }
+                  const hasOptions = ((foodList[it.category] ?? []).length || (it.options ?? []).length) > 0;
+                  return (
+                    <div key={it.id} className="text-sm flex flex-wrap items-baseline gap-x-2">
+                      <span className="font-medium">{categoryLabel(it.category)}</span>
+                      {fmtQty(it) && <span className="text-xs text-muted-foreground">{fmtQty(it)}</span>}
+                      {it.optional && <span className="text-xs text-muted-foreground">(optional)</span>}
+                      <span aria-hidden className="text-muted-foreground">→</span>
+                      {picked ? (
+                        <span>{picked}</span>
+                      ) : (
+                        <span className="text-muted-foreground italic">
+                          {hasOptions ? "Not picked yet" : "No approved foods listed for this group"}
+                        </span>
+                      )}
+                      {remaining && <span className="text-xs text-muted-foreground">· {remaining}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </Card>
   );
 }
