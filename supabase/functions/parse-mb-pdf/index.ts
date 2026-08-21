@@ -227,7 +227,10 @@ type MealItem = {
   category: string;
   qty: number | null;
   unit: MbItemUnit;
+  /** Parenthetical role tag, e.g. "Mushrooms (Protein)" -> "Protein". */
+  role?: string;
 };
+
 type MealOption = {
   /** Ordered items exactly as they appear on this suggestion's line. */
   items: MealItem[];
