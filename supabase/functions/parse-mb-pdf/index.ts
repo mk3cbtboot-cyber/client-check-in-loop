@@ -513,6 +513,13 @@ function parseMealTableColumns(
     const perMealLines: Record<MealKey, string[]> = { breakfast: [], lunch: [], dinner: [] };
     for (const raw of lines) {
       if (/^Personal Food List/i.test(raw)) break;
+      // New-format headings are letter-spaced ("B R E A K F A S T"); classic
+      // ones are plain words, so match on the de-spaced form for both.
+      const spaced = despace(raw).match(/^(breakfast|lunch|dinner)$/);
+      if (spaced) {
+        current = spaced[1] as MealKey;
+        continue;
+      }
       const header = raw.match(MEAL_HEADER_RE);
       if (header) {
         current = header[1].toLowerCase() as MealKey;
@@ -523,6 +530,7 @@ function parseMealTableColumns(
         }
         continue;
       }
+
       if (!current) continue;
       perMealLines[current].push(raw);
       perMeal[current].push(...parseMealLineItems(raw));
