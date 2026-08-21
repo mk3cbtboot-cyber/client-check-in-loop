@@ -377,13 +377,8 @@ function applyItemsToOption(option: MealOption, items: MealItem[]) {
 
 
 
-function getTrailingClientNamePatterns(firstName: string, lastName: string): string[] {
-  const patterns: string[] = [];
-  if (firstName && lastName) patterns.push(`\\s+${escapeRegExp(firstName)}\\s+${escapeRegExp(lastName)}$`);
-  if (firstName) patterns.push(`\\s+${escapeRegExp(firstName)}$`);
-  if (lastName) patterns.push(`\\s+${escapeRegExp(lastName)}$`);
-  return patterns;
-}
+
+
 
 function preprocessMealLines(lines: string[]): string[] {
   const merged: string[] = [];
