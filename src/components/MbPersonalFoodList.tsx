@@ -9,6 +9,8 @@ import {
 import { Loader2, Plus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { foodListTitle } from "@/lib/phases";
+
 import {
   MB_FOOD_CATEGORIES, resolveMbFoodList, seedMbFoodList, type MbFoodListMap,
 } from "@/lib/mb-food-list";
@@ -17,6 +19,8 @@ interface Props {
   clientId: string;
   /** The full client row — used to seed from the legacy food_* columns. */
   client: Record<string, unknown> | null | undefined;
+  /** Client's current MB phase — labels the list (Phase 1 has no food list). */
+  phase?: string | null;
   onSaved?: () => void;
 }
 
@@ -25,7 +29,8 @@ interface Props {
  * Chips are removable; sections can be deleted; items can be added back.
  * Saves to clients.mb_food_list (the legacy food_* columns are never touched).
  */
-export function MbPersonalFoodList({ clientId, client, onSaved }: Props) {
+export function MbPersonalFoodList({ clientId, client, phase, onSaved }: Props) {
+
   const [list, setList] = useState<MbFoodListMap>(() => resolveMbFoodList(client));
   const [adding, setAdding] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -95,10 +100,13 @@ export function MbPersonalFoodList({ clientId, client, onSaved }: Props) {
     <div className="rounded-lg border p-3 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold flex items-center gap-2">
-            Personal Food List
-            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-          </p>
+          {foodListTitle(phase) && (
+            <p className="text-sm font-semibold flex items-center gap-2">
+              {foodListTitle(phase)}
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            </p>
+          )}
+
           <p className="text-xs text-muted-foreground">
             One list for this client — the foods they can pick from inside each suggestion. Changes save automatically.
           </p>

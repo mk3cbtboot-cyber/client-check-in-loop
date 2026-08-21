@@ -24,7 +24,7 @@ import { parseMbRun, resolveDayMeal, runDates, todayISO, fmtQty, RUN_DAYS, RUN_M
 
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
-import { phaseShort, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
+import { phaseShort, foodListTitle, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
 import { getPhaseProgress } from "@/lib/progress";
 import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
 import MealRecipeSection from "@/components/MealRecipeSection";
@@ -1629,6 +1629,9 @@ export default function ClientPortal() {
                 return (
                   <div className="space-y-6">
                     <div className="space-y-3">
+                      {foodListTitle(client.phase) && (
+                        <p className="font-medium">{foodListTitle(client.phase)}</p>
+                      )}
                       <div className="grid gap-4 md:grid-cols-2">
                         {populated.map((cat) => (
                           <Card key={cat.title} className="p-4">
@@ -1644,17 +1647,23 @@ export default function ClientPortal() {
                 );
               })() : (
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  {planCategories.map((cat) => (
-                    <Card key={cat.title} className="p-4">
-                      <p className="font-medium mb-2">{cat.title}</p>
-                      <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                        {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
-                      </ul>
-                    </Card>
-                  ))}
+                <div className="space-y-3">
+                  {foodListTitle(client.phase) && (
+                    <p className="font-medium">{foodListTitle(client.phase)}</p>
+                  )}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {planCategories.map((cat) => (
+                      <Card key={cat.title} className="p-4">
+                        <p className="font-medium mb-2">{cat.title}</p>
+                        <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                          {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
+                        </ul>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               )}
+
 
               {Array.isArray(client.food_exclusions) && client.food_exclusions.length > 0 && (
                 <Card className="p-4">

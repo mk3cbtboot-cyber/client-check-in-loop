@@ -23,3 +23,12 @@ export const oilAllowed = (p: string) =>
   p === "phase3" || p === "phase4";
 
 export const recipeBuilderEnabled = (p: string) => p !== "phase1";
+
+/**
+ * Title for the client's personal food list, labelled with their current phase.
+ * Phase 1 has no food list, so it returns null and the title is not rendered.
+ */
+export const foodListTitle = (p: string | null | undefined): string | null => {
+  if (!p || p === "phase1") return null;
+  return `${phaseLabel(p)} Food List`;
+};

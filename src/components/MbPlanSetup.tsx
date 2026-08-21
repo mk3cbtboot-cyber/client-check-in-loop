@@ -442,7 +442,7 @@ export function MbPlanSetup({
           ))}
           </div>
 
-          <MbPersonalFoodList clientId={clientId} client={client} onSaved={onSaved} />
+          <MbPersonalFoodList clientId={clientId} client={client} phase={phase} onSaved={onSaved} />
 
 
           {phase === "phase3" && phase3Groups.length > 0 && (
