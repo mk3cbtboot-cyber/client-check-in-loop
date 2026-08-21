@@ -499,6 +499,7 @@ function parseMealLinesBySection(lines: string[], options: MealOptionsMap) {
       const protein = extractMealProtein(line);
       if (!protein) continue;
       options[meal][slot] = {
+        items: [],
         protein_category: protein.label,
         protein_grams: protein.grams,
         veg_grams: extractVegGramsFromLine(line, protein.grams),
