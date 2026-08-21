@@ -92,10 +92,6 @@ const blankPlan = (): MbPlan => ({
   })) as MbSuggestion[],
 });
 
-interface Phase2Category {
-  title: string;
-  items: string[];
-}
 
 interface WeeklyAck {
   food_name: string;
