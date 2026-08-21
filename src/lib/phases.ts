@@ -30,5 +30,6 @@ export const recipeBuilderEnabled = (p: string) => p !== "phase1";
  */
 export const foodListTitle = (p: string | null | undefined): string | null => {
   if (!p || p === "phase1") return null;
+  if (p === "phase2_extended") return "Phase 2 Extended Food List";
   return `${phaseLabel(p)} Food List`;
 };
