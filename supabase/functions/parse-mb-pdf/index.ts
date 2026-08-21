@@ -1463,10 +1463,8 @@ Deno.serve(async (req) => {
         positionedCount: mealPositionedItems.length,
         positionedError: debug.meal_positioned_error ?? null,
         columnX: (mealDebug as { column_x?: number[] }).column_x ?? null,
-        sample: mealPositionedItems.slice(0, 15),
-        candidates: debug.meal_candidates ?? null,
-
       },
+
 
 
     }), {
