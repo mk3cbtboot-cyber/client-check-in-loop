@@ -119,22 +119,18 @@ interface Props {
   /* --- relocated from the practitioner Meal Plan tab (unchanged behaviour) --- */
   clientName?: string;
   phase?: string | null;
-  phase2Categories?: Phase2Category[];
-  phase2Customised?: boolean;
   phase3Groups?: Phase2Category[];
   weeklyAcks?: WeeklyAck[];
-  onRestorePhase2Defaults?: () => void;
-  onDeletePhase2Section?: (title: string) => void;
-  onDeletePhase2Item?: (title: string, item: string) => void;
   onSaveWeeklyLimits?: (limits: Record<string, number>) => void;
 }
 
 export function MbPlanSetup({
   clientId, mbPlan, mbFoodLimits, legacyFoodLimits, client, onSaved,
-  clientName = "This client", phase, phase2Categories = [], phase2Customised = false,
+  clientName = "This client", phase,
   phase3Groups = [], weeklyAcks = [],
-  onRestorePhase2Defaults, onDeletePhase2Section, onDeletePhase2Item, onSaveWeeklyLimits,
+  onSaveWeeklyLimits,
 }: Props) {
+
 
 
   const [open, setOpen] = useState(false);
