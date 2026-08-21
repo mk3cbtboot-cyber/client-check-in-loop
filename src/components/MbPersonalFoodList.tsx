@@ -99,7 +99,8 @@ export function MbPersonalFoodList({ clientId, client, phase, onSaved }: Props) 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-semibold flex items-center gap-2">
-            Personal Food List
+            {foodListTitle(phase) ?? "Personal Food List"}
+
             {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
           </p>
           <p className="text-xs text-muted-foreground">
