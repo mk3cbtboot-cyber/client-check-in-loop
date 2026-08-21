@@ -218,37 +218,9 @@ export function MbRunPlanner({
             Tap any meal to choose that suggestion. All three meals lock together — you follow one colour for the whole run.
           </p>
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          {suggestions.map((s) => (
-            <button
-              key={s.colour}
-              type="button"
-              onClick={() => lockColour(s.colour)}
-              className="text-left rounded-lg border p-3 space-y-2 hover:border-primary hover:bg-primary/5 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <span className={`h-3 w-3 rounded-full ${COLOUR_DOT[s.colour]}`} aria-hidden />
-                <span className="font-medium">{s.label}</span>
-              </div>
-              {RUN_MEALS.map((m) => (
-                <div key={m} className="text-sm">
-                  <p className="text-xs uppercase text-muted-foreground">{MEAL_LABEL[m]}</p>
-                  <ul className="list-disc pl-5">
-                    {(s.meals[m]?.items ?? []).map((it) => (
-                      <li key={it.id}>
-                        {it.category === "fixed" ? it.label : categoryLabel(it.category)}
-                        {fmtQty(it) ? ` · ${fmtQty(it)}` : ""}
-                      </li>
-                    ))}
-                    {(s.meals[m]?.items ?? []).length === 0 && (
-                      <li className="text-muted-foreground">Not set</li>
-                    )}
-                  </ul>
-                </div>
-              ))}
-            </button>
-          ))}
-        </div>
+        <MbSuggestionsBoard suggestions={suggestions} onPick={lockColour} />
+        <MbFoodListReadonly foodList={foodList} phase={phase} />
+
       </Card>
     );
   }
