@@ -170,10 +170,11 @@ export default function FoodListPlanGenerator({ clientId, macros, mealsPerDay, f
     // is auto-selected and available on the client's Home tab without needing to
     // visit My Plan first.
     const slotKeys: SlotKey[] = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
-    const selections: Record<string, { protein: string | null; carbs: string | null; veg: string | null; fat: string | null }> = {};
+    const selections: Record<string, { protein: string | null; carbs: string | null; veg: string | null; veg2: string | null; fat: string | null }> = {};
     for (const slot of slotKeys) {
       const items = reviewList[slot] ?? [];
-      const s: { protein: string | null; carbs: string | null; veg: string | null; fat: string | null } = { protein: null, carbs: null, veg: null, fat: null };
+      // veg2 is the optional second vegetable — left blank here, the client picks it.
+      const s: { protein: string | null; carbs: string | null; veg: string | null; veg2: string | null; fat: string | null } = { protein: null, carbs: null, veg: null, veg2: null, fat: null };
       for (const it of items) {
         const cat = String(it.category ?? "").toLowerCase();
         const key = `${it.name}${it.portion ? ` · ${it.portion}` : ""}`;

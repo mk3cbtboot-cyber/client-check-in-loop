@@ -17,7 +17,11 @@ export interface FoodItem extends DensityFoodItem {
 
 export type CategoryKey = "protein" | "carbs" | "veg" | "fat";
 
-export type FoodSelections = Record<string, { protein?: string | null; carbs?: string | null; veg?: string | null; fat?: string | null }>;
+export type SelectionKey = CategoryKey | "veg2";
+
+export type SlotSelection = { protein?: string | null; carbs?: string | null; veg?: string | null; veg2?: string | null; fat?: string | null };
+
+export type FoodSelections = Record<string, SlotSelection>;
 
 const ALL_SLOTS: SlotKey[] = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
 
@@ -91,8 +95,8 @@ interface SlotProps {
   slotKey: SlotKey;
   label: string;
   foods: FoodItem[];
-  initial: { protein?: string | null; carbs?: string | null; veg?: string | null; fat?: string | null };
-  onSaved: (sel: { protein: string | null; carbs: string | null; veg: string | null; fat: string | null }) => void;
+  initial: SlotSelection;
+  onSaved: (sel: { protein: string | null; carbs: string | null; veg: string | null; veg2: string | null; fat: string | null }) => void;
 }
 
 function SlotSelector({ token, slotKey, label, foods, initial, onSaved }: SlotProps) {
@@ -106,11 +110,13 @@ function SlotSelector({ token, slotKey, label, foods, initial, onSaved }: SlotPr
   }, [foods]);
 
   // Auto-select the only option in any category with exactly one food and no prior selection.
-  const buildAutoSel = (): Record<CategoryKey, string | null> => {
-    const next: Record<CategoryKey, string | null> = {
+  const buildAutoSel = (): Record<SelectionKey, string | null> => {
+    const next: Record<SelectionKey, string | null> = {
       protein: initial.protein ?? null,
       carbs: initial.carbs ?? null,
       veg: initial.veg ?? null,
+      // Optional second vegetable — never auto-filled, blank is fine.
+      veg2: initial.veg2 ?? null,
       fat: initial.fat ?? null,
     };
     for (const cat of ["protein", "carbs", "veg", "fat"] as CategoryKey[]) {
@@ -121,7 +127,7 @@ function SlotSelector({ token, slotKey, label, foods, initial, onSaved }: SlotPr
     return next;
   };
 
-  const [sel, setSel] = useState<Record<CategoryKey, string | null>>(buildAutoSel);
+  const [sel, setSel] = useState<Record<SelectionKey, string | null>>(buildAutoSel);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
@@ -144,6 +150,7 @@ function SlotSelector({ token, slotKey, label, foods, initial, onSaved }: SlotPr
           protein: next.protein ?? null,
           carbs: next.carbs ?? null,
           veg: next.veg ?? null,
+          veg2: next.veg2 ?? null,
           fat: next.fat ?? null,
         });
       });
@@ -152,9 +159,12 @@ function SlotSelector({ token, slotKey, label, foods, initial, onSaved }: SlotPr
 
   const empty = foods.length === 0;
 
-  const toggle = (cat: CategoryKey, key: string) => {
+  const toggle = (cat: SelectionKey, key: string) => {
     setSel((prev) => {
-      const next = { ...prev, [cat]: prev[cat] === key ? null : key };
+      const next: Record<SelectionKey, string | null> = { ...prev, [cat]: prev[cat] === key ? null : key };
+      // The optional second vegetable must always differ from the first.
+      if (cat === "veg" && next.veg && next.veg === next.veg2) next.veg2 = null;
+      if (cat === "veg2" && next.veg2 && next.veg2 === next.veg) next.veg2 = null;
       return next;
     });
     setDirty(true);
@@ -173,6 +183,7 @@ function SlotSelector({ token, slotKey, label, foods, initial, onSaved }: SlotPr
         protein: sel.protein ?? null,
         carbs: sel.carbs ?? null,
         veg: sel.veg ?? null,
+        veg2: sel.veg2 ?? null,
         fat: sel.fat ?? null,
       });
       setDirty(false);
@@ -195,18 +206,30 @@ function SlotSelector({ token, slotKey, label, foods, initial, onSaved }: SlotPr
           {CATEGORY_DEFS.map((c) => {
             const items = grouped[c.key];
             if (items.length === 0) return null;
-            return (
-              <div key={c.key} className="space-y-2">
-                <p className="text-xs uppercase text-muted-foreground tracking-wide">{c.label}</p>
+            const groups: { key: SelectionKey; label: string; caption?: string; items: FoodItem[] }[] = [
+              { key: c.key, label: c.label, items },
+            ];
+            if (c.key === "veg" && items.length > 1) {
+              groups.push({
+                key: "veg2",
+                label: "Veg — second choice (optional)",
+                caption: "Pick another vegetable for variety. This does not add an extra portion, and leaving it blank is fine.",
+                items: items.filter((f) => foodKey(f) !== sel.veg),
+              });
+            }
+            return groups.map((g) => (
+              <div key={g.key} className="space-y-2">
+                <p className="text-xs uppercase text-muted-foreground tracking-wide">{g.label}</p>
+                {g.caption && <p className="text-xs text-muted-foreground">{g.caption}</p>}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {items.map((f) => {
+                  {g.items.map((f) => {
                     const key = foodKey(f);
-                    const selected = sel[c.key] === key;
+                    const selected = sel[g.key] === key;
                     return (
                       <button
                         type="button"
                         key={key}
-                        onClick={() => toggle(c.key, key)}
+                        onClick={() => toggle(g.key, key)}
                         className={cn(
                           "text-left rounded-md border p-3 transition-colors",
                           selected
@@ -221,7 +244,7 @@ function SlotSelector({ token, slotKey, label, foods, initial, onSaved }: SlotPr
                   })}
                 </div>
               </div>
-            );
+            ));
           })}
           <Button className="w-full" onClick={save} disabled={saving || !dirty}>
             {saving ? "Saving…" : dirty ? "Save meal selections" : "Saved"}
