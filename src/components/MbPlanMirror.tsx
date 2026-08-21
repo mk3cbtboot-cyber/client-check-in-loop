@@ -84,6 +84,8 @@ export function MbPlanMirror({
     return `${Math.max(0, cap - already)} of ${cap} left this week`;
   };
 
+  if (phase === "phase1") return <MbPhase1Guide />;
+
   if (!confirmed || suggestions.length === 0) {
     return (
       <div className="rounded-md border p-6 text-center space-y-2">
