@@ -1344,7 +1344,7 @@ export default function ClientPortal() {
               <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseLabel(client.phase)}</span></p>
             )}
           </Card>
-          {client.client_type !== "custom" && (
+          {client.client_type !== "custom" && client.phase !== "phase1" && (
             <Card className="p-6">
               <p className="text-sm text-muted-foreground">
                 {client.phase === "phase2_strict" && "You are in the Strict Conversion Phase. Follow your personal food list exactly. No oil for the first 14 days. No substitutions."}
