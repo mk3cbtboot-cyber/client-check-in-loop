@@ -407,14 +407,20 @@ function rowsFromItems(items: PositionedText[], tolerance = 3): PdfRow[] {
 const MEAL_HEADER_RE = /^(breakfast|lunch|dinner)\b/i;
 
 /** x-positions of the three suggestion columns, derived from the Breakfast headers. */
+/** "B R E A K F A S T" (letter-spaced New-format headings) -> "breakfast". */
+function despace(s: string): string {
+  return s.replace(/\s+/g, "").toLowerCase();
+}
+
 function findColumnAnchors(items: PositionedText[]): number[] {
-  const heads = items.filter((i) => /^breakfast\b/i.test(i.text.trim()));
+  const heads = items.filter((i) => despace(i.text).startsWith("breakfast"));
   const xs: number[] = [];
   for (const h of heads.sort((a, b) => a.x - b.x)) {
     if (!xs.some((x) => Math.abs(x - h.x) < 20)) xs.push(h.x);
   }
   return xs;
 }
+
 
 function columnIndexFor(x: number, anchors: number[]): number {
   let idx = 0;
@@ -507,6 +513,13 @@ function parseMealTableColumns(
     const perMealLines: Record<MealKey, string[]> = { breakfast: [], lunch: [], dinner: [] };
     for (const raw of lines) {
       if (/^Personal Food List/i.test(raw)) break;
+      // New-format headings are letter-spaced ("B R E A K F A S T"); classic
+      // ones are plain words, so match on the de-spaced form for both.
+      const spaced = despace(raw).match(/^(breakfast|lunch|dinner)$/);
+      if (spaced) {
+        current = spaced[1] as MealKey;
+        continue;
+      }
       const header = raw.match(MEAL_HEADER_RE);
       if (header) {
         current = header[1].toLowerCase() as MealKey;
@@ -517,6 +530,7 @@ function parseMealTableColumns(
         }
         continue;
       }
+
       if (!current) continue;
       perMealLines[current].push(raw);
       perMeal[current].push(...parseMealLineItems(raw));
@@ -1160,21 +1174,37 @@ Deno.serve(async (req) => {
     const mealTableEnd = fullText.search(/Personal Food List\s*(?:[-–—:]\s*)?Protein/i);
 
     const mealTableText = mealTableEnd > 0 ? fullText.slice(Math.max(0, mealTableEnd - 4000), mealTableEnd) : fullText.slice(0, 4000);
-    const mealPageIndex = Array.isArray(pages)
-      ? pages.findIndex((pageText) => /\bBreakfast\b/i.test(pageText) && /\bLunch\b/i.test(pageText) && /\bDinner\b/i.test(pageText))
-      : -1;
+    // The meal grid is the page where three "Breakfast" headers sit at three
+    // distinct x positions — prose pages that merely mention the meal names
+    // never satisfy that, so the column parser can't latch onto the wrong page.
+    let mealPageIndex = -1;
     let mealPositionedItems: PositionedText[] = [];
-    if (mealPageIndex >= 0) {
+    const candidatePages = Array.isArray(pages)
+      ? pages.map((t, i) => ({ t: despace(t), i })).filter(({ t }) => t.includes("breakfast") && t.includes("lunch") && t.includes("dinner"))
+      : [];
+
+    for (const { i } of candidatePages) {
       try {
         const page = await (pdf as { getPage: (n: number) => Promise<{ getTextContent: () => Promise<{ items: Array<Record<string, unknown>> }> }> })
-          .getPage(mealPageIndex + 1);
+          .getPage(i + 1);
         const content = await page.getTextContent();
-        mealPositionedItems = extractPositionedTextForPage({ content });
+        const items = extractPositionedTextForPage({ content });
+        const anchors = findColumnAnchors(items);
+
+        if (anchors.length >= 3) {
+          mealPageIndex = i;
+          mealPositionedItems = items;
+          break;
+        }
+        if (mealPageIndex < 0 && !mealPositionedItems.length) mealPositionedItems = items;
       } catch (err) {
         debug.meal_positioned_error = String(err);
       }
     }
     debug.meal_positioned_count = mealPositionedItems.length;
+    
+
+
     const { options: mealOptions, legacy: mealLegacy, debug: mealDebug } = parseMealTable(stripFooter(mealTableText), mealPositionedItems);
     debug.meal_parser = mealDebug;
 
@@ -1427,6 +1457,16 @@ Deno.serve(async (req) => {
       eggsMaxPerWeek: eggs.eggs_max_per_week,
       needsReview,
       validation,
+      mealParserMode: (mealDebug as { meal_parser_mode?: string }).meal_parser_mode ?? null,
+      mealParserDebug: {
+        pageIndex: mealPageIndex,
+        positionedCount: mealPositionedItems.length,
+        positionedError: debug.meal_positioned_error ?? null,
+        columnX: (mealDebug as { column_x?: number[] }).column_x ?? null,
+      },
+
+
+
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
