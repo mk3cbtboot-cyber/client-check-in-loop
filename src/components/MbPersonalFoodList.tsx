@@ -17,6 +17,8 @@ interface Props {
   clientId: string;
   /** The full client row — used to seed from the legacy food_* columns. */
   client: Record<string, unknown> | null | undefined;
+  /** Client's current MB phase — labels the list (Phase 1 has no food list). */
+  phase?: string | null;
   onSaved?: () => void;
 }
 
@@ -25,7 +27,8 @@ interface Props {
  * Chips are removable; sections can be deleted; items can be added back.
  * Saves to clients.mb_food_list (the legacy food_* columns are never touched).
  */
-export function MbPersonalFoodList({ clientId, client, onSaved }: Props) {
+export function MbPersonalFoodList({ clientId, client, phase, onSaved }: Props) {
+
   const [list, setList] = useState<MbFoodListMap>(() => resolveMbFoodList(client));
   const [adding, setAdding] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
