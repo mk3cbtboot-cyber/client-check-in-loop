@@ -175,7 +175,7 @@ const CHUNK_END_PATTERNS: RegExp[] = [
   /Personal Food List/i,
   /Additional Information about the Meal Plan/i,
   /Extended personal Food List/i,
-  /Shopping Helper/i,
+  /Shopping (?:Helper|Bag)/i,
   /\$\$CA_PHASE3\$\$/i,
   /From now on you have sprouts/i,
   /From now on,?\s*you/i,
@@ -224,7 +224,7 @@ function parseFoodSection(
       .filter(Boolean)
       .filter((s) => {
         if (s.length < 2 || s.length > 60) return false;
-        if (/Personal Food List|Additional Information|Extended personal|Shopping Helper|Page\s*\d|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:/i.test(s)) return false;
+        if (/Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|Page\s*\d|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:/i.test(s)) return false;
         if (!/[A-Za-z]/.test(s)) return false;
         if (/\.\s+[a-z]/.test(s)) return false;
         if (s.split(/\s+/).length > 5) return false;
@@ -835,7 +835,7 @@ const PHASE3_SPECS: Phase3Spec[] = [
 // Words that act as STOP boundaries but are NOT stored as fields themselves.
 // Only section-level boundaries — NOT "From now on"/"Please note"/"Note:" (those
 // can appear between items in Fat/Oil etc. and would truncate the list early).
-const PHASE3_BOUNDARY_KEYWORDS = /\b(Poultry|Fruit|Bread|Starch|Nuts|Yogurt|Milk Products|Pumpkin Seeds|Sunflower Seeds|Shopping Helper)\b/i;
+const PHASE3_BOUNDARY_KEYWORDS = /\b(Poultry|Fruit|Bread|Starch|Nuts|Yogurt|Milk Products|Pumpkin Seeds|Sunflower Seeds|Shopping (?:Helper|Bag))\b/i;
 
 function parsePhase3SectionByKeyword(
   section: string,
@@ -909,7 +909,7 @@ function parsePhase3SectionByKeyword(
       .filter((s) => {
         if (s.length < 2 || s.length > 60) return false;
         if (!/[A-Za-z]/.test(s)) return false;
-        if (/Personal Food List|Extended personal|Shopping Helper|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:|Phase\s*3/i.test(s)) return false;
+        if (/Personal Food List|Extended personal|Shopping (?:Helper|Bag)|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:|Phase\s*3/i.test(s)) return false;
         if (s.split(/\s+/).length > 5) return false;
         return true;
       });
@@ -978,9 +978,9 @@ Deno.serve(async (req) => {
     const phase2ProteinSection = sliceBetween(fullText, /Personal Food List\s*[-–]\s*Protein/i, /Personal Food List\s*[-–]\s*Carbohydrates|Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$/i);
     const phase2CarbSection = sliceBetween(fullText, /Personal Food List\s*[-–]\s*Carbohydrates/i, /Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$|Extended personal Food List/i);
     const additionalInfoSection = sliceBetween(fullText, /Additional Information about the Meal Plan/i, /\$\$CA_PHASE3\$\$|Extended personal Food List/i);
-    // Phase 3: bound on "Shopping Helper" to avoid pulling the combined list.
-    const phase3SectionRaw = sliceBetween(fullText, /Extended personal Food List/i, /Shopping Helper/i)
-      ?? sliceBetween(fullText, /\$\$CA_PHASE3\$\$/i, /Shopping Helper/i);
+    // Phase 3: bound on "Shopping (?:Helper|Bag)" to avoid pulling the combined list.
+    const phase3SectionRaw = sliceBetween(fullText, /Extended personal Food List/i, /Shopping (?:Helper|Bag)/i)
+      ?? sliceBetween(fullText, /\$\$CA_PHASE3\$\$/i, /Shopping (?:Helper|Bag)/i);
     const phase3Section = phase3SectionRaw ? stripFooter(phase3SectionRaw) : null;
 
     const mealTableEnd = fullText.search(/Personal Food List\s*[-–]\s*Protein/i);
@@ -1007,7 +1007,7 @@ Deno.serve(async (req) => {
         const start = sunMatch.index + sunMatch[0].length;
         const rest = phase2ProteinSection.slice(start);
         const stopRe = new RegExp(
-          `\\b(?:${protLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|")}|Personal Food List|Additional Information|Extended personal|Shopping Helper)\\b`,
+          `\\b(?:${protLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|")}|Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag))\\b`,
           "i",
         );
         const stopMatch = rest.match(stopRe);
@@ -1019,7 +1019,7 @@ Deno.serve(async (req) => {
           .filter(Boolean)
           .filter((s) => {
             if (s.length < 2 || s.length > 60) return false;
-            if (/Personal Food List|Additional Information|Extended personal|Shopping Helper|Page\s*\d|©|Metabolic Balance/i.test(s)) return false;
+            if (/Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|Page\s*\d|©|Metabolic Balance/i.test(s)) return false;
             if (!/[A-Za-z]/.test(s)) return false;
             if (s.split(/\s+/).length > 5) return false;
             return true;
@@ -1047,7 +1047,7 @@ Deno.serve(async (req) => {
         const start = pumpMatch.index + pumpMatch[0].length;
         const rest = phase2ProteinSection.slice(start);
         const stopRe = new RegExp(
-          `\\b(?:${protLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|")}|Personal Food List|Additional Information|Extended personal|Shopping Helper)\\b`,
+          `\\b(?:${protLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|")}|Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag))\\b`,
           "i",
         );
         const stopMatch = rest.match(stopRe);
@@ -1059,7 +1059,7 @@ Deno.serve(async (req) => {
           .filter(Boolean)
           .filter((s) => {
             if (s.length < 2 || s.length > 60) return false;
-            if (/Personal Food List|Additional Information|Extended personal|Shopping Helper|Page\s*\d|©|Metabolic Balance/i.test(s)) return false;
+            if (/Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|Page\s*\d|©|Metabolic Balance/i.test(s)) return false;
             if (!/[A-Za-z]/.test(s)) return false;
             if (s.split(/\s+/).length > 5) return false;
             return true;
@@ -1215,7 +1215,7 @@ Deno.serve(async (req) => {
       if (!m || m.index === undefined) return null;
       const after = fullText.slice(m.index + m[0].length);
       // Stop at next major section / page artifact.
-      const stopRe = /(Personal Food List|Additional Information|Extended personal|Shopping Helper|©\s*Metabolic Balance|Page\s*\d|Breakfast\b|Lunch\b|Dinner\b|\$\$CA_)/i;
+      const stopRe = /(Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|©\s*Metabolic Balance|Page\s*\d|Breakfast\b|Lunch\b|Dinner\b|\$\$CA_)/i;
       const sm = after.match(stopRe);
       let chunk = sm && sm.index !== undefined ? after.slice(0, sm.index) : after.slice(0, 600);
       chunk = stripFooter(chunk);
