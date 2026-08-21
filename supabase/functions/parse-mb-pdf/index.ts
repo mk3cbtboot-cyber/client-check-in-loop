@@ -1168,13 +1168,21 @@ Deno.serve(async (req) => {
     const candidatePages = Array.isArray(pages)
       ? pages.map((t, i) => ({ t, i })).filter(({ t }) => /\bBreakfast\b/i.test(t) && /\bLunch\b/i.test(t) && /\bDinner\b/i.test(t))
       : [];
+    const candidateDiag: unknown[] = [];
     for (const { i } of candidatePages) {
       try {
         const page = await (pdf as { getPage: (n: number) => Promise<{ getTextContent: () => Promise<{ items: Array<Record<string, unknown>> }> }> })
           .getPage(i + 1);
         const content = await page.getTextContent();
         const items = extractPositionedTextForPage({ content });
-        if (findColumnAnchors(items).length >= 3) {
+        const anchors = findColumnAnchors(items);
+        candidateDiag.push({
+          page: i,
+          count: items.length,
+          anchors,
+          breakfastish: items.filter((t) => /b\s*r\s*e\s*a\s*k\s*f\s*a\s*s\s*t/i.test(t.text)).map((t) => ({ text: t.text, x: t.x, y: t.y })),
+        });
+        if (anchors.length >= 3) {
           mealPageIndex = i;
           mealPositionedItems = items;
           break;
@@ -1185,6 +1193,8 @@ Deno.serve(async (req) => {
       }
     }
     debug.meal_positioned_count = mealPositionedItems.length;
+    debug.meal_candidates = candidateDiag;
+
 
     const { options: mealOptions, legacy: mealLegacy, debug: mealDebug } = parseMealTable(stripFooter(mealTableText), mealPositionedItems);
     debug.meal_parser = mealDebug;
