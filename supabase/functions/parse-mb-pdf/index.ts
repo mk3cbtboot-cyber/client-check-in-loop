@@ -372,14 +372,185 @@ function tokenizeMealItems(chunk: string): MealItem[] {
 /** Fill the legacy MealOption fields from the parsed item list. */
 function applyItemsToOption(option: MealOption, items: MealItem[]) {
   option.items = items;
-  const protein = items.find((it) => it.category === "Eggs" || isProteinLabel(it.category));
+  const isEggs = (c: string) => /^eggs?(\(s\))?$/i.test(c.replace(/\s+/g, ""));
+  const protein = items.find((it) => isEggs(it.category) || isProteinLabel(it.category));
   const veg = items.find((it) => isVegLabel(it.category));
-  option.protein_category = protein ? (protein.category === "Eggs" ? "Eggs" : protein.category) : null;
+  option.protein_category = protein ? (isEggs(protein.category) ? "Eggs" : protein.category) : null;
   option.protein_grams = protein && protein.unit !== "count" ? protein.qty : null;
   option.veg_grams = veg?.qty ?? null;
-  option.has_fruit = items.some((it) => it.category === "Fruit");
-  option.has_bread = items.some((it) => it.category === "Bread");
+  option.has_fruit = items.some((it) => /^fruits?$/i.test(it.category.trim()));
+  option.has_bread = items.some((it) => /^bread$/i.test(it.category.trim()));
 }
+
+/* ------------------------------------------------------------------ */
+/* Positioned-text (column) meal-table parser                          */
+/*                                                                     */
+/* The meal plan page is a three-column grid: one column per           */
+/* suggestion, each column stacking Breakfast / Lunch / Dinner. The    */
+/* columns are located from the x of the three "Breakfast" headers     */
+/* (never hard-coded) and split at the midpoints between them.         */
+/* ------------------------------------------------------------------ */
+
+type PdfRow = { y: number; items: PositionedText[] };
+
+function rowsFromItems(items: PositionedText[], tolerance = 3): PdfRow[] {
+  const rows: PdfRow[] = [];
+  for (const item of [...items].sort((a, b) => b.y - a.y || a.x - b.x)) {
+    const existing = rows.find((r) => Math.abs(r.y - item.y) <= tolerance);
+    if (existing) existing.items.push(item);
+    else rows.push({ y: item.y, items: [item] });
+  }
+  for (const r of rows) r.items.sort((a, b) => a.x - b.x);
+  return rows.sort((a, b) => b.y - a.y);
+}
+
+const MEAL_HEADER_RE = /^(breakfast|lunch|dinner)\b/i;
+
+/** x-positions of the three suggestion columns, derived from the Breakfast headers. */
+function findColumnAnchors(items: PositionedText[]): number[] {
+  const heads = items.filter((i) => /^breakfast\b/i.test(i.text.trim()));
+  const xs: number[] = [];
+  for (const h of heads.sort((a, b) => a.x - b.x)) {
+    if (!xs.some((x) => Math.abs(x - h.x) < 20)) xs.push(h.x);
+  }
+  return xs;
+}
+
+function columnIndexFor(x: number, anchors: number[]): number {
+  let idx = 0;
+  for (let i = 1; i < anchors.length; i++) {
+    const midpoint = (anchors[i - 1] + anchors[i]) / 2;
+    if (x >= midpoint) idx = i;
+  }
+  return idx;
+}
+
+const KNOWN_CATEGORY_ALT = [...MEAL_ITEM_CATEGORIES]
+  .sort((a, b) => b.length - a.length)
+  .map((l) => escapeRegExp(l))
+  .join("|");
+
+// A food name: a known category, or a free-form capitalised name of up to
+// three words, optionally carrying a parenthetical role tag.
+const NAME_SRC = `(?:${KNOWN_CATEGORY_ALT}|[A-Za-z][A-Za-z.\\/'-]*(?:\\s+[A-Za-z][A-Za-z.\\/'-]*){0,2})`;
+
+function buildLineItemRegex(): RegExp {
+  return new RegExp(
+    // "120 g Fish", "200 ml Milk Products", "80 g Mushrooms (Protein)"
+    `(\\d{1,4})\\s*(g|ml)\\s+(${NAME_SRC})(?:\\s*\\(([^)]{1,24})\\))?` +
+      // "Fish 120 g"
+      `|(${NAME_SRC})\\s+(\\d{1,4})\\s*(g|ml)\\b` +
+      // "2 Eggs"
+      `|(\\d{1,2})\\s*Eggs?\\b` +
+      // bare "Fruit" / "Bread"
+      `|\\b(${KNOWN_CATEGORY_ALT})(?:\\s*\\(([^)]{1,24})\\))?\\b`,
+    "gi",
+  );
+}
+
+const MEAL_LINE_NOISE_RE =
+  /^(?:\+|\d+\s*h(?:rs?)?\b|Personal Food List|Additional Information|Page\s*\d|©|Metabolic Balance|Coach\s*:)/i;
+
+/** Parse one column-line of text into zero or more meal components. */
+function parseMealLineItems(line: string): MealItem[] {
+  const out: MealItem[] = [];
+  const text = line.replace(/\s+/g, " ").trim();
+  if (!text || MEAL_LINE_NOISE_RE.test(text)) return out;
+  const re = buildLineItemRegex();
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m[3]) {
+      out.push({ category: canonCategory(m[3]), qty: parseInt(m[1], 10), unit: m[2].toLowerCase() as MbItemUnit, ...(m[4] ? { role: m[4].trim() } : {}) });
+    } else if (m[5]) {
+      out.push({ category: canonCategory(m[5]), qty: parseInt(m[6], 10), unit: m[7].toLowerCase() as MbItemUnit });
+    } else if (m[8]) {
+      out.push({ category: "Eggs", qty: parseInt(m[8], 10), unit: "count" });
+    } else if (m[9]) {
+      out.push({ category: canonCategory(m[9]), qty: null, unit: "as_listed", ...(m[10] ? { role: m[10].trim() } : {}) });
+    }
+  }
+  return out;
+}
+
+/**
+ * Column-based meal table parse. Returns null when the page does not look
+ * like the expected three-column grid, so the caller can fall back.
+ */
+function parseMealTableColumns(
+  positionedItems: PositionedText[],
+): { options: MealOptionsMap; legacy: Record<string, string | number | null>; debug: Record<string, unknown> } | null {
+  if (!positionedItems.length) return null;
+  const anchors = findColumnAnchors(positionedItems);
+  if (anchors.length < 3) return null;
+  const cols = anchors.slice(0, 3);
+
+  const rows = rowsFromItems(positionedItems);
+  // Column text lines, top to bottom.
+  const columnLines: string[][] = [[], [], []];
+  for (const row of rows) {
+    const buckets: PositionedText[][] = [[], [], []];
+    for (const item of row.items) buckets[columnIndexFor(item.x, cols)].push(item);
+    buckets.forEach((bucket, ci) => {
+      const text = bucket.map((b) => b.text).join(" ").replace(/\s+/g, " ").trim();
+      if (text) columnLines[ci].push(text);
+    });
+  }
+
+  const options = createEmptyMealOptions();
+  const legacy: Record<string, string | number | null> = {};
+  const mealKeys: MealKey[] = ["breakfast", "lunch", "dinner"];
+  const debugColumns: Record<string, unknown>[] = [];
+
+  columnLines.forEach((lines, ci) => {
+    let current: MealKey | null = null;
+    const perMeal: Record<MealKey, MealItem[]> = { breakfast: [], lunch: [], dinner: [] };
+    const perMealLines: Record<MealKey, string[]> = { breakfast: [], lunch: [], dinner: [] };
+    for (const raw of lines) {
+      if (/^Personal Food List/i.test(raw)) break;
+      const header = raw.match(MEAL_HEADER_RE);
+      if (header) {
+        current = header[1].toLowerCase() as MealKey;
+        const rest = raw.slice(header[0].length).trim();
+        if (rest) {
+          perMealLines[current].push(rest);
+          perMeal[current].push(...parseMealLineItems(rest));
+        }
+        continue;
+      }
+      if (!current) continue;
+      perMealLines[current].push(raw);
+      perMeal[current].push(...parseMealLineItems(raw));
+    }
+    for (const meal of mealKeys) applyItemsToOption(options[meal][ci], perMeal[meal]);
+    debugColumns.push({ column: ci, x: cols[ci], lines: perMealLines });
+  });
+
+  for (const meal of mealKeys) {
+    const first = options[meal][0];
+    legacy[`${meal}_protein_category`] = first.protein_category;
+    legacy[`${meal}_protein_grams`] = first.protein_grams;
+    legacy[`${meal}_veg_grams`] = first.veg_grams;
+  }
+
+  const total = mealKeys.reduce((n, meal) => n + options[meal].reduce((s, o) => s + o.items.length, 0), 0);
+  if (total === 0) return null;
+
+  return {
+    options,
+    legacy,
+    debug: {
+      meal_parser_mode: "columns",
+      column_x: cols,
+      columns: debugColumns,
+      meal_items: mealKeys.reduce((acc, mk) => {
+        acc[mk] = options[mk].map((o) => o.items);
+        return acc;
+      }, {} as Record<string, MealItem[][]>),
+    },
+  };
+}
+
+
 
 
 
