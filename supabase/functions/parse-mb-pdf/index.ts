@@ -1201,10 +1201,43 @@ Deno.serve(async (req) => {
       return unique.length ? unique : null;
     })();
 
+    // ---- Validation: never return a silent success on an empty parse ----
+    debug.step = "validate";
+    const validation: string[] = [];
+    const optionCount = (["breakfast", "lunch", "dinner"] as const)
+      .reduce((n, k) => n + mealOptionsResult[k].filter((o) => (o.items?.length ?? 0) > 0 || o.protein_category).length, 0);
+    if (optionCount === 0) validation.push("meal_options");
+    const foodFieldKeys = [
+      ...unique(phase2ProteinFields),
+      ...unique(phase2CarbFields),
+    ];
+    const filledFoodFields = foodFieldKeys.filter((f) => result[f]?.extracted).length;
+    if (filledFoodFields === 0) validation.push("food_categories");
+    if (water == null) validation.push("water_target");
+    if (!footerIdentity.clientName) validation.push("client_name");
+    if (!footerIdentity.coachName) validation.push("coach_name");
+
+    const needsReview = validation.length > 0;
+
     debug.step = "complete";
-    return new Response(JSON.stringify({ fields: result, mealOptions: mealOptionsResult, foodExclusions, storagePath }), {
+    return new Response(JSON.stringify({
+      fields: result,
+      mealOptions: mealOptionsResult,
+      foodExclusions,
+      storagePath,
+      format,
+      clientName: footerIdentity.clientName,
+      coachName: footerIdentity.coachName,
+      waterTargetLitres: water,
+      waterTargetMl: waterMl,
+      eggsMinPerWeek: eggs.eggs_min_per_week,
+      eggsMaxPerWeek: eggs.eggs_max_per_week,
+      needsReview,
+      validation,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
 
   } catch (e) {
     console.error("parse-mb-pdf failure", { step: debug.step, error: e });
