@@ -1172,8 +1172,9 @@ Deno.serve(async (req) => {
     let mealPageIndex = -1;
     let mealPositionedItems: PositionedText[] = [];
     const candidatePages = Array.isArray(pages)
-      ? pages.map((t, i) => ({ t, i })).filter(({ t }) => /\bBreakfast\b/i.test(t) && /\bLunch\b/i.test(t) && /\bDinner\b/i.test(t))
+      ? pages.map((t, i) => ({ t: despace(t), i })).filter(({ t }) => t.includes("breakfast") && t.includes("lunch") && t.includes("dinner"))
       : [];
+
     const candidateDiag: unknown[] = [];
     for (const { i } of candidatePages) {
       try {
