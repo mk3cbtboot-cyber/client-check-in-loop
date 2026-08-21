@@ -6,7 +6,10 @@
 import type { ReactNode } from "react";
 import type { MealType } from "@/lib/mb-foods";
 import type { MbColour, MbPlanItem, MbSuggestion } from "@/lib/mb-plan";
-import { categoryLabel, MB_FOOD_CATEGORIES, type MbFoodListMap } from "@/lib/mb-food-list";
+import {
+  categoryLabel, MB_FOOD_CATEGORIES, phase3AdditionSections,
+  type MbFoodListMap, type MbFoodSection,
+} from "@/lib/mb-food-list";
 import { fmtQty, RUN_MEALS } from "@/lib/mb-run";
 import { foodListTitle } from "@/lib/phases";
 import { Card } from "@/components/ui/card";
