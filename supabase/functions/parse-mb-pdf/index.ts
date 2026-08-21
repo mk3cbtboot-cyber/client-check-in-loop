@@ -1428,6 +1428,14 @@ Deno.serve(async (req) => {
       needsReview,
       validation,
       mealParserMode: (mealDebug as { meal_parser_mode?: string }).meal_parser_mode ?? null,
+      mealParserDebug: {
+        pageIndex: mealPageIndex,
+        positionedCount: mealPositionedItems.length,
+        positionedError: debug.meal_positioned_error ?? null,
+        columnX: (mealDebug as { column_x?: number[] }).column_x ?? null,
+        sample: mealPositionedItems.slice(0, 15),
+      },
+
 
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
