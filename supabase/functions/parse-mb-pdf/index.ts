@@ -1163,12 +1163,21 @@ Deno.serve(async (req) => {
     const mealPageIndex = Array.isArray(pages)
       ? pages.findIndex((pageText) => /\bBreakfast\b/i.test(pageText) && /\bLunch\b/i.test(pageText) && /\bDinner\b/i.test(pageText))
       : -1;
-    const mealPage = mealPageIndex >= 0 && Array.isArray((pdf as { pages?: unknown[] }).pages)
-      ? (pdf as { pages?: unknown[] }).pages?.[mealPageIndex]
-      : null;
-    const mealPositionedItems = mealPage ? extractPositionedTextForPage(mealPage) : [];
+    let mealPositionedItems: PositionedText[] = [];
+    if (mealPageIndex >= 0) {
+      try {
+        const page = await (pdf as { getPage: (n: number) => Promise<{ getTextContent: () => Promise<{ items: Array<Record<string, unknown>> }> }> })
+          .getPage(mealPageIndex + 1);
+        const content = await page.getTextContent();
+        mealPositionedItems = extractPositionedTextForPage({ content });
+      } catch (err) {
+        debug.meal_positioned_error = String(err);
+      }
+    }
+    debug.meal_positioned_count = mealPositionedItems.length;
     const { options: mealOptions, legacy: mealLegacy, debug: mealDebug } = parseMealTable(stripFooter(mealTableText), mealPositionedItems);
     debug.meal_parser = mealDebug;
+
 
     const phase2Proteins = phase2ProteinSection ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES, stripFooter) : {};
 
