@@ -714,7 +714,13 @@ function parseMealTable(
   text: string,
   positionedItems: PositionedText[] = [],
 ): { options: MealOptionsMap; legacy: Record<string, string | number | null>; debug: Record<string, unknown> } {
+  // Primary path: positioned-text three-column grid. Text regex ordering is
+  // only a fallback for pages where the columns cannot be located.
+  const columnParse = parseMealTableColumns(positionedItems);
+  if (columnParse) return columnParse;
+
   const options = createEmptyMealOptions();
+
   const legacy: Record<string, string | number | null> = {};
   const debug: Record<string, unknown> = {};
   const mealKeys: MealKey[] = ["breakfast", "lunch", "dinner"];
