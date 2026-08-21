@@ -1202,7 +1202,7 @@ Deno.serve(async (req) => {
       }
     }
     debug.meal_positioned_count = mealPositionedItems.length;
-    debug.meal_candidates = candidateDiag;
+    
 
 
     const { options: mealOptions, legacy: mealLegacy, debug: mealDebug } = parseMealTable(stripFooter(mealTableText), mealPositionedItems);
