@@ -62,13 +62,28 @@ const PHASE3_CATEGORIES: Record<string, string> = {
   "Sunflower Seeds": "__phase3_sunflower_boundary__",
 };
 
+const UNICODE_FRACTIONS: Record<string, number> = {
+  "\u00BD": 0.5, // ½
+  "\u00BC": 0.25, // ¼
+  "\u00BE": 0.75, // ¾
+  "\u2153": 1 / 3,
+  "\u2154": 2 / 3,
+};
+
+/** Remove soft hyphens (U+00AD) and normalise whitespace-ish artifacts. */
+function stripSoftHyphens(value: string): string {
+  return value.replace(/\u00AD/g, "");
+}
+
 function normalizeWater(raw: string): number | null {
   const cleaned = raw.replace(/,/g, ".").trim();
-  const fracMap: Record<string, number> = { "½": 0.5, "¼": 0.25, "¾": 0.75 };
-  const m = cleaned.match(/^(\d+)\s*([½¼¾])?$/);
-  if (m) return parseInt(m[1], 10) + (m[2] ? fracMap[m[2]] : 0);
-  const m2 = cleaned.match(/^(\d+)\s+1\/(\d)$/);
-  if (m2) return parseInt(m2[1], 10) + 1 / parseInt(m2[2], 10);
+  // "2 ½", "½", "2.5", "2 1/2"
+  const m = cleaned.match(/^(\d+)?\s*([\u00BD\u00BC\u00BE\u2153\u2154])$/);
+  if (m) return (m[1] ? parseInt(m[1], 10) : 0) + UNICODE_FRACTIONS[m[2]];
+  const m2 = cleaned.match(/^(\d+)\s+(\d)\/(\d)$/);
+  if (m2) return parseInt(m2[1], 10) + parseInt(m2[2], 10) / parseInt(m2[3], 10);
+  const m3 = cleaned.match(/^(\d)\/(\d)$/);
+  if (m3) return parseInt(m3[1], 10) / parseInt(m3[2], 10);
   const n = parseFloat(cleaned);
   return Number.isFinite(n) ? n : null;
 }
@@ -77,96 +92,42 @@ function escapeRegExp(value: string): string {
   return value.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
 }
 
-function stripTrailingClientName(value: string, firstName: string, lastName: string): string {
-  let out = value;
-  if (firstName && lastName) {
-    const pattern = new RegExp(`\\s+${escapeRegExp(firstName)}\\s+${escapeRegExp(lastName)}$`, "i");
-    out = out.replace(pattern, "").trim();
-  }
-  if (firstName) {
-    out = out.replace(new RegExp(`\\s+${escapeRegExp(firstName)}$`, "i"), "").trim();
-  }
-  if (lastName) {
-    out = out.replace(new RegExp(`\\s+${escapeRegExp(lastName)}$`, "i"), "").trim();
-    // Fallback 1: optional preceding word + last name at end of string
-    out = out.replace(new RegExp(`\\s+\\S+\\s+${escapeRegExp(lastName)}\\s*$`, "i"), "").trim();
-    // Fallback 2: last name alone at end of string (with any whitespace)
-    out = out.replace(new RegExp(`\\s+${escapeRegExp(lastName)}\\s*$`, "i"), "").trim();
-  }
-  return out;
+// Page footer: "<Client Name> | © Metabolic Balance | Coach: <Coach Name> <page>"
+// Matched exactly so real food words are never removed from the body text.
+const FOOTER_RE =
+  /([^\n|]{1,60}?)\s*\|\s*©\s*Metabolic\s*Balance\s*\|\s*(?:Coach|COACH|coach)\s*:\s*((?:[A-Z][^\s|\n]*)(?:[ \t]+[A-Z][^\s|\n]*){0,3})[ \t]*(\d{1,3})?/g;
+
+function extractFooterIdentity(text: string): { clientName: string | null; coachName: string | null } {
+  FOOTER_RE.lastIndex = 0;
+  const m = FOOTER_RE.exec(text);
+  FOOTER_RE.lastIndex = 0;
+  if (!m) return { clientName: null, coachName: null };
+  const clientName = (m[1] ?? "").replace(/\s+/g, " ").trim() || null;
+  const coachName = (m[2] ?? "").replace(/\s+/g, " ").trim() || null;
+  return { clientName, coachName };
 }
 
-function buildTrailingNameStripper(clientName: string | null): (s: string) => string {
-  const trimmed = clientName?.trim() ?? "";
-  if (!trimmed) {
-    return (s: string) => s.replace(/\s+/g, " ").replace(/\s*\|\s*$/g, "").trim();
-  }
-
-  const parts = trimmed.split(/\s+/).filter(Boolean);
-  const first = parts[0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1] : "";
-  const fullPattern = escapeRegExp(trimmed).replace(/\s+/g, "\\s+");
-  const firstPattern = first ? escapeRegExp(first) : "";
-  const lastPattern = last ? escapeRegExp(last) : "";
-
-  // Aggressive: strip trailing occurrences of full name / first+last / first / last,
-  // regardless of leading separator (space, comma, pipe, newline, etc.)
-  const patterns: RegExp[] = [
-    new RegExp(`[\\s,;:|/\\-]*${fullPattern}(?:\\s*\\|.*)?\\s*$`, "i"),
-    first && last
-      ? new RegExp(`[\\s,;:|/\\-]*${firstPattern}\\s+${lastPattern}(?:\\s*\\|.*)?\\s*$`, "i")
-      : null,
-    first ? new RegExp(`[\\s,;:|/\\-]+${firstPattern}(?:\\s*\\|.*)?\\s*$`, "i") : null,
-    last ? new RegExp(`[\\s,;:|/\\-]+${lastPattern}(?:\\s*\\|.*)?\\s*$`, "i") : null,
-  ].filter((p): p is RegExp => Boolean(p));
-
+/**
+ * Strips only the exact footer line (and bare "Page N of M" artifacts).
+ * Deliberately does NOT strip name fragments across the text — a client named
+ * "Olive" or "Berry" must not have those foods deleted from their food list.
+ */
+function buildFooterStripper(): (s: string) => string {
   return (s: string) => {
-    let out = s.replace(/\s+/g, " ").trim();
-    let changed = true;
-    while (changed && out) {
-      changed = false;
-      for (const pattern of patterns) {
-        const next = out
-          .replace(pattern, "")
-          .replace(/\s*\|\s*$/g, "")
-          .replace(/[\s,;]+$/g, "")
-          .trim();
-        if (next !== out) {
-          out = next;
-          changed = true;
-        }
-      }
-    }
-    return out;
-  };
-}
-
-// Returns a regex that strips lines/spans matching the page footer pattern:
-// "[First] [Last] | © Metabolic Balance | Coach: [Coach Name]"
-function buildFooterStripper(clientName: string | null): (s: string) => string {
-  const stripTrailingName = buildTrailingNameStripper(clientName);
-  return (s: string) => {
-    let out = s;
-    out = out.replace(/[^\n]*©\s*Metabolic Balance[^\n]*/gi, " ");
-    out = out.replace(/Coach\s*:\s*[^\n|]+/gi, " ");
-    if (clientName) {
-      const trimmed = clientName.trim();
-      const escapedFull = escapeRegExp(trimmed).replace(/\s+/g, "\\s+");
-      out = out.replace(new RegExp(`${escapedFull}\\s*\\|?`, "gi"), " ");
-      out = out.replace(new RegExp(escapedFull, "gi"), " ");
-      for (const part of trimmed.split(/\s+/)) {
-        if (part.length < 2) continue;
-        const esc = escapeRegExp(part);
-        out = out.replace(new RegExp(`\\b${esc}\\b`, "gi"), " ");
-      }
-    }
-    // Strip any "Word Word |" proper-noun-pair followed by pipe (page footer remnant)
-    out = out.replace(/\b[A-Z][a-z]+\s+[A-Z][a-z]+\s*\|/g, " ");
+    let out = s.replace(FOOTER_RE, " ");
+    out = out.replace(/Page\s*\d+\s*(?:of\s*\d+)?/gi, " ");
     out = out.replace(/\s*\|\s*\|/g, " ");
-    out = out.replace(/\s*\|\s*$/gm, " ");
-    return stripTrailingName(out);
+    return out.replace(/[ \t]{2,}/g, " ").replace(/\s*\|\s*$/gm, " ");
   };
 }
+
+type MbFormat = "classic" | "new" | "unsupported";
+function detectFormat(text: string): MbFormat {
+  if (/\$\$CA_PHASE[1-4]\$\$/i.test(text)) return "classic";
+  if (/PHASE\s*[12]\s*:/i.test(text)) return "new";
+  return "unsupported";
+}
+
 
 const CHUNK_END_PATTERNS: RegExp[] = [
   /\|\s*©/i,
