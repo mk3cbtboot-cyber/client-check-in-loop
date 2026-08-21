@@ -93,11 +93,17 @@ const blankPlan = (): MbPlan => ({
 });
 
 
+interface Phase2Category {
+  title: string;
+  items: string[];
+}
+
 interface WeeklyAck {
   food_name: string;
   limit_value: number;
   acknowledged_at: string;
 }
+
 
 interface Props {
   clientId: string;
