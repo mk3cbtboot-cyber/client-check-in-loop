@@ -25,6 +25,7 @@ import { parseMbRun, resolveDayMeal, runDates, todayISO, fmtQty, RUN_DAYS, RUN_M
 
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
+import { MbFoodListReadonly } from "@/components/MbSuggestionBoard";
 import { phaseLabel, phaseShort, foodListTitle, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
 import { getPhaseProgress } from "@/lib/progress";
 import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
@@ -1523,7 +1524,7 @@ export default function ClientPortal() {
                 if (client.phase === "phase3") {
                   // The run planner above already renders the split Phase 2 base +
                   // Phase 3 additions list; don't repeat it here.
-                  if (mbPlanConfirmed && client.client_type !== "custom") return null;
+                  if (mbPlanConfirmed) return null;
                   return (
                     <MbFoodListReadonly
                       foodList={resolveMbFoodList(client as unknown as Record<string, unknown>)}
