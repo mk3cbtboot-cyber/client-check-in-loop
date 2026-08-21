@@ -62,13 +62,28 @@ const PHASE3_CATEGORIES: Record<string, string> = {
   "Sunflower Seeds": "__phase3_sunflower_boundary__",
 };
 
+const UNICODE_FRACTIONS: Record<string, number> = {
+  "\u00BD": 0.5, // ½
+  "\u00BC": 0.25, // ¼
+  "\u00BE": 0.75, // ¾
+  "\u2153": 1 / 3,
+  "\u2154": 2 / 3,
+};
+
+/** Remove soft hyphens (U+00AD) and normalise whitespace-ish artifacts. */
+function stripSoftHyphens(value: string): string {
+  return value.replace(/\u00AD/g, "");
+}
+
 function normalizeWater(raw: string): number | null {
   const cleaned = raw.replace(/,/g, ".").trim();
-  const fracMap: Record<string, number> = { "½": 0.5, "¼": 0.25, "¾": 0.75 };
-  const m = cleaned.match(/^(\d+)\s*([½¼¾])?$/);
-  if (m) return parseInt(m[1], 10) + (m[2] ? fracMap[m[2]] : 0);
-  const m2 = cleaned.match(/^(\d+)\s+1\/(\d)$/);
-  if (m2) return parseInt(m2[1], 10) + 1 / parseInt(m2[2], 10);
+  // "2 ½", "½", "2.5", "2 1/2"
+  const m = cleaned.match(/^(\d+)?\s*([\u00BD\u00BC\u00BE\u2153\u2154])$/);
+  if (m) return (m[1] ? parseInt(m[1], 10) : 0) + UNICODE_FRACTIONS[m[2]];
+  const m2 = cleaned.match(/^(\d+)\s+(\d)\/(\d)$/);
+  if (m2) return parseInt(m2[1], 10) + parseInt(m2[2], 10) / parseInt(m2[3], 10);
+  const m3 = cleaned.match(/^(\d)\/(\d)$/);
+  if (m3) return parseInt(m3[1], 10) / parseInt(m3[2], 10);
   const n = parseFloat(cleaned);
   return Number.isFinite(n) ? n : null;
 }
@@ -77,96 +92,42 @@ function escapeRegExp(value: string): string {
   return value.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
 }
 
-function stripTrailingClientName(value: string, firstName: string, lastName: string): string {
-  let out = value;
-  if (firstName && lastName) {
-    const pattern = new RegExp(`\\s+${escapeRegExp(firstName)}\\s+${escapeRegExp(lastName)}$`, "i");
-    out = out.replace(pattern, "").trim();
-  }
-  if (firstName) {
-    out = out.replace(new RegExp(`\\s+${escapeRegExp(firstName)}$`, "i"), "").trim();
-  }
-  if (lastName) {
-    out = out.replace(new RegExp(`\\s+${escapeRegExp(lastName)}$`, "i"), "").trim();
-    // Fallback 1: optional preceding word + last name at end of string
-    out = out.replace(new RegExp(`\\s+\\S+\\s+${escapeRegExp(lastName)}\\s*$`, "i"), "").trim();
-    // Fallback 2: last name alone at end of string (with any whitespace)
-    out = out.replace(new RegExp(`\\s+${escapeRegExp(lastName)}\\s*$`, "i"), "").trim();
-  }
-  return out;
+// Page footer: "<Client Name> | © Metabolic Balance | Coach: <Coach Name> <page>"
+// Matched exactly so real food words are never removed from the body text.
+const FOOTER_RE =
+  /([^\n|]{1,60}?)\s*\|\s*©\s*Metabolic\s*Balance\s*\|\s*(?:Coach|COACH|coach)\s*:\s*((?:[A-Z][^\s|\n]*)(?:[ \t]+[A-Z][^\s|\n]*){0,3})[ \t]*(\d{1,3})?/g;
+
+function extractFooterIdentity(text: string): { clientName: string | null; coachName: string | null } {
+  FOOTER_RE.lastIndex = 0;
+  const m = FOOTER_RE.exec(text);
+  FOOTER_RE.lastIndex = 0;
+  if (!m) return { clientName: null, coachName: null };
+  const clientName = (m[1] ?? "").replace(/\s+/g, " ").trim() || null;
+  const coachName = (m[2] ?? "").replace(/\s+/g, " ").trim() || null;
+  return { clientName, coachName };
 }
 
-function buildTrailingNameStripper(clientName: string | null): (s: string) => string {
-  const trimmed = clientName?.trim() ?? "";
-  if (!trimmed) {
-    return (s: string) => s.replace(/\s+/g, " ").replace(/\s*\|\s*$/g, "").trim();
-  }
-
-  const parts = trimmed.split(/\s+/).filter(Boolean);
-  const first = parts[0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1] : "";
-  const fullPattern = escapeRegExp(trimmed).replace(/\s+/g, "\\s+");
-  const firstPattern = first ? escapeRegExp(first) : "";
-  const lastPattern = last ? escapeRegExp(last) : "";
-
-  // Aggressive: strip trailing occurrences of full name / first+last / first / last,
-  // regardless of leading separator (space, comma, pipe, newline, etc.)
-  const patterns: RegExp[] = [
-    new RegExp(`[\\s,;:|/\\-]*${fullPattern}(?:\\s*\\|.*)?\\s*$`, "i"),
-    first && last
-      ? new RegExp(`[\\s,;:|/\\-]*${firstPattern}\\s+${lastPattern}(?:\\s*\\|.*)?\\s*$`, "i")
-      : null,
-    first ? new RegExp(`[\\s,;:|/\\-]+${firstPattern}(?:\\s*\\|.*)?\\s*$`, "i") : null,
-    last ? new RegExp(`[\\s,;:|/\\-]+${lastPattern}(?:\\s*\\|.*)?\\s*$`, "i") : null,
-  ].filter((p): p is RegExp => Boolean(p));
-
+/**
+ * Strips only the exact footer line (and bare "Page N of M" artifacts).
+ * Deliberately does NOT strip name fragments across the text — a client named
+ * "Olive" or "Berry" must not have those foods deleted from their food list.
+ */
+function buildFooterStripper(): (s: string) => string {
   return (s: string) => {
-    let out = s.replace(/\s+/g, " ").trim();
-    let changed = true;
-    while (changed && out) {
-      changed = false;
-      for (const pattern of patterns) {
-        const next = out
-          .replace(pattern, "")
-          .replace(/\s*\|\s*$/g, "")
-          .replace(/[\s,;]+$/g, "")
-          .trim();
-        if (next !== out) {
-          out = next;
-          changed = true;
-        }
-      }
-    }
-    return out;
-  };
-}
-
-// Returns a regex that strips lines/spans matching the page footer pattern:
-// "[First] [Last] | © Metabolic Balance | Coach: [Coach Name]"
-function buildFooterStripper(clientName: string | null): (s: string) => string {
-  const stripTrailingName = buildTrailingNameStripper(clientName);
-  return (s: string) => {
-    let out = s;
-    out = out.replace(/[^\n]*©\s*Metabolic Balance[^\n]*/gi, " ");
-    out = out.replace(/Coach\s*:\s*[^\n|]+/gi, " ");
-    if (clientName) {
-      const trimmed = clientName.trim();
-      const escapedFull = escapeRegExp(trimmed).replace(/\s+/g, "\\s+");
-      out = out.replace(new RegExp(`${escapedFull}\\s*\\|?`, "gi"), " ");
-      out = out.replace(new RegExp(escapedFull, "gi"), " ");
-      for (const part of trimmed.split(/\s+/)) {
-        if (part.length < 2) continue;
-        const esc = escapeRegExp(part);
-        out = out.replace(new RegExp(`\\b${esc}\\b`, "gi"), " ");
-      }
-    }
-    // Strip any "Word Word |" proper-noun-pair followed by pipe (page footer remnant)
-    out = out.replace(/\b[A-Z][a-z]+\s+[A-Z][a-z]+\s*\|/g, " ");
+    let out = s.replace(FOOTER_RE, " ");
+    out = out.replace(/Page\s*\d+\s*(?:of\s*\d+)?/gi, " ");
     out = out.replace(/\s*\|\s*\|/g, " ");
-    out = out.replace(/\s*\|\s*$/gm, " ");
-    return stripTrailingName(out);
+    return out.replace(/[ \t]{2,}/g, " ").replace(/\s*\|\s*$/gm, " ");
   };
 }
+
+type MbFormat = "classic" | "new" | "unsupported";
+function detectFormat(text: string): MbFormat {
+  if (/\$\$CA_PHASE[1-4]\$\$/i.test(text)) return "classic";
+  if (/PHASE\s*[12]\s*:/i.test(text)) return "new";
+  return "unsupported";
+}
+
 
 const CHUNK_END_PATTERNS: RegExp[] = [
   /\|\s*©/i,
@@ -175,7 +136,7 @@ const CHUNK_END_PATTERNS: RegExp[] = [
   /Personal Food List/i,
   /Additional Information about the Meal Plan/i,
   /Extended personal Food List/i,
-  /Shopping Helper/i,
+  /Shopping (?:Helper|Bag)/i,
   /\$\$CA_PHASE3\$\$/i,
   /From now on you have sprouts/i,
   /From now on,?\s*you/i,
@@ -205,7 +166,7 @@ function parseFoodSection(
   const labelPattern = labels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
   // Allow heading to start after newline, semicolon, comma-newline, or after gram-amount entries
   // (since unpdf often flattens columns into one line, "Sunflower Seeds" etc. may not be newline-prefixed).
-  const splitRe = new RegExp(`(?:^|[\\n;]|(?<=\\bg\\s)|(?<=\\)\\s)|(?<=[.,]\\s))\\s*(${labelPattern})\\s*[:\\-–]?\\s+`, "g");
+  const splitRe = new RegExp(`(?:^|[\\n;]|(?<=\\bg\\s)|(?<=\\)\\s)|(?<=[.,]\\s))\\s*(${labelPattern})\\s*[:\\-–]?\\s+`, "gi");
 
   const matches: { label: string; start: number; contentStart: number }[] = [];
   let m: RegExpExecArray | null;
@@ -224,13 +185,16 @@ function parseFoodSection(
       .filter(Boolean)
       .filter((s) => {
         if (s.length < 2 || s.length > 60) return false;
-        if (/Personal Food List|Additional Information|Extended personal|Shopping Helper|Page\s*\d|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:/i.test(s)) return false;
+        if (/Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|Page\s*\d|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:/i.test(s)) return false;
         if (!/[A-Za-z]/.test(s)) return false;
         if (/\.\s+[a-z]/.test(s)) return false;
         if (s.split(/\s+/).length > 5) return false;
         return true;
       });
-    const field = categoryMap[cur.label];
+    // Case-insensitive lookup so ALL-CAPS (New layout) headings map correctly.
+    const lookup: Record<string, string> = {};
+    for (const [k, v] of Object.entries(categoryMap)) lookup[k.toLowerCase().replace(/\s+/g, " ")] = v;
+    const field = lookup[cur.label.toLowerCase().replace(/\s+/g, " ")];
     if (!field || field.startsWith("__")) continue; // boundary-only label
     const existing = result[field] ? result[field].split(",").map((s) => s.trim()).filter(Boolean) : [];
     const merged = Array.from(new Set([...existing, ...items]));
@@ -416,13 +380,8 @@ function applyItemsToOption(option: MealOption, items: MealItem[]) {
 
 
 
-function getTrailingClientNamePatterns(firstName: string, lastName: string): string[] {
-  const patterns: string[] = [];
-  if (firstName && lastName) patterns.push(`\\s+${escapeRegExp(firstName)}\\s+${escapeRegExp(lastName)}$`);
-  if (firstName) patterns.push(`\\s+${escapeRegExp(firstName)}$`);
-  if (lastName) patterns.push(`\\s+${escapeRegExp(lastName)}$`);
-  return patterns;
-}
+
+
 
 function preprocessMealLines(lines: string[]): string[] {
   const merged: string[] = [];
@@ -540,6 +499,7 @@ function parseMealLinesBySection(lines: string[], options: MealOptionsMap) {
       const protein = extractMealProtein(line);
       if (!protein) continue;
       options[meal][slot] = {
+        items: [],
         protein_category: protein.label,
         protein_grams: protein.grams,
         veg_grams: extractVegGramsFromLine(line, protein.grams),
@@ -780,12 +740,28 @@ function parseFoodLimits(text: string): Record<string, number> {
   return out;
 }
 
+// Water is only read from the "Water" row/heading (Classic title case or New
+// ALL-CAPS), never from the first litre-looking number anywhere in the document.
+const WATER_QTY_RE =
+  /(\d+(?:[.,]\d+)?(?:\s*[\u00BD\u00BC\u00BE\u2153\u2154])?(?:\s*\d\/\d)?|[\u00BD\u00BC\u00BE\u2153\u2154])\s*(?:l\b|l(?:iters?|itres?)\b|L\b)/i;
+
 function parseWater(text: string): number | null {
-  const re = /(\d+(?:[.,]\d+)?(?:\s*[½¼¾])?(?:\s*1\/\d)?)\s*(?:l(?:iters?|itres?)?|L)\b/i;
-  const m = text.match(re);
-  if (!m) return null;
-  return normalizeWater(m[1]);
+  const rowRe = /\bWATER\b/gi;
+  let m: RegExpExecArray | null;
+  while ((m = rowRe.exec(text)) !== null) {
+    // Only look inside the Water row itself (rest of line, or 120 chars if flattened).
+    const after = text.slice(m.index + m[0].length);
+    const lineEnd = after.search(/\n/);
+    const scope = after.slice(0, lineEnd >= 0 ? Math.min(lineEnd, 120) : 120);
+    const q = scope.match(WATER_QTY_RE);
+    if (q) {
+      const val = normalizeWater(q[1]);
+      if (val != null && val > 0 && val <= 10) return val;
+    }
+  }
+  return null;
 }
+
 
 function sliceBetween(text: string, startAnchor: RegExp, endAnchor: RegExp | null): string | null {
   const s = text.search(startAnchor);
@@ -835,7 +811,7 @@ const PHASE3_SPECS: Phase3Spec[] = [
 // Words that act as STOP boundaries but are NOT stored as fields themselves.
 // Only section-level boundaries — NOT "From now on"/"Please note"/"Note:" (those
 // can appear between items in Fat/Oil etc. and would truncate the list early).
-const PHASE3_BOUNDARY_KEYWORDS = /\b(Poultry|Fruit|Bread|Starch|Nuts|Yogurt|Milk Products|Pumpkin Seeds|Sunflower Seeds|Shopping Helper)\b/i;
+const PHASE3_BOUNDARY_KEYWORDS = /\b(Poultry|Fruit|Bread|Starch|Nuts|Yogurt|Milk Products|Pumpkin Seeds|Sunflower Seeds|Shopping (?:Helper|Bag))\b/i;
 
 function parsePhase3SectionByKeyword(
   section: string,
@@ -909,7 +885,7 @@ function parsePhase3SectionByKeyword(
       .filter((s) => {
         if (s.length < 2 || s.length > 60) return false;
         if (!/[A-Za-z]/.test(s)) return false;
-        if (/Personal Food List|Extended personal|Shopping Helper|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:|Phase\s*3/i.test(s)) return false;
+        if (/Personal Food List|Extended personal|Shopping (?:Helper|Bag)|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:|Phase\s*3/i.test(s)) return false;
         if (s.split(/\s+/).length > 5) return false;
         return true;
       });
@@ -960,8 +936,7 @@ Deno.serve(async (req) => {
     if (cErr || !clientRow || clientRow.practitioner_id !== userData.user.id) {
       return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const stripFooter = buildFooterStripper(clientRow.name ?? null);
-    const stripTrailingName = buildTrailingNameStripper(clientRow.name ?? null);
+    const stripFooter = buildFooterStripper();
 
     debug.step = "download_pdf";
     const { data: file, error: dErr } = await admin.storage.from("mb-pdfs").download(storagePath);
@@ -972,18 +947,38 @@ Deno.serve(async (req) => {
     const buf = new Uint8Array(await file.arrayBuffer());
     const pdf = await getDocumentProxy(buf);
     const { text: pages } = await extractText(pdf, { mergePages: false });
-    const fullText = Array.isArray(pages) ? pages.join("\n\n") : String(pages);
+    const rawText = Array.isArray(pages) ? pages.join("\n\n") : String(pages);
+    // Soft hyphens must go before ANY matching happens.
+    const fullText = stripSoftHyphens(rawText);
+
+    debug.step = "detect_format";
+    const format = detectFormat(fullText);
+    debug.format = format;
+    if (format === "unsupported") {
+      return new Response(JSON.stringify({
+        error: "unsupported_layout",
+        detail: "This plan layout isn't supported. Please upload the standard Metabolic Balance plan, not the picture version.",
+        format,
+        debug,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const footerIdentity = extractFooterIdentity(fullText);
+    debug.footerIdentity = footerIdentity;
 
     debug.step = "parse_pdf_sections";
-    const phase2ProteinSection = sliceBetween(fullText, /Personal Food List\s*[-–]\s*Protein/i, /Personal Food List\s*[-–]\s*Carbohydrates|Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$/i);
-    const phase2CarbSection = sliceBetween(fullText, /Personal Food List\s*[-–]\s*Carbohydrates/i, /Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$|Extended personal Food List/i);
+    // Heading matching is case-insensitive and treats hyphen/en-dash/em-dash as
+    // equivalent (and optional), so Classic title case and New ALL-CAPS both match.
+    const phase2ProteinSection = sliceBetween(fullText, /Personal Food List\s*(?:[-–—:]\s*)?Protein/i, /Personal Food List\s*(?:[-–—:]\s*)?Carbohydrates|Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$/i);
+    const phase2CarbSection = sliceBetween(fullText, /Personal Food List\s*(?:[-–—:]\s*)?Carbohydrates/i, /Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$|Extended personal Food List/i);
     const additionalInfoSection = sliceBetween(fullText, /Additional Information about the Meal Plan/i, /\$\$CA_PHASE3\$\$|Extended personal Food List/i);
-    // Phase 3: bound on "Shopping Helper" to avoid pulling the combined list.
-    const phase3SectionRaw = sliceBetween(fullText, /Extended personal Food List/i, /Shopping Helper/i)
-      ?? sliceBetween(fullText, /\$\$CA_PHASE3\$\$/i, /Shopping Helper/i);
+    // Phase 3: bound on the shopping section to avoid pulling the combined list.
+    const phase3SectionRaw = sliceBetween(fullText, /Extended personal Food List/i, /Shopping\s*(?:Helper|Bag)/i)
+      ?? sliceBetween(fullText, /\$\$CA_PHASE3\$\$/i, /Shopping\s*(?:Helper|Bag)/i);
     const phase3Section = phase3SectionRaw ? stripFooter(phase3SectionRaw) : null;
 
-    const mealTableEnd = fullText.search(/Personal Food List\s*[-–]\s*Protein/i);
+    const mealTableEnd = fullText.search(/Personal Food List\s*(?:[-–—:]\s*)?Protein/i);
+
     const mealTableText = mealTableEnd > 0 ? fullText.slice(Math.max(0, mealTableEnd - 4000), mealTableEnd) : fullText.slice(0, 4000);
     const mealPageIndex = Array.isArray(pages)
       ? pages.findIndex((pageText) => /\bBreakfast\b/i.test(pageText) && /\bLunch\b/i.test(pageText) && /\bDinner\b/i.test(pageText))
@@ -1007,7 +1002,7 @@ Deno.serve(async (req) => {
         const start = sunMatch.index + sunMatch[0].length;
         const rest = phase2ProteinSection.slice(start);
         const stopRe = new RegExp(
-          `\\b(?:${protLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|")}|Personal Food List|Additional Information|Extended personal|Shopping Helper)\\b`,
+          `\\b(?:${protLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|")}|Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag))\\b`,
           "i",
         );
         const stopMatch = rest.match(stopRe);
@@ -1019,7 +1014,7 @@ Deno.serve(async (req) => {
           .filter(Boolean)
           .filter((s) => {
             if (s.length < 2 || s.length > 60) return false;
-            if (/Personal Food List|Additional Information|Extended personal|Shopping Helper|Page\s*\d|©|Metabolic Balance/i.test(s)) return false;
+            if (/Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|Page\s*\d|©|Metabolic Balance/i.test(s)) return false;
             if (!/[A-Za-z]/.test(s)) return false;
             if (s.split(/\s+/).length > 5) return false;
             return true;
@@ -1047,7 +1042,7 @@ Deno.serve(async (req) => {
         const start = pumpMatch.index + pumpMatch[0].length;
         const rest = phase2ProteinSection.slice(start);
         const stopRe = new RegExp(
-          `\\b(?:${protLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|")}|Personal Food List|Additional Information|Extended personal|Shopping Helper)\\b`,
+          `\\b(?:${protLabels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|")}|Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag))\\b`,
           "i",
         );
         const stopMatch = rest.match(stopRe);
@@ -1059,7 +1054,7 @@ Deno.serve(async (req) => {
           .filter(Boolean)
           .filter((s) => {
             if (s.length < 2 || s.length > 60) return false;
-            if (/Personal Food List|Additional Information|Extended personal|Shopping Helper|Page\s*\d|©|Metabolic Balance/i.test(s)) return false;
+            if (/Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|Page\s*\d|©|Metabolic Balance/i.test(s)) return false;
             if (!/[A-Za-z]/.test(s)) return false;
             if (s.split(/\s+/).length > 5) return false;
             return true;
@@ -1107,7 +1102,8 @@ Deno.serve(async (req) => {
     };
 
     const _lastExtIdx = fullText.lastIndexOf('Extended personal Food List');
-    const _lastShopIdx = _lastExtIdx !== -1 ? fullText.indexOf('Shopping Helper Phase 3', _lastExtIdx) : -1;
+    const _shopMatch = _lastExtIdx !== -1 ? fullText.slice(_lastExtIdx).match(/Shopping\s*(?:Helper|Bag)\s*Phase\s*3/i) : null;
+    const _lastShopIdx = _shopMatch && _shopMatch.index !== undefined ? _lastExtIdx + _shopMatch.index : -1;
     let _p3Section = '';
     if (_lastExtIdx !== -1 && _lastShopIdx !== -1) {
       _p3Section = fullText.slice(_lastExtIdx, _lastShopIdx);
@@ -1135,53 +1131,25 @@ Deno.serve(async (req) => {
       water = parseWater(additionalInfoSection);
       foodLimits = parseFoodLimits(additionalInfoSection);
     }
-
-    const clientNameTrimmed = (clientRow.name ?? "").trim();
-    const nameParts = clientNameTrimmed.split(/\s+/).filter((p) => p.length >= 2);
-    const firstName = nameParts[0] ?? "";
-    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
+    // Water may live outside the "Additional Information" block in the New layout.
+    if (water == null) water = parseWater(fullText);
+    const waterMl = water == null ? null : Math.round(water * 1000);
 
     const sanitizeExtractedValue = (value: unknown) => {
       if (typeof value !== "string") return value ?? null;
       let cleaned = value.replace(/\r\n/g, "\n").trim();
+      cleaned = stripFooter(cleaned);
       // Strip page-footer bleed from first " | " onwards
       const pipeIdx = cleaned.indexOf(" | ");
       if (pipeIdx >= 0) cleaned = cleaned.slice(0, pipeIdx).trim();
       // Strip trailing bare page number
       cleaned = cleaned.replace(/\s+\d+\s*$/g, "").trim();
-      cleaned = stripFooter(cleaned);
-      cleaned = stripTrailingName(cleaned);
-      let prev = "";
-      while (prev !== cleaned) {
-        prev = cleaned;
-        cleaned = stripTrailingClientName(cleaned, firstName, lastName);
-        cleaned = cleaned.replace(/[\s,;|]+$/g, "").trim();
-      }
-      return cleaned;
+      return cleaned.replace(/\s+/g, " ").replace(/[\s,;|]+$/g, "").trim();
     };
 
-    const stripTrailingClientNameWithLogging = (field: string, value: string): string => {
-      if (field !== "food_fruit") return sanitizeExtractedValue(value) as string;
-      const before = typeof value === "string" ? value : String(value ?? "");
-      const after = sanitizeExtractedValue(before) as string;
-      let finalValue = after;
-      const lastParen = finalValue.lastIndexOf(")");
-      if (lastParen !== -1) finalValue = finalValue.slice(0, lastParen + 1).trim();
-      console.log(`[parse-mb-pdf] DEBUG name-strip: before='${before}', after='${finalValue}'`);
-      if (before === finalValue) {
-        console.log("[parse-mb-pdf] DEBUG name-strip patterns", {
-          field,
-          firstName,
-          lastName,
-          patterns: getTrailingClientNamePatterns(firstName, lastName),
-          comparedValue: before,
-        });
-      }
-      return finalValue;
-    };
+    const buildField = (v: unknown, _field?: string) => {
+      const value = sanitizeExtractedValue(v);
 
-    const buildField = (v: unknown, field?: string) => {
-      const value = typeof v === "string" && field ? stripTrailingClientNameWithLogging(field, v) : sanitizeExtractedValue(v);
       return {
         value,
         extracted: value !== null && value !== undefined && value !== "",
@@ -1200,6 +1168,9 @@ Deno.serve(async (req) => {
     for (const k of Object.keys(mealLegacy)) result[k] = buildField(mealLegacy[k], k);
     result.eggs_min_per_week = buildField(eggs.eggs_min_per_week, "eggs_min_per_week");
     result.water_target_litres = buildField(water, "water_target_litres");
+    // eggs max is captured (not dropped) and surfaced through food_limits + extras,
+    // since clients has no eggs_max_per_week / water_target_ml column.
+    if (eggs.eggs_max_per_week != null && !("eggs" in foodLimits)) foodLimits.eggs = eggs.eggs_max_per_week;
     result.food_limits = { value: foodLimits, extracted: Object.keys(foodLimits).length > 0 };
 
     const mealOptionsResult: Record<string, MealOption[]> = {
@@ -1215,7 +1186,7 @@ Deno.serve(async (req) => {
       if (!m || m.index === undefined) return null;
       const after = fullText.slice(m.index + m[0].length);
       // Stop at next major section / page artifact.
-      const stopRe = /(Personal Food List|Additional Information|Extended personal|Shopping Helper|©\s*Metabolic Balance|Page\s*\d|Breakfast\b|Lunch\b|Dinner\b|\$\$CA_)/i;
+      const stopRe = /(Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|©\s*Metabolic Balance|Page\s*\d|Breakfast\b|Lunch\b|Dinner\b|\$\$CA_)/i;
       const sm = after.match(stopRe);
       let chunk = sm && sm.index !== undefined ? after.slice(0, sm.index) : after.slice(0, 600);
       chunk = stripFooter(chunk);
@@ -1234,10 +1205,43 @@ Deno.serve(async (req) => {
       return unique.length ? unique : null;
     })();
 
+    // ---- Validation: never return a silent success on an empty parse ----
+    debug.step = "validate";
+    const validation: string[] = [];
+    const optionCount = (["breakfast", "lunch", "dinner"] as const)
+      .reduce((n, k) => n + mealOptionsResult[k].filter((o) => (o.items?.length ?? 0) > 0 || o.protein_category).length, 0);
+    if (optionCount === 0) validation.push("meal_options");
+    const foodFieldKeys = [
+      ...unique(phase2ProteinFields),
+      ...unique(phase2CarbFields),
+    ];
+    const filledFoodFields = foodFieldKeys.filter((f) => result[f]?.extracted).length;
+    if (filledFoodFields === 0) validation.push("food_categories");
+    if (water == null) validation.push("water_target");
+    if (!footerIdentity.clientName) validation.push("client_name");
+    if (!footerIdentity.coachName) validation.push("coach_name");
+
+    const needsReview = validation.length > 0;
+
     debug.step = "complete";
-    return new Response(JSON.stringify({ fields: result, mealOptions: mealOptionsResult, foodExclusions, storagePath }), {
+    return new Response(JSON.stringify({
+      fields: result,
+      mealOptions: mealOptionsResult,
+      foodExclusions,
+      storagePath,
+      format,
+      clientName: footerIdentity.clientName,
+      coachName: footerIdentity.coachName,
+      waterTargetLitres: water,
+      waterTargetMl: waterMl,
+      eggsMinPerWeek: eggs.eggs_min_per_week,
+      eggsMaxPerWeek: eggs.eggs_max_per_week,
+      needsReview,
+      validation,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
 
   } catch (e) {
     console.error("parse-mb-pdf failure", { step: debug.step, error: e });
