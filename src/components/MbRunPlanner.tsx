@@ -40,6 +40,8 @@ interface Props {
   legacyLimits: Record<string, number>;
   initialRun: unknown;
   onGoHome: () => void;
+  /** Client's current MB phase — labels the food list. */
+  phase?: string | null;
 }
 
 /**
@@ -52,7 +54,7 @@ interface Props {
  * the same shared evaluator the server runs on confirm.
  */
 export function MbRunPlanner({
-  token, suggestions, foodList, enrichedLimits, legacyLimits, initialRun, onGoHome,
+  token, suggestions, foodList, enrichedLimits, legacyLimits, initialRun, onGoHome, phase = null,
 }: Props) {
   const [run, setRun] = useState<MbRun>(() => parseMbRun(initialRun));
   const [consumed, setConsumed] = useState<CapConsumed>({});
