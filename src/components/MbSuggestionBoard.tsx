@@ -59,7 +59,7 @@ export function MbSuggestionCard({
   footer?: ReactNode;
 }) {
   const meals = (
-    <div className="p-3 pt-3 grid gap-3">
+    <div className="p-3 pt-3 grid gap-3 h-full content-start">
       {RUN_MEALS.map((meal) => {
         const items = suggestion.meals?.[meal]?.items ?? [];
         return (
