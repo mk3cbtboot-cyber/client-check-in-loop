@@ -1183,7 +1183,6 @@ Deno.serve(async (req) => {
       ? pages.map((t, i) => ({ t: despace(t), i })).filter(({ t }) => t.includes("breakfast") && t.includes("lunch") && t.includes("dinner"))
       : [];
 
-    const candidateDiag: unknown[] = [];
     for (const { i } of candidatePages) {
       try {
         const page = await (pdf as { getPage: (n: number) => Promise<{ getTextContent: () => Promise<{ items: Array<Record<string, unknown>> }> }> })
@@ -1191,12 +1190,7 @@ Deno.serve(async (req) => {
         const content = await page.getTextContent();
         const items = extractPositionedTextForPage({ content });
         const anchors = findColumnAnchors(items);
-        candidateDiag.push({
-          page: i,
-          count: items.length,
-          anchors,
-          breakfastish: items.filter((t) => /b\s*r\s*e\s*a\s*k\s*f\s*a\s*s\s*t/i.test(t.text)).map((t) => ({ text: t.text, x: t.x, y: t.y })),
-        });
+
         if (anchors.length >= 3) {
           mealPageIndex = i;
           mealPositionedItems = items;
