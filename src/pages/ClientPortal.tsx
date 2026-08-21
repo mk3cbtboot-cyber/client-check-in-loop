@@ -1356,7 +1356,7 @@ export default function ClientPortal() {
               </p>
             </Card>
           )}
-          {mbPlanConfirmed && client.client_type !== "custom" && (
+          {mbPlanConfirmed && client.client_type !== "custom" && client.phase !== "phase1" && (
             <MbRunPlanner
               token={token!}
               suggestions={getMbPlan(client as any).suggestions}
