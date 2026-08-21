@@ -92,13 +92,13 @@ export function MbSuggestionCard({
       <button
         type="button"
         onClick={onClick}
-        className="text-left rounded-lg border overflow-hidden hover:border-primary hover:bg-primary/5 transition-colors"
+        className="w-full h-full text-left rounded-lg border overflow-hidden hover:border-primary hover:bg-primary/5 transition-colors"
       >
         {body}
       </button>
     );
   }
-  return <div className="rounded-lg border overflow-hidden">{body}</div>;
+  return <div className="w-full h-full rounded-lg border overflow-hidden">{body}</div>;
 }
 
 /** All three suggestions, side by side, matching the MB Plan Setup grid. */
