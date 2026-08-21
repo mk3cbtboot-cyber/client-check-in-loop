@@ -191,7 +191,10 @@ function parseFoodSection(
         if (s.split(/\s+/).length > 5) return false;
         return true;
       });
-    const field = categoryMap[cur.label];
+    // Case-insensitive lookup so ALL-CAPS (New layout) headings map correctly.
+    const lookup: Record<string, string> = {};
+    for (const [k, v] of Object.entries(categoryMap)) lookup[k.toLowerCase().replace(/\s+/g, " ")] = v;
+    const field = lookup[cur.label.toLowerCase().replace(/\s+/g, " ")];
     if (!field || field.startsWith("__")) continue; // boundary-only label
     const existing = result[field] ? result[field].split(",").map((s) => s.trim()).filter(Boolean) : [];
     const merged = Array.from(new Set([...existing, ...items]));
