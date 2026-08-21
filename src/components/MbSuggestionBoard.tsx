@@ -39,7 +39,7 @@ export function itemLine(it: MbPlanItem): string {
 export function MbColourHeader({ colour, subtitle }: { colour: MbColour; subtitle?: string }) {
   return (
     <>
-      <div className={`h-3 ${COLOUR_BAR[colour]}`} />
+      <div className={`h-4 ${COLOUR_BAR[colour]} w-full`} />
       <div className="flex items-center justify-between gap-2 p-3 pb-0">
         <span className="text-sm font-semibold">{COLOUR_LABEL[colour]}</span>
         <span className="text-xs text-muted-foreground">{subtitle ?? COLOUR_NAME[colour]}</span>
