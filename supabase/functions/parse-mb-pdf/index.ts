@@ -407,14 +407,20 @@ function rowsFromItems(items: PositionedText[], tolerance = 3): PdfRow[] {
 const MEAL_HEADER_RE = /^(breakfast|lunch|dinner)\b/i;
 
 /** x-positions of the three suggestion columns, derived from the Breakfast headers. */
+/** "B R E A K F A S T" (letter-spaced New-format headings) -> "breakfast". */
+function despace(s: string): string {
+  return s.replace(/\s+/g, "").toLowerCase();
+}
+
 function findColumnAnchors(items: PositionedText[]): number[] {
-  const heads = items.filter((i) => /^breakfast\b/i.test(i.text.trim()));
+  const heads = items.filter((i) => despace(i.text).startsWith("breakfast"));
   const xs: number[] = [];
   for (const h of heads.sort((a, b) => a.x - b.x)) {
     if (!xs.some((x) => Math.abs(x - h.x) < 20)) xs.push(h.x);
   }
   return xs;
 }
+
 
 function columnIndexFor(x: number, anchors: number[]): number {
   let idx = 0;
