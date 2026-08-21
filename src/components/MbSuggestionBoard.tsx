@@ -91,7 +91,7 @@ export function MbSuggestionCard({
         <button
           type="button"
           onClick={onClick}
-          className="w-full h-full text-left items-start"
+          className="w-full h-full text-left block"
         >
           {meals}
         </button>
