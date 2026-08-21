@@ -24,7 +24,7 @@ import { parseMbRun, resolveDayMeal, runDates, todayISO, fmtQty, RUN_DAYS, RUN_M
 
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
-import { phaseShort, foodListTitle, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
+import { phaseLabel, phaseShort, foodListTitle, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
 import { getPhaseProgress } from "@/lib/progress";
 import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
 import MealRecipeSection from "@/components/MealRecipeSection";
@@ -1340,9 +1340,21 @@ export default function ClientPortal() {
             <p className="text-xs uppercase text-muted-foreground">Client</p>
             <p className="text-lg font-semibold">{client.name}</p>
             {client.client_type === "mb" && (
-              <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseShort(client.phase)}</span></p>
+              <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseLabel(client.phase)}</span></p>
             )}
           </Card>
+          {client.client_type !== "custom" && (
+            <Card className="p-6">
+              <p className="text-sm text-muted-foreground">
+                {client.phase === "phase2_strict" && "You are in the Strict Conversion Phase. Follow your personal food list exactly. No oil for the first 14 days. No substitutions."}
+                {client.phase === "phase2_extended" && "You are in the Extended Phase. You may enjoy one treat meal per week. Continue following your personal food list."}
+                {client.phase === "phase3" && (client.phase3_mode === "mb_standard"
+                  ? "You are in the Relaxed Conversion Phase. Your personal food list has been expanded as part of your Metabolic Balance plan. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week."
+                  : "You are in the Relaxed Conversion Phase. Your food list has been expanded by your practitioner. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week.")}
+                {client.phase === "phase4" && "You are in the Maintenance Phase. Your Phase 3 food list is shown below as a read-only shopping reference. The 8 Rules are now your lifestyle."}
+              </p>
+            </Card>
+          )}
           {mbPlanConfirmed && client.client_type !== "custom" && (
             <MbRunPlanner
               token={token!}
@@ -1513,16 +1525,6 @@ export default function ClientPortal() {
                 </ol>
               </Card>
 
-              <Card className="p-6">
-                <p className="text-sm text-muted-foreground">
-                  {client.phase === "phase2_strict" && "You are in the Strict Conversion Phase. Follow your personal food list exactly. No oil for the first 14 days. No substitutions."}
-                  {client.phase === "phase2_extended" && "You are in the Extended Phase. You may enjoy one treat meal per week. Continue following your personal food list."}
-                  {client.phase === "phase3" && (client.phase3_mode === "mb_standard"
-                    ? "You are in the Relaxed Conversion Phase. Your personal food list has been expanded as part of your Metabolic Balance plan. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week."
-                    : "You are in the Relaxed Conversion Phase. Your food list has been expanded by your practitioner. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week.")}
-                  {client.phase === "phase4" && "You are in the Maintenance Phase. Your Phase 3 food list is shown below as a read-only shopping reference. The 8 Rules are now your lifestyle."}
-                </p>
-              </Card>
 
               {client.phase === "phase3" && !mbPlanConfirmed && (() => {
                 const pBonus = client.phase3_lunch_protein_bonus ?? 0;
@@ -1646,24 +1648,8 @@ export default function ClientPortal() {
                     </div>
                   </div>
                 );
-              })() : (
+              })() : null}
 
-                <div className="space-y-3">
-                  {foodListTitle(client.phase) && (
-                    <p className="font-medium">{foodListTitle(client.phase)}</p>
-                  )}
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {planCategories.map((cat) => (
-                      <Card key={cat.title} className="p-4">
-                        <p className="font-medium mb-2">{cat.title}</p>
-                        <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                          {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
-                        </ul>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
 
 
               {Array.isArray(client.food_exclusions) && client.food_exclusions.length > 0 && (
@@ -1675,9 +1661,6 @@ export default function ClientPortal() {
                 </Card>
               )}
 
-              <p className="text-xs text-muted-foreground text-center pt-2">
-                Quantities and exact selections are managed by your nutritionist. Use the Home tab to build today's meal.
-              </p>
 
             </>
           )}
