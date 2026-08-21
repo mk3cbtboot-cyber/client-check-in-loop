@@ -2507,6 +2507,8 @@ export default function Dashboard() {
                             enrichedLimits={parseMbFoodLimits((client as unknown as { mb_food_limits?: unknown }).mb_food_limits)}
                             legacyLimits={(client as unknown as { food_limits?: Record<string, number> }).food_limits ?? {}}
                             anchor={client.phase2_strict_started_at}
+                            phase={client.phase}
+
                           />
 
                         )}
