@@ -166,7 +166,7 @@ function parseFoodSection(
   const labelPattern = labels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
   // Allow heading to start after newline, semicolon, comma-newline, or after gram-amount entries
   // (since unpdf often flattens columns into one line, "Sunflower Seeds" etc. may not be newline-prefixed).
-  const splitRe = new RegExp(`(?:^|[\\n;]|(?<=\\bg\\s)|(?<=\\)\\s)|(?<=[.,]\\s))\\s*(${labelPattern})\\s*[:\\-–]?\\s+`, "g");
+  const splitRe = new RegExp(`(?:^|[\\n;]|(?<=\\bg\\s)|(?<=\\)\\s)|(?<=[.,]\\s))\\s*(${labelPattern})\\s*[:\\-–]?\\s+`, "gi");
 
   const matches: { label: string; start: number; contentStart: number }[] = [];
   let m: RegExpExecArray | null;
@@ -956,7 +956,7 @@ Deno.serve(async (req) => {
         detail: "This plan layout isn't supported. Please upload the standard Metabolic Balance plan, not the picture version.",
         format,
         debug,
-      }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const footerIdentity = extractFooterIdentity(fullText);
