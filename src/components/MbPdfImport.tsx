@@ -145,12 +145,11 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         setReviewOpen(true);
         throw new Error(detail);
       }
-      const response = data as { fields?: FieldsMap; mealOptions?: MealOptionsMap; foodExclusions?: string[] | null; error?: string; detail?: string; debug?: Record<string, unknown> };
+      const response = data as { fields?: FieldsMap; mealOptions?: MealOptionsMap; foodExclusions?: string[] | null; error?: string; detail?: string; format?: string; clientName?: string | null; coachName?: string | null; needsReview?: boolean; validation?: string[]; debug?: Record<string, unknown> };
       if (response.error || !response.fields) {
         const detail = [
           `Step: parse-mb-pdf`,
-          `Error: ${response.error ?? "unknown parser error"}`,
-          response.detail ? `Detail: ${response.detail}` : null,
+          response.detail ?? `Error: ${response.error ?? "unknown parser error"}`,
           response.debug?.step ? `Failing step: ${String(response.debug.step)}` : null,
           response.debug?.storagePath ? `Path: ${String(response.debug.storagePath)}` : null,
         ].filter(Boolean).join("\n");
@@ -158,6 +157,21 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         setReviewOpen(true);
         throw new Error(detail);
       }
+      if (response.needsReview && response.validation?.length) {
+        const LABELS: Record<string, string> = {
+          meal_options: "Meal suggestions",
+          food_categories: "Food list categories",
+          water_target: "Water target",
+          client_name: "Client name (footer)",
+          coach_name: "Coach name (footer)",
+        };
+        setReviewError([
+          `Detected layout: ${response.format ?? "unknown"}`,
+          `Could not confidently extract: ${response.validation.map((v) => LABELS[v] ?? v).join(", ")}`,
+          `Please fill these in manually before saving.`,
+        ].join("\n"));
+      }
+
       setFields(response.fields);
       const incoming = response.mealOptions;
       const normalize = (arr: MealOption[] | undefined): MealOption[] => {
