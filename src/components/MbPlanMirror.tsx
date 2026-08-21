@@ -11,6 +11,7 @@ import { RUN_DAYS, RUN_MEALS, fmtQty, parseMbRun, resolveDayMeal, resolveRunMeal
 import {
   COLOUR_BAR, COLOUR_LABEL, MEAL_LABEL, MbColourHeader, MbFoodListReadonly, MbSuggestionsBoard,
 } from "@/components/MbSuggestionBoard";
+import MbPhase1Guide from "@/components/MbPhase1Guide";
 
 const dayLabel = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
