@@ -736,12 +736,28 @@ function parseFoodLimits(text: string): Record<string, number> {
   return out;
 }
 
+// Water is only read from the "Water" row/heading (Classic title case or New
+// ALL-CAPS), never from the first litre-looking number anywhere in the document.
+const WATER_QTY_RE =
+  /(\d+(?:[.,]\d+)?(?:\s*[\u00BD\u00BC\u00BE\u2153\u2154])?(?:\s*\d\/\d)?|[\u00BD\u00BC\u00BE\u2153\u2154])\s*(?:l\b|l(?:iters?|itres?)\b|L\b)/i;
+
 function parseWater(text: string): number | null {
-  const re = /(\d+(?:[.,]\d+)?(?:\s*[½¼¾])?(?:\s*1\/\d)?)\s*(?:l(?:iters?|itres?)?|L)\b/i;
-  const m = text.match(re);
-  if (!m) return null;
-  return normalizeWater(m[1]);
+  const rowRe = /\bWATER\b/gi;
+  let m: RegExpExecArray | null;
+  while ((m = rowRe.exec(text)) !== null) {
+    // Only look inside the Water row itself (rest of line, or 120 chars if flattened).
+    const after = text.slice(m.index + m[0].length);
+    const lineEnd = after.search(/\n/);
+    const scope = after.slice(0, lineEnd >= 0 ? Math.min(lineEnd, 120) : 120);
+    const q = scope.match(WATER_QTY_RE);
+    if (q) {
+      const val = normalizeWater(q[1]);
+      if (val != null && val > 0 && val <= 10) return val;
+    }
+  }
+  return null;
 }
+
 
 function sliceBetween(text: string, startAnchor: RegExp, endAnchor: RegExp | null): string | null {
   const s = text.search(startAnchor);
