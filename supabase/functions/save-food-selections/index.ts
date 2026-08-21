@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const SLOT_KEYS = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"] as const;
-const CATEGORIES = ["protein", "carbs", "veg", "fat"] as const;
+const CATEGORIES = ["protein", "carbs", "veg", "veg2", "fat"] as const;
 
 const Body = z.object({
   token: z.string().min(10).max(200),
@@ -16,6 +16,7 @@ const Body = z.object({
     protein: z.string().nullable().optional(),
     carbs: z.string().nullable().optional(),
     veg: z.string().nullable().optional(),
+    veg2: z.string().nullable().optional(),
     fat: z.string().nullable().optional(),
   }),
 });
