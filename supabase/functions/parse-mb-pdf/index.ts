@@ -1427,6 +1427,8 @@ Deno.serve(async (req) => {
       eggsMaxPerWeek: eggs.eggs_max_per_week,
       needsReview,
       validation,
+      mealParserMode: (mealDebug as { meal_parser_mode?: string }).meal_parser_mode ?? null,
+
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
