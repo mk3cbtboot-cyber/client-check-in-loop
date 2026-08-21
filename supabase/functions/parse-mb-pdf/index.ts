@@ -1127,53 +1127,25 @@ Deno.serve(async (req) => {
       water = parseWater(additionalInfoSection);
       foodLimits = parseFoodLimits(additionalInfoSection);
     }
-
-    const clientNameTrimmed = (clientRow.name ?? "").trim();
-    const nameParts = clientNameTrimmed.split(/\s+/).filter((p) => p.length >= 2);
-    const firstName = nameParts[0] ?? "";
-    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
+    // Water may live outside the "Additional Information" block in the New layout.
+    if (water == null) water = parseWater(fullText);
+    const waterMl = water == null ? null : Math.round(water * 1000);
 
     const sanitizeExtractedValue = (value: unknown) => {
       if (typeof value !== "string") return value ?? null;
       let cleaned = value.replace(/\r\n/g, "\n").trim();
+      cleaned = stripFooter(cleaned);
       // Strip page-footer bleed from first " | " onwards
       const pipeIdx = cleaned.indexOf(" | ");
       if (pipeIdx >= 0) cleaned = cleaned.slice(0, pipeIdx).trim();
       // Strip trailing bare page number
       cleaned = cleaned.replace(/\s+\d+\s*$/g, "").trim();
-      cleaned = stripFooter(cleaned);
-      cleaned = stripTrailingName(cleaned);
-      let prev = "";
-      while (prev !== cleaned) {
-        prev = cleaned;
-        cleaned = stripTrailingClientName(cleaned, firstName, lastName);
-        cleaned = cleaned.replace(/[\s,;|]+$/g, "").trim();
-      }
-      return cleaned;
+      return cleaned.replace(/\s+/g, " ").replace(/[\s,;|]+$/g, "").trim();
     };
 
-    const stripTrailingClientNameWithLogging = (field: string, value: string): string => {
-      if (field !== "food_fruit") return sanitizeExtractedValue(value) as string;
-      const before = typeof value === "string" ? value : String(value ?? "");
-      const after = sanitizeExtractedValue(before) as string;
-      let finalValue = after;
-      const lastParen = finalValue.lastIndexOf(")");
-      if (lastParen !== -1) finalValue = finalValue.slice(0, lastParen + 1).trim();
-      console.log(`[parse-mb-pdf] DEBUG name-strip: before='${before}', after='${finalValue}'`);
-      if (before === finalValue) {
-        console.log("[parse-mb-pdf] DEBUG name-strip patterns", {
-          field,
-          firstName,
-          lastName,
-          patterns: getTrailingClientNamePatterns(firstName, lastName),
-          comparedValue: before,
-        });
-      }
-      return finalValue;
-    };
+    const buildField = (v: unknown, _field?: string) => {
+      const value = sanitizeExtractedValue(v);
 
-    const buildField = (v: unknown, field?: string) => {
-      const value = typeof v === "string" && field ? stripTrailingClientNameWithLogging(field, v) : sanitizeExtractedValue(v);
       return {
         value,
         extracted: value !== null && value !== undefined && value !== "",
