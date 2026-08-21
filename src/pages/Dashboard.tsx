@@ -2108,17 +2108,12 @@ export default function Dashboard() {
                                 onSaved={load}
                                 clientName={client.name}
                                 phase={client.phase}
-                                phase2Categories={categoriesForPhase(client.phase2_food_list, client.phase, client.phase3_mb_fat_oil, client as unknown as Record<string, unknown>)}
-                                phase2Customised={Array.isArray(client.phase2_food_list)}
                                 phase3Groups={PHASE3_GROUPS.map((g) => ({
                                   title: g.title,
                                   items: String(((client as unknown as Record<string, unknown>)[g.field] as string) ?? "").split(",").map((s) => s.trim()).filter(Boolean),
                                 })).filter((g) => g.items.length > 0)}
 
                                 weeklyAcks={weeklyAcks[client.id] ?? []}
-                                onRestorePhase2Defaults={() => restorePhase2Defaults(client.id)}
-                                onDeletePhase2Section={(title) => deletePhase2Section(client.id, title)}
-                                onDeletePhase2Item={(title, item) => deletePhase2Item(client.id, title, item)}
                                 onSaveWeeklyLimits={(next) => saveWeeklyFoodLimits(client.id, next)}
                               />
                             )}
