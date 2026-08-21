@@ -58,47 +58,48 @@ export function MbSuggestionCard({
   onClick?: () => void;
   footer?: ReactNode;
 }) {
-  const body = (
-    <>
-      <MbColourHeader colour={suggestion.colour} />
-      <div className="p-3 pt-3 grid gap-3">
-        {RUN_MEALS.map((meal) => {
-          const items = suggestion.meals?.[meal]?.items ?? [];
-          return (
-            <div key={meal} className="rounded-md border p-2 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide">{MEAL_LABEL[meal]}</p>
-              {items.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Not set.</p>
-              ) : (
-                <ul className="text-sm space-y-0.5">
-                  {items.map((it) => (
-                    <li key={it.id}>
-                      {itemLine(it)}
-                      {it.optional && <span className="text-xs text-muted-foreground"> (optional)</span>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          );
-        })}
-        {footer}
-      </div>
-    </>
+  const meals = (
+    <div className="p-3 pt-3 grid gap-3">
+      {RUN_MEALS.map((meal) => {
+        const items = suggestion.meals?.[meal]?.items ?? [];
+        return (
+          <div key={meal} className="rounded-md border p-2 space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide">{MEAL_LABEL[meal]}</p>
+            {items.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Not set.</p>
+            ) : (
+              <ul className="text-sm space-y-0.5">
+                {items.map((it) => (
+                  <li key={it.id}>
+                    {itemLine(it)}
+                    {it.optional && <span className="text-xs text-muted-foreground"> (optional)</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
+      {footer}
+    </div>
   );
 
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className="w-full h-full text-left rounded-lg border overflow-hidden hover:border-primary hover:bg-primary/5 transition-colors"
-      >
-        {body}
-      </button>
-    );
-  }
-  return <div className="w-full h-full rounded-lg border overflow-hidden">{body}</div>;
+  return (
+    <div className="rounded-lg border overflow-hidden hover:border-primary hover:bg-primary/5 transition-colors">
+      <MbColourHeader colour={suggestion.colour} />
+      {onClick ? (
+        <button
+          type="button"
+          onClick={onClick}
+          className="w-full h-full text-left"
+        >
+          {meals}
+        </button>
+      ) : (
+        <div className="w-full h-full">{meals}</div>
+      )}
+    </div>
+  );
 }
 
 /** All three suggestions, side by side, matching the MB Plan Setup grid. */
