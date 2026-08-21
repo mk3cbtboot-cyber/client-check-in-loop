@@ -1343,6 +1343,18 @@ export default function ClientPortal() {
               <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseLabel(client.phase)}</span></p>
             )}
           </Card>
+          {client.client_type !== "custom" && (
+            <Card className="p-6">
+              <p className="text-sm text-muted-foreground">
+                {client.phase === "phase2_strict" && "You are in the Strict Conversion Phase. Follow your personal food list exactly. No oil for the first 14 days. No substitutions."}
+                {client.phase === "phase2_extended" && "You are in the Extended Phase. You may enjoy one treat meal per week. Continue following your personal food list."}
+                {client.phase === "phase3" && (client.phase3_mode === "mb_standard"
+                  ? "You are in the Relaxed Conversion Phase. Your personal food list has been expanded as part of your Metabolic Balance plan. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week."
+                  : "You are in the Relaxed Conversion Phase. Your food list has been expanded by your practitioner. You may test new foods gradually using the test and assess method. Treat meals are allowed once per week.")}
+                {client.phase === "phase4" && "You are in the Maintenance Phase. Your Phase 3 food list is shown below as a read-only shopping reference. The 8 Rules are now your lifestyle."}
+              </p>
+            </Card>
+          )}
           {mbPlanConfirmed && client.client_type !== "custom" && (
             <MbRunPlanner
               token={token!}
