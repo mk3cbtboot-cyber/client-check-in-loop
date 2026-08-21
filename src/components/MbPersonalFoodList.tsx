@@ -9,6 +9,8 @@ import {
 import { Loader2, Plus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { foodListTitle } from "@/lib/phases";
+
 import {
   MB_FOOD_CATEGORIES, resolveMbFoodList, seedMbFoodList, type MbFoodListMap,
 } from "@/lib/mb-food-list";
