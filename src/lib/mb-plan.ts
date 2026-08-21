@@ -348,15 +348,30 @@ function optionFromSuggestion(s: MbSuggestion, meal: MealType, idx: number): Opt
       fixed.push({ label: it.label, qty: fmtQty(it) });
       return;
     }
+    const sources = [it.category as keyof typeof MB_FOODS].filter((c) => !!MB_FOODS[c]) as (keyof typeof MB_FOODS)[];
+    const items = it.options && it.options.length ? it.options : undefined;
     components.push({
       key: `${it.category || "item"}-${i}`,
       label: it.label,
       qty: fmtQty(it),
-      sources: [it.category as keyof typeof MB_FOODS].filter((c) => !!MB_FOODS[c]) as (keyof typeof MB_FOODS)[],
+      sources,
       optional: it.optional === true,
-      items: it.options && it.options.length ? it.options : undefined,
+      items,
     });
+    // Vegetables may be split across two choices — the second pick is purely for
+    // variety and carries no extra portion (the qty above is the combined amount).
+    if ((it.category === "vegetables" || it.category === "vegLettuce") && it.optional !== true) {
+      components.push({
+        key: `${it.category || "item"}-${i}-alt`,
+        label: `${it.label} 2 (optional)`,
+        qty: "",
+        sources,
+        optional: true,
+        items,
+      });
+    }
   });
+
   return {
     id: idx + 1,
     label: s.label || COLOUR_LABEL[s.colour],
