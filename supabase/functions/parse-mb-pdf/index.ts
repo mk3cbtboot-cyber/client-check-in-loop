@@ -1098,7 +1098,8 @@ Deno.serve(async (req) => {
     };
 
     const _lastExtIdx = fullText.lastIndexOf('Extended personal Food List');
-    const _lastShopIdx = _lastExtIdx !== -1 ? fullText.indexOf('Shopping Helper Phase 3', _lastExtIdx) : -1;
+    const _shopMatch = _lastExtIdx !== -1 ? fullText.slice(_lastExtIdx).match(/Shopping\s*(?:Helper|Bag)\s*Phase\s*3/i) : null;
+    const _lastShopIdx = _shopMatch && _shopMatch.index !== undefined ? _lastExtIdx + _shopMatch.index : -1;
     let _p3Section = '';
     if (_lastExtIdx !== -1 && _lastShopIdx !== -1) {
       _p3Section = fullText.slice(_lastExtIdx, _lastShopIdx);
