@@ -1160,21 +1160,32 @@ Deno.serve(async (req) => {
     const mealTableEnd = fullText.search(/Personal Food List\s*(?:[-–—:]\s*)?Protein/i);
 
     const mealTableText = mealTableEnd > 0 ? fullText.slice(Math.max(0, mealTableEnd - 4000), mealTableEnd) : fullText.slice(0, 4000);
-    const mealPageIndex = Array.isArray(pages)
-      ? pages.findIndex((pageText) => /\bBreakfast\b/i.test(pageText) && /\bLunch\b/i.test(pageText) && /\bDinner\b/i.test(pageText))
-      : -1;
+    // The meal grid is the page where three "Breakfast" headers sit at three
+    // distinct x positions — prose pages that merely mention the meal names
+    // never satisfy that, so the column parser can't latch onto the wrong page.
+    let mealPageIndex = -1;
     let mealPositionedItems: PositionedText[] = [];
-    if (mealPageIndex >= 0) {
+    const candidatePages = Array.isArray(pages)
+      ? pages.map((t, i) => ({ t, i })).filter(({ t }) => /\bBreakfast\b/i.test(t) && /\bLunch\b/i.test(t) && /\bDinner\b/i.test(t))
+      : [];
+    for (const { i } of candidatePages) {
       try {
         const page = await (pdf as { getPage: (n: number) => Promise<{ getTextContent: () => Promise<{ items: Array<Record<string, unknown>> }> }> })
-          .getPage(mealPageIndex + 1);
+          .getPage(i + 1);
         const content = await page.getTextContent();
-        mealPositionedItems = extractPositionedTextForPage({ content });
+        const items = extractPositionedTextForPage({ content });
+        if (findColumnAnchors(items).length >= 3) {
+          mealPageIndex = i;
+          mealPositionedItems = items;
+          break;
+        }
+        if (mealPageIndex < 0 && !mealPositionedItems.length) mealPositionedItems = items;
       } catch (err) {
         debug.meal_positioned_error = String(err);
       }
     }
     debug.meal_positioned_count = mealPositionedItems.length;
+
     const { options: mealOptions, legacy: mealLegacy, debug: mealDebug } = parseMealTable(stripFooter(mealTableText), mealPositionedItems);
     debug.meal_parser = mealDebug;
 
