@@ -78,6 +78,67 @@ export function foodsForCategory(list: MbFoodListMap, category: string): string[
   return list[category] ?? [];
 }
 
+/* ------------------------------------------------------------------ */
+/* Phase 3 additions — the extra foods layered on top of the Phase 2   */
+/* base list. Stored separately from mb_food_list, in the legacy       */
+/* phase3_* / phase3_mb_* columns. Display-only helper.                */
+/* ------------------------------------------------------------------ */
+
+export interface MbFoodSection {
+  key: string;
+  label: string;
+  items: string[];
+}
+
+const PHASE3_MB_FIELDS: Array<[string, string]> = [
+  ["phase3_mb_fish", "Fish"],
+  ["phase3_mb_seafood", "Seafood"],
+  ["phase3_mb_meat", "Meat"],
+  ["phase3_mb_cheese", "Cheese"],
+  ["phase3_mb_legumes", "Legumes"],
+  ["phase3_mb_vegetables", "Vegetables"],
+  ["phase3_mb_veg_lettuce", "Veg./Lettuce"],
+  ["phase3_mb_sprouts", "Sprouts"],
+  ["phase3_mb_fat_oil", "Oils (Cold-Pressed)"],
+];
+
+const PHASE3_CUSTOM_FIELDS: Array<[string, string]> = [
+  ["phase3_meat", "Meat"],
+  ["phase3_fish", "Fish"],
+  ["phase3_vegetables", "Vegetables"],
+  ["phase3_fruit", "Fruit"],
+  ["phase3_starches", "Starches"],
+  ["phase3_bread", "Bread"],
+  ["phase3_dairy", "Dairy"],
+  ["phase3_other", "Other"],
+  ["phase3_additional_foods", "Additional Foods"],
+];
+
+const sectionsFor = (
+  client: Record<string, unknown>,
+  fields: Array<[string, string]>,
+): MbFoodSection[] =>
+  fields
+    .map(([field, label]) => ({ key: field, label, items: dedupe(parseList(client[field])) }))
+    .filter((s) => s.items.length > 0);
+
+/**
+ * The Phase 3 additional foods for this client, by category.
+ * Reads the stored phase3_* columns only — never merges with, recalculates,
+ * or duplicates the Phase 2 base list (clients.mb_food_list).
+ */
+export function phase3AdditionSections(
+  client: Record<string, unknown> | null | undefined,
+): MbFoodSection[] {
+  if (!client) return [];
+  const isMb = String(client.phase3_mode ?? "") === "mb_standard";
+  const primary = sectionsFor(client, isMb ? PHASE3_MB_FIELDS : PHASE3_CUSTOM_FIELDS);
+  if (primary.length > 0) return primary;
+  // Some clients have their extras stored under the other mode's columns.
+  return sectionsFor(client, isMb ? PHASE3_CUSTOM_FIELDS : PHASE3_MB_FIELDS);
+}
+
+
 export function categoryLabel(key: string): string {
   return MB_FOOD_CATEGORIES.find((c) => c.key === key)?.label ?? (key
     ? key.replace(/([A-Z])/g, " $1").replace(/^./, (m) => m.toUpperCase())

@@ -6,7 +6,10 @@
 import type { ReactNode } from "react";
 import type { MealType } from "@/lib/mb-foods";
 import type { MbColour, MbPlanItem, MbSuggestion } from "@/lib/mb-plan";
-import { categoryLabel, MB_FOOD_CATEGORIES, type MbFoodListMap } from "@/lib/mb-food-list";
+import {
+  categoryLabel, MB_FOOD_CATEGORIES, phase3AdditionSections,
+  type MbFoodListMap, type MbFoodSection,
+} from "@/lib/mb-food-list";
 import { fmtQty, RUN_MEALS } from "@/lib/mb-run";
 import { foodListTitle } from "@/lib/phases";
 import { Card } from "@/components/ui/card";
@@ -123,32 +126,66 @@ export function MbSuggestionsBoard({
   );
 }
 
-/** Read-only view of the client's personal food list, phase-labelled. */
-export function MbFoodListReadonly({
-  foodList,
-  phase,
-}: {
-  foodList: MbFoodListMap;
-  phase?: string | null;
-}) {
-  const title = foodListTitle(phase);
-  const cats = MB_FOOD_CATEGORIES.filter((c) => (foodList[c.key] ?? []).length > 0);
-  if (cats.length === 0) return null;
+function FoodSectionGrid({ sections }: { sections: MbFoodSection[] }) {
   return (
-    <div className="space-y-3">
-      {title && <p className="font-medium">{title}</p>}
-      <div className="grid gap-4 md:grid-cols-2">
-        {cats.map((c) => (
-          <Card key={c.key} className="p-4">
-            <p className="font-medium mb-2">{c.label}</p>
-            <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-              {(foodList[c.key] ?? []).map((f) => (
-                <li key={f}><span className="text-foreground">{f}</span></li>
-              ))}
-            </ul>
-          </Card>
-        ))}
-      </div>
+    <div className="grid gap-4 md:grid-cols-2">
+      {sections.map((s) => (
+        <Card key={s.key} className="p-4">
+          <p className="font-medium mb-2">{s.label}</p>
+          <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+            {s.items.map((f) => (
+              <li key={f}><span className="text-foreground">{f}</span></li>
+            ))}
+          </ul>
+        </Card>
+      ))}
     </div>
   );
 }
+
+/**
+ * Read-only view of the client's personal food list, phase-labelled.
+ * For Phase 3 clients this renders two stacked sections: the Phase 2 Extended
+ * base list, then only the additional foods added for Phase 3.
+ */
+export function MbFoodListReadonly({
+  foodList,
+  phase,
+  client,
+}: {
+  foodList: MbFoodListMap;
+  phase?: string | null;
+  /** Full client row — used to read the separate Phase 3 additional foods. */
+  client?: Record<string, unknown> | null;
+}) {
+  const isPhase3 = phase === "phase3";
+  const base: MbFoodSection[] = MB_FOOD_CATEGORIES
+    .filter((c) => (foodList[c.key] ?? []).length > 0)
+    .map((c) => ({ key: c.key, label: c.label, items: foodList[c.key] ?? [] }));
+  const additions = isPhase3 ? phase3AdditionSections(client) : [];
+
+  if (base.length === 0 && additions.length === 0) return null;
+
+  const baseTitle = isPhase3 ? foodListTitle("phase2_extended") : foodListTitle(phase);
+
+  return (
+    <div className="space-y-6">
+      {base.length > 0 && (
+        <div className="space-y-3">
+          {baseTitle && <p className="font-medium">{baseTitle}</p>}
+          <FoodSectionGrid sections={base} />
+        </div>
+      )}
+      {additions.length > 0 && (
+        <div className="space-y-3">
+          <p className="font-medium">{foodListTitle("phase3")}</p>
+          <p className="text-xs text-muted-foreground">
+            Additional foods added for Phase 3, on top of the list above.
+          </p>
+          <FoodSectionGrid sections={additions} />
+        </div>
+      )}
+    </div>
+  );
+}
+

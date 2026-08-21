@@ -25,6 +25,7 @@ import { parseMbRun, resolveDayMeal, runDates, todayISO, fmtQty, RUN_DAYS, RUN_M
 
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
+import { MbFoodListReadonly } from "@/components/MbSuggestionBoard";
 import { phaseLabel, phaseShort, foodListTitle, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
 import { getPhaseProgress } from "@/lib/progress";
 import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
@@ -1366,6 +1367,7 @@ export default function ClientPortal() {
               initialRun={(client as any).mb_run}
               onGoHome={() => changeTab("home")}
               phase={client.phase}
+              client={client as unknown as Record<string, unknown>}
             />
           )}
           {client.macros_shared && client.macros && (
@@ -1519,7 +1521,20 @@ export default function ClientPortal() {
                 const populated = groups
                   .map((g) => ({ title: g.title, items: parseList(client[g.field] as string) }))
                   .filter((g) => g.items.length > 0);
+                if (client.phase === "phase3") {
+                  // The run planner above already renders the split Phase 2 base +
+                  // Phase 3 additions list; don't repeat it here.
+                  if (mbPlanConfirmed) return null;
+                  return (
+                    <MbFoodListReadonly
+                      foodList={resolveMbFoodList(client as unknown as Record<string, unknown>)}
+                      phase="phase3"
+                      client={client as unknown as Record<string, unknown>}
+                    />
+                  );
+                }
                 if (client.phase === "phase4") {
+
                   const phase2Populated = categoriesFromFields(phase2ParsedGroups);
                   const renderReadonlySection = (items: { title: string; items: string[] }[]) => (
                     items.length > 0 ? (

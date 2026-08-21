@@ -42,6 +42,8 @@ interface Props {
   onGoHome: () => void;
   /** Client's current MB phase — labels the food list. */
   phase?: string | null;
+  /** Full client row — used to show the separate Phase 3 additional foods. */
+  client?: Record<string, unknown> | null;
 }
 
 /**
@@ -55,6 +57,7 @@ interface Props {
  */
 export function MbRunPlanner({
   token, suggestions, foodList, enrichedLimits, legacyLimits, initialRun, onGoHome, phase = null,
+  client = null,
 }: Props) {
   const [run, setRun] = useState<MbRun>(() => parseMbRun(initialRun));
   const [consumed, setConsumed] = useState<CapConsumed>({});
@@ -222,7 +225,7 @@ export function MbRunPlanner({
           </p>
         </div>
         <MbSuggestionsBoard suggestions={suggestions} onPick={lockColour} />
-        <MbFoodListReadonly foodList={foodList} phase={phase} />
+        <MbFoodListReadonly foodList={foodList} phase={phase} client={client} />
 
       </Card>
     );
@@ -433,7 +436,7 @@ export function MbRunPlanner({
         </div>
       )}
 
-      <MbFoodListReadonly foodList={foodList} phase={phase} />
+      <MbFoodListReadonly foodList={foodList} phase={phase} client={client} />
     </Card>
   );
 }
