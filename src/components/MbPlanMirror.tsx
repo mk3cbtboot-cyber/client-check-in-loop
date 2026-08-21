@@ -31,6 +31,8 @@ interface Props {
   anchor?: string | null;
   /** Client's current MB phase — labels the food list. */
   phase?: string | null;
+  /** Full client row — used to show the separate Phase 3 additional foods. */
+  client?: Record<string, unknown> | null;
 }
 
 /**
@@ -41,7 +43,7 @@ interface Props {
  */
 export function MbPlanMirror({
   clientId, suggestions, foodList, run: rawRun, confirmed, clientName,
-  enrichedLimits = [], legacyLimits = {}, anchor = null, phase = null,
+  enrichedLimits = [], legacyLimits = {}, anchor = null, phase = null, client = null,
 }: Props) {
   const firstName = clientName.split(" ")[0] || "This client";
   const [consumed, setConsumed] = useState<CapConsumed>({});
@@ -110,7 +112,7 @@ export function MbPlanMirror({
           </p>
         </div>
         <MbSuggestionsBoard suggestions={suggestions} />
-        <MbFoodListReadonly foodList={foodList} phase={phase} />
+        <MbFoodListReadonly foodList={foodList} phase={phase} client={client} />
       </Card>
     );
   }
@@ -231,7 +233,7 @@ export function MbPlanMirror({
         </div>
       )}
 
-      <MbFoodListReadonly foodList={foodList} phase={phase} />
+      <MbFoodListReadonly foodList={foodList} phase={phase} client={client} />
     </Card>
   );
 }

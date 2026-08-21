@@ -1366,6 +1366,7 @@ export default function ClientPortal() {
               initialRun={(client as any).mb_run}
               onGoHome={() => changeTab("home")}
               phase={client.phase}
+              client={client as unknown as Record<string, unknown>}
             />
           )}
           {client.macros_shared && client.macros && (

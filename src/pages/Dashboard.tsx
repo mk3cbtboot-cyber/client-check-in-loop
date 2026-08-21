@@ -2508,6 +2508,7 @@ export default function Dashboard() {
                             legacyLimits={(client as unknown as { food_limits?: Record<string, number> }).food_limits ?? {}}
                             anchor={client.phase2_strict_started_at}
                             phase={client.phase}
+                            client={client as unknown as Record<string, unknown>}
 
                           />
 
