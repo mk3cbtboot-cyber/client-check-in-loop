@@ -432,6 +432,8 @@ export function MbRunPlanner({
           </p>
         </div>
       )}
+
+      <MbFoodListReadonly foodList={foodList} phase={phase} />
     </Card>
   );
 }

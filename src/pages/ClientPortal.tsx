@@ -1352,6 +1352,7 @@ export default function ClientPortal() {
               legacyLimits={foodLimits}
               initialRun={(client as any).mb_run}
               onGoHome={() => changeTab("home")}
+              phase={client.phase}
             />
           )}
           {client.macros_shared && client.macros && (
