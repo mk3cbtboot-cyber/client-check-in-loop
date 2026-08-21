@@ -98,11 +98,13 @@ export function MbPersonalFoodList({ clientId, client, phase, onSaved }: Props) 
     <div className="rounded-lg border p-3 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold flex items-center gap-2">
-            {foodListTitle(phase) ?? "Personal Food List"}
+          {foodListTitle(phase) && (
+            <p className="text-sm font-semibold flex items-center gap-2">
+              {foodListTitle(phase)}
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            </p>
+          )}
 
-            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-          </p>
           <p className="text-xs text-muted-foreground">
             One list for this client — the foods they can pick from inside each suggestion. Changes save automatically.
           </p>
