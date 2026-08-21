@@ -932,8 +932,7 @@ Deno.serve(async (req) => {
     if (cErr || !clientRow || clientRow.practitioner_id !== userData.user.id) {
       return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const stripFooter = buildFooterStripper(clientRow.name ?? null);
-    const stripTrailingName = buildTrailingNameStripper(clientRow.name ?? null);
+    const stripFooter = buildFooterStripper();
 
     debug.step = "download_pdf";
     const { data: file, error: dErr } = await admin.storage.from("mb-pdfs").download(storagePath);
@@ -944,18 +943,38 @@ Deno.serve(async (req) => {
     const buf = new Uint8Array(await file.arrayBuffer());
     const pdf = await getDocumentProxy(buf);
     const { text: pages } = await extractText(pdf, { mergePages: false });
-    const fullText = Array.isArray(pages) ? pages.join("\n\n") : String(pages);
+    const rawText = Array.isArray(pages) ? pages.join("\n\n") : String(pages);
+    // Soft hyphens must go before ANY matching happens.
+    const fullText = stripSoftHyphens(rawText);
+
+    debug.step = "detect_format";
+    const format = detectFormat(fullText);
+    debug.format = format;
+    if (format === "unsupported") {
+      return new Response(JSON.stringify({
+        error: "unsupported_layout",
+        detail: "This plan layout isn't supported. Please upload the standard Metabolic Balance plan, not the picture version.",
+        format,
+        debug,
+      }), { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const footerIdentity = extractFooterIdentity(fullText);
+    debug.footerIdentity = footerIdentity;
 
     debug.step = "parse_pdf_sections";
-    const phase2ProteinSection = sliceBetween(fullText, /Personal Food List\s*[-–]\s*Protein/i, /Personal Food List\s*[-–]\s*Carbohydrates|Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$/i);
-    const phase2CarbSection = sliceBetween(fullText, /Personal Food List\s*[-–]\s*Carbohydrates/i, /Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$|Extended personal Food List/i);
+    // Heading matching is case-insensitive and treats hyphen/en-dash/em-dash as
+    // equivalent (and optional), so Classic title case and New ALL-CAPS both match.
+    const phase2ProteinSection = sliceBetween(fullText, /Personal Food List\s*(?:[-–—:]\s*)?Protein/i, /Personal Food List\s*(?:[-–—:]\s*)?Carbohydrates|Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$/i);
+    const phase2CarbSection = sliceBetween(fullText, /Personal Food List\s*(?:[-–—:]\s*)?Carbohydrates/i, /Additional Information about the Meal Plan|\$\$CA_PHASE3\$\$|Extended personal Food List/i);
     const additionalInfoSection = sliceBetween(fullText, /Additional Information about the Meal Plan/i, /\$\$CA_PHASE3\$\$|Extended personal Food List/i);
-    // Phase 3: bound on "Shopping (?:Helper|Bag)" to avoid pulling the combined list.
-    const phase3SectionRaw = sliceBetween(fullText, /Extended personal Food List/i, /Shopping (?:Helper|Bag)/i)
-      ?? sliceBetween(fullText, /\$\$CA_PHASE3\$\$/i, /Shopping (?:Helper|Bag)/i);
+    // Phase 3: bound on the shopping section to avoid pulling the combined list.
+    const phase3SectionRaw = sliceBetween(fullText, /Extended personal Food List/i, /Shopping\s*(?:Helper|Bag)/i)
+      ?? sliceBetween(fullText, /\$\$CA_PHASE3\$\$/i, /Shopping\s*(?:Helper|Bag)/i);
     const phase3Section = phase3SectionRaw ? stripFooter(phase3SectionRaw) : null;
 
-    const mealTableEnd = fullText.search(/Personal Food List\s*[-–]\s*Protein/i);
+    const mealTableEnd = fullText.search(/Personal Food List\s*(?:[-–—:]\s*)?Protein/i);
+
     const mealTableText = mealTableEnd > 0 ? fullText.slice(Math.max(0, mealTableEnd - 4000), mealTableEnd) : fullText.slice(0, 4000);
     const mealPageIndex = Array.isArray(pages)
       ? pages.findIndex((pageText) => /\bBreakfast\b/i.test(pageText) && /\bLunch\b/i.test(pageText) && /\bDinner\b/i.test(pageText))
