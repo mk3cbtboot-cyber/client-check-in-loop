@@ -1340,7 +1340,7 @@ export default function ClientPortal() {
             <p className="text-xs uppercase text-muted-foreground">Client</p>
             <p className="text-lg font-semibold">{client.name}</p>
             {client.client_type === "mb" && (
-              <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseShort(client.phase)}</span></p>
+              <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseLabel(client.phase)}</span></p>
             )}
           </Card>
           {mbPlanConfirmed && client.client_type !== "custom" && (
