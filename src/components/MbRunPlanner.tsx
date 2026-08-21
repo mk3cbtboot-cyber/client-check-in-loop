@@ -16,6 +16,7 @@ import {
   RUN_DAYS, RUN_MEALS, clearDayMeal, emptyRun, fmtQty, parseMbRun, resolveDayMeal,
   resolveRunMeal, runDates, startRun, swapDayMeal, todayISO, type MbRun,
 } from "@/lib/mb-run";
+import { MbFoodListReadonly, MbSuggestionsBoard } from "@/components/MbSuggestionBoard";
 
 const MEAL_LABEL: Record<MealType, string> = {
   breakfast: "Breakfast",
