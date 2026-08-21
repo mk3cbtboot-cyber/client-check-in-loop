@@ -1520,7 +1520,20 @@ export default function ClientPortal() {
                 const populated = groups
                   .map((g) => ({ title: g.title, items: parseList(client[g.field] as string) }))
                   .filter((g) => g.items.length > 0);
+                if (client.phase === "phase3") {
+                  // The run planner above already renders the split Phase 2 base +
+                  // Phase 3 additions list; don't repeat it here.
+                  if (mbPlanConfirmed && client.client_type !== "custom") return null;
+                  return (
+                    <MbFoodListReadonly
+                      foodList={resolveMbFoodList(client as unknown as Record<string, unknown>)}
+                      phase="phase3"
+                      client={client as unknown as Record<string, unknown>}
+                    />
+                  );
+                }
                 if (client.phase === "phase4") {
+
                   const phase2Populated = categoriesFromFields(phase2ParsedGroups);
                   const renderReadonlySection = (items: { title: string; items: string[] }[]) => (
                     items.length > 0 ? (
