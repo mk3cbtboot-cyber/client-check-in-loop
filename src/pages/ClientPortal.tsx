@@ -20,6 +20,7 @@ import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@
 import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS, parseMbFoodLimits } from "@/lib/mb-plan";
 import { resolveMbFoodList, categoryLabel } from "@/lib/mb-food-list";
 import MbRunPlanner from "@/components/MbRunPlanner";
+import MbPhase1Guide from "@/components/MbPhase1Guide";
 import { parseMbRun, resolveDayMeal, runDates, todayISO, fmtQty, RUN_DAYS, RUN_MEALS } from "@/lib/mb-run";
 
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
