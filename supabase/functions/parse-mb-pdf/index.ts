@@ -330,10 +330,15 @@ function parseFoodSection(
     if (items.length) {
       fieldItems[field] = Array.from(new Set([...(fieldItems[field] ?? []), ...items]));
     }
-    if (rules.length) {
+    const cleanRules = rules
+      .map((r) => stripClientName(r, clientNames) ?? "")
+      .map((r) => r.trim())
+      .filter((r) => r.length > 0 && !isLetterSpacedRun(r));
+    if (cleanRules.length) {
       const prev = notes[field] ? [notes[field]] : [];
-      notes[field] = Array.from(new Set([...prev, rules.join(", ")])).join(" ");
+      notes[field] = Array.from(new Set([...prev, cleanRules.join(", ")])).join(" ");
     }
+
   }
 
   dropRepeatedTrailingName(fieldItems);
