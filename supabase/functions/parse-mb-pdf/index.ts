@@ -1499,6 +1499,29 @@ Deno.serve(async (req) => {
       water = parseWater(additionalInfoSection);
       foodLimits = parseFoodLimits(additionalInfoSection);
     }
+
+    // The rules split out of the food-list categories are per-client guidance —
+    // mine them for frequency limits too, then keep the remainder as category
+    // notes (foodNotes already carries them, keyed by field).
+    for (const [field, note] of Object.entries(foodNotes)) {
+      if (!note) continue;
+      for (const [k, v] of Object.entries(parseFoodLimits(note))) {
+        foodLimits[k] = k in foodLimits ? Math.min(foodLimits[k], v) : v;
+      }
+      void field;
+    }
+
+    // Meal-swap adjustment and treat-meal timing (per-client, verbatim).
+    const mealRules = (() => {
+      const scoped = parseMealRules(additionalInfoSection || "");
+      if (scoped.meal_swap && scoped.treat_meal) return scoped;
+      const wide = parseMealRules(fullText);
+      return {
+        meal_swap: scoped.meal_swap ?? wide.meal_swap,
+        treat_meal: scoped.treat_meal ?? wide.treat_meal,
+      };
+    })();
+
     // Water may live outside the "Additional Information" block in the New layout.
     if (water == null) water = parseWater(fullText);
     const waterMl = water == null ? null : Math.round(water * 1000);
