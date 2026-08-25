@@ -325,10 +325,12 @@ function parseFoodSection(
       items.push(cleaned);
     };
 
-    for (const frag of fragments) {
-      if (!/[A-Za-z]/.test(frag)) continue;
+    for (const rawFrag of fragments) {
+      const frag = stripTrailingArtifacts(rawFrag);
+      if (!frag || !/[A-Za-z]/.test(frag)) continue;
       if (ARTIFACT_RE.test(frag)) { inNote = false; continue; }
       if (isLetterSpacedRun(frag)) continue; // page watermark
+
       if (inNote) { rules.push(frag); continue; }
       // A rule can start part-way through a fragment ("Oatmeal When eating …").
       const cut = frag.match(NOTE_CUT_RE);
