@@ -1275,7 +1275,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    const phase2Carbs = phase2CarbSection ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES, stripFooter) : {};
+    const p2Carb = phase2CarbSection
+      ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES, stripFooter, clientNames)
+      : { foods: {}, notes: {} };
+    const phase2Carbs = p2Carb.foods;
+    Object.assign(foodNotes, p2Carb.notes);
+
 
     // Fallback: same-line Starch extraction (e.g. "Starch Oatmeal" on a single line
     // followed by a note that defeats the multi-line parser).
