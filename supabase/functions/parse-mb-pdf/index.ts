@@ -155,53 +155,166 @@ function truncateAtBoundary(chunk: string): string {
   return chunk.slice(0, cut);
 }
 
+/** Split on commas/semicolons/newlines that sit OUTSIDE parentheses. */
+function splitTopLevel(text: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of text) {
+    if (ch === "(" || ch === "[") depth++;
+    else if (ch === ")" || ch === "]") depth = Math.max(0, depth - 1);
+    if (depth === 0 && (ch === "," || ch === ";" || ch === "\n")) {
+      out.push(cur);
+      cur = "";
+      continue;
+    }
+    cur += ch;
+  }
+  out.push(cur);
+  return out.map((s) => s.replace(/\s+/g, " ").trim()).filter(Boolean);
+}
+
+// A fragment that starts a rule/note rather than naming a food.
+const NOTE_START_RE =
+  /^(?:please\b|when\s|from now on\b|note\b|you\s(?:can|may|should|must|will)\b|this meal\b|do not\b|don't\b|avoid eating\b|eat\s|use\s|choose\s|limit\s|max\.?\b|maximum\b|no more than\b|only\s(?:eat|use|have)\b|if\syou\b|for\sbreakfast\b|it\sis\b|these\b|the\s(?:following|above)\b)/i;
+const NOTE_INLINE_RE = /\b(?:no more than|times? a week|per week|please eat|please use|please note)\b/i;
+
+const ARTIFACT_RE =
+  /Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|Page\s*\d|©|Metabolic Balance|Coach\s*:|Phase\s*[1-4]\s*:|\$\$CA_/i;
+
+function isNoteFragment(s: string): boolean {
+  if (NOTE_START_RE.test(s)) return true;
+  if (NOTE_INLINE_RE.test(s)) return true;
+  // Sentence-like: contains a verb-ish clause and is long.
+  return s.split(/\s+/).length > 7 && /\s[a-z]+\s+[a-z]+\s/.test(s);
+}
+
+/** Remove a trailing client name that bled in from the page footer. */
+function stripClientName(item: string, names: string[]): string | null {
+  let out = item.trim();
+  for (const raw of names) {
+    const n = raw.trim();
+    if (n.length < 3) continue;
+    const esc = escapeRegExp(n);
+    if (new RegExp(`^${esc}$`, "i").test(out)) return null;
+    out = out.replace(new RegExp(`[\\s,|-]*${esc}\\s*$`, "i"), "").trim();
+    // First-name bleed: "Julie", or "Julie Cobb" when the client row says
+    // "Julie coblestone" — a short capitalised run starting with the first name.
+    const first = n.split(/\s+/)[0];
+    if (first.length >= 3) {
+      const fe = escapeRegExp(first);
+      if (new RegExp(`^${fe}(?:\\s+[A-Za-z'-]+){0,2}$`, "i").test(out)) return null;
+      out = out.replace(new RegExp(`[\\s,|-]+${fe}(?:\\s+[A-Za-z'-]+){0,2}\\s*$`), "").trim();
+    }
+  }
+  out = out.replace(/[\s,;|]+$/g, "").trim();
+  return out.length ? out : null;
+}
+
+const PERSON_NAME_RE = /^[A-Z][a-z'’-]+(?:\s+[A-Z][a-z'’-]+){1,2}$/;
+/**
+ * The page-footer name often lands as the LAST item of whichever food category
+ * ends a page, in several categories. Anything that looks like a person's name
+ * and repeats as a trailing item is treated as footer bleed, not a food.
+ */
+function dropRepeatedTrailingName(fieldItems: Record<string, string[]>): void {
+  const tally = new Map<string, number>();
+  for (const items of Object.values(fieldItems)) {
+    const last = items[items.length - 1];
+    if (last && PERSON_NAME_RE.test(last)) tally.set(last, (tally.get(last) ?? 0) + 1);
+  }
+  const bleed = new Set([...tally.entries()].filter(([, n]) => n >= 2).map(([s]) => s));
+  if (!bleed.size) return;
+  for (const key of Object.keys(fieldItems)) {
+    fieldItems[key] = fieldItems[key].filter((i) => !bleed.has(i));
+  }
+}
+
+
+export type FoodSectionResult = {
+  foods: Record<string, string>;
+  notes: Record<string, string>;
+};
+
+/**
+ * Parses "<CATEGORY> <comma-separated foods>" rows.
+ *
+ * - Category labels are matched case-insensitively from the supplied map only;
+ *   whatever categories are present get filled, the rest stay empty.
+ * - Items wrap freely across lines: a category owns everything up to the next
+ *   known category label or section boundary.
+ * - Parenthetical qualifiers stay attached to their food.
+ * - Trailing rules/notes are captured separately instead of stored as foods.
+ * - The page-footer client name is never kept as a food.
+ */
 function parseFoodSection(
   text: string,
   categoryMap: Record<string, string>,
   stripFooter: (s: string) => string,
-): Record<string, string> {
-  const result: Record<string, string> = {};
+  clientNames: string[] = [],
+): FoodSectionResult {
+  const foods: Record<string, string> = {};
+  const notes: Record<string, string> = {};
   const labels = Object.keys(categoryMap);
   labels.sort((a, b) => b.length - a.length);
-  const labelPattern = labels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
-  // Allow heading to start after newline, semicolon, comma-newline, or after gram-amount entries
-  // (since unpdf often flattens columns into one line, "Sunflower Seeds" etc. may not be newline-prefixed).
-  const splitRe = new RegExp(`(?:^|[\\n;]|(?<=\\bg\\s)|(?<=\\)\\s)|(?<=[.,]\\s))\\s*(${labelPattern})\\s*[:\\-–]?\\s+`, "gi");
+  const labelPattern = labels.map(escapeRegExp).join("|");
+  // A heading may start a line, or follow a separator when unpdf flattens columns.
+  const splitRe = new RegExp(
+    `(?:^|[\\n;]|(?<=\\bg\\s)|(?<=\\)\\s)|(?<=[.,]\\s))\\s*(${labelPattern})\\s*[:\\-–]?\\s+`,
+    "gi",
+  );
 
   const matches: { label: string; start: number; contentStart: number }[] = [];
   let m: RegExpExecArray | null;
   while ((m = splitRe.exec(text)) !== null) {
     matches.push({ label: m[1], start: m.index, contentStart: m.index + m[0].length });
   }
+
+  const lookup: Record<string, string> = {};
+  for (const [k, v] of Object.entries(categoryMap)) lookup[k.toLowerCase().replace(/\s+/g, " ")] = v;
+
+  const fieldItems: Record<string, string[]> = {};
   for (let i = 0; i < matches.length; i++) {
     const cur = matches[i];
+    const field = lookup[cur.label.toLowerCase().replace(/\s+/g, " ")];
+    if (!field || field.startsWith("__")) continue; // boundary-only label
     const end = i + 1 < matches.length ? matches[i + 1].start : text.length;
     let chunk = text.slice(cur.contentStart, end);
     chunk = truncateAtBoundary(chunk);
     chunk = stripFooter(chunk);
-    const items = chunk
-      .split(/[,;\n]+/)
-      .map((s) => s.replace(/\s+/g, " ").trim())
-      .filter(Boolean)
-      .filter((s) => {
-        if (s.length < 2 || s.length > 60) return false;
-        if (/Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|Page\s*\d|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:/i.test(s)) return false;
-        if (!/[A-Za-z]/.test(s)) return false;
-        if (/\.\s+[a-z]/.test(s)) return false;
-        if (s.split(/\s+/).length > 5) return false;
-        return true;
-      });
-    // Case-insensitive lookup so ALL-CAPS (New layout) headings map correctly.
-    const lookup: Record<string, string> = {};
-    for (const [k, v] of Object.entries(categoryMap)) lookup[k.toLowerCase().replace(/\s+/g, " ")] = v;
-    const field = lookup[cur.label.toLowerCase().replace(/\s+/g, " ")];
-    if (!field || field.startsWith("__")) continue; // boundary-only label
-    const existing = result[field] ? result[field].split(",").map((s) => s.trim()).filter(Boolean) : [];
-    const merged = Array.from(new Set([...existing, ...items]));
-    if (merged.length) result[field] = merged.join(", ");
+
+    const fragments = splitTopLevel(chunk);
+    const items: string[] = [];
+    const rules: string[] = [];
+    let inNote = false;
+    for (const frag of fragments) {
+      if (!/[A-Za-z]/.test(frag)) continue;
+      if (ARTIFACT_RE.test(frag)) { inNote = false; continue; }
+      if (!inNote && isNoteFragment(frag)) inNote = true;
+      if (inNote) { rules.push(frag); continue; }
+      const cleaned = stripClientName(frag, clientNames);
+      if (!cleaned) continue;
+      if (cleaned.length > 80) { rules.push(cleaned); continue; }
+      items.push(cleaned);
+    }
+
+    if (items.length) {
+      fieldItems[field] = Array.from(new Set([...(fieldItems[field] ?? []), ...items]));
+    }
+    if (rules.length) {
+      const prev = notes[field] ? [notes[field]] : [];
+      notes[field] = Array.from(new Set([...prev, rules.join(", ")])).join(" ");
+    }
   }
-  return result;
+
+  dropRepeatedTrailingName(fieldItems);
+  for (const [field, items] of Object.entries(fieldItems)) {
+    if (items.length) foods[field] = items.join(", ");
+  }
+  return { foods, notes };
 }
+
+
 
 function extractPositionedTextForPage(page: unknown): PositionedText[] {
   const items = (page as { content?: { items?: Array<Record<string, unknown>> } })?.content?.items;
@@ -966,129 +1079,19 @@ function sliceBetween(text: string, startAnchor: RegExp, endAnchor: RegExp | nul
   return e < 0 ? rest : rest.slice(0, 50 + e);
 }
 
-// Special parser for Phase 3 Sprouts: takes only the items on the heading line,
-// then stops at the instructional note or next category.
-function parseSproutsField(phase3Section: string, stripFooter: (s: string) => string): string | null {
-  const m = phase3Section.match(/\bSprouts\b\s*[:\-–]?\s*([^\n]*)/i);
-  if (!m) return null;
-  let chunk = m[1] ?? "";
-  chunk = chunk.split(/From now on/i)[0];
-  chunk = chunk.split(/Please note/i)[0];
-  chunk = chunk.split(/\bNote:/i)[0];
-  // Stop at next category heading on the same line (e.g. "Fat/Oil")
-  const stopRe = /\b(Fat\s*\/?\s*Oil|Vegetables|Veg\.?\s*\/?\s*Lettuce|Fruit|Bread|Starch|Cheese|Meat|Poultry|Fish|Seafood|Legumes|Nuts|Yogurt|Milk Products)\b/i;
-  const stop = chunk.search(stopRe);
-  if (stop >= 0) chunk = chunk.slice(0, stop);
-  chunk = stripFooter(chunk);
-  const items = chunk
-    .split(/[,;]+/)
-    .map((s) => s.replace(/\s+/g, " ").trim())
-    .filter(Boolean)
-    .filter((s) => s.length >= 2 && s.length <= 40 && /[A-Za-z]/.test(s) && s.split(/\s+/).length <= 4);
-  return items.length ? Array.from(new Set(items)).join(", ") : null;
+/**
+ * Foods named in the Shopping Helper / Shopping Bag section. Used only as a
+ * cross-check signal in debug output — the canonical Personal Food List
+ * remains the single source of truth for the stored food_* fields.
+ */
+function shoppingHelperFoods(fullText: string, stripFooter: (s: string) => string): string[] {
+  const sec = sliceBetween(fullText, /Shopping\s*(?:Helper|Bag)/i, /Extended personal Food List|\$\$CA_PHASE4\$\$/i);
+  if (!sec) return [];
+  const items = splitTopLevel(stripFooter(sec))
+    .filter((s) => /[A-Za-z]/.test(s) && !ARTIFACT_RE.test(s) && s.length <= 60 && !isNoteFragment(s));
+  return Array.from(new Set(items));
 }
 
-// Phase 3 parser using partial keyword matching (more tolerant of heading variations).
-// Returns map of phase3_mb_* field -> comma-joined items, plus a debug headings list.
-type Phase3Spec = { field: string; match: RegExp; reject?: RegExp };
-const PHASE3_SPECS: Phase3Spec[] = [
-  { field: "phase3_mb_fish",        match: /\bFish\b/i, reject: /\b(Seafood|Shellfish)\b/i },
-  { field: "phase3_mb_seafood",     match: /\b(Seafood|Shellfish)\b/i },
-  { field: "phase3_mb_meat",        match: /\bMeat\b/i, reject: /\bPoultry\b/i },
-  { field: "phase3_mb_cheese",      match: /\bCheese\b/i },
-  { field: "phase3_mb_legumes",     match: /\b(Legumes|Beans)\b/i },
-  { field: "phase3_mb_vegetables",  match: /\bVegetables?\b/i, reject: /\b(Veg\.?\s*\/?\s*Lettuce|Lettuce)\b/i },
-  { field: "phase3_mb_veg_lettuce", match: /\b(Veg\.?\s*\/?\s*Lettuce|Lettuce)\b/i },
-  { field: "phase3_mb_sprouts",     match: /\bSprouts?\b/i },
-  { field: "phase3_mb_fat_oil",     match: /\b(Fat\s*\/?\s*Oil|\bFat\b|\bOil\b)\b/i },
-];
-// Words that act as STOP boundaries but are NOT stored as fields themselves.
-// Only section-level boundaries — NOT "From now on"/"Please note"/"Note:" (those
-// can appear between items in Fat/Oil etc. and would truncate the list early).
-const PHASE3_BOUNDARY_KEYWORDS = /\b(Poultry|Fruit|Bread|Starch|Nuts|Yogurt|Milk Products|Pumpkin Seeds|Sunflower Seeds|Shopping (?:Helper|Bag))\b/i;
-
-function parsePhase3SectionByKeyword(
-  section: string,
-  stripFooter: (s: string) => string,
-  debugLog: { headings: { field: string; heading: string; index: number }[]; missing: string[]; fatOilLines: string[] },
-): Record<string, string> {
-  const out: Record<string, string> = {};
-  const lines = section.split(/\r?\n/);
-
-  // Build line-start anchored matchers for each Phase 3 spec.
-  const anchoredSpecs = PHASE3_SPECS.map((s) => ({
-    field: s.field,
-    match: new RegExp(`^\\s*(?:${s.match.source})\\b`, "i"),
-    reject: s.reject,
-  }));
-
-  // Boundary keywords at line start (other category names that end a section).
-  const boundaryLineRe = new RegExp(`^\\s*(?:${PHASE3_BOUNDARY_KEYWORDS.source.replace(/^\\b|\\b$/g, "")})\\b`, "i");
-  const boundaryAtLineStart = (ln: string): boolean => {
-    if (boundaryLineRe.test(ln)) return true;
-    for (const sp of anchoredSpecs) {
-      if (sp.match.test(ln)) return true;
-    }
-    return false;
-  };
-
-  type Hit = { field: string; lineIdx: number; rest: string; heading: string };
-  const hits: Hit[] = [];
-  const seen = new Set<string>();
-  for (let li = 0; li < lines.length; li++) {
-    const ln = lines[li];
-    for (const sp of anchoredSpecs) {
-      if (seen.has(sp.field)) continue;
-      const m = ln.match(sp.match);
-      if (!m) continue;
-      const around = ln.slice(0, m[0].length + 8);
-      if (sp.reject && sp.reject.test(around)) continue;
-      const rest = ln.slice(m[0].length);
-      hits.push({ field: sp.field, lineIdx: li, rest, heading: m[0].trim() });
-      seen.add(sp.field);
-      debugLog.headings.push({ field: sp.field, heading: m[0].trim(), index: li });
-      break;
-    }
-  }
-  for (const sp of PHASE3_SPECS) if (!seen.has(sp.field)) debugLog.missing.push(sp.field);
-
-  if (!hits.length) return out;
-  hits.sort((a, b) => a.lineIdx - b.lineIdx);
-
-  for (let i = 0; i < hits.length; i++) {
-    const cur = hits[i];
-    const collected: string[] = [];
-    // Heading line: take rest verbatim (do NOT apply boundary stop on same line).
-    if (cur.rest.trim()) collected.push(cur.rest);
-    const nextHitLine = i + 1 < hits.length ? hits[i + 1].lineIdx : lines.length;
-    for (let li = cur.lineIdx + 1; li < nextHitLine; li++) {
-      if (boundaryAtLineStart(lines[li])) break;
-      collected.push(lines[li]);
-    }
-    let chunk = collected.join("\n");
-    if (cur.field === "phase3_mb_fat_oil") {
-      debugLog.fatOilLines = chunk.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-      console.log("[parse-mb-pdf] phase3 fat_oil raw lines", debugLog.fatOilLines);
-    }
-    chunk = chunk.replace(/^\s*[:\-–]?\s*/, "");
-    chunk = stripFooter(chunk);
-    const items = chunk
-      .split(/[,;\n]+/)
-      .map((s) => s.replace(/\s+/g, " ").trim())
-      .filter(Boolean)
-      .filter((s) => {
-        if (s.length < 2 || s.length > 60) return false;
-        if (!/[A-Za-z]/.test(s)) return false;
-        if (/Personal Food List|Extended personal|Shopping (?:Helper|Bag)|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:|Phase\s*3/i.test(s)) return false;
-        if (s.split(/\s+/).length > 5) return false;
-        return true;
-      });
-    if (items.length) {
-      out[cur.field] = Array.from(new Set(items)).join(", ");
-    }
-  }
-  return out;
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -1209,7 +1212,19 @@ Deno.serve(async (req) => {
     debug.meal_parser = mealDebug;
 
 
-    const phase2Proteins = phase2ProteinSection ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES, stripFooter) : {};
+    // Names that must never survive as a food (page-footer bleed).
+    const clientNames = Array.from(new Set([
+      footerIdentity.clientName ?? "",
+      String(clientRow.name ?? ""),
+      footerIdentity.coachName ?? "",
+    ].map((s) => s.trim()).filter((s) => s.length >= 3)));
+
+    const p2Protein = phase2ProteinSection
+      ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES, stripFooter, clientNames)
+      : { foods: {}, notes: {} };
+    const phase2Proteins = p2Protein.foods;
+    const foodNotes: Record<string, string> = { ...p2Protein.notes };
+
 
     // Fallback: extract Sunflower Seeds from Phase 2 protein section if the main parser missed it.
     // Only default to "Sunflower Seeds" when the heading is ACTUALLY present in the PDF.
@@ -1289,7 +1304,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    const phase2Carbs = phase2CarbSection ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES, stripFooter) : {};
+    const p2Carb = phase2CarbSection
+      ? parseFoodSection(phase2CarbSection, PHASE2_CARB_CATEGORIES, stripFooter, clientNames)
+      : { foods: {}, notes: {} };
+    const phase2Carbs = p2Carb.foods;
+    Object.assign(foodNotes, p2Carb.notes);
+
 
     // Fallback: same-line Starch extraction (e.g. "Starch Oatmeal" on a single line
     // followed by a note that defeats the multi-line parser).
@@ -1312,33 +1332,26 @@ Deno.serve(async (req) => {
         }
       }
     }
-    const phase3: Record<string, string | null> = {};
-
-    const extractP3Field = (keyword: string, text: string): string | null => {
-      const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const m = text.match(new RegExp('\\n' + escaped + ' ([^\\n]+)'));
-      return m ? m[1].trim() : null;
-    };
-
-    const _lastExtIdx = fullText.lastIndexOf('Extended personal Food List');
-    const _shopMatch = _lastExtIdx !== -1 ? fullText.slice(_lastExtIdx).match(/Shopping\s*(?:Helper|Bag)\s*Phase\s*3/i) : null;
+    // ---- Phase 3 (Extended personal Food List): ONE parser, same as Phase 2 ----
+    const _lastExtIdx = fullText.lastIndexOf("Extended personal Food List");
+    const _shopMatch = _lastExtIdx !== -1
+      ? fullText.slice(_lastExtIdx).match(/Shopping\s*(?:Helper|Bag)/i)
+      : null;
     const _lastShopIdx = _shopMatch && _shopMatch.index !== undefined ? _lastExtIdx + _shopMatch.index : -1;
-    let _p3Section = '';
-    if (_lastExtIdx !== -1 && _lastShopIdx !== -1) {
-      _p3Section = fullText.slice(_lastExtIdx, _lastShopIdx);
-    } else if (_lastExtIdx !== -1) {
-      _p3Section = fullText.slice(_lastExtIdx, _lastExtIdx + 1000);
+    let _p3Section = "";
+    if (_lastExtIdx !== -1) {
+      _p3Section = _lastShopIdx > _lastExtIdx
+        ? fullText.slice(_lastExtIdx, _lastShopIdx)
+        : fullText.slice(_lastExtIdx, _lastExtIdx + 3000);
     }
+    const p3Text = _p3Section || phase3Section || "";
+    const p3Parsed = p3Text
+      ? parseFoodSection(p3Text, PHASE3_CATEGORIES, stripFooter, clientNames)
+      : { foods: {}, notes: {} };
+    const phase3: Record<string, string | null> = { ...p3Parsed.foods };
+    for (const [k, v] of Object.entries(p3Parsed.notes)) foodNotes[k] = v;
+    debug.phase3_fields = Object.keys(phase3);
 
-    phase3['phase3_mb_fish']        = extractP3Field('Fish',        _p3Section);
-    phase3['phase3_mb_seafood']      = extractP3Field('Seafood',     _p3Section);
-    phase3['phase3_mb_meat']         = extractP3Field('Meat',        _p3Section);
-    phase3['phase3_mb_cheese']       = extractP3Field('Cheese',      _p3Section);
-    phase3['phase3_mb_legumes']      = extractP3Field('Legumes',     _p3Section);
-    phase3['phase3_mb_vegetables']   = extractP3Field('Vegetables',  _p3Section);
-    phase3['phase3_mb_veg_lettuce']  = extractP3Field('Veg./Lettuce', _p3Section);
-    phase3['phase3_mb_sprouts']      = extractP3Field('Sprouts',     _p3Section);
-    phase3['phase3_mb_fat_oil']      = extractP3Field('Fat / Oil',   _p3Section);
 
 
 
@@ -1447,6 +1460,22 @@ Deno.serve(async (req) => {
       fields: result,
       mealOptions: mealOptionsResult,
       foodExclusions,
+      foodNotes,
+      shoppingCrossCheck: (() => {
+        const shop = shoppingHelperFoods(fullText, stripFooter);
+        if (!shop.length) return null;
+        const parsedAll = new Set(
+          [...Object.values(phase2Proteins), ...Object.values(phase2Carbs)]
+            .flatMap((v) => splitTopLevel(String(v ?? "")))
+            .map((s) => s.toLowerCase().replace(/\(.*?\)/g, "").replace(/\s+/g, " ").trim()),
+        );
+        const missing = shop.filter((s) => {
+          const k = s.toLowerCase().replace(/\(.*?\)/g, "").replace(/\s+/g, " ").trim();
+          return k.length > 2 && !parsedAll.has(k);
+        });
+        return { shoppingCount: shop.length, missingFromFoodList: missing.slice(0, 40) };
+      })(),
+
       storagePath,
       format,
       clientName: footerIdentity.clientName,
