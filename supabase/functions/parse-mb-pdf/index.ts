@@ -1561,8 +1561,13 @@ Deno.serve(async (req) => {
     result.water_target_litres = buildField(water, "water_target_litres");
     // eggs max is captured (not dropped) and surfaced through food_limits + extras,
     // since clients has no eggs_max_per_week / water_target_ml column.
-    if (eggs.eggs_max_per_week != null && !("eggs" in foodLimits)) foodLimits.eggs = eggs.eggs_max_per_week;
+    if (eggs.eggs_max_per_week != null) {
+      foodLimits.egg = "egg" in foodLimits
+        ? Math.min(foodLimits.egg, eggs.eggs_max_per_week)
+        : eggs.eggs_max_per_week;
+    }
     result.food_limits = { value: foodLimits, extracted: Object.keys(foodLimits).length > 0 };
+
 
     const mealOptionsResult: Record<string, MealOption[]> = {
       breakfast: mealOptions.breakfast,
