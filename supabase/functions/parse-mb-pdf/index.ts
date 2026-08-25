@@ -1068,37 +1068,120 @@ function parseEggs(text: string): { eggs_min_per_week: number | null; eggs_max_p
   return { eggs_min_per_week: null, eggs_max_per_week: null };
 }
 
-// Generic parser: extract every "N(-M) <food> per week" weekly limit and return
-// a map of normalized food name -> max units. Tolerant of multi-word foods like
-// "free-range eggs" — we keep the last word (the head noun) as the key.
+// ---------- per-client frequency rules ----------
+
+const WORD_NUMBERS: Record<string, number> = {
+  one: 1, once: 1, two: 2, twice: 2, three: 3, thrice: 3, four: 4, five: 5,
+  six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+};
+
+function numFrom(token: string): number | null {
+  const t = token.trim().toLowerCase();
+  if (/^\d+$/.test(t)) return parseInt(t, 10);
+  return WORD_NUMBERS[t] ?? null;
+}
+
+const LIMIT_FILLER_RE =
+  /\b(maximum|max|minimum|min|of|a|an|the|fresh|whole|raw|organic|free[-\s]?range|small|large|only|no|more|than|up|to|per|times?|week|weekly|eat|eating|have|use|with|and)\b/g;
+
+/**
+ * Canonical key for a food phrase: generic plural -> singular, no hand-coded
+ * word list, and the head noun kept last so multi-word foods collapse sanely.
+ */
+function limitKey(phrase: string): string | null {
+  const cleaned = phrase
+    .toLowerCase()
+    .replace(/[^a-z\s-]/g, " ")
+    .replace(LIMIT_FILLER_RE, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return null;
+  const words = cleaned.split(" ").filter(Boolean);
+  let head = words[words.length - 1];
+  if (!head || head.length < 3) return null;
+  // generic singularisation
+  if (/ies$/.test(head)) head = head.replace(/ies$/, "y");
+  else if (/(ches|shes|sses|xes|zes)$/.test(head)) head = head.replace(/es$/, "");
+  else if (/oes$/.test(head)) head = head.replace(/es$/, "");
+  else if (/[^s]s$/.test(head)) head = head.replace(/s$/, "");
+  return head.length >= 3 ? head : null;
+}
+
+/**
+ * Merge a limit into the map. Colliding keys never silently overwrite: the more
+ * restrictive (lower) weekly count wins, so two rules about the same food can't
+ * cancel each other out depending on document order.
+ */
+function mergeLimit(out: Record<string, number>, key: string | null, max: number) {
+  if (!key) return;
+  if (!Number.isFinite(max) || max <= 0 || max > 100) return;
+  out[key] = key in out ? Math.min(out[key], max) : max;
+}
+
+/**
+ * Extract every weekly frequency rule expressed in the text, in any of the
+ * phrasings MB documents use:
+ *   "2 avocados per week", "no more than three times a week" (subject before),
+ *   "eat potatoes with eggs only twice per week".
+ */
 function parseFoodLimits(text: string): Record<string, number> {
   const out: Record<string, number> = {};
-  const re = /(\d+)\s*(?:[-–]\s*(\d+))?\s+([A-Za-z][A-Za-z\- ]{1,40}?)\s+per\s*week/gi;
+
+  // Pattern A: "<N|word> <food> per week" / "<N> <food> a week"
+  const reA = /(\d+|[a-z]+)\s*(?:[-–]\s*(\d+))?\s+([A-Za-z][A-Za-z\- ]{1,40}?)\s+(?:per|a|each)\s*week/gi;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    const max = m[2] ? parseInt(m[2], 10) : parseInt(m[1], 10);
-    if (!Number.isFinite(max) || max <= 0 || max > 100) continue;
-    let phrase = m[3].trim().toLowerCase().replace(/\s+/g, " ");
-    // Strip filler words.
-    phrase = phrase.replace(/\b(maximum|max|minimum|min|of|a|the|fresh|whole|raw|organic|free[-\s]?range)\b/g, "").trim();
-    if (!phrase) continue;
-    // Use the last word as the canonical key (e.g. "free range eggs" -> "eggs", "small avocados" -> "avocados").
-    const words = phrase.split(/\s+/).filter(Boolean);
-    let key = words[words.length - 1];
-    if (!key) continue;
-    // Singularize basic plural -> singular if the singular already exists as a different key.
-    // Otherwise keep as-is so "eggs" stays "eggs", "avocados" stays "avocados".
-    // Normalize "egg" -> "eggs" for the common case.
-    if (key === "egg") key = "eggs";
-    if (key === "avocados") key = "avocado";
-    if (key.length < 3) continue;
-    if (!(key in out)) out[key] = max;
+  while ((m = reA.exec(text)) !== null) {
+    const lo = numFrom(m[1]);
+    const hi = m[2] ? parseInt(m[2], 10) : null;
+    const max = hi ?? lo;
+    if (max == null) continue;
+    mergeLimit(out, limitKey(m[3]), max);
   }
+
+  // Pattern B: "<food> ... no more than <N|word> times a week" — subject comes first.
+  const reB =
+    /([A-Za-z][A-Za-z\- ]{2,40}?)\s+(?:[^.\n]{0,40}?)\b(?:no more than|not more than|only|max(?:imum)?(?: of)?)\s+(\d+|[a-z]+)\s*(?:times?|x)?\s*(?:per|a|each)\s*week/gi;
+  while ((m = reB.exec(text)) !== null) {
+    const max = numFrom(m[2]);
+    if (max == null) continue;
+    mergeLimit(out, limitKey(m[1]), max);
+  }
+
+  // Pattern C: "eat <food> ... twice per week" (verb-led, no "no more than").
+  const reC =
+    /\b(?:eat|have|use|include)\s+([A-Za-z][A-Za-z\- ]{2,40}?)\s+(?:[^.\n]{0,40}?)\b(\d+|once|twice|thrice|one|two|three|four|five|six|seven)\s*(?:times?|x)?\s*(?:per|a|each)\s*week/gi;
+  while ((m = reC.exec(text)) !== null) {
+    const max = numFrom(m[2]);
+    if (max == null) continue;
+    mergeLimit(out, limitKey(m[1]), max);
+  }
+
   // Eggs may also appear as "min N max M eggs" (handled by parseEggs); merge in.
   const eggs = parseEggs(text);
-  if (eggs.eggs_max_per_week && !("eggs" in out)) out.eggs = eggs.eggs_max_per_week;
+  if (eggs.eggs_max_per_week) mergeLimit(out, "egg", eggs.eggs_max_per_week);
   return out;
 }
+
+/**
+ * Per-client meal-swap adjustment ("you may swap lunch and dinner…") and
+ * treat-meal timing ("your treat meal is on Saturday…"). Returns the sentence
+ * as printed, so nothing is lost to paraphrasing.
+ */
+function parseMealRules(text: string): { meal_swap: string | null; treat_meal: string | null } {
+  const sentences = text
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 12 && s.length < 400);
+  const find = (re: RegExp) => sentences.find((s) => re.test(s)) ?? null;
+  return {
+    meal_swap: find(/\b(?:swap|exchange|interchange|switch)\b[^.]{0,80}\b(?:lunch|dinner|breakfast|meals?)\b/i),
+    treat_meal:
+      find(/\b(?:treat|cheat|free|celebration)\s*(?:meal|day)\b/i) ??
+      find(/\b(?:treat|cheat)\b[^.]{0,60}\b(?:once|week|day)\b/i),
+  };
+}
+
 
 // Water is only read from the "Water" row/heading (Classic title case or New
 // ALL-CAPS), never from the first litre-looking number anywhere in the document.
