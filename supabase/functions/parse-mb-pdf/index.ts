@@ -1050,129 +1050,19 @@ function sliceBetween(text: string, startAnchor: RegExp, endAnchor: RegExp | nul
   return e < 0 ? rest : rest.slice(0, 50 + e);
 }
 
-// Special parser for Phase 3 Sprouts: takes only the items on the heading line,
-// then stops at the instructional note or next category.
-function parseSproutsField(phase3Section: string, stripFooter: (s: string) => string): string | null {
-  const m = phase3Section.match(/\bSprouts\b\s*[:\-–]?\s*([^\n]*)/i);
-  if (!m) return null;
-  let chunk = m[1] ?? "";
-  chunk = chunk.split(/From now on/i)[0];
-  chunk = chunk.split(/Please note/i)[0];
-  chunk = chunk.split(/\bNote:/i)[0];
-  // Stop at next category heading on the same line (e.g. "Fat/Oil")
-  const stopRe = /\b(Fat\s*\/?\s*Oil|Vegetables|Veg\.?\s*\/?\s*Lettuce|Fruit|Bread|Starch|Cheese|Meat|Poultry|Fish|Seafood|Legumes|Nuts|Yogurt|Milk Products)\b/i;
-  const stop = chunk.search(stopRe);
-  if (stop >= 0) chunk = chunk.slice(0, stop);
-  chunk = stripFooter(chunk);
-  const items = chunk
-    .split(/[,;]+/)
-    .map((s) => s.replace(/\s+/g, " ").trim())
-    .filter(Boolean)
-    .filter((s) => s.length >= 2 && s.length <= 40 && /[A-Za-z]/.test(s) && s.split(/\s+/).length <= 4);
-  return items.length ? Array.from(new Set(items)).join(", ") : null;
+/**
+ * Foods named in the Shopping Helper / Shopping Bag section. Used only as a
+ * cross-check signal in debug output — the canonical Personal Food List
+ * remains the single source of truth for the stored food_* fields.
+ */
+function shoppingHelperFoods(fullText: string, stripFooter: (s: string) => string): string[] {
+  const sec = sliceBetween(fullText, /Shopping\s*(?:Helper|Bag)/i, /Extended personal Food List|\$\$CA_PHASE4\$\$/i);
+  if (!sec) return [];
+  const items = splitTopLevel(stripFooter(sec))
+    .filter((s) => /[A-Za-z]/.test(s) && !ARTIFACT_RE.test(s) && s.length <= 60 && !isNoteFragment(s));
+  return Array.from(new Set(items));
 }
 
-// Phase 3 parser using partial keyword matching (more tolerant of heading variations).
-// Returns map of phase3_mb_* field -> comma-joined items, plus a debug headings list.
-type Phase3Spec = { field: string; match: RegExp; reject?: RegExp };
-const PHASE3_SPECS: Phase3Spec[] = [
-  { field: "phase3_mb_fish",        match: /\bFish\b/i, reject: /\b(Seafood|Shellfish)\b/i },
-  { field: "phase3_mb_seafood",     match: /\b(Seafood|Shellfish)\b/i },
-  { field: "phase3_mb_meat",        match: /\bMeat\b/i, reject: /\bPoultry\b/i },
-  { field: "phase3_mb_cheese",      match: /\bCheese\b/i },
-  { field: "phase3_mb_legumes",     match: /\b(Legumes|Beans)\b/i },
-  { field: "phase3_mb_vegetables",  match: /\bVegetables?\b/i, reject: /\b(Veg\.?\s*\/?\s*Lettuce|Lettuce)\b/i },
-  { field: "phase3_mb_veg_lettuce", match: /\b(Veg\.?\s*\/?\s*Lettuce|Lettuce)\b/i },
-  { field: "phase3_mb_sprouts",     match: /\bSprouts?\b/i },
-  { field: "phase3_mb_fat_oil",     match: /\b(Fat\s*\/?\s*Oil|\bFat\b|\bOil\b)\b/i },
-];
-// Words that act as STOP boundaries but are NOT stored as fields themselves.
-// Only section-level boundaries — NOT "From now on"/"Please note"/"Note:" (those
-// can appear between items in Fat/Oil etc. and would truncate the list early).
-const PHASE3_BOUNDARY_KEYWORDS = /\b(Poultry|Fruit|Bread|Starch|Nuts|Yogurt|Milk Products|Pumpkin Seeds|Sunflower Seeds|Shopping (?:Helper|Bag))\b/i;
-
-function parsePhase3SectionByKeyword(
-  section: string,
-  stripFooter: (s: string) => string,
-  debugLog: { headings: { field: string; heading: string; index: number }[]; missing: string[]; fatOilLines: string[] },
-): Record<string, string> {
-  const out: Record<string, string> = {};
-  const lines = section.split(/\r?\n/);
-
-  // Build line-start anchored matchers for each Phase 3 spec.
-  const anchoredSpecs = PHASE3_SPECS.map((s) => ({
-    field: s.field,
-    match: new RegExp(`^\\s*(?:${s.match.source})\\b`, "i"),
-    reject: s.reject,
-  }));
-
-  // Boundary keywords at line start (other category names that end a section).
-  const boundaryLineRe = new RegExp(`^\\s*(?:${PHASE3_BOUNDARY_KEYWORDS.source.replace(/^\\b|\\b$/g, "")})\\b`, "i");
-  const boundaryAtLineStart = (ln: string): boolean => {
-    if (boundaryLineRe.test(ln)) return true;
-    for (const sp of anchoredSpecs) {
-      if (sp.match.test(ln)) return true;
-    }
-    return false;
-  };
-
-  type Hit = { field: string; lineIdx: number; rest: string; heading: string };
-  const hits: Hit[] = [];
-  const seen = new Set<string>();
-  for (let li = 0; li < lines.length; li++) {
-    const ln = lines[li];
-    for (const sp of anchoredSpecs) {
-      if (seen.has(sp.field)) continue;
-      const m = ln.match(sp.match);
-      if (!m) continue;
-      const around = ln.slice(0, m[0].length + 8);
-      if (sp.reject && sp.reject.test(around)) continue;
-      const rest = ln.slice(m[0].length);
-      hits.push({ field: sp.field, lineIdx: li, rest, heading: m[0].trim() });
-      seen.add(sp.field);
-      debugLog.headings.push({ field: sp.field, heading: m[0].trim(), index: li });
-      break;
-    }
-  }
-  for (const sp of PHASE3_SPECS) if (!seen.has(sp.field)) debugLog.missing.push(sp.field);
-
-  if (!hits.length) return out;
-  hits.sort((a, b) => a.lineIdx - b.lineIdx);
-
-  for (let i = 0; i < hits.length; i++) {
-    const cur = hits[i];
-    const collected: string[] = [];
-    // Heading line: take rest verbatim (do NOT apply boundary stop on same line).
-    if (cur.rest.trim()) collected.push(cur.rest);
-    const nextHitLine = i + 1 < hits.length ? hits[i + 1].lineIdx : lines.length;
-    for (let li = cur.lineIdx + 1; li < nextHitLine; li++) {
-      if (boundaryAtLineStart(lines[li])) break;
-      collected.push(lines[li]);
-    }
-    let chunk = collected.join("\n");
-    if (cur.field === "phase3_mb_fat_oil") {
-      debugLog.fatOilLines = chunk.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-      console.log("[parse-mb-pdf] phase3 fat_oil raw lines", debugLog.fatOilLines);
-    }
-    chunk = chunk.replace(/^\s*[:\-–]?\s*/, "");
-    chunk = stripFooter(chunk);
-    const items = chunk
-      .split(/[,;\n]+/)
-      .map((s) => s.replace(/\s+/g, " ").trim())
-      .filter(Boolean)
-      .filter((s) => {
-        if (s.length < 2 || s.length > 60) return false;
-        if (!/[A-Za-z]/.test(s)) return false;
-        if (/Personal Food List|Extended personal|Shopping (?:Helper|Bag)|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:|Phase\s*3/i.test(s)) return false;
-        if (s.split(/\s+/).length > 5) return false;
-        return true;
-      });
-    if (items.length) {
-      out[cur.field] = Array.from(new Set(items)).join(", ");
-    }
-  }
-  return out;
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
