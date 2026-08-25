@@ -1082,7 +1082,7 @@ function numFrom(token: string): number | null {
 }
 
 const LIMIT_FILLER_RE =
-  /\b(maximum|max|minimum|min|of|a|an|the|fresh|whole|raw|organic|free[-\s]?range|small|large|only|no|more|than|up|to|per|times?|week|weekly|eat|eating|have|use|with|and)\b/g;
+  /\b(maximum|max|minimum|min|of|a|an|the|fresh|whole|raw|organic|free[-\s]?range|small|large|only|no|more|than|up|to|per|times?|week|weekly|eat|eating|have|having|use|using|include|with|and|or|please|note|also|you|your|may|can|should|must|from|now|on|this|that|it|is|are|be)\b/g;
 
 /**
  * Canonical key for a food phrase: generic plural -> singular, no hand-coded
