@@ -155,15 +155,19 @@ function truncateAtBoundary(chunk: string): string {
   return chunk.slice(0, cut);
 }
 
-/** Split on commas/semicolons/newlines that sit OUTSIDE parentheses. */
+/**
+ * Split on commas/semicolons that sit OUTSIDE parentheses. Newlines are NOT
+ * separators — MB wraps a single food ("White\nBeans", "Prunes\n(dried)")
+ * across lines, and the real separator is always the comma.
+ */
 function splitTopLevel(text: string): string[] {
   const out: string[] = [];
   let depth = 0;
   let cur = "";
-  for (const ch of text) {
+  for (const ch of text.replace(/\r?\n/g, " ")) {
     if (ch === "(" || ch === "[") depth++;
     else if (ch === ")" || ch === "]") depth = Math.max(0, depth - 1);
-    if (depth === 0 && (ch === "," || ch === ";" || ch === "\n")) {
+    if (depth === 0 && (ch === "," || ch === ";")) {
       out.push(cur);
       cur = "";
       continue;
@@ -176,11 +180,21 @@ function splitTopLevel(text: string): string[] {
 
 // A fragment that starts a rule/note rather than naming a food.
 const NOTE_START_RE =
-  /^(?:please\b|when\s|from now on\b|note\b|you\s(?:can|may|should|must|will)\b|this meal\b|do not\b|don't\b|avoid eating\b|eat\s|use\s|choose\s|limit\s|max\.?\b|maximum\b|no more than\b|only\s(?:eat|use|have)\b|if\syou\b|for\sbreakfast\b|it\sis\b|these\b|the\s(?:following|above)\b)/i;
+  /^(?:please\b|when\s|from now on\b|note\b|you\s(?:can|may|should|must|will)\b|this meal\b|do not\b|don't\b|avoid eating\b|eat\s|use\s|choose\s|limit\s|max\.?\b|maximum\b|no more than\b|only\s(?:eat|use|have)\b|if\syou\b|for\sbreakfast\b|it\sis\b|these\b|the\s(?:following|above)\b|egg\(s\)\b)/i;
 const NOTE_INLINE_RE = /\b(?:no more than|times? a week|per week|please eat|please use|please note)\b/i;
+// Where a rule starts inside an otherwise food-bearing fragment.
+const NOTE_CUT_RE =
+  /\b(?:Please\s|When\s+eating\b|When\s+you\b|From now on\b|Note:|Eat a minimum\b|You\s(?:can|may|should|must|will)\b|If you\b|Egg\(s\)\b)/;
 
 const ARTIFACT_RE =
   /Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|Page\s*\d|©|Metabolic Balance|Coach\s*:|Phase\s*[1-4]\s*:|\$\$CA_/i;
+
+/** Letter-spaced watermarks such as "P E R S O N A L I S E D  F O R  Y O U". */
+function isLetterSpacedRun(s: string): boolean {
+  const tokens = s.trim().split(/\s+/);
+  if (tokens.length < 4) return false;
+  return tokens.filter((t) => t.length === 1).length / tokens.length >= 0.7;
+}
 
 function isNoteFragment(s: string): boolean {
   if (NOTE_START_RE.test(s)) return true;
@@ -188,6 +202,7 @@ function isNoteFragment(s: string): boolean {
   // Sentence-like: contains a verb-ish clause and is long.
   return s.split(/\s+/).length > 7 && /\s[a-z]+\s+[a-z]+\s/.test(s);
 }
+
 
 /** Remove a trailing client name that bled in from the page footer. */
 function stripClientName(item: string, names: string[]): string | null {
