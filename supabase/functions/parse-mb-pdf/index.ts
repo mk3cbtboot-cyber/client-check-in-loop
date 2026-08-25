@@ -302,16 +302,47 @@ function parseFoodSection(
     const items: string[] = [];
     const rules: string[] = [];
     let inNote = false;
-    for (const frag of fragments) {
+    for (const raw of fragments) {
+      let frag = raw;
       if (!/[A-Za-z]/.test(frag)) continue;
       if (ARTIFACT_RE.test(frag)) { inNote = false; continue; }
-      if (!inNote && isNoteFragment(frag)) inNote = true;
-      if (inNote) { rules.push(frag); continue; }
+      if (isLetterSpacedRun(frag)) continue; // page watermark
+      if (!inNote) {
+        // A rule can start part-way through a fragment ("Oatmeal When eating …").
+        const cut = frag.match(NOTE_CUT_RE);
+        if (cut && cut.index !== undefined && cut.index > 0) {
+          rules.push(frag.slice(cut.index).trim());
+          frag = frag.slice(0, cut.index).trim();
+          inNote = true;
+        } else if (isNoteFragment(frag)) {
+          inNote = true;
+        }
+      }
+      if (inNote && !frag) continue;
+      if (inNote && frag && rules[rules.length - 1] === frag) continue;
+      if (inNote && !(rules.length && rules[rules.length - 1].startsWith(frag))) {
+        if (frag && !items.length) { /* fall through to note */ }
+      }
+      if (inNote && frag && rules[rules.length - 1] !== frag && !frag.trim()) continue;
+      if (inNote && frag && !rules.includes(frag) && !NOTE_CUT_RE.test(frag) && items.length === 0 && false) continue;
+      if (inNote && frag && !rules.includes(frag) && !isNoteFragment(frag) && rules.length === 0) {
+        rules.push(frag);
+        continue;
+      }
+      if (inNote) {
+        if (frag && !rules.includes(frag)) {
+          // Text before the cut stays a food; everything after is a rule.
+          const cleanedFood = stripClientName(frag, clientNames);
+          if (cleanedFood && cleanedFood.length <= 80) items.push(cleanedFood);
+        }
+        continue;
+      }
       const cleaned = stripClientName(frag, clientNames);
       if (!cleaned) continue;
       if (cleaned.length > 80) { rules.push(cleaned); continue; }
       items.push(cleaned);
     }
+
 
     if (items.length) {
       fieldItems[field] = Array.from(new Set([...(fieldItems[field] ?? []), ...items]));
