@@ -155,15 +155,19 @@ function truncateAtBoundary(chunk: string): string {
   return chunk.slice(0, cut);
 }
 
-/** Split on commas/semicolons/newlines that sit OUTSIDE parentheses. */
+/**
+ * Split on commas/semicolons that sit OUTSIDE parentheses. Newlines are NOT
+ * separators — MB wraps a single food ("White\nBeans", "Prunes\n(dried)")
+ * across lines, and the real separator is always the comma.
+ */
 function splitTopLevel(text: string): string[] {
   const out: string[] = [];
   let depth = 0;
   let cur = "";
-  for (const ch of text) {
+  for (const ch of text.replace(/\r?\n/g, " ")) {
     if (ch === "(" || ch === "[") depth++;
     else if (ch === ")" || ch === "]") depth = Math.max(0, depth - 1);
-    if (depth === 0 && (ch === "," || ch === ";" || ch === "\n")) {
+    if (depth === 0 && (ch === "," || ch === ";")) {
       out.push(cur);
       cur = "";
       continue;
@@ -176,11 +180,21 @@ function splitTopLevel(text: string): string[] {
 
 // A fragment that starts a rule/note rather than naming a food.
 const NOTE_START_RE =
-  /^(?:please\b|when\s|from now on\b|note\b|you\s(?:can|may|should|must|will)\b|this meal\b|do not\b|don't\b|avoid eating\b|eat\s|use\s|choose\s|limit\s|max\.?\b|maximum\b|no more than\b|only\s(?:eat|use|have)\b|if\syou\b|for\sbreakfast\b|it\sis\b|these\b|the\s(?:following|above)\b)/i;
+  /^(?:please\b|when\s|from now on\b|note\b|you\s(?:can|may|should|must|will)\b|this meal\b|do not\b|don't\b|avoid eating\b|eat\s|use\s|choose\s|limit\s|max\.?\b|maximum\b|no more than\b|only\s(?:eat|use|have)\b|if\syou\b|for\sbreakfast\b|it\sis\b|these\b|the\s(?:following|above)\b|egg\(s\)\b)/i;
 const NOTE_INLINE_RE = /\b(?:no more than|times? a week|per week|please eat|please use|please note)\b/i;
+// Where a rule starts inside an otherwise food-bearing fragment.
+const NOTE_CUT_RE =
+  /\b(?:Please\s|When\s+eating\b|When\s+you\b|From now on\b|Note:|Eat a minimum\b|You\s(?:can|may|should|must|will)\b|If you\b|Egg\(s\)\b)/;
 
 const ARTIFACT_RE =
   /Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|Page\s*\d|©|Metabolic Balance|Coach\s*:|Phase\s*[1-4]\s*:|\$\$CA_/i;
+
+/** Letter-spaced watermarks such as "P E R S O N A L I S E D  F O R  Y O U". */
+function isLetterSpacedRun(s: string): boolean {
+  const tokens = s.trim().split(/\s+/);
+  if (tokens.length < 4) return false;
+  return tokens.filter((t) => t.length === 1).length / tokens.length >= 0.7;
+}
 
 function isNoteFragment(s: string): boolean {
   if (NOTE_START_RE.test(s)) return true;
@@ -188,6 +202,23 @@ function isNoteFragment(s: string): boolean {
   // Sentence-like: contains a verb-ish clause and is long.
   return s.split(/\s+/).length > 7 && /\s[a-z]+\s+[a-z]+\s/.test(s);
 }
+
+/**
+ * Trailing junk glued onto the last item of a section because the PDF had no
+ * comma before it: the letter-spaced page watermark, or the next section's
+ * heading ("EGG(S)").
+ */
+function stripTrailingArtifacts(s: string): string {
+  return s
+    // letter-spaced watermark run, anywhere in the string
+    .replace(/(?:(?:^|\s)[A-Za-z](?=\s|$)){4,}/g, " ")
+    .replace(/\s*\bEGGS?\(?S?\)?\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+
+
 
 /** Remove a trailing client name that bled in from the page footer. */
 function stripClientName(item: string, names: string[]): string | null {
@@ -287,24 +318,46 @@ function parseFoodSection(
     const items: string[] = [];
     const rules: string[] = [];
     let inNote = false;
-    for (const frag of fragments) {
-      if (!/[A-Za-z]/.test(frag)) continue;
-      if (ARTIFACT_RE.test(frag)) { inNote = false; continue; }
-      if (!inNote && isNoteFragment(frag)) inNote = true;
-      if (inNote) { rules.push(frag); continue; }
-      const cleaned = stripClientName(frag, clientNames);
-      if (!cleaned) continue;
-      if (cleaned.length > 80) { rules.push(cleaned); continue; }
+    const pushFood = (value: string) => {
+      const cleaned = stripClientName(stripTrailingArtifacts(value), clientNames);
+      if (!cleaned) return;
+      if (cleaned.length > 80) { rules.push(cleaned); return; }
       items.push(cleaned);
+    };
+
+    for (const rawFrag of fragments) {
+      const frag = stripTrailingArtifacts(rawFrag);
+      if (!frag || !/[A-Za-z]/.test(frag)) continue;
+      if (ARTIFACT_RE.test(frag)) { inNote = false; continue; }
+      if (isLetterSpacedRun(frag)) continue; // page watermark
+
+      if (inNote) { rules.push(frag); continue; }
+      // A rule can start part-way through a fragment ("Oatmeal When eating …").
+      const cut = frag.match(NOTE_CUT_RE);
+      if (cut && cut.index !== undefined && cut.index > 0) {
+        pushFood(frag.slice(0, cut.index).trim());
+        rules.push(frag.slice(cut.index).trim());
+        inNote = true;
+        continue;
+      }
+      if (isNoteFragment(frag)) { inNote = true; rules.push(frag); continue; }
+      pushFood(frag);
     }
+
+
 
     if (items.length) {
       fieldItems[field] = Array.from(new Set([...(fieldItems[field] ?? []), ...items]));
     }
-    if (rules.length) {
+    const cleanRules = rules
+      .map((r) => stripClientName(stripTrailingArtifacts(r), clientNames) ?? "")
+      .map((r) => r.trim())
+      .filter((r) => r.length > 0 && !isLetterSpacedRun(r));
+    if (cleanRules.length) {
       const prev = notes[field] ? [notes[field]] : [];
-      notes[field] = Array.from(new Set([...prev, rules.join(", ")])).join(" ");
+      notes[field] = Array.from(new Set([...prev, cleanRules.join(", ")])).join(" ");
     }
+
   }
 
   dropRepeatedTrailingName(fieldItems);
