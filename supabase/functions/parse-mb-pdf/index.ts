@@ -303,11 +303,12 @@ function parseFoodSection(
     const rules: string[] = [];
     let inNote = false;
     const pushFood = (value: string) => {
-      const cleaned = stripClientName(value, clientNames);
+      const cleaned = stripClientName(stripTrailingArtifacts(value), clientNames);
       if (!cleaned) return;
       if (cleaned.length > 80) { rules.push(cleaned); return; }
       items.push(cleaned);
     };
+
     for (const frag of fragments) {
       if (!/[A-Za-z]/.test(frag)) continue;
       if (ARTIFACT_RE.test(frag)) { inNote = false; continue; }
