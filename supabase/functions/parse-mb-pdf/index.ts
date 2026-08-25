@@ -203,6 +203,19 @@ function isNoteFragment(s: string): boolean {
   return s.split(/\s+/).length > 7 && /\s[a-z]+\s+[a-z]+\s/.test(s);
 }
 
+/**
+ * Trailing junk glued onto the last item of a section because the PDF had no
+ * comma before it: the letter-spaced page watermark, or the next section's
+ * heading ("EGG(S)").
+ */
+function stripTrailingArtifacts(s: string): string {
+  return s
+    .replace(/(?:\s+[A-Za-z]){4,}\s*$/g, "")
+    .replace(/\s*\bEGGS?\(?S?\)?\s*$/i, "")
+    .trim();
+}
+
+
 
 /** Remove a trailing client name that bled in from the page footer. */
 function stripClientName(item: string, names: string[]): string | null {
