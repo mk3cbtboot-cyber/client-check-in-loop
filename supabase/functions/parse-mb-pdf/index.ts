@@ -1183,7 +1183,19 @@ Deno.serve(async (req) => {
     debug.meal_parser = mealDebug;
 
 
-    const phase2Proteins = phase2ProteinSection ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES, stripFooter) : {};
+    // Names that must never survive as a food (page-footer bleed).
+    const clientNames = Array.from(new Set([
+      footerIdentity.clientName ?? "",
+      String(clientRow.name ?? ""),
+      footerIdentity.coachName ?? "",
+    ].map((s) => s.trim()).filter((s) => s.length >= 3)));
+
+    const p2Protein = phase2ProteinSection
+      ? parseFoodSection(phase2ProteinSection, PHASE2_PROTEIN_CATEGORIES, stripFooter, clientNames)
+      : { foods: {}, notes: {} };
+    const phase2Proteins = p2Protein.foods;
+    const foodNotes: Record<string, string> = { ...p2Protein.notes };
+
 
     // Fallback: extract Sunflower Seeds from Phase 2 protein section if the main parser missed it.
     // Only default to "Sunflower Seeds" when the heading is ACTUALLY present in the PDF.
