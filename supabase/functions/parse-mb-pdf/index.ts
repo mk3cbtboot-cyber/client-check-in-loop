@@ -155,53 +155,137 @@ function truncateAtBoundary(chunk: string): string {
   return chunk.slice(0, cut);
 }
 
+/** Split on commas/semicolons/newlines that sit OUTSIDE parentheses. */
+function splitTopLevel(text: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of text) {
+    if (ch === "(" || ch === "[") depth++;
+    else if (ch === ")" || ch === "]") depth = Math.max(0, depth - 1);
+    if (depth === 0 && (ch === "," || ch === ";" || ch === "\n")) {
+      out.push(cur);
+      cur = "";
+      continue;
+    }
+    cur += ch;
+  }
+  out.push(cur);
+  return out.map((s) => s.replace(/\s+/g, " ").trim()).filter(Boolean);
+}
+
+// A fragment that starts a rule/note rather than naming a food.
+const NOTE_START_RE =
+  /^(?:please\b|when\s|from now on\b|note\b|you\s(?:can|may|should|must|will)\b|this meal\b|do not\b|don't\b|avoid eating\b|eat\s|use\s|choose\s|limit\s|max\.?\b|maximum\b|no more than\b|only\s(?:eat|use|have)\b|if\syou\b|for\sbreakfast\b|it\sis\b|these\b|the\s(?:following|above)\b)/i;
+const NOTE_INLINE_RE = /\b(?:no more than|times? a week|per week|please eat|please use|please note)\b/i;
+
+const ARTIFACT_RE =
+  /Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|Page\s*\d|©|Metabolic Balance|Coach\s*:|Phase\s*[1-4]\s*:|\$\$CA_/i;
+
+function isNoteFragment(s: string): boolean {
+  if (NOTE_START_RE.test(s)) return true;
+  if (NOTE_INLINE_RE.test(s)) return true;
+  // Sentence-like: contains a verb-ish clause and is long.
+  return s.split(/\s+/).length > 7 && /\s[a-z]+\s+[a-z]+\s/.test(s);
+}
+
+/** Remove a trailing client name that bled in from the page footer. */
+function stripClientName(item: string, names: string[]): string | null {
+  let out = item.trim();
+  for (const raw of names) {
+    const n = raw.trim();
+    if (n.length < 3) continue;
+    const esc = escapeRegExp(n);
+    if (new RegExp(`^${esc}$`, "i").test(out)) return null;
+    out = out.replace(new RegExp(`[\\s,|-]*${esc}\\s*$`, "i"), "").trim();
+    // Also handles a first-name-only bleed ("… Lentils, Julie").
+    const first = n.split(/\s+/)[0];
+    if (first.length >= 3) {
+      if (new RegExp(`^${escapeRegExp(first)}$`, "i").test(out)) return null;
+    }
+  }
+  out = out.replace(/[\s,;|]+$/g, "").trim();
+  return out.length ? out : null;
+}
+
+export type FoodSectionResult = {
+  foods: Record<string, string>;
+  notes: Record<string, string>;
+};
+
+/**
+ * Parses "<CATEGORY> <comma-separated foods>" rows.
+ *
+ * - Category labels are matched case-insensitively from the supplied map only;
+ *   whatever categories are present get filled, the rest stay empty.
+ * - Items wrap freely across lines: a category owns everything up to the next
+ *   known category label or section boundary.
+ * - Parenthetical qualifiers stay attached to their food.
+ * - Trailing rules/notes are captured separately instead of stored as foods.
+ * - The page-footer client name is never kept as a food.
+ */
 function parseFoodSection(
   text: string,
   categoryMap: Record<string, string>,
   stripFooter: (s: string) => string,
-): Record<string, string> {
-  const result: Record<string, string> = {};
+  clientNames: string[] = [],
+): FoodSectionResult {
+  const foods: Record<string, string> = {};
+  const notes: Record<string, string> = {};
   const labels = Object.keys(categoryMap);
   labels.sort((a, b) => b.length - a.length);
-  const labelPattern = labels.map((l) => l.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")).join("|");
-  // Allow heading to start after newline, semicolon, comma-newline, or after gram-amount entries
-  // (since unpdf often flattens columns into one line, "Sunflower Seeds" etc. may not be newline-prefixed).
-  const splitRe = new RegExp(`(?:^|[\\n;]|(?<=\\bg\\s)|(?<=\\)\\s)|(?<=[.,]\\s))\\s*(${labelPattern})\\s*[:\\-–]?\\s+`, "gi");
+  const labelPattern = labels.map(escapeRegExp).join("|");
+  // A heading may start a line, or follow a separator when unpdf flattens columns.
+  const splitRe = new RegExp(
+    `(?:^|[\\n;]|(?<=\\bg\\s)|(?<=\\)\\s)|(?<=[.,]\\s))\\s*(${labelPattern})\\s*[:\\-–]?\\s+`,
+    "gi",
+  );
 
   const matches: { label: string; start: number; contentStart: number }[] = [];
   let m: RegExpExecArray | null;
   while ((m = splitRe.exec(text)) !== null) {
     matches.push({ label: m[1], start: m.index, contentStart: m.index + m[0].length });
   }
+
+  const lookup: Record<string, string> = {};
+  for (const [k, v] of Object.entries(categoryMap)) lookup[k.toLowerCase().replace(/\s+/g, " ")] = v;
+
   for (let i = 0; i < matches.length; i++) {
     const cur = matches[i];
+    const field = lookup[cur.label.toLowerCase().replace(/\s+/g, " ")];
+    if (!field || field.startsWith("__")) continue; // boundary-only label
     const end = i + 1 < matches.length ? matches[i + 1].start : text.length;
     let chunk = text.slice(cur.contentStart, end);
     chunk = truncateAtBoundary(chunk);
     chunk = stripFooter(chunk);
-    const items = chunk
-      .split(/[,;\n]+/)
-      .map((s) => s.replace(/\s+/g, " ").trim())
-      .filter(Boolean)
-      .filter((s) => {
-        if (s.length < 2 || s.length > 60) return false;
-        if (/Personal Food List|Additional Information|Extended personal|Shopping (?:Helper|Bag)|Page\s*\d|©|Metabolic Balance|From now on|Please note|\bNote:|Coach\s*:/i.test(s)) return false;
-        if (!/[A-Za-z]/.test(s)) return false;
-        if (/\.\s+[a-z]/.test(s)) return false;
-        if (s.split(/\s+/).length > 5) return false;
-        return true;
-      });
-    // Case-insensitive lookup so ALL-CAPS (New layout) headings map correctly.
-    const lookup: Record<string, string> = {};
-    for (const [k, v] of Object.entries(categoryMap)) lookup[k.toLowerCase().replace(/\s+/g, " ")] = v;
-    const field = lookup[cur.label.toLowerCase().replace(/\s+/g, " ")];
-    if (!field || field.startsWith("__")) continue; // boundary-only label
-    const existing = result[field] ? result[field].split(",").map((s) => s.trim()).filter(Boolean) : [];
-    const merged = Array.from(new Set([...existing, ...items]));
-    if (merged.length) result[field] = merged.join(", ");
+
+    const fragments = splitTopLevel(chunk);
+    const items: string[] = [];
+    const rules: string[] = [];
+    let inNote = false;
+    for (const frag of fragments) {
+      if (!/[A-Za-z]/.test(frag)) continue;
+      if (ARTIFACT_RE.test(frag)) { inNote = false; continue; }
+      if (!inNote && isNoteFragment(frag)) inNote = true;
+      if (inNote) { rules.push(frag); continue; }
+      const cleaned = stripClientName(frag, clientNames);
+      if (!cleaned) continue;
+      if (cleaned.length > 80) { rules.push(cleaned); continue; }
+      items.push(cleaned);
+    }
+
+    if (items.length) {
+      const existing = foods[field] ? splitTopLevel(foods[field]) : [];
+      foods[field] = Array.from(new Set([...existing, ...items])).join(", ");
+    }
+    if (rules.length) {
+      const prev = notes[field] ? [notes[field]] : [];
+      notes[field] = Array.from(new Set([...prev, rules.join(", ")])).join(" ");
+    }
   }
-  return result;
+  return { foods, notes };
 }
+
 
 function extractPositionedTextForPage(page: unknown): PositionedText[] {
   const items = (page as { content?: { items?: Array<Record<string, unknown>> } })?.content?.items;
