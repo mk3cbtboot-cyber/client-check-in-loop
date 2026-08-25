@@ -1303,33 +1303,26 @@ Deno.serve(async (req) => {
         }
       }
     }
-    const phase3: Record<string, string | null> = {};
-
-    const extractP3Field = (keyword: string, text: string): string | null => {
-      const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const m = text.match(new RegExp('\\n' + escaped + ' ([^\\n]+)'));
-      return m ? m[1].trim() : null;
-    };
-
-    const _lastExtIdx = fullText.lastIndexOf('Extended personal Food List');
-    const _shopMatch = _lastExtIdx !== -1 ? fullText.slice(_lastExtIdx).match(/Shopping\s*(?:Helper|Bag)\s*Phase\s*3/i) : null;
+    // ---- Phase 3 (Extended personal Food List): ONE parser, same as Phase 2 ----
+    const _lastExtIdx = fullText.lastIndexOf("Extended personal Food List");
+    const _shopMatch = _lastExtIdx !== -1
+      ? fullText.slice(_lastExtIdx).match(/Shopping\s*(?:Helper|Bag)/i)
+      : null;
     const _lastShopIdx = _shopMatch && _shopMatch.index !== undefined ? _lastExtIdx + _shopMatch.index : -1;
-    let _p3Section = '';
-    if (_lastExtIdx !== -1 && _lastShopIdx !== -1) {
-      _p3Section = fullText.slice(_lastExtIdx, _lastShopIdx);
-    } else if (_lastExtIdx !== -1) {
-      _p3Section = fullText.slice(_lastExtIdx, _lastExtIdx + 1000);
+    let _p3Section = "";
+    if (_lastExtIdx !== -1) {
+      _p3Section = _lastShopIdx > _lastExtIdx
+        ? fullText.slice(_lastExtIdx, _lastShopIdx)
+        : fullText.slice(_lastExtIdx, _lastExtIdx + 3000);
     }
+    const p3Text = _p3Section || phase3Section || "";
+    const p3Parsed = p3Text
+      ? parseFoodSection(p3Text, PHASE3_CATEGORIES, stripFooter, clientNames)
+      : { foods: {}, notes: {} };
+    const phase3: Record<string, string | null> = { ...p3Parsed.foods };
+    for (const [k, v] of Object.entries(p3Parsed.notes)) foodNotes[k] = v;
+    debug.phase3_fields = Object.keys(phase3);
 
-    phase3['phase3_mb_fish']        = extractP3Field('Fish',        _p3Section);
-    phase3['phase3_mb_seafood']      = extractP3Field('Seafood',     _p3Section);
-    phase3['phase3_mb_meat']         = extractP3Field('Meat',        _p3Section);
-    phase3['phase3_mb_cheese']       = extractP3Field('Cheese',      _p3Section);
-    phase3['phase3_mb_legumes']      = extractP3Field('Legumes',     _p3Section);
-    phase3['phase3_mb_vegetables']   = extractP3Field('Vegetables',  _p3Section);
-    phase3['phase3_mb_veg_lettuce']  = extractP3Field('Veg./Lettuce', _p3Section);
-    phase3['phase3_mb_sprouts']      = extractP3Field('Sprouts',     _p3Section);
-    phase3['phase3_mb_fat_oil']      = extractP3Field('Fat / Oil',   _p3Section);
 
 
 
