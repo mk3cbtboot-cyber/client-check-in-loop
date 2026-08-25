@@ -1625,6 +1625,9 @@ Deno.serve(async (req) => {
       mealOptions: mealOptionsResult,
       foodExclusions,
       foodNotes,
+      mealSwapNote: mealRules.meal_swap,
+      treatMealNote: mealRules.treat_meal,
+
       shoppingCrossCheck: (() => {
         const shop = shoppingHelperFoods(fullText, stripFooter);
         if (!shop.length) return null;
