@@ -1431,6 +1431,22 @@ Deno.serve(async (req) => {
       fields: result,
       mealOptions: mealOptionsResult,
       foodExclusions,
+      foodNotes,
+      shoppingCrossCheck: (() => {
+        const shop = shoppingHelperFoods(fullText, stripFooter);
+        if (!shop.length) return null;
+        const parsedAll = new Set(
+          [...Object.values(phase2Proteins), ...Object.values(phase2Carbs)]
+            .flatMap((v) => splitTopLevel(String(v ?? "")))
+            .map((s) => s.toLowerCase().replace(/\(.*?\)/g, "").replace(/\s+/g, " ").trim()),
+        );
+        const missing = shop.filter((s) => {
+          const k = s.toLowerCase().replace(/\(.*?\)/g, "").replace(/\s+/g, " ").trim();
+          return k.length > 2 && !parsedAll.has(k);
+        });
+        return { shoppingCount: shop.length, missingFromFoodList: missing.slice(0, 40) };
+      })(),
+
       storagePath,
       format,
       clientName: footerIdentity.clientName,
