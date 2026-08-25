@@ -273,6 +273,7 @@ function parseFoodSection(
   const lookup: Record<string, string> = {};
   for (const [k, v] of Object.entries(categoryMap)) lookup[k.toLowerCase().replace(/\s+/g, " ")] = v;
 
+  const fieldItems: Record<string, string[]> = {};
   for (let i = 0; i < matches.length; i++) {
     const cur = matches[i];
     const field = lookup[cur.label.toLowerCase().replace(/\s+/g, " ")];
@@ -298,16 +299,21 @@ function parseFoodSection(
     }
 
     if (items.length) {
-      const existing = foods[field] ? splitTopLevel(foods[field]) : [];
-      foods[field] = Array.from(new Set([...existing, ...items])).join(", ");
+      fieldItems[field] = Array.from(new Set([...(fieldItems[field] ?? []), ...items]));
     }
     if (rules.length) {
       const prev = notes[field] ? [notes[field]] : [];
       notes[field] = Array.from(new Set([...prev, rules.join(", ")])).join(" ");
     }
   }
+
+  dropRepeatedTrailingName(fieldItems);
+  for (const [field, items] of Object.entries(fieldItems)) {
+    if (items.length) foods[field] = items.join(", ");
+  }
   return { foods, notes };
 }
+
 
 
 function extractPositionedTextForPage(page: unknown): PositionedText[] {
