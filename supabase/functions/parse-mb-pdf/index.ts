@@ -198,15 +198,38 @@ function stripClientName(item: string, names: string[]): string | null {
     const esc = escapeRegExp(n);
     if (new RegExp(`^${esc}$`, "i").test(out)) return null;
     out = out.replace(new RegExp(`[\\s,|-]*${esc}\\s*$`, "i"), "").trim();
-    // Also handles a first-name-only bleed ("… Lentils, Julie").
+    // First-name bleed: "Julie", or "Julie Cobb" when the client row says
+    // "Julie coblestone" — a short capitalised run starting with the first name.
     const first = n.split(/\s+/)[0];
     if (first.length >= 3) {
-      if (new RegExp(`^${escapeRegExp(first)}$`, "i").test(out)) return null;
+      const fe = escapeRegExp(first);
+      if (new RegExp(`^${fe}(?:\\s+[A-Za-z'-]+){0,2}$`, "i").test(out)) return null;
+      out = out.replace(new RegExp(`[\\s,|-]+${fe}(?:\\s+[A-Za-z'-]+){0,2}\\s*$`), "").trim();
     }
   }
   out = out.replace(/[\s,;|]+$/g, "").trim();
   return out.length ? out : null;
 }
+
+const PERSON_NAME_RE = /^[A-Z][a-z'’-]+(?:\s+[A-Z][a-z'’-]+){1,2}$/;
+/**
+ * The page-footer name often lands as the LAST item of whichever food category
+ * ends a page, in several categories. Anything that looks like a person's name
+ * and repeats as a trailing item is treated as footer bleed, not a food.
+ */
+function dropRepeatedTrailingName(fieldItems: Record<string, string[]>): void {
+  const tally = new Map<string, number>();
+  for (const items of Object.values(fieldItems)) {
+    const last = items[items.length - 1];
+    if (last && PERSON_NAME_RE.test(last)) tally.set(last, (tally.get(last) ?? 0) + 1);
+  }
+  const bleed = new Set([...tally.entries()].filter(([, n]) => n >= 2).map(([s]) => s));
+  if (!bleed.size) return;
+  for (const key of Object.keys(fieldItems)) {
+    fieldItems[key] = fieldItems[key].filter((i) => !bleed.has(i));
+  }
+}
+
 
 export type FoodSectionResult = {
   foods: Record<string, string>;
