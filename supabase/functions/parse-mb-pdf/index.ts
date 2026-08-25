@@ -345,7 +345,7 @@ function parseFoodSection(
       fieldItems[field] = Array.from(new Set([...(fieldItems[field] ?? []), ...items]));
     }
     const cleanRules = rules
-      .map((r) => stripClientName(r, clientNames) ?? "")
+      .map((r) => stripClientName(stripTrailingArtifacts(r), clientNames) ?? "")
       .map((r) => r.trim())
       .filter((r) => r.length > 0 && !isLetterSpacedRun(r));
     if (cleanRules.length) {
