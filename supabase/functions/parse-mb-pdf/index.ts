@@ -210,10 +210,13 @@ function isNoteFragment(s: string): boolean {
  */
 function stripTrailingArtifacts(s: string): string {
   return s
-    .replace(/(?:\s+[A-Za-z]){4,}\s*$/g, "")
+    // letter-spaced watermark run, anywhere in the string
+    .replace(/(?:(?:^|\s)[A-Za-z](?=\s|$)){4,}/g, " ")
     .replace(/\s*\bEGGS?\(?S?\)?\s*$/i, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
+
 
 
 
