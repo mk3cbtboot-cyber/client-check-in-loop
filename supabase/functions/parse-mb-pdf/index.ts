@@ -1673,7 +1673,7 @@ Deno.serve(async (req) => {
     // Log low-confidence extractions so patterns across documents are visible.
     if (needsReview) {
       console.warn("parse-mb-pdf low_confidence", JSON.stringify({
-        clientId: body.clientId,
+        clientId,
         storagePath,
         format,
         mealParserMode: (mealDebug as { meal_parser_mode?: string }).meal_parser_mode ?? null,
