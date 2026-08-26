@@ -361,22 +361,29 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
   const FieldRow = ({ k, label, type = "text" }: { k: string; label: string; type?: "text" | "number" | "textarea" }) => {
     const f = fields?.[k];
     const extracted = !!f?.extracted;
+    // "absent" = the category is not part of this client's plan (optional, no action).
+    // "parse_failed" = printed in the document but nothing came out (needs attention).
+    const flag: FieldFlag = extracted ? "ok" : (fieldFlags[k] ?? "parse_failed");
+    const failed = flag === "parse_failed";
     return (
       <div className="space-y-1">
         <div className="flex items-center gap-2">
           <Label className="text-xs">{label}</Label>
-          {!extracted && (
+          {failed && (
             <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
-              <AlertTriangle className="h-3 w-3" /> Not extracted — please fill in
+              <AlertTriangle className="h-3 w-3" /> In the plan but not parsed — please check
             </span>
+          )}
+          {flag === "absent" && (
+            <span className="text-[10px] text-muted-foreground">Not in this client's plan</span>
           )}
         </div>
         {type === "textarea" ? (
           <Textarea
             value={(f?.value as string) ?? ""}
             onChange={(e) => update(k, e.target.value)}
-            className={`min-h-[60px] text-sm ${!extracted ? "border-amber-400" : ""}`}
-            placeholder="Comma-separated list"
+            className={`min-h-[60px] text-sm ${failed ? "border-amber-400" : ""}`}
+            placeholder={flag === "absent" ? "Not allocated — leave empty" : "Comma-separated list"}
           />
         ) : (
           <Input
@@ -384,12 +391,31 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
             step={type === "number" ? "any" : undefined}
             value={f?.value == null ? "" : String(f.value)}
             onChange={(e) => update(k, type === "number" ? (e.target.value === "" ? null : Number(e.target.value)) : e.target.value)}
-            className={`h-8 ${!extracted ? "border-amber-400" : ""}`}
+            className={`h-8 ${failed ? "border-amber-400" : ""}`}
           />
         )}
       </div>
     );
   };
+
+  const VALIDATION_LABELS: Record<string, string> = {
+    meal_options: "Meal suggestions",
+    food_categories: "Food list categories",
+    water_target: "Water target",
+    client_name: "Client name (footer)",
+    coach_name: "Coach name (footer)",
+  };
+  const FIELD_LABELS: Record<string, string> = Object.fromEntries([
+    ...PHASE2_PROTEIN, ...PHASE2_CARB, ...PHASE3,
+    ["water_target_litres", "Water (litres/day)"],
+    ["eggs_min_per_week", "Eggs min/week"],
+  ]);
+  const openFlags = parseFailures.filter((k) => !fields?.[k]?.extracted);
+  const needsConfirm = openFlags.length > 0 || validation.length > 0;
+  const foodLimits = (fields?.food_limits?.value ?? null) as Record<string, number> | null;
+  const noteEntries = Object.entries(foodNotes).filter(([, v]) => v && v.trim().length > 0);
+  const hasExtras = !!(foodLimits && Object.keys(foodLimits).length) || noteEntries.length > 0 || mealSwapNote || treatMealNote;
+
 
   return (
     <>
