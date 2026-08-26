@@ -31,6 +31,8 @@ const EMPTY_MEAL_OPTIONS = (): MealOptionsMap => ({
 
 type FieldVal = { value: string | number | null; extracted: boolean };
 type FieldsMap = Record<string, FieldVal>;
+type FieldFlag = "ok" | "absent" | "parse_failed";
+
 
 const PHASE2_PROTEIN = [
   ["food_fish", "Fish"],
