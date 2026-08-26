@@ -1574,15 +1574,23 @@ Deno.serve(async (req) => {
       }
       void field;
     }
+    // Never let the same food appear twice (singular + plural) in the limits.
+    foodLimits = canonicaliseLimits(foodLimits);
 
     // Meal-swap adjustment and treat-meal timing (per-client, verbatim).
+    // The captured region can start mid-page, so strip the page footer
+    // ("<name> | © Metabolic Balance | Coach: <coach> <page>") first.
     const mealRules = (() => {
-      const scoped = parseMealRules(additionalInfoSection || "");
-      if (scoped.meal_swap && scoped.treat_meal) return scoped;
-      const wide = parseMealRules(fullText);
+      const clean = (s: string | null) => {
+        if (!s) return null;
+        const out = stripFooter(s).replace(/\s{2,}/g, " ").replace(/^[\s|·-]+/, "").trim();
+        return out.length > 12 ? out : null;
+      };
+      const scoped = parseMealRules(stripFooter(additionalInfoSection || ""));
+      const wide = scoped.meal_swap && scoped.treat_meal ? scoped : parseMealRules(stripFooter(fullText));
       return {
-        meal_swap: scoped.meal_swap ?? wide.meal_swap,
-        treat_meal: scoped.treat_meal ?? wide.treat_meal,
+        meal_swap: clean(scoped.meal_swap ?? wide.meal_swap),
+        treat_meal: clean(scoped.treat_meal ?? wide.treat_meal),
       };
     })();
 
