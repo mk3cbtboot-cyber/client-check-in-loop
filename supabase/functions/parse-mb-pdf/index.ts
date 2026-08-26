@@ -268,6 +268,24 @@ export type FoodSectionResult = {
 };
 
 /**
+ * Rules are printed inline in the food list and can end up under whichever
+ * category row they physically follow. When a rule clearly names a different
+ * subject, return the note key it belongs to (null = keep with its row).
+ */
+const RULE_SUBJECTS: { re: RegExp; key: string; fieldHint: RegExp }[] = [
+  { re: /\begg(s)?\b/i, key: "eggs", fieldHint: /egg/i },
+];
+
+function ruleSubjectField(rule: string, currentField: string): string | null {
+  for (const s of RULE_SUBJECTS) {
+    if (!s.re.test(rule)) continue;
+    if (s.fieldHint.test(currentField)) return null; // already the right row
+    return s.key;
+  }
+  return null;
+}
+
+/**
  * Parses "<CATEGORY> <comma-separated foods>" rows.
  *
  * - Category labels are matched case-insensitively from the supplied map only;
