@@ -164,7 +164,13 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         setReviewOpen(true);
         throw new Error(detail);
       }
-      const response = data as { fields?: FieldsMap; mealOptions?: MealOptionsMap; foodExclusions?: string[] | null; error?: string; detail?: string; format?: string; clientName?: string | null; coachName?: string | null; needsReview?: boolean; validation?: string[]; debug?: Record<string, unknown> };
+      const response = data as {
+        fields?: FieldsMap; mealOptions?: MealOptionsMap; foodExclusions?: string[] | null;
+        error?: string; detail?: string; format?: string; clientName?: string | null; coachName?: string | null;
+        needsReview?: boolean; validation?: string[]; debug?: Record<string, unknown>;
+        fieldFlags?: Record<string, FieldFlag>; parseFailures?: string[];
+        foodNotes?: Record<string, string>; mealSwapNote?: string | null; treatMealNote?: string | null;
+      };
       if (response.error || !response.fields) {
         const detail = [
           `Step: parse-mb-pdf`,
@@ -176,19 +182,23 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         setReviewOpen(true);
         throw new Error(detail);
       }
-      if (response.needsReview && response.validation?.length) {
-        const LABELS: Record<string, string> = {
-          meal_options: "Meal suggestions",
-          food_categories: "Food list categories",
-          water_target: "Water target",
-          client_name: "Client name (footer)",
-          coach_name: "Coach name (footer)",
-        };
-        setReviewError([
-          `Detected layout: ${response.format ?? "unknown"}`,
-          `Could not confidently extract: ${response.validation.map((v) => LABELS[v] ?? v).join(", ")}`,
-          `Please fill these in manually before saving.`,
-        ].join("\n"));
+      const flags = response.fieldFlags ?? {};
+      const failures = response.parseFailures ?? Object.entries(flags).filter(([, v]) => v === "parse_failed").map(([k]) => k);
+      setFieldFlags(flags);
+      setParseFailures(failures);
+      setValidation(response.validation ?? []);
+      setFoodNotes(response.foodNotes ?? {});
+      setMealSwapNote(response.mealSwapNote ?? null);
+      setTreatMealNote(response.treatMealNote ?? null);
+      if (response.needsReview) {
+        // Log low-confidence extractions so patterns across documents are visible.
+        console.warn("[MbPdfImport] low-confidence extraction", {
+          clientId: uploadClientId,
+          format: response.format ?? "unknown",
+          validation: response.validation ?? [],
+          parseFailures: failures,
+          absent: Object.entries(flags).filter(([, v]) => v === "absent").map(([k]) => k),
+        });
       }
 
       setFields(response.fields);
@@ -205,6 +215,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       });
       setStoragePath(path);
       setFoodExclusions(response.foodExclusions ?? null);
+
 
       // Persist mb_pdf_path immediately so the uploaded file is never orphaned
       // if the practitioner closes the review dialog without clicking Confirm & Save.
