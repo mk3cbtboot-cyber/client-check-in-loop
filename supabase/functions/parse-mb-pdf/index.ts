@@ -365,10 +365,23 @@ function parseFoodSection(
       .map((r) => stripClientName(stripTrailingArtifacts(r), clientNames) ?? "")
       .map((r) => r.trim())
       .filter((r) => r.length > 0 && !isLetterSpacedRun(r));
-    if (cleanRules.length) {
-      const prev = notes[field] ? [notes[field]] : [];
-      notes[field] = Array.from(new Set([...prev, cleanRules.join(", ")])).join(" ");
+    // A rule printed next to a category row is not necessarily about that
+    // category ("…1 eggs and a maximum of 5 eggs per week" sat under Legumes).
+    // Route by the rule's actual subject when it names a different food.
+    const ownRules: string[] = [];
+    for (const rule of cleanRules) {
+      const target = ruleSubjectField(rule, field);
+      if (target) {
+        notes[target] = notes[target] ? `${notes[target]} ${rule}` : rule;
+      } else {
+        ownRules.push(rule);
+      }
     }
+    if (ownRules.length) {
+      const prev = notes[field] ? [notes[field]] : [];
+      notes[field] = Array.from(new Set([...prev, ownRules.join(", ")])).join(" ");
+    }
+
 
   }
 
