@@ -244,7 +244,14 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
 
   const update = (key: string, value: string | number | null) => {
     setFields((f) => (f ? { ...f, [key]: { value, extracted: true } } : f));
+    // A practitioner correction clears the flag for that field.
+    const hasValue = value !== null && String(value).trim() !== "";
+    if (hasValue) {
+      setFieldFlags((fl) => (fl[key] === "parse_failed" ? { ...fl, [key]: "ok" } : fl));
+      setParseFailures((p) => p.filter((k) => k !== key));
+    }
   };
+
 
   // Review-dialog edits touch the flat legacy fields; mirror them back into the
   // parsed item list so Starch / ml portions parsed from the PDF are preserved.
