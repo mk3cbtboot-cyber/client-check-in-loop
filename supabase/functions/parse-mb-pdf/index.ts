@@ -298,8 +298,20 @@ function parseFoodSection(
   const matches: { label: string; start: number; contentStart: number }[] = [];
   let m: RegExpExecArray | null;
   while ((m = splitRe.exec(text)) !== null) {
+    // Wrap-rejoin guard: MB wraps a single multi-word food across two lines
+    // ("Goat Cream\nCheese (Chèvre)"). The second line can begin with a word
+    // that is also a category label. If the previous non-space character is a
+    // letter (i.e. the previous line ended mid-phrase, with no comma, colon or
+    // closing bracket) AND what follows the label continues the same food — a
+    // parenthetical or a lowercase word — this is a wrapped food, not a heading.
+    const before = text.slice(0, m.index).replace(/\s+$/, "");
+    const prevChar = before.slice(-1);
+    const after = text.slice(m.index + m[0].length, m.index + m[0].length + 40).trimStart();
+    const continuesFood = after.startsWith("(") || /^[a-z]/.test(after);
+    if (/[A-Za-zÀ-ÿ]/.test(prevChar) && continuesFood) continue;
     matches.push({ label: m[1], start: m.index, contentStart: m.index + m[0].length });
   }
+
 
   const lookup: Record<string, string> = {};
   for (const [k, v] of Object.entries(categoryMap)) lookup[k.toLowerCase().replace(/\s+/g, " ")] = v;
