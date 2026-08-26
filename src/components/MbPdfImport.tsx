@@ -87,6 +87,14 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
   const [storagePath, setStoragePath] = useState<string | null>(null);
   const [foodExclusions, setFoodExclusions] = useState<string[] | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [fieldFlags, setFieldFlags] = useState<Record<string, FieldFlag>>({});
+  const [parseFailures, setParseFailures] = useState<string[]>([]);
+  const [validation, setValidation] = useState<string[]>([]);
+  const [foodNotes, setFoodNotes] = useState<Record<string, string>>({});
+  const [mealSwapNote, setMealSwapNote] = useState<string | null>(null);
+  const [treatMealNote, setTreatMealNote] = useState<string | null>(null);
+  const [confirmedFlags, setConfirmedFlags] = useState(false);
+  const [confirmedRules, setConfirmedRules] = useState(false);
 
 
   const reset = () => {
@@ -95,9 +103,18 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
     setStoragePath(null);
     setFoodExclusions(null);
     setReviewError(null);
+    setFieldFlags({});
+    setParseFailures([]);
+    setValidation([]);
+    setFoodNotes({});
+    setMealSwapNote(null);
+    setTreatMealNote(null);
+    setConfirmedFlags(false);
+    setConfirmedRules(false);
     setReviewOpen(false);
     if (fileRef.current) fileRef.current.value = "";
   };
+
 
 
   const startUpload = () => fileRef.current?.click();
