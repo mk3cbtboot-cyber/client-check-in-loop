@@ -1668,7 +1668,6 @@ Deno.serve(async (req) => {
     }
 
     const parseFailures = Object.entries(fieldFlags).filter(([, v]) => v === "parse_failed").map(([k]) => k);
-    if (optionCount < 9) validation.push("meal_options_partial");
     const needsReview = validation.length > 0 || parseFailures.length > 0;
 
     // Log low-confidence extractions so patterns across documents are visible.
