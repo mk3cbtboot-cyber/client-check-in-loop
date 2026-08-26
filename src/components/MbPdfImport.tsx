@@ -449,6 +449,29 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
             </Alert>
           )}
 
+          {fields && needsConfirm && (
+            <Alert className="border-amber-400">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTitle>Low-confidence extraction — check before saving</AlertTitle>
+              <AlertDescription className="text-xs space-y-1">
+                {validation.length > 0 && (
+                  <p>Could not confidently extract: {validation.map((v) => VALIDATION_LABELS[v] ?? v).join(", ")}.</p>
+                )}
+                {openFlags.length > 0 && (
+                  <p>
+                    These categories appear in the document but failed to parse:{" "}
+                    {openFlags.map((k) => FIELD_LABELS[k] ?? k).join(", ")}.
+                  </p>
+                )}
+                <p className="text-muted-foreground">
+                  Categories marked "Not in this client's plan" are simply not allocated — you can leave those empty.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+
+
+
           {fields && (
             <div className="space-y-6">
               <section>
