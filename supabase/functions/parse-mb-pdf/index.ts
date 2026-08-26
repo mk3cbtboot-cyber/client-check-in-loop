@@ -298,8 +298,20 @@ function parseFoodSection(
   const matches: { label: string; start: number; contentStart: number }[] = [];
   let m: RegExpExecArray | null;
   while ((m = splitRe.exec(text)) !== null) {
+    // Wrap-rejoin guard: MB wraps a single multi-word food across two lines
+    // ("Goat Cream\nCheese (Chèvre)"). The second line can begin with a word
+    // that is also a category label. If the previous non-space character is a
+    // letter (i.e. the previous line ended mid-phrase, with no comma, colon or
+    // closing bracket) AND what follows the label continues the same food — a
+    // parenthetical or a lowercase word — this is a wrapped food, not a heading.
+    const before = text.slice(0, m.index).replace(/\s+$/, "");
+    const prevChar = before.slice(-1);
+    const after = text.slice(m.index + m[0].length, m.index + m[0].length + 40).trimStart();
+    const continuesFood = after.startsWith("(") || /^[a-z]/.test(after);
+    if (/[A-Za-zÀ-ÿ]/.test(prevChar) && continuesFood) continue;
     matches.push({ label: m[1], start: m.index, contentStart: m.index + m[0].length });
   }
+
 
   const lookup: Record<string, string> = {};
   for (const [k, v] of Object.entries(categoryMap)) lookup[k.toLowerCase().replace(/\s+/g, " ")] = v;
@@ -1617,7 +1629,61 @@ Deno.serve(async (req) => {
     if (!footerIdentity.clientName) validation.push("client_name");
     if (!footerIdentity.coachName) validation.push("coach_name");
 
-    const needsReview = validation.length > 0;
+    // ---- Per-field confidence flags -------------------------------------
+    // "ok"          -> extracted with content
+    // "absent"      -> the category is nowhere in this client's document, so
+    //                  the client simply has no allocation for it (optional)
+    // "parse_failed"-> the category IS printed in the document but we got
+    //                  nothing out of it: a real flag needing attention
+    type FieldFlag = "ok" | "absent" | "parse_failed";
+    const labelsByField: Record<string, string[]> = {};
+    const addLabels = (map: Record<string, string>) => {
+      for (const [label, field] of Object.entries(map)) {
+        if (field.startsWith("__")) continue;
+        (labelsByField[field] ??= []).push(label);
+      }
+    };
+    addLabels(PHASE2_PROTEIN_CATEGORIES);
+    addLabels(PHASE2_CARB_CATEGORIES);
+    addLabels(PHASE3_CATEGORIES);
+
+    const mealPlanText = JSON.stringify(mealOptionsResult);
+    const phase2Haystack = `${phase2ProteinSection ?? ""}\n${phase2CarbSection ?? ""}\n${mealPlanText}`;
+    const phase3Haystack = `${p3Text}\n${mealPlanText}`;
+
+    const appears = (haystack: string, labels: string[]) =>
+      labels.some((l) => new RegExp(`(?:^|[\\n;,.\\s])${escapeRegExp(l)}(?=[\\s:,\\-–]|$)`, "i").test(haystack));
+
+    const fieldFlags: Record<string, FieldFlag> = {};
+    for (const f of [...unique(phase2ProteinFields), ...unique(phase2CarbFields), ...unique(phase3Fields)]) {
+      if (result[f]?.extracted) { fieldFlags[f] = "ok"; continue; }
+      const haystack = f.startsWith("phase3_") ? phase3Haystack : phase2Haystack;
+      fieldFlags[f] = appears(haystack, labelsByField[f] ?? []) ? "parse_failed" : "absent";
+    }
+    if (result.water_target_litres) fieldFlags.water_target_litres = water == null ? "parse_failed" : "ok";
+    if (result.eggs_min_per_week) {
+      fieldFlags.eggs_min_per_week = eggs.eggs_min_per_week == null
+        ? (/\begg/i.test(additionalInfoSection || fullText) ? "parse_failed" : "absent")
+        : "ok";
+    }
+
+    const parseFailures = Object.entries(fieldFlags).filter(([, v]) => v === "parse_failed").map(([k]) => k);
+    const needsReview = validation.length > 0 || parseFailures.length > 0;
+
+    // Log low-confidence extractions so patterns across documents are visible.
+    if (needsReview) {
+      console.warn("parse-mb-pdf low_confidence", JSON.stringify({
+        clientId,
+        storagePath,
+        format,
+        mealParserMode: (mealDebug as { meal_parser_mode?: string }).meal_parser_mode ?? null,
+        validation,
+        parseFailures,
+        absentFields: Object.entries(fieldFlags).filter(([, v]) => v === "absent").map(([k]) => k),
+        optionCount,
+      }));
+    }
+
 
     debug.step = "complete";
     return new Response(JSON.stringify({
@@ -1627,6 +1693,10 @@ Deno.serve(async (req) => {
       foodNotes,
       mealSwapNote: mealRules.meal_swap,
       treatMealNote: mealRules.treat_meal,
+      fieldFlags,
+      parseFailures,
+
+
 
       shoppingCrossCheck: (() => {
         const shop = shoppingHelperFoods(fullText, stripFooter);

@@ -31,6 +31,8 @@ const EMPTY_MEAL_OPTIONS = (): MealOptionsMap => ({
 
 type FieldVal = { value: string | number | null; extracted: boolean };
 type FieldsMap = Record<string, FieldVal>;
+type FieldFlag = "ok" | "absent" | "parse_failed";
+
 
 const PHASE2_PROTEIN = [
   ["food_fish", "Fish"],
@@ -87,6 +89,14 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
   const [storagePath, setStoragePath] = useState<string | null>(null);
   const [foodExclusions, setFoodExclusions] = useState<string[] | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [fieldFlags, setFieldFlags] = useState<Record<string, FieldFlag>>({});
+  const [parseFailures, setParseFailures] = useState<string[]>([]);
+  const [validation, setValidation] = useState<string[]>([]);
+  const [foodNotes, setFoodNotes] = useState<Record<string, string>>({});
+  const [mealSwapNote, setMealSwapNote] = useState<string | null>(null);
+  const [treatMealNote, setTreatMealNote] = useState<string | null>(null);
+  const [confirmedFlags, setConfirmedFlags] = useState(false);
+  const [confirmedRules, setConfirmedRules] = useState(false);
 
 
   const reset = () => {
@@ -95,9 +105,18 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
     setStoragePath(null);
     setFoodExclusions(null);
     setReviewError(null);
+    setFieldFlags({});
+    setParseFailures([]);
+    setValidation([]);
+    setFoodNotes({});
+    setMealSwapNote(null);
+    setTreatMealNote(null);
+    setConfirmedFlags(false);
+    setConfirmedRules(false);
     setReviewOpen(false);
     if (fileRef.current) fileRef.current.value = "";
   };
+
 
 
   const startUpload = () => fileRef.current?.click();
@@ -145,7 +164,13 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         setReviewOpen(true);
         throw new Error(detail);
       }
-      const response = data as { fields?: FieldsMap; mealOptions?: MealOptionsMap; foodExclusions?: string[] | null; error?: string; detail?: string; format?: string; clientName?: string | null; coachName?: string | null; needsReview?: boolean; validation?: string[]; debug?: Record<string, unknown> };
+      const response = data as {
+        fields?: FieldsMap; mealOptions?: MealOptionsMap; foodExclusions?: string[] | null;
+        error?: string; detail?: string; format?: string; clientName?: string | null; coachName?: string | null;
+        needsReview?: boolean; validation?: string[]; debug?: Record<string, unknown>;
+        fieldFlags?: Record<string, FieldFlag>; parseFailures?: string[];
+        foodNotes?: Record<string, string>; mealSwapNote?: string | null; treatMealNote?: string | null;
+      };
       if (response.error || !response.fields) {
         const detail = [
           `Step: parse-mb-pdf`,
@@ -157,19 +182,23 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         setReviewOpen(true);
         throw new Error(detail);
       }
-      if (response.needsReview && response.validation?.length) {
-        const LABELS: Record<string, string> = {
-          meal_options: "Meal suggestions",
-          food_categories: "Food list categories",
-          water_target: "Water target",
-          client_name: "Client name (footer)",
-          coach_name: "Coach name (footer)",
-        };
-        setReviewError([
-          `Detected layout: ${response.format ?? "unknown"}`,
-          `Could not confidently extract: ${response.validation.map((v) => LABELS[v] ?? v).join(", ")}`,
-          `Please fill these in manually before saving.`,
-        ].join("\n"));
+      const flags = response.fieldFlags ?? {};
+      const failures = response.parseFailures ?? Object.entries(flags).filter(([, v]) => v === "parse_failed").map(([k]) => k);
+      setFieldFlags(flags);
+      setParseFailures(failures);
+      setValidation(response.validation ?? []);
+      setFoodNotes(response.foodNotes ?? {});
+      setMealSwapNote(response.mealSwapNote ?? null);
+      setTreatMealNote(response.treatMealNote ?? null);
+      if (response.needsReview) {
+        // Log low-confidence extractions so patterns across documents are visible.
+        console.warn("[MbPdfImport] low-confidence extraction", {
+          clientId: uploadClientId,
+          format: response.format ?? "unknown",
+          validation: response.validation ?? [],
+          parseFailures: failures,
+          absent: Object.entries(flags).filter(([, v]) => v === "absent").map(([k]) => k),
+        });
       }
 
       setFields(response.fields);
@@ -186,6 +215,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       });
       setStoragePath(path);
       setFoodExclusions(response.foodExclusions ?? null);
+
 
       // Persist mb_pdf_path immediately so the uploaded file is never orphaned
       // if the practitioner closes the review dialog without clicking Confirm & Save.
@@ -214,7 +244,14 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
 
   const update = (key: string, value: string | number | null) => {
     setFields((f) => (f ? { ...f, [key]: { value, extracted: true } } : f));
+    // A practitioner correction clears the flag for that field.
+    const hasValue = value !== null && String(value).trim() !== "";
+    if (hasValue) {
+      setFieldFlags((fl) => (fl[key] === "parse_failed" ? { ...fl, [key]: "ok" } : fl));
+      setParseFailures((p) => p.filter((k) => k !== key));
+    }
   };
+
 
   // Review-dialog edits touch the flat legacy fields; mirror them back into the
   // parsed item list so Starch / ml portions parsed from the PDF are preserved.
@@ -324,22 +361,29 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
   const FieldRow = ({ k, label, type = "text" }: { k: string; label: string; type?: "text" | "number" | "textarea" }) => {
     const f = fields?.[k];
     const extracted = !!f?.extracted;
+    // "absent" = the category is not part of this client's plan (optional, no action).
+    // "parse_failed" = printed in the document but nothing came out (needs attention).
+    const flag: FieldFlag = extracted ? "ok" : (fieldFlags[k] ?? "parse_failed");
+    const failed = flag === "parse_failed";
     return (
       <div className="space-y-1">
         <div className="flex items-center gap-2">
           <Label className="text-xs">{label}</Label>
-          {!extracted && (
+          {failed && (
             <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
-              <AlertTriangle className="h-3 w-3" /> Not extracted — please fill in
+              <AlertTriangle className="h-3 w-3" /> In the plan but not parsed — please check
             </span>
+          )}
+          {flag === "absent" && (
+            <span className="text-[10px] text-muted-foreground">Not in this client's plan</span>
           )}
         </div>
         {type === "textarea" ? (
           <Textarea
             value={(f?.value as string) ?? ""}
             onChange={(e) => update(k, e.target.value)}
-            className={`min-h-[60px] text-sm ${!extracted ? "border-amber-400" : ""}`}
-            placeholder="Comma-separated list"
+            className={`min-h-[60px] text-sm ${failed ? "border-amber-400" : ""}`}
+            placeholder={flag === "absent" ? "Not allocated — leave empty" : "Comma-separated list"}
           />
         ) : (
           <Input
@@ -347,12 +391,33 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
             step={type === "number" ? "any" : undefined}
             value={f?.value == null ? "" : String(f.value)}
             onChange={(e) => update(k, type === "number" ? (e.target.value === "" ? null : Number(e.target.value)) : e.target.value)}
-            className={`h-8 ${!extracted ? "border-amber-400" : ""}`}
+            className={`h-8 ${failed ? "border-amber-400" : ""}`}
           />
         )}
       </div>
     );
   };
+
+  const VALIDATION_LABELS: Record<string, string> = {
+    meal_options: "Meal suggestions",
+    food_categories: "Food list categories",
+    water_target: "Water target",
+    client_name: "Client name (footer)",
+    coach_name: "Coach name (footer)",
+  };
+  const FIELD_LABELS: Record<string, string> = Object.fromEntries([
+    ...PHASE2_PROTEIN, ...PHASE2_CARB, ...PHASE3,
+    ["water_target_litres", "Water (litres/day)"],
+    ["eggs_min_per_week", "Eggs min/week"],
+  ]);
+  const openFlags = parseFailures.filter((k) => !fields?.[k]?.extracted);
+  const needsConfirm = openFlags.length > 0 || validation.length > 0;
+  const rawLimits: unknown = fields?.food_limits?.value ?? null;
+  const foodLimits = (rawLimits && typeof rawLimits === "object" ? rawLimits : null) as Record<string, number> | null;
+
+  const noteEntries = Object.entries(foodNotes).filter(([, v]) => v && v.trim().length > 0);
+  const hasExtras = !!(foodLimits && Object.keys(foodLimits).length) || noteEntries.length > 0 || mealSwapNote || treatMealNote;
+
 
   return (
     <>
@@ -383,6 +448,29 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
               </AlertDescription>
             </Alert>
           )}
+
+          {fields && needsConfirm && (
+            <Alert className="border-amber-400">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTitle>Low-confidence extraction — check before saving</AlertTitle>
+              <AlertDescription className="text-xs space-y-1">
+                {validation.length > 0 && (
+                  <p>Could not confidently extract: {validation.map((v) => VALIDATION_LABELS[v] ?? v).join(", ")}.</p>
+                )}
+                {openFlags.length > 0 && (
+                  <p>
+                    These categories appear in the document but failed to parse:{" "}
+                    {openFlags.map((k) => FIELD_LABELS[k] ?? k).join(", ")}.
+                  </p>
+                )}
+                <p className="text-muted-foreground">
+                  Categories marked "Not in this client's plan" are simply not allocated — you can leave those empty.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+
+
 
           {fields && (
             <div className="space-y-6">
@@ -489,18 +577,80 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
                   {PHASE3.map(([k, l]) => <FieldRow key={k} k={k} label={l} type="textarea" />)}
                 </div>
               </section>
+
+              {hasExtras && (
+                <section className="rounded-md border p-3 space-y-3">
+                  <h3 className="text-sm font-semibold">Per-client rules extracted from the plan</h3>
+                  <p className="text-xs text-muted-foreground">Read-only. Confirm these look right before saving.</p>
+
+                  {foodLimits && Object.keys(foodLimits).length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium mb-1">Weekly limits</p>
+                      <ul className="text-xs text-muted-foreground space-y-0.5">
+                        {Object.entries(foodLimits).map(([k, v]) => (
+                          <li key={k}><span className="capitalize text-foreground">{k}</span>: max {v} × / week</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {noteEntries.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium mb-1">Preparation rules by category</p>
+                      <ul className="text-xs text-muted-foreground space-y-1">
+                        {noteEntries.map(([k, v]) => (
+                          <li key={k}>
+                            <span className="text-foreground">{FIELD_LABELS[k] ?? k}</span>: {v}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {mealSwapNote && (
+                    <div>
+                      <p className="text-xs font-medium mb-1">Meal swap</p>
+                      <p className="text-xs text-muted-foreground">{mealSwapNote}</p>
+                    </div>
+                  )}
+
+                  {treatMealNote && (
+                    <div>
+                      <p className="text-xs font-medium mb-1">Treat meal</p>
+                      <p className="text-xs text-muted-foreground">{treatMealNote}</p>
+                    </div>
+                  )}
+
+                  <label className="flex items-start gap-2 text-xs pt-1">
+                    <Checkbox checked={confirmedRules} onCheckedChange={(c) => setConfirmedRules(!!c)} />
+                    <span>I've reviewed these per-client rules.</span>
+                  </label>
+                </section>
+              )}
             </div>
+          )}
+
+          {fields && needsConfirm && (
+            <label className="flex items-start gap-2 text-xs rounded-md border border-amber-400 p-3">
+              <Checkbox checked={confirmedFlags} onCheckedChange={(c) => setConfirmedFlags(!!c)} />
+              <span>I've checked the flagged fields above and corrected anything that was mis-parsed.</span>
+            </label>
           )}
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => { reset(); setTimeout(startUpload, 50); }} disabled={busy}>
               Re-upload
             </Button>
-            <Button type="button" onClick={save} disabled={busy}>
+            <Button
+              type="button"
+              onClick={save}
+              disabled={busy || (needsConfirm && !confirmedFlags) || (hasExtras && !confirmedRules)}
+            >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               Confirm and Save
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
     </>
