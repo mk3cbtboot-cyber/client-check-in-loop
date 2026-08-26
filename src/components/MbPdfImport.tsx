@@ -577,18 +577,80 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
                   {PHASE3.map(([k, l]) => <FieldRow key={k} k={k} label={l} type="textarea" />)}
                 </div>
               </section>
+
+              {hasExtras && (
+                <section className="rounded-md border p-3 space-y-3">
+                  <h3 className="text-sm font-semibold">Per-client rules extracted from the plan</h3>
+                  <p className="text-xs text-muted-foreground">Read-only. Confirm these look right before saving.</p>
+
+                  {foodLimits && Object.keys(foodLimits).length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium mb-1">Weekly limits</p>
+                      <ul className="text-xs text-muted-foreground space-y-0.5">
+                        {Object.entries(foodLimits).map(([k, v]) => (
+                          <li key={k}><span className="capitalize text-foreground">{k}</span>: max {v} × / week</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {noteEntries.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium mb-1">Preparation rules by category</p>
+                      <ul className="text-xs text-muted-foreground space-y-1">
+                        {noteEntries.map(([k, v]) => (
+                          <li key={k}>
+                            <span className="text-foreground">{FIELD_LABELS[k] ?? k}</span>: {v}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {mealSwapNote && (
+                    <div>
+                      <p className="text-xs font-medium mb-1">Meal swap</p>
+                      <p className="text-xs text-muted-foreground">{mealSwapNote}</p>
+                    </div>
+                  )}
+
+                  {treatMealNote && (
+                    <div>
+                      <p className="text-xs font-medium mb-1">Treat meal</p>
+                      <p className="text-xs text-muted-foreground">{treatMealNote}</p>
+                    </div>
+                  )}
+
+                  <label className="flex items-start gap-2 text-xs pt-1">
+                    <Checkbox checked={confirmedRules} onCheckedChange={(c) => setConfirmedRules(!!c)} />
+                    <span>I've reviewed these per-client rules.</span>
+                  </label>
+                </section>
+              )}
             </div>
+          )}
+
+          {fields && needsConfirm && (
+            <label className="flex items-start gap-2 text-xs rounded-md border border-amber-400 p-3">
+              <Checkbox checked={confirmedFlags} onCheckedChange={(c) => setConfirmedFlags(!!c)} />
+              <span>I've checked the flagged fields above and corrected anything that was mis-parsed.</span>
+            </label>
           )}
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => { reset(); setTimeout(startUpload, 50); }} disabled={busy}>
               Re-upload
             </Button>
-            <Button type="button" onClick={save} disabled={busy}>
+            <Button
+              type="button"
+              onClick={save}
+              disabled={busy || (needsConfirm && !confirmedFlags) || (hasExtras && !confirmedRules)}
+            >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               Confirm and Save
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
     </>
