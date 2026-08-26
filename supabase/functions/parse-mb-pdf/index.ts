@@ -1629,7 +1629,62 @@ Deno.serve(async (req) => {
     if (!footerIdentity.clientName) validation.push("client_name");
     if (!footerIdentity.coachName) validation.push("coach_name");
 
-    const needsReview = validation.length > 0;
+    // ---- Per-field confidence flags -------------------------------------
+    // "ok"          -> extracted with content
+    // "absent"      -> the category is nowhere in this client's document, so
+    //                  the client simply has no allocation for it (optional)
+    // "parse_failed"-> the category IS printed in the document but we got
+    //                  nothing out of it: a real flag needing attention
+    type FieldFlag = "ok" | "absent" | "parse_failed";
+    const labelsByField: Record<string, string[]> = {};
+    const addLabels = (map: Record<string, string>) => {
+      for (const [label, field] of Object.entries(map)) {
+        if (field.startsWith("__")) continue;
+        (labelsByField[field] ??= []).push(label);
+      }
+    };
+    addLabels(PHASE2_PROTEIN_CATEGORIES);
+    addLabels(PHASE2_CARB_CATEGORIES);
+    addLabels(PHASE3_CATEGORIES);
+
+    const mealPlanText = JSON.stringify(mealOptionsResult);
+    const phase2Haystack = `${phase2ProteinSection ?? ""}\n${phase2CarbSection ?? ""}\n${mealPlanText}`;
+    const phase3Haystack = `${p3Text}\n${mealPlanText}`;
+
+    const appears = (haystack: string, labels: string[]) =>
+      labels.some((l) => new RegExp(`(?:^|[\\n;,.\\s])${escapeRegExp(l)}(?=[\\s:,\\-–]|$)`, "i").test(haystack));
+
+    const fieldFlags: Record<string, FieldFlag> = {};
+    for (const f of [...unique(phase2ProteinFields), ...unique(phase2CarbFields), ...unique(phase3Fields)]) {
+      if (result[f]?.extracted) { fieldFlags[f] = "ok"; continue; }
+      const haystack = f.startsWith("phase3_") ? phase3Haystack : phase2Haystack;
+      fieldFlags[f] = appears(haystack, labelsByField[f] ?? []) ? "parse_failed" : "absent";
+    }
+    if (result.water_target_litres) fieldFlags.water_target_litres = water == null ? "parse_failed" : "ok";
+    if (result.eggs_min_per_week) {
+      fieldFlags.eggs_min_per_week = eggs.eggs_min_per_week == null
+        ? (/\begg/i.test(additionalInfoSection || fullText) ? "parse_failed" : "absent")
+        : "ok";
+    }
+
+    const parseFailures = Object.entries(fieldFlags).filter(([, v]) => v === "parse_failed").map(([k]) => k);
+    if (optionCount < 9) validation.push("meal_options_partial");
+    const needsReview = validation.length > 0 || parseFailures.length > 0;
+
+    // Log low-confidence extractions so patterns across documents are visible.
+    if (needsReview) {
+      console.warn("parse-mb-pdf low_confidence", JSON.stringify({
+        clientId: body.clientId,
+        storagePath,
+        format,
+        mealParserMode: (mealDebug as { meal_parser_mode?: string }).meal_parser_mode ?? null,
+        validation,
+        parseFailures,
+        absentFields: Object.entries(fieldFlags).filter(([, v]) => v === "absent").map(([k]) => k),
+        optionCount,
+      }));
+    }
+
 
     debug.step = "complete";
     return new Response(JSON.stringify({
