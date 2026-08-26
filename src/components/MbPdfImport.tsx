@@ -409,6 +409,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
     ...PHASE2_PROTEIN, ...PHASE2_CARB, ...PHASE3,
     ["water_target_litres", "Water (litres/day)"],
     ["eggs_min_per_week", "Eggs min/week"],
+    ["eggs", "Eggs"],
   ]);
   const openFlags = parseFailures.filter((k) => !fields?.[k]?.extracted);
   const needsConfirm = openFlags.length > 0 || validation.length > 0;
