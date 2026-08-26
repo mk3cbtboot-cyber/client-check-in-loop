@@ -1100,6 +1100,16 @@ const LIMIT_FILLER_RE =
  * Canonical key for a food phrase: generic plural -> singular, no hand-coded
  * word list, and the head noun kept last so multi-word foods collapse sanely.
  */
+function singularise(word: string): string {
+  let head = word;
+  if (/ies$/.test(head)) head = head.replace(/ies$/, "y");
+  else if (/(ches|shes|sses|xes|zes)$/.test(head)) head = head.replace(/es$/, "");
+  else if (/oes$/.test(head)) head = head.replace(/es$/, "");
+  else if (/ss$/.test(head)) { /* "watercress" — not a plural */ }
+  else if (/[^s]s$/.test(head)) head = head.replace(/s$/, "");
+  return head;
+}
+
 function limitKey(phrase: string): string | null {
   const cleaned = phrase
     .toLowerCase()
@@ -1109,14 +1119,25 @@ function limitKey(phrase: string): string | null {
     .trim();
   if (!cleaned) return null;
   const words = cleaned.split(" ").filter(Boolean);
-  let head = words[words.length - 1];
+  const head = words[words.length - 1];
   if (!head || head.length < 3) return null;
-  // generic singularisation
-  if (/ies$/.test(head)) head = head.replace(/ies$/, "y");
-  else if (/(ches|shes|sses|xes|zes)$/.test(head)) head = head.replace(/es$/, "");
-  else if (/oes$/.test(head)) head = head.replace(/es$/, "");
-  else if (/[^s]s$/.test(head)) head = head.replace(/s$/, "");
-  return head.length >= 3 ? head : null;
+  const singular = singularise(head);
+  return singular.length >= 3 ? singular : null;
+}
+
+/**
+ * Final safety net: collapse any singular/plural duplicates in a limits map so
+ * a food can never appear twice ("egg: 5" + "eggs: 5" -> "egg: 5").
+ * The most restrictive count wins.
+ */
+function canonicaliseLimits(limits: Record<string, number>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(limits)) {
+    const key = singularise(String(k).trim().toLowerCase());
+    if (!key) continue;
+    out[key] = key in out ? Math.min(out[key], v) : v;
+  }
+  return out;
 }
 
 /**
