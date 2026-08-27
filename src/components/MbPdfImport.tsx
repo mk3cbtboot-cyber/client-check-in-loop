@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, UploadCloud, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { mbPlanFromParsedOptions } from "@/lib/mb-plan-parsed";
+import { canonicaliseFoodLimits } from "@/lib/food-limits";
 
 type MealItem = { category: string; qty: number | null; unit: string };
 type MealOption = {
@@ -318,7 +319,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         const val = v.value;
         if (k === "food_limits") {
           const parsed = (val && typeof val === "object") ? val as Record<string, number> : {};
-          update.food_limits = { ...existingLimits, ...parsed };
+          update.food_limits = canonicaliseFoodLimits({ ...existingLimits, ...parsed });
           continue;
         }
         // Coerce numeric fields

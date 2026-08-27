@@ -84,6 +84,7 @@ import { MbPdfImport } from "@/components/MbPdfImport";
 import { MbPlanSetup } from "@/components/MbPlanSetup";
 import MbPlanMirror from "@/components/MbPlanMirror";
 import { getMbPlan, isMbPlanConfirmed, parseMbFoodLimits } from "@/lib/mb-plan";
+import { canonicaliseFoodLimits } from "@/lib/food-limits";
 import { resolveMbFoodList } from "@/lib/mb-food-list";
 
 import { MacrosTab } from "@/components/MacrosTab";
@@ -912,10 +913,11 @@ export default function Dashboard() {
   // ----- Weekly food limits -----
   const saveWeeklyFoodLimits = async (clientId: string, limits: Record<string, number>) => {
     const prev = clients.find((c) => c.id === clientId)?.food_limits ?? {};
-    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, food_limits: limits } : c)));
+    const canonical = canonicaliseFoodLimits(limits);
+    setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, food_limits: canonical } : c)));
     const { error } = await supabase
       .from("clients")
-      .update({ food_limits: limits as never } as never)
+      .update({ food_limits: canonical as never } as never)
       .eq("id", clientId);
     if (error) {
       setClients((cs) => cs.map((c) => (c.id === clientId ? { ...c, food_limits: prev } : c)));
