@@ -14,8 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Copy, Loader2, Plus, Trash2, X } from "lucide-react";
 import { type MealType } from "@/lib/mb-foods";
+import { canonicaliseFoodLimits } from "@/lib/food-limits";
 import MbPersonalFoodList from "@/components/MbPersonalFoodList";
-import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -166,10 +166,23 @@ export function MbPlanSetup({
         version: 1,
         confirmed_at: confirmedAt === undefined ? next.confirmed_at ?? null : confirmedAt,
       };
+      // Food caps are the single source of truth for MB: project every weekly
+      // cap's max into the flat clients.food_limits map that the portal
+      // counters and log-mb-meal enforcement already read.
+      const projected = canonicaliseFoodLimits(
+        Object.fromEntries(
+          nextLimits
+            .filter((r) => r.type === "weekly" && r.food.trim() !== "" && Number(r.max) > 0)
+            .map((r) => [r.food.trim().toLowerCase(), Number(r.max)]),
+        ),
+      );
       const { error } = await supabase
         .from("clients")
-        // mb_food_limits is stored only; clients.food_limits is never touched here.
-        .update({ mb_plan: payload as never, mb_food_limits: nextLimits as never })
+        .update({
+          mb_plan: payload as never,
+          mb_food_limits: nextLimits as never,
+          food_limits: projected as never,
+        })
         .eq("id", clientId);
       setSaving(false);
       if (error) {
@@ -245,8 +258,6 @@ export function MbPlanSetup({
 
   const setLimit = (id: string, patch: Partial<MbFoodLimit>) =>
     mutateLimits((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-
-  const legacyEntries = Object.entries(legacyFoodLimits ?? {});
 
   const setItems = (colour: MbColour, meal: MealType, fn: (items: MbPlanItem[]) => MbPlanItem[]) =>
     mutate((d) => {
@@ -468,13 +479,9 @@ export function MbPlanSetup({
             </div>
           )}
 
-          {onSaveWeeklyLimits && (
+          {weeklyAcks.length > 0 && (
             <div className="rounded-lg border p-3 space-y-3">
-              <WeeklyLimitsEditor
-                value={legacyFoodLimits ?? {}}
-                onSave={(next) => onSaveWeeklyLimits(next)}
-              />
-              {weeklyAcks.length > 0 && (
+              {(
                 <div className="rounded-md border border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20 p-3 space-y-1">
                   {weeklyAcks.map((a) => {
                     const d = new Date(a.acknowledged_at);
@@ -514,17 +521,6 @@ export function MbPlanSetup({
                 <Plus className="h-3.5 w-3.5 mr-1" /> Add cap
               </Button>
             </div>
-
-            {legacyEntries.length > 0 && (
-              <div className="rounded-md bg-muted/50 p-2">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Existing caps (read-only, current system)
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {legacyEntries.map(([k, v]) => `${k}: ${v}`).join(" · ")}
-                </p>
-              </div>
-            )}
 
             {limits.length === 0 && <p className="text-xs text-muted-foreground">No caps yet.</p>}
 
