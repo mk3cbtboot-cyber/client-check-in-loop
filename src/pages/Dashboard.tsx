@@ -84,6 +84,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MbPdfImport } from "@/components/MbPdfImport";
 import { MbPlanSetup } from "@/components/MbPlanSetup";
+import WeeklyLimitsEditor from "@/components/WeeklyLimitsEditor";
 import MbPlanMirror from "@/components/MbPlanMirror";
 import { getMbPlan, isMbPlanConfirmed, parseMbFoodLimits } from "@/lib/mb-plan";
 import { canonicaliseFoodLimits } from "@/lib/food-limits";
@@ -2125,6 +2126,14 @@ export default function Dashboard() {
                               <RecipesDocImport clientId={client.id} mealsPerDay={Number((client as unknown as { meals_per_day?: number }).meals_per_day ?? 3)} onSaved={load} />
                             )}
                           </div>
+                          {client.system_mode === "own_practice" && (
+                            <div className="rounded-lg border p-3">
+                              <WeeklyLimitsEditor
+                                value={client.food_limits ?? {}}
+                                onSave={(next) => saveWeeklyFoodLimits(client.id, next)}
+                              />
+                            </div>
+                          )}
                           {client.system_mode !== "own_practice" && client.phase2_strict_mode === "practitioner_custom" && (
                             <div className="flex items-center gap-2">
                               <Label htmlFor={`sr-${client.id}`} className="text-xs">Show 8 Rules</Label>
