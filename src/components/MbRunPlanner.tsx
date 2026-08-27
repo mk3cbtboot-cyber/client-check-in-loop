@@ -362,7 +362,7 @@ export function MbRunPlanner({
               {baseComplete(meal) && <Check className="h-3.5 w-3.5 text-emerald-600" />}
             </p>
             {items.length === 0 && <p className="text-sm text-muted-foreground">Not set.</p>}
-            {items.map((it) => renderItem(it, picks, (v) => setPick(meal, it.id, v)))}
+            {items.map((it) => renderItem(it, picks, (id, v) => setPick(meal, id, v)))}
           </div>
         );
       })}
@@ -412,7 +412,7 @@ export function MbRunPlanner({
                     )}
 
                     {override && items.map((it) =>
-                      renderItem(it, picks, (v) => setDayPick(date, meal, it.id, v)),
+                      renderItem(it, picks, (id, v) => setDayPick(date, meal, id, v)),
                     )}
                   </div>
                 );
