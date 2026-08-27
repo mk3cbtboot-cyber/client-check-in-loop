@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { MB_FOODS, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { oilAllowed as oilAllowedFn, type Phase } from "@/lib/phases";
@@ -158,8 +157,8 @@ export default function MealRecipeSection({
   };
 
   const generate = async () => {
-    if (blockGeneration) {
-      toast.error(blockGeneration.reason);
+    if (effectiveBlock) {
+      toast.error(effectiveBlock.reason);
       return;
     }
     for (const c of optionDef.components) {
@@ -254,6 +253,26 @@ export default function MealRecipeSection({
 
   const title = sectionTitle ?? optionDef.label;
 
+  // ---- Hard weekly caps, enforced at SELECTION (all foods, eggs included) ----
+  const capIngredients = (selections: Record<string, string>) => [
+    ...(optionDef.fixed ?? []).map((f) => ({ label: f.label, qty: f.qty })),
+    ...optionDef.components
+      .filter((c) => selections[c.key])
+      .map((c) => ({ label: selections[c.key], qty: c.qty || "" })),
+  ];
+  // Planned rows for this meal were already cap-validated at run confirm, so
+  // the client's own commitment must never block them from eating it.
+  const plannedAllowance: CapFold | null = capFold
+    ? { eaten: {}, planned: {}, committed: capFold.planned ?? {} }
+    : null;
+  const lockedBlock = lockedRecipe
+    ? capBlocksMeal(capIngredients(lockedSelections), foodLimits, capFold, plannedAllowance)
+    : null;
+  const builderBlock = capBlocksMeal(capIngredients(picks), foodLimits, capFold, plannedAllowance);
+  const capBlockReason = (b: ReturnType<typeof capBlocksMeal>) => (b ? describeMealBlock(b) : null);
+  const effectiveBlock =
+    blockGeneration ?? (builderBlock ? { reason: capBlockReason(builderBlock)! } : null);
+
   // === Locked view ===
   if (lockedRecipe) {
     return (
@@ -282,7 +301,10 @@ export default function MealRecipeSection({
               <ul className="list-disc list-inside text-sm space-y-1">{lockedRecipe.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
             </TabsContent>
           </Tabs>
-          <Button className="w-full" disabled={loggingLocked} onClick={() => handleLogLocked()}>
+          {lockedBlock && (
+            <p className="text-xs text-destructive">{capBlockReason(lockedBlock)}</p>
+          )}
+          <Button className="w-full" disabled={loggingLocked || !!lockedBlock} onClick={() => handleLogLocked()}>
             {loggingLocked ? "Logging…" : "I Ate This"}
           </Button>
         </Card>
@@ -391,10 +413,10 @@ export default function MealRecipeSection({
           </div>
         )}
 
-        {blockGeneration && (
-          <p className="text-xs text-destructive">{blockGeneration.reason}</p>
+        {effectiveBlock && (
+          <p className="text-xs text-destructive">{effectiveBlock.reason}</p>
         )}
-        <Button onClick={generate} disabled={generating || !!blockGeneration} className="w-full">
+        <Button onClick={generate} disabled={generating || !!effectiveBlock} className="w-full">
           {generating ? "Generating recipes…" : "Generate Recipes"}
         </Button>
       </Card>
