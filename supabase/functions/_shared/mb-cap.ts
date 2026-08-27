@@ -330,16 +330,24 @@ function resolveDayMealItems(
   };
 }
 
-/** The capped-food demand of one meal: food → quantity. */
-function mealDemand(
+/**
+ * The capped-food demand of one meal: food → quantity.
+ * Includes the optional second vegetable pick: it adds no extra portion, but
+ * it is a real food and must be counted against its own weekly cap.
+ */
+export function mealDemand(
   items: CapItem[],
   picks: Record<string, string>,
 ): Array<{ food: string; qty: number }> {
   const out: Array<{ food: string; qty: number }> = [];
   for (const it of items) {
     const food = capFoodFor(it, picks[String(it.id ?? "")]);
-    if (!food) continue;
-    out.push({ food, qty: perMealQty(it) });
+    if (food) out.push({ food, qty: perMealQty(it) });
+    const altId = vegAltIdFor(it);
+    if (altId) {
+      const altFood = String(picks[altId] ?? "").trim();
+      if (altFood) out.push({ food: altFood, qty: perMealQty(it) });
+    }
   }
   return out;
 }
