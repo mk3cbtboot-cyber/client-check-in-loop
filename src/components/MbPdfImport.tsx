@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, UploadCloud, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { mbPlanFromParsedOptions } from "@/lib/mb-plan-parsed";
+import { canonicaliseFoodLimits } from "@/lib/food-limits";
 
 type MealItem = { category: string; qty: number | null; unit: string };
 type MealOption = {
