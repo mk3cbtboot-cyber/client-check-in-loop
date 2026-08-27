@@ -1960,14 +1960,17 @@ export default function Dashboard() {
                         </div>
                       );
                     })()}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                      {stats.map((s) => (
-                        <div key={s.label} className="rounded-md border p-2">
-                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
-                          <p className="text-sm font-semibold truncate">{s.value}</p>
-                        </div>
-                      ))}
-                    </div>
+                    <ClientTrackerRow
+                      variant="compact"
+                      mealStreak={mealStreak}
+                      waterStreak={waterStreak}
+                      waterToday={waterToday}
+                      foodLimits={trackerLimits}
+                      foodLimitCounts={foodLimitCounts}
+                      showLimitTotals={Boolean(client.mb_pdf_path)}
+                      lastMealLogged={lastLogged}
+                    />
+
 
 
                     <Tabs defaultValue="overview" className="w-full" value={(client as unknown as { _activeTab?: string })._activeTab ?? undefined} onValueChange={(v) => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: v } as typeof x) : x)))}>
