@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { MB_FOODS, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { oilAllowed as oilAllowedFn, type Phase } from "@/lib/phases";
 import { capTallyFor, capBlocksMeal, describeMealBlock, type CapFold } from "@/lib/mb-food-list";
+import { vegQtyOverrides } from "@/lib/mb-plan";
 
 export type LockedRecipe = { recipe_title: string; recipe: string[]; method: string[]; notes: string[] };
 
