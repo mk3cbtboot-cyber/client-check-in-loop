@@ -238,7 +238,7 @@ export function MbRunPlanner({
   const renderItem = (
     it: MbPlanItem,
     picks: Record<string, string>,
-    onPick: (food: string) => void,
+    onPick: (itemId: string, food: string) => void,
   ) => {
     const isFixed = it.category === "fixed";
     const picked = picks[it.id] ?? "";
@@ -261,6 +261,11 @@ export function MbRunPlanner({
     }
 
     const options = optionsFor(it);
+    // Optional second vegetable: a variety split of the same allowance — the
+    // gram amount above is shared 50/50, so it never adds a second portion.
+    const altId = vegAltIdFor(it);
+    const altPicked = altId ? picks[altId] ?? "" : "";
+    const altRemaining = altId ? remainingLine(altPicked) : null;
     return (
       <div key={it.id} className="space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
@@ -273,7 +278,7 @@ export function MbRunPlanner({
             No approved foods listed for this group yet — ask your practitioner.
           </p>
         ) : (
-          <Select value={picked} onValueChange={onPick}>
+          <Select value={picked} onValueChange={(v) => onPick(it.id, v)}>
             <SelectTrigger className="h-9">
               <SelectValue placeholder={`Choose your ${categoryLabel(it.category).toLowerCase()}`} />
             </SelectTrigger>
@@ -285,6 +290,26 @@ export function MbRunPlanner({
           </Select>
         )}
         {remaining && <p className="text-xs text-muted-foreground">{remaining}</p>}
+
+        {altId && options.length > 0 && (
+          <div className="space-y-1 pl-3 border-l">
+            <p className="text-xs text-muted-foreground">
+              Second {categoryLabel(it.category).toLowerCase()} (optional) — splits the same
+              {fmtQty(it) ? ` ${fmtQty(it)}` : ""} amount, it isn't an extra portion.
+            </p>
+            <Select value={altPicked} onValueChange={(v) => onPick(altId, v)}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Add a second choice (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                {options.filter((f) => f !== picked).map((f) => (
+                  <SelectItem key={f} value={f}>{f}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {altRemaining && <p className="text-xs text-muted-foreground">{altRemaining}</p>}
+          </div>
+        )}
       </div>
     );
   };
