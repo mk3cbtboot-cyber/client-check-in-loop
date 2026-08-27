@@ -318,7 +318,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         const val = v.value;
         if (k === "food_limits") {
           const parsed = (val && typeof val === "object") ? val as Record<string, number> : {};
-          update.food_limits = { ...existingLimits, ...parsed };
+          update.food_limits = canonicaliseFoodLimits({ ...existingLimits, ...parsed });
           continue;
         }
         // Coerce numeric fields
