@@ -339,6 +339,74 @@ function fmtQty(item: MbPlanItem): string {
   return `${item.qty}`;
 }
 
+/* ------------------------------------------------------------------ */
+/* Second vegetable ("veg2") — an optional variety split, never an     */
+/* extra allowance. One veg allowance may be split across two foods:   */
+/* two picks → 50/50 of the combined amount, one pick → the full       */
+/* amount. The rule lives here so item-based consumers (run planner,   */
+/* cap evaluator) and key-based consumers (OptionDef UI) agree.        */
+/* A mirror of vegAltIdFor lives in supabase/functions/_shared/mb-cap. */
+/* ------------------------------------------------------------------ */
+
+export const VEG_ALT_SUFFIX = "-alt";
+
+const VEG_ALT_CATEGORIES = new Set(["vegetables", "vegLettuce"]);
+
+/** True when this plan item may carry an optional companion vegetable pick. */
+export function vegAltEligible(item: { category?: string; optional?: boolean }): boolean {
+  return VEG_ALT_CATEGORIES.has(String(item?.category ?? "")) && item?.optional !== true;
+}
+
+/** The pick id of an item's optional second vegetable, or null. */
+export function vegAltIdFor(item: { id?: string; category?: string; optional?: boolean }): string | null {
+  if (!item?.id || !vegAltEligible(item)) return null;
+  return `${item.id}${VEG_ALT_SUFFIX}`;
+}
+
+export function isVegAltKey(key: string): boolean {
+  return String(key ?? "").endsWith(VEG_ALT_SUFFIX);
+}
+
+export function baseKeyForAlt(key: string): string {
+  return String(key ?? "").slice(0, -VEG_ALT_SUFFIX.length);
+}
+
+/** Half of a weight/volume portion string ("190g" → "95g"). Unparseable in = same out. */
+export function splitVegQty(qty: string): string {
+  const raw = String(qty ?? "").trim();
+  const m = raw.match(/^(\d+(?:\.\d+)?)\s*(g|ml)\b/i);
+  if (!m) return raw;
+  const half = Math.round(parseFloat(m[1]) / 2);
+  if (!Number.isFinite(half) || half <= 0) return raw;
+  return `${half}${m[2].toLowerCase()}`;
+}
+
+/**
+ * Portion overrides for the 50/50 veg split, keyed by component key.
+ * Applies when both the primary veg and its optional companion are picked —
+ * covers both the confirmed-plan `${key}-alt` shape and the legacy veg1/veg2.
+ */
+export function vegQtyOverrides(
+  components: { key: string; qty?: string }[],
+  picks: Record<string, string | undefined>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  const byKey = new Map(components.map((c) => [c.key, c]));
+  for (const c of components) {
+    let baseKey: string | null = null;
+    if (isVegAltKey(c.key) && byKey.has(baseKeyForAlt(c.key))) baseKey = baseKeyForAlt(c.key);
+    else if (c.key === "veg2" && byKey.has("veg1")) baseKey = "veg1";
+    if (!baseKey) continue;
+    if (!picks[c.key] || !picks[baseKey]) continue;
+    const baseQty = byKey.get(baseKey)?.qty ?? "";
+    const half = splitVegQty(baseQty);
+    if (!half || half === baseQty) continue;
+    out[baseKey] = half;
+    out[c.key] = half;
+  }
+  return out;
+}
+
 function optionFromSuggestion(s: MbSuggestion, meal: MealType, idx: number): OptionDef {
   const m = s.meals[meal] ?? { items: [] };
   const fixed: { label: string; qty: string }[] = [];
@@ -350,8 +418,9 @@ function optionFromSuggestion(s: MbSuggestion, meal: MealType, idx: number): Opt
     }
     const sources = [it.category as keyof typeof MB_FOODS].filter((c) => !!MB_FOODS[c]) as (keyof typeof MB_FOODS)[];
     const items = it.options && it.options.length ? it.options : undefined;
+    const key = `${it.category || "item"}-${i}`;
     components.push({
-      key: `${it.category || "item"}-${i}`,
+      key,
       label: it.label,
       qty: fmtQty(it),
       sources,
@@ -360,9 +429,9 @@ function optionFromSuggestion(s: MbSuggestion, meal: MealType, idx: number): Opt
     });
     // Vegetables may be split across two choices — the second pick is purely for
     // variety and carries no extra portion (the qty above is the combined amount).
-    if ((it.category === "vegetables" || it.category === "vegLettuce") && it.optional !== true) {
+    if (vegAltEligible(it)) {
       components.push({
-        key: `${it.category || "item"}-${i}-alt`,
+        key: `${key}${VEG_ALT_SUFFIX}`,
         label: `${it.label} 2 (optional)`,
         qty: "",
         sources,
