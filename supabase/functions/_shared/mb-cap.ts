@@ -479,3 +479,115 @@ export function capTallyFor(food: string, fold: CapFold | null | undefined) {
     committed: consumedFor(food, fold?.committed),
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Meal-level cap gate (selection-time enforcement)                     */
+/*                                                                      */
+/* Every weekly cap is HARD — eggs included. This helper is the single  */
+/* place both the browser (MealRecipeSection / ClientPortal) and the    */
+/* edge functions (log-mb-meal, generate-mb-recipe) ask "can this meal  */
+/* be eaten inside the remaining weekly headroom?".                      */
+/* ------------------------------------------------------------------ */
+
+export interface CapMealIngredient {
+  label?: string | null;
+  qty?: string | number | null;
+}
+
+export interface CapMealBlock {
+  food: string;   // the cap key as defined by the practitioner
+  need: number;   // units this meal would consume
+  remaining: number; // units still available in the window
+  cap: number;    // the weekly cap
+}
+
+const foodStemRe = (key: string): RegExp | null => {
+  const k = norm(key).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const stem = k.endsWith("s") ? k.slice(0, -1) : k;
+  if (!stem) return null;
+  return new RegExp(`\\b${stem}s?\\b`, "i");
+};
+
+/**
+ * How many cap units one ingredient line consumes for `key`.
+ * Weight/volume portions count as 1 serving; countable foods use the number
+ * next to the food word ("2 Eggs", "Eggs: 3"), falling back to 1.
+ */
+export function capUnitsForIngredient(
+  ing: CapMealIngredient | null | undefined,
+  key: string,
+): number {
+  if (!ing) return 0;
+  const re = foodStemRe(key);
+  if (!re) return 0;
+  const label = String(ing.label ?? "");
+  const qty = String(ing.qty ?? "");
+  const text = `${qty} ${label}`;
+  if (!re.test(text)) return 0;
+  if (/\d+(?:\.\d+)?\s*(?:g|kg|ml|l)\b/i.test(qty)) return 1;
+  const numQty = Number(qty.trim());
+  if (Number.isFinite(numQty) && numQty > 0 && numQty <= 20) return Math.round(numQty);
+  const near = new RegExp(`(\\d{1,2})\\s*(?:\\w+\\s+){0,2}${re.source}`, "i").exec(text);
+  if (near) {
+    const n = Number(near[1]);
+    if (Number.isFinite(n) && n > 0 && n <= 20) return n;
+  }
+  const after = new RegExp(`${re.source}[^0-9]{0,12}(\\d{1,2})\\b`, "i").exec(text);
+  if (after) {
+    const n = Number(after[1]);
+    if (Number.isFinite(n) && n > 0 && n <= 20) return n;
+  }
+  const lead = /^\s*(\d{1,2})\b/.exec(qty || label);
+  if (lead) {
+    const n = Number(lead[1]);
+    if (Number.isFinite(n) && n > 0 && n <= 20) return n;
+  }
+  return 1;
+}
+
+/**
+ * The first weekly cap this meal would break, or null when it fits.
+ * `slotPlanned` is the fold of rows this same day+meal already has planned —
+ * the client's own committed plan must not block them from eating it.
+ */
+export function capBlocksMeal(
+  ingredients: CapMealIngredient[] | null | undefined,
+  foodLimits: Record<string, number> | null | undefined,
+  capFold: CapFold | null | undefined,
+  slotPlanned?: CapFold | null,
+): CapMealBlock | null {
+  const items = ingredients ?? [];
+  if (!items.length) return null;
+  for (const [rawKey, rawMax] of Object.entries(foodLimits ?? {})) {
+    const cap = Number(rawMax);
+    if (!Number.isFinite(cap) || cap <= 0) continue;
+    let need = 0;
+    for (const ing of items) need += capUnitsForIngredient(ing, rawKey);
+    if (need <= 0) continue;
+    const used = Math.max(
+      0,
+      capTallyFor(rawKey, capFold).committed - (slotPlanned ? capTallyFor(rawKey, slotPlanned).committed : 0),
+    );
+    const remaining = Math.max(0, cap - used);
+    if (need > remaining) return { food: rawKey, need, remaining, cap };
+  }
+  return null;
+}
+
+/** Remaining headroom per capped food for the current window. */
+export function capHeadroom(
+  foodLimits: Record<string, number> | null | undefined,
+  capFold: CapFold | null | undefined,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [key, rawMax] of Object.entries(foodLimits ?? {})) {
+    const cap = Number(rawMax);
+    if (!Number.isFinite(cap) || cap <= 0) continue;
+    out[key] = Math.max(0, cap - capTallyFor(key, capFold).committed);
+  }
+  return out;
+}
+
+export function describeMealBlock(b: CapMealBlock): string {
+  return `This meal needs ${b.need} ${b.food} but you have ${b.remaining} of your ${b.cap} weekly ${b.food} left. Choose a different option — if none fit, contact your practitioner.`;
+}
