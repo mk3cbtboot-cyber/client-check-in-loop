@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
-import { weekWindowFor } from "../_shared/mb-cap.ts";
+import { capTallyFor, foldLedger, weekWindowFor } from "../_shared/mb-cap.ts";
 
 
 const corsHeaders = {
@@ -92,12 +92,33 @@ Deno.serve(async (req) => {
       if (hit) usesByKey[key] = 1;
     }
 
+    // ---- Weekly usage comes from the ledger (Phase 4) ----------------
+    // committed = planned + eaten in the current cap window, minus any row
+    // this same slot already planned for that food (the client's own plan must
+    // not block them from logging the meal they committed to).
+    const logDayIso = new Date().toISOString().slice(0, 10);
+    const capAnchor = (c.phase2_strict_started_at as string | null)?.slice(0, 10) ?? null;
+    const capWindow = weekWindowFor(capAnchor, logDayIso);
+    const { data: capRowsRaw } = await admin
+      .from("mb_cap_ledger")
+      .select("day, meal, food, qty, status")
+      .eq("client_id", c.id)
+      .eq("week_start", capWindow.week_start);
+    const capRows = (capRowsRaw ?? []) as Array<{ day: string; meal: string; food: string; qty: number; status: string }>;
+    const capFold = foldLedger(capRows);
+    const slotPlanned = foldLedger(
+      capRows.filter((r) => r.day === logDayIso && r.meal === meal_type && r.status === "planned"),
+    );
+    /** Weekly usage that should count against a new log in this slot. */
+    const ledgerUsed = (food: string): number =>
+      Math.max(0, capTallyFor(food, capFold).committed - capTallyFor(food, slotPlanned).committed);
+
     // Enforce hard limits first (non-egg) — selection should have already
     // prevented this, but block here defensively.
     for (const [key, uses] of Object.entries(usesByKey)) {
       if (key.toLowerCase() === "eggs" || key.toLowerCase() === "egg") continue; // eggs use the confirm flow below
       const max = Number(foodLimits[key]);
-      const used = Number(foodLimitCounts[key] ?? 0);
+      const used = ledgerUsed(key);
       if (used + uses > max) {
         return new Response(JSON.stringify({
           error: `You've reached your weekly limit for ${key}. Please choose a different option.`,
@@ -107,7 +128,7 @@ Deno.serve(async (req) => {
 
     // Egg confirm flow (kept compatible with existing client UI).
     const eggsMax = Number(foodLimits.eggs ?? foodLimits.egg ?? 0) || null;
-    let eggsUsedThisWeek = Number(foodLimitCounts.eggs ?? foodLimitCounts.egg ?? 0);
+    let eggsUsedThisWeek = ledgerUsed(foodLimits.eggs != null ? "eggs" : "egg");
     if (eggsMax != null && eggsMax > 0) {
       if (!force && eggsInMeal > 0 && eggsUsedThisWeek + eggsInMeal > eggsMax) {
         return new Response(JSON.stringify({
@@ -137,9 +158,8 @@ Deno.serve(async (req) => {
     // qty (set, never add — re-logging the same meal can't double-count).
     // Capped foods with no planned row insert an 'eaten'/'log' row instead.
     try {
-      const todayIsoLedger = new Date().toISOString().slice(0, 10);
-      const anchor = (c.phase2_strict_started_at as string | null) ?? null;
-      const { week_start } = weekWindowFor(anchor ? anchor.slice(0, 10) : null, todayIsoLedger);
+      const todayIsoLedger = logDayIso;
+      const week_start = capWindow.week_start;
       const recipeId = (insertedRecipe as { id: string } | null)?.id ?? null;
 
       // All rows for today's slot, planned first — matching an already-eaten
