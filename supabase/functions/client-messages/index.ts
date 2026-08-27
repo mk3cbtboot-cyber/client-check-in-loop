@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
+import { capTallyFor, foldLedger, weekWindowFor, type CapFold } from "../_shared/mb-cap.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -208,6 +209,33 @@ Deno.serve(async (req) => {
             .eq("id", c.id)
             .maybeSingle();
           console.log("ai_interceptor: after fetch client plan data", { has_full: !!full, fullErr });
+
+          // MB weekly cap ledger fold — the single consumption store.
+          const capTodayIso = new Date().toISOString().slice(0, 10);
+          const { data: capAnchorRow } = await admin
+            .from("clients").select("phase2_strict_started_at").eq("id", c.id).maybeSingle();
+          const capWindow = weekWindowFor(
+            (capAnchorRow?.phase2_strict_started_at as string | null)?.slice(0, 10) ?? null,
+            capTodayIso,
+          );
+          const { data: capLedgerRows } = await admin
+            .from("mb_cap_ledger")
+            .select("week_start, day, food, qty, status")
+            .eq("client_id", c.id)
+            .eq("week_start", capWindow.week_start);
+          const capFold: CapFold = foldLedger(capLedgerRows ?? []);
+          const capUsageLine = (limits: Record<string, unknown> | null | undefined): string => {
+            const keys = Object.keys(limits ?? {});
+            if (!keys.length) return "";
+            const parts = keys.map((k) => {
+              const cap = Number((limits as Record<string, number>)[k]);
+              const t = capTallyFor(k, capFold);
+              const { eaten, planned, committed } = t;
+              const remaining = Number.isFinite(cap) ? Math.max(0, cap - committed) : 0;
+              return `${k} — eaten: ${eaten}, planned: ${planned}, remaining: ${remaining}`;
+            });
+            return `Weekly cap usage (window ${capWindow.week_start} to ${capWindow.week_end}): ${parts.join("; ")}`;
+          };
 
           // Fetch this week's meal planner selections (if any).
           const _mondayOf = (d: Date) => {
@@ -588,8 +616,7 @@ Deno.serve(async (req) => {
                 `Water target: ${f.water_target_litres ?? "?"} litres/day`,
                 f.food_limits && Object.keys(f.food_limits).length
                   ? `Weekly food limits: ${JSON.stringify(f.food_limits)}` : "",
-                f.food_limit_counts && Object.keys(f.food_limit_counts).length
-                  ? `Used this week: ${JSON.stringify(f.food_limit_counts)}` : "",
+                capUsageLine(f.food_limits),
                 "",
                 "PHASE 2 — PERSONAL FOOD LIST (parsed from the client's MB PDF):",
                 phase2Summary,

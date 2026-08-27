@@ -165,6 +165,9 @@ export {
   consumedFor,
   describeBlock,
   addDays,
+  foldLedger,
+  capTallyFor,
+  emptyCapFold,
 } from "../../supabase/functions/_shared/mb-cap";
 export type {
   CapViolation,
@@ -173,6 +176,8 @@ export type {
   CapDayPlanResult,
   CapMealPlanResult,
   CapWeekWindow,
+  CapFold,
+  CapLedgerFoldRow,
 } from "../../supabase/functions/_shared/mb-cap";
 
 

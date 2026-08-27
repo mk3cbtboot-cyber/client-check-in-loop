@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import ClientTrackerRow from "@/components/ClientTrackerRow";
+import { foldLedger, weekWindowFor, type CapFold } from "@/lib/mb-food-list";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -195,6 +196,8 @@ export default function Dashboard() {
   const [recipes, setRecipes] = useState<Record<string, { id: string; name: string; meal_type: string | null; created_at: string }[]>>({});
   const [weeklyAcks, setWeeklyAcks] = useState<Record<string, { food_name: string; limit_value: number; acknowledged_at: string }[]>>({});
   const [waterStreaks, setWaterStreaks] = useState<Record<string, number>>({});
+  const [capFolds, setCapFolds] = useState<Record<string, CapFold>>({});
+  const [capWindows, setCapWindows] = useState<Record<string, { week_start: string; week_end: string }>>({});
   const [liveMacros, setLiveMacros] = useState<Record<string, { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null>>({});
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -524,11 +527,12 @@ export default function Dashboard() {
         dt.setUTCDate(dt.getUTCDate() - day);
         return dt.toISOString().slice(0, 10);
       })();
-      const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }, { data: waterRows }] = await Promise.all([
+      const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }, { data: waterRows }, { data: ledgerRows }] = await Promise.all([
         supabase.from("check_ins").select("*").in("client_id", ids).order("created_at", { ascending: false }),
         supabase.from("recipes").select("id, client_id, name, meal_type, created_at").in("client_id", ids).order("created_at", { ascending: false }),
         supabase.from("weekly_limit_acknowledgements").select("client_id, food_name, limit_value, acknowledged_at").in("client_id", ids).eq("week_start_date", monday),
         supabase.from("daily_water_logs").select("client_id, log_date, litres").in("client_id", ids).order("log_date", { ascending: false }).limit(400),
+        supabase.from("mb_cap_ledger").select("client_id, week_start, day, food, qty, status").in("client_id", ids),
       ]);
       if (!isCurrent()) return;
       const grouped: Record<string, CheckIn[]> = {};
@@ -551,6 +555,22 @@ export default function Dashboard() {
       });
       setWaterLogs(wg);
       setWaterStreaks(ws);
+
+      // MB weekly cap ledger — folded per client for the client's current cap window.
+      const capToday = new Date().toISOString().slice(0, 10);
+      const folds: Record<string, CapFold> = {};
+      const windows: Record<string, { week_start: string; week_end: string }> = {};
+      for (const cl of clientRows as Array<{ id: string; phase2_strict_started_at?: string | null }>) {
+        const w = weekWindowFor(cl.phase2_strict_started_at?.slice(0, 10) ?? null, capToday);
+        windows[cl.id] = { week_start: w.week_start, week_end: w.week_end };
+        folds[cl.id] = foldLedger(
+          ((ledgerRows ?? []) as Array<{ client_id: string; week_start: string; day: string; food: string; qty: number; status: string }>)
+            .filter((r) => r.client_id === cl.id),
+          { weekStart: w.week_start },
+        );
+      }
+      setCapFolds(folds);
+      setCapWindows(windows);
 
 
       // All non-attended appointments per client (used to surface upcoming + missed).
@@ -1953,6 +1973,8 @@ export default function Dashboard() {
                       waterToday={waterToday}
                       foodLimits={trackerLimits}
                       foodLimitCounts={foodLimitCounts}
+                      capFold={isOwnPractice ? null : capFolds[client.id] ?? null}
+                      capWindow={capWindows[client.id] ?? null}
                       showLimitTotals={Boolean(client.mb_pdf_path)}
                       lastMealLogged={lastLogged}
                     />

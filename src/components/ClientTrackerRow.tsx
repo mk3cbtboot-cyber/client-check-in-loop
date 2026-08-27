@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { capTallyFor, type CapFold } from "@/lib/mb-food-list";
 
 export interface ClientTrackerRowProps {
   mealStreak: number;
@@ -8,6 +9,10 @@ export interface ClientTrackerRowProps {
   waterTarget?: number;
   foodLimits?: Record<string, number> | null;
   foodLimitCounts?: Record<string, number> | null;
+  /** MB weekly ledger fold for the current cap window. Takes precedence over foodLimitCounts. */
+  capFold?: CapFold | null;
+  /** The cap window the fold covers — shown when it isn't a Mon–Sun week. */
+  capWindow?: { week_start: string; week_end: string } | null;
   /** Show "used / limit" instead of just "used" (MB plans with a parsed PDF). */
   showLimitTotals?: boolean;
   lastMealLogged: string;
@@ -23,22 +28,45 @@ interface LimitCard {
   sub?: string;
 }
 
+const isMonSunWeek = (w: { week_start: string; week_end: string } | null | undefined): boolean => {
+  if (!w?.week_start) return true;
+  const d = new Date(`${w.week_start}T00:00:00Z`);
+  return d.getUTCDay() === 1;
+};
+
+const shortDate = (iso: string): string => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+};
+
 function buildLimitCards(
   limits: Record<string, number> | null | undefined,
   counts: Record<string, number> | null | undefined,
   showTotals: boolean,
+  capFold?: CapFold | null,
+  capWindow?: { week_start: string; week_end: string } | null,
 ): LimitCard[] {
+  const windowLabel =
+    capFold && capWindow && !isMonSunWeek(capWindow)
+      ? `${shortDate(capWindow.week_start)}–${shortDate(capWindow.week_end)}`
+      : "this week";
   return Object.entries(limits ?? {})
     .filter(([, lim]) => Number(lim) > 0)
     .map(([name, lim]) => {
-      const used = Number((counts ?? {})[name] ?? 0);
+      const tally = capFold ? capTallyFor(name, capFold) : null;
+      const used = tally ? tally.committed : Number((counts ?? {})[name] ?? 0);
       const left = Math.max(0, Number(lim) - used);
       const label = `${name.charAt(0).toUpperCase() + name.slice(1)} / Week`;
+      const sub = tally
+        ? `${tally.eaten} eaten · ${tally.planned} planned · ${left} left ${windowLabel}`
+        : showTotals
+        ? `${left} remaining this week`
+        : undefined;
       return {
         key: name,
         label,
-        value: showTotals ? `${used} / ${Number(lim)}` : `${used}`,
-        sub: showTotals ? `${left} remaining this week` : undefined,
+        value: showTotals || tally ? `${used} / ${Number(lim)}` : `${used}`,
+        sub,
       };
     });
 }
@@ -50,19 +78,22 @@ export default function ClientTrackerRow({
   waterTarget,
   foodLimits,
   foodLimitCounts,
+  capFold,
+  capWindow,
   showLimitTotals = false,
   lastMealLogged,
   onAddWater,
   variant = "portal",
 }: ClientTrackerRowProps) {
-  const limitCards = buildLimitCards(foodLimits, foodLimitCounts, showLimitTotals);
+  const limitCards = buildLimitCards(foodLimits, foodLimitCounts, showLimitTotals, capFold, capWindow);
+
 
   if (variant === "compact") {
-    const stats = [
+    const stats: Array<{ label: string; value: string; sub?: string }> = [
       { label: "Meal Streak", value: `${mealStreak}d` },
       { label: "Water Streak", value: `${waterStreak}d` },
       { label: "Water Today", value: `${waterToday.toFixed(1)} L` },
-      ...limitCards.map((c) => ({ label: c.label, value: c.value })),
+      ...limitCards.map((c) => ({ label: c.label, value: c.value, sub: capFold ? c.sub : undefined })),
       { label: "Last Meal Logged", value: lastMealLogged },
     ];
     return (
@@ -71,10 +102,12 @@ export default function ClientTrackerRow({
           <div key={s.label} className="rounded-md border p-2">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
             <p className="text-sm font-semibold truncate">{s.value}</p>
+            {s.sub && <p className="text-[10px] text-muted-foreground truncate">{s.sub}</p>}
           </div>
         ))}
       </div>
     );
+
   }
 
   return (
