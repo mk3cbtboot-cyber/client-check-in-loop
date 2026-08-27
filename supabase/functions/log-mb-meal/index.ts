@@ -19,7 +19,6 @@ const Body = z.object({
     method: z.array(z.string()),
     notes: z.array(z.string()),
   }),
-  force: z.boolean().optional(),
   variant: z.enum(["primary", "alt"]).optional(),
 });
 
@@ -68,7 +67,7 @@ Deno.serve(async (req) => {
     if (!parsed.success) {
       return new Response(JSON.stringify({ error: "Invalid input" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const { token, meal_type, option_label, ingredients, recipe, force, variant } = parsed.data;
+    const { token, meal_type, option_label, ingredients, recipe, variant } = parsed.data;
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: c } = await admin.from("clients").select("*").eq("magic_token", token).maybeSingle();
