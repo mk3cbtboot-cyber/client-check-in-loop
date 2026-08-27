@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
-import { foldLedger, weekWindowFor, type CapFold } from "../_shared/mb-cap.ts";
+import { capTallyFor, foldLedger, weekWindowFor, type CapFold } from "../_shared/mb-cap.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -229,9 +229,8 @@ Deno.serve(async (req) => {
             if (!keys.length) return "";
             const parts = keys.map((k) => {
               const cap = Number((limits as Record<string, number>)[k]);
-              const eaten = Number(capFold.eaten[k] ?? 0) || sumLoose(capFold.eaten, k);
-              const planned = Number(capFold.planned[k] ?? 0) || sumLoose(capFold.planned, k);
-              const committed = eaten + planned;
+              const t = capTallyFor(k, capFold);
+              const { eaten, planned, committed } = t;
               const remaining = Number.isFinite(cap) ? Math.max(0, cap - committed) : 0;
               return `${k} — eaten: ${eaten}, planned: ${planned}, remaining: ${remaining}`;
             });
