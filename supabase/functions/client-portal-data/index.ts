@@ -9,12 +9,6 @@ const corsHeaders = {
 
 const Body = z.object({ token: z.string().min(10).max(200) });
 
-function mondayOf(d: Date): string {
-  const dt = new Date(d);
-  const day = (dt.getUTCDay() + 6) % 7; // 0=Mon
-  dt.setUTCDate(dt.getUTCDate() - day);
-  return dt.toISOString().slice(0, 10);
-}
 const today = () => new Date().toISOString().slice(0, 10);
 
 function normalizeGender(value: unknown): "female" | "male" | "unspecified" | null {
@@ -55,11 +49,6 @@ Deno.serve(async (req) => {
     }
 
     const updates: Record<string, unknown> = {};
-    const monday = mondayOf(new Date());
-    if (c.week_reset_date !== monday) {
-      updates.week_reset_date = monday;
-      updates.food_limit_counts = {};
-    }
     const td = today();
     if (c.water_date !== td) {
       updates.water_date = td;
@@ -192,7 +181,6 @@ Deno.serve(async (req) => {
       client: {
         id: c.id, name: c.name, phase: c.phase,
         food_limits: c.food_limits ?? {},
-        food_limit_counts: c.food_limit_counts ?? {},
         cap_week_start: capWindow.week_start,
         cap_week_end: capWindow.week_end,
         cap_fold: capFold,

@@ -142,7 +142,6 @@ interface Client {
   phase2_strict_mode: "mb_standard" | "practitioner_custom";
   phase2_food_list: unknown;
   food_limits: Record<string, number>;
-  food_limit_counts: Record<string, number>;
   system_mode: "mb" | "own_practice";
   client_type: "mb" | "custom";
   plan_format: "food_list" | "recipe" | "food_list_generated";
@@ -1883,7 +1882,6 @@ export default function Dashboard() {
                       md.setUTCDate(md.getUTCDate() - 1);
                     }
                     const foodLimits = (client.food_limits ?? {}) as Record<string, number>;
-                    const foodLimitCounts = (client.food_limit_counts ?? {}) as Record<string, number>;
                     const trackerLimits = isOwnPractice ? {} : foodLimits;
 
                     const lastMealText = (() => {
@@ -1972,7 +1970,6 @@ export default function Dashboard() {
                       waterStreak={waterStreak}
                       waterToday={waterToday}
                       foodLimits={trackerLimits}
-                      foodLimitCounts={foodLimitCounts}
                       capFold={isOwnPractice ? null : capFolds[client.id] ?? null}
                       capWindow={capWindows[client.id] ?? null}
                       showLimitTotals={Boolean(client.mb_pdf_path)}
