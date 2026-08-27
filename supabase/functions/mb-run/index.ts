@@ -193,11 +193,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Replace this run's days wholesale — re-confirming can never double-count.
+    // Replace this run's days wholesale — but only rows still 'planned'. A row
+    // already flipped to 'eaten' (client logged it, then re-plans the run)
+    // must survive and keep counting, so re-confirming can never double-count
+    // or erase eaten history.
     const { error: delErr } = await admin
       .from("mb_cap_ledger")
       .delete()
       .eq("client_id", c.id)
+      .eq("status", "planned")
       .in("day", days);
     if (delErr) return json({ error: delErr.message }, 500);
 
@@ -210,6 +214,8 @@ Deno.serve(async (req) => {
           meal: r.meal,
           food: r.food,
           qty: r.qty,
+          status: r.status,
+          source: r.source,
           run_started_on: start,
         })),
       );
