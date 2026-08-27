@@ -5,6 +5,7 @@
 
 import type { ReactNode } from "react";
 import type { MealType } from "@/lib/mb-foods";
+import { vegAltIdFor } from "@/lib/mb-plan";
 import type { MbColour, MbPlanItem, MbSuggestion } from "@/lib/mb-plan";
 import {
   categoryLabel, MB_FOOD_CATEGORIES, phase3AdditionSections,
@@ -76,6 +77,11 @@ export function MbSuggestionCard({
                   <li key={it.id}>
                     {itemLine(it)}
                     {it.optional && <span className="text-xs text-muted-foreground"> (optional)</span>}
+                    {vegAltIdFor(it) && (
+                      <span className="block text-xs text-muted-foreground">
+                        can be split across two vegetables — no extra portion
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

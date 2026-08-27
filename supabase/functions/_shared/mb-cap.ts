@@ -116,6 +116,20 @@ export function capFoodFor(item: CapItem, pick?: string | null): string {
 }
 
 /**
+ * The pick id of an item's optional second vegetable, or null.
+ * Mirror of vegAltIdFor in src/lib/mb-plan.ts — keep the two in sync.
+ * The second veg is a variety split of the SAME allowance (no extra portion),
+ * but it is still a real food, so it must be counted against weekly caps.
+ */
+export function vegAltIdFor(item: CapItem | null | undefined): string | null {
+  const cat = String(item?.category ?? "");
+  if (!item?.id) return null;
+  if (cat !== "vegetables" && cat !== "vegLettuce") return null;
+  if (item.optional === true) return null;
+  return `${item.id}-alt`;
+}
+
+/**
  * True when a weekly-capped food cannot cover every day of the run at the
  * item's per-meal quantity.
  */
@@ -153,20 +167,27 @@ export function evaluateRunCaps(
     const suggestion = (suggestions ?? []).find((s) => s?.colour === colour);
     const items = suggestion?.meals?.[meal]?.items ?? [];
     for (const it of items) {
-      const pick = rm?.picks?.[String(it.id ?? "")];
-      const food = capFoodFor(it, pick);
-      if (!food) continue;
-      const per = perMealQty(it);
-      const res = capBlocksRun(food, per, runDays, enriched, legacy);
-      if (res.blocked && res.cap != null) {
-        out.push({
-          meal,
-          item_id: String(it.id ?? ""),
-          food,
-          per_meal: per,
-          needed: res.needed,
-          cap: res.cap,
-        });
+      const altId = vegAltIdFor(it);
+      const entries: Array<{ id: string; food: string }> = [];
+      const food = capFoodFor(it, rm?.picks?.[String(it.id ?? "")]);
+      if (food) entries.push({ id: String(it.id ?? ""), food });
+      if (altId) {
+        const altFood = String(rm?.picks?.[altId] ?? "").trim();
+        if (altFood) entries.push({ id: altId, food: altFood });
+      }
+      for (const e of entries) {
+        const per = perMealQty(it);
+        const res = capBlocksRun(e.food, per, runDays, enriched, legacy);
+        if (res.blocked && res.cap != null) {
+          out.push({
+            meal,
+            item_id: e.id,
+            food: e.food,
+            per_meal: per,
+            needed: res.needed,
+            cap: res.cap,
+          });
+        }
       }
     }
   }
@@ -309,16 +330,24 @@ function resolveDayMealItems(
   };
 }
 
-/** The capped-food demand of one meal: food → quantity. */
-function mealDemand(
+/**
+ * The capped-food demand of one meal: food → quantity.
+ * Includes the optional second vegetable pick: it adds no extra portion, but
+ * it is a real food and must be counted against its own weekly cap.
+ */
+export function mealDemand(
   items: CapItem[],
   picks: Record<string, string>,
 ): Array<{ food: string; qty: number }> {
   const out: Array<{ food: string; qty: number }> = [];
   for (const it of items) {
     const food = capFoodFor(it, picks[String(it.id ?? "")]);
-    if (!food) continue;
-    out.push({ food, qty: perMealQty(it) });
+    if (food) out.push({ food, qty: perMealQty(it) });
+    const altId = vegAltIdFor(it);
+    if (altId) {
+      const altFood = String(picks[altId] ?? "").trim();
+      if (altFood) out.push({ food: altFood, qty: perMealQty(it) });
+    }
   }
   return out;
 }

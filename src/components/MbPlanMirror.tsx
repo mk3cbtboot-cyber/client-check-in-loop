@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import type { MealType } from "@/lib/mb-foods";
+import { vegAltIdFor } from "@/lib/mb-plan";
 import type { MbColour, MbFoodLimit, MbPlanItem, MbSuggestion } from "@/lib/mb-plan";
 import {
   capFoodFor, categoryLabel, consumedFor, perMealQty, planRunAgainstLedger,
@@ -139,20 +140,34 @@ export function MbPlanMirror({
       );
     }
     const hasOptions = ((foodList[it.category] ?? []).length || (it.options ?? []).length) > 0;
+    const altId = vegAltIdFor(it);
+    const altPicked = altId ? picks[altId] ?? "" : "";
     return (
-      <div key={it.id} className="text-sm flex flex-wrap items-baseline gap-x-2">
-        <span className="font-medium">{categoryLabel(it.category)}</span>
-        {fmtQty(it) && <span className="text-xs text-muted-foreground">{fmtQty(it)}</span>}
-        {it.optional && <span className="text-xs text-muted-foreground">(optional)</span>}
-        <span aria-hidden className="text-muted-foreground">→</span>
-        {picked ? (
-          <span>{picked}</span>
-        ) : (
-          <span className="text-muted-foreground italic">
-            {hasOptions ? "Not picked yet" : "No approved foods listed for this group"}
-          </span>
+      <div key={it.id} className="space-y-0.5">
+        <div className="text-sm flex flex-wrap items-baseline gap-x-2">
+          <span className="font-medium">{categoryLabel(it.category)}</span>
+          {fmtQty(it) && <span className="text-xs text-muted-foreground">{fmtQty(it)}</span>}
+          {it.optional && <span className="text-xs text-muted-foreground">(optional)</span>}
+          <span aria-hidden className="text-muted-foreground">→</span>
+          {picked ? (
+            <span>{picked}</span>
+          ) : (
+            <span className="text-muted-foreground italic">
+              {hasOptions ? "Not picked yet" : "No approved foods listed for this group"}
+            </span>
+          )}
+          {remaining && <span className="text-xs text-muted-foreground">· {remaining}</span>}
+        </div>
+        {altId && altPicked && (
+          <div className="text-sm flex flex-wrap items-baseline gap-x-2 pl-3">
+            <span className="text-xs text-muted-foreground">Second choice (splits the same amount)</span>
+            <span aria-hidden className="text-muted-foreground">→</span>
+            <span>{altPicked}</span>
+            {remainingLine(altPicked) && (
+              <span className="text-xs text-muted-foreground">· {remainingLine(altPicked)}</span>
+            )}
+          </div>
         )}
-        {remaining && <span className="text-xs text-muted-foreground">· {remaining}</span>}
       </div>
     );
   };

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { MB_FOODS, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { oilAllowed as oilAllowedFn, type Phase } from "@/lib/phases";
 import { capTallyFor, capBlocksMeal, describeMealBlock, type CapFold } from "@/lib/mb-food-list";
+import { baseKeyForAlt, isVegAltKey, vegQtyOverrides } from "@/lib/mb-plan";
 
 export type LockedRecipe = { recipe_title: string; recipe: string[]; method: string[]; notes: string[] };
 
@@ -123,25 +124,14 @@ export default function MealRecipeSection({
   };
 
   const buildIngredients = () => {
-    const veg1 = optionDef.components.find((c) => c.key === "veg1");
-    const veg2 = optionDef.components.find((c) => c.key === "veg2");
-    const bothVeg = veg1 && veg2 && picks["veg1"] && picks["veg2"];
-    let veg1Qty = veg1?.qty ?? "";
-    let veg2Qty = veg2?.qty ?? "";
-    if (bothVeg) {
-      const m = (veg1!.qty || "").match(/(\d+(?:\.\d+)?)\s*g/i);
-      if (m) {
-        const half = Math.round(parseFloat(m[1]) / 2);
-        veg1Qty = `${half}g`;
-        veg2Qty = `${half}g`;
-      }
-    }
+    // A second vegetable splits the single combined allowance 50/50; with one
+    // vegetable picked, that one keeps the full amount. Portions never double.
+    const vegSplit = vegQtyOverrides(optionDef.components, picks);
     return [
       ...(optionDef.fixed ?? []).map((f) => ({ label: f.label, qty: f.qty })),
       ...optionDef.components.filter((c) => picks[c.key]).map((c) => {
-        let qty = c.qty || "see option";
-        if (c.key === "veg1") qty = veg1Qty || qty;
-        if (c.key === "veg2") qty = veg2Qty || "see option";
+        let qty = vegSplit[c.key] ?? c.qty ?? "";
+        if (!qty) qty = "see option";
         // For bread/starch the gram amount lives inside the picked item name, e.g.
         // "100% Rye Crackers (10g)". Extract it so the recipe generator receives a
         // real gram qty and the carb bonus can be applied server-side.
@@ -345,7 +335,10 @@ export default function MealRecipeSection({
           <p key={i} className="text-sm text-muted-foreground">Fixed: <span className="font-medium text-foreground">{f.label} — {f.qty}</span></p>
         ))}
         {allComponents.map((comp) => {
-          const items = restrictedItems(comp.sources, comp.key, (comp as { items?: string[] }).items);
+          const allItems = restrictedItems(comp.sources, comp.key, (comp as { items?: string[] }).items);
+          // The optional second vegetable must differ from the primary pick.
+          const primaryPick = isVegAltKey(comp.key) ? picks[baseKeyForAlt(comp.key)] : "";
+          const items = primaryPick ? allItems.filter((i) => i !== primaryPick) : allItems;
           const showOilBefore = oilAllow && comp.key === "fruit";
           const eggMeal = !!optionDef.fixed?.some((f) => /egg/i.test(f.label));
           const carbAdd = isLunchCarb(comp.sources, meal) ? lunchCarbBonus : 0;

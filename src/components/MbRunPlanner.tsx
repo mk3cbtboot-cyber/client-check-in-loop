@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import type { MealType } from "@/lib/mb-foods";
+import { vegAltIdFor } from "@/lib/mb-plan";
 import type { MbColour, MbFoodLimit, MbPlanItem, MbSuggestion } from "@/lib/mb-plan";
 import {
   capFoodFor, categoryLabel, consumedFor, describeBlock, perMealQty,
@@ -238,7 +239,7 @@ export function MbRunPlanner({
   const renderItem = (
     it: MbPlanItem,
     picks: Record<string, string>,
-    onPick: (food: string) => void,
+    onPick: (itemId: string, food: string) => void,
   ) => {
     const isFixed = it.category === "fixed";
     const picked = picks[it.id] ?? "";
@@ -261,6 +262,11 @@ export function MbRunPlanner({
     }
 
     const options = optionsFor(it);
+    // Optional second vegetable: a variety split of the same allowance — the
+    // gram amount above is shared 50/50, so it never adds a second portion.
+    const altId = vegAltIdFor(it);
+    const altPicked = altId ? picks[altId] ?? "" : "";
+    const altRemaining = altId ? remainingLine(altPicked) : null;
     return (
       <div key={it.id} className="space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
@@ -273,7 +279,7 @@ export function MbRunPlanner({
             No approved foods listed for this group yet — ask your practitioner.
           </p>
         ) : (
-          <Select value={picked} onValueChange={onPick}>
+          <Select value={picked} onValueChange={(v) => onPick(it.id, v)}>
             <SelectTrigger className="h-9">
               <SelectValue placeholder={`Choose your ${categoryLabel(it.category).toLowerCase()}`} />
             </SelectTrigger>
@@ -285,6 +291,26 @@ export function MbRunPlanner({
           </Select>
         )}
         {remaining && <p className="text-xs text-muted-foreground">{remaining}</p>}
+
+        {altId && options.length > 0 && (
+          <div className="space-y-1 pl-3 border-l">
+            <p className="text-xs text-muted-foreground">
+              Second {categoryLabel(it.category).toLowerCase()} (optional) — splits the same
+              {fmtQty(it) ? ` ${fmtQty(it)}` : ""} amount, it isn't an extra portion.
+            </p>
+            <Select value={altPicked} onValueChange={(v) => onPick(altId, v)}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Add a second choice (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                {options.filter((f) => f !== picked).map((f) => (
+                  <SelectItem key={f} value={f}>{f}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {altRemaining && <p className="text-xs text-muted-foreground">{altRemaining}</p>}
+          </div>
+        )}
       </div>
     );
   };
@@ -336,7 +362,7 @@ export function MbRunPlanner({
               {baseComplete(meal) && <Check className="h-3.5 w-3.5 text-emerald-600" />}
             </p>
             {items.length === 0 && <p className="text-sm text-muted-foreground">Not set.</p>}
-            {items.map((it) => renderItem(it, picks, (v) => setPick(meal, it.id, v)))}
+            {items.map((it) => renderItem(it, picks, (id, v) => setPick(meal, id, v)))}
           </div>
         );
       })}
@@ -386,7 +412,7 @@ export function MbRunPlanner({
                     )}
 
                     {override && items.map((it) =>
-                      renderItem(it, picks, (v) => setDayPick(date, meal, it.id, v)),
+                      renderItem(it, picks, (id, v) => setDayPick(date, meal, id, v)),
                     )}
                   </div>
                 );
