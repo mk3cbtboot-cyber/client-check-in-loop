@@ -8,8 +8,7 @@ export interface ClientTrackerRowProps {
   waterToday: number;
   waterTarget?: number;
   foodLimits?: Record<string, number> | null;
-  foodLimitCounts?: Record<string, number> | null;
-  /** MB weekly ledger fold for the current cap window. Takes precedence over foodLimitCounts. */
+  /** MB weekly ledger fold for the current cap window — the sole usage source. */
   capFold?: CapFold | null;
   /** The cap window the fold covers — shown when it isn't a Mon–Sun week. */
   capWindow?: { week_start: string; week_end: string } | null;
@@ -41,7 +40,6 @@ const shortDate = (iso: string): string => {
 
 function buildLimitCards(
   limits: Record<string, number> | null | undefined,
-  counts: Record<string, number> | null | undefined,
   showTotals: boolean,
   capFold?: CapFold | null,
   capWindow?: { week_start: string; week_end: string } | null,
@@ -54,7 +52,7 @@ function buildLimitCards(
     .filter(([, lim]) => Number(lim) > 0)
     .map(([name, lim]) => {
       const tally = capFold ? capTallyFor(name, capFold) : null;
-      const used = tally ? tally.committed : Number((counts ?? {})[name] ?? 0);
+      const used = tally ? tally.committed : 0;
       const left = Math.max(0, Number(lim) - used);
       const label = `${name.charAt(0).toUpperCase() + name.slice(1)} / Week`;
       const sub = tally
@@ -77,7 +75,6 @@ export default function ClientTrackerRow({
   waterToday,
   waterTarget,
   foodLimits,
-  foodLimitCounts,
   capFold,
   capWindow,
   showLimitTotals = false,
@@ -85,7 +82,7 @@ export default function ClientTrackerRow({
   onAddWater,
   variant = "portal",
 }: ClientTrackerRowProps) {
-  const limitCards = buildLimitCards(foodLimits, foodLimitCounts, showLimitTotals, capFold, capWindow);
+  const limitCards = buildLimitCards(foodLimits, showLimitTotals, capFold, capWindow);
 
 
   if (variant === "compact") {

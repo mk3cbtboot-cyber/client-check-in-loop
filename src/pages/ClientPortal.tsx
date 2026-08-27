@@ -18,7 +18,7 @@ import ClientWelcome from "@/components/ClientWelcome";
 
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS, parseMbFoodLimits } from "@/lib/mb-plan";
-import { resolveMbFoodList, categoryLabel } from "@/lib/mb-food-list";
+import { resolveMbFoodList, categoryLabel, capTallyFor } from "@/lib/mb-food-list";
 import MbRunPlanner from "@/components/MbRunPlanner";
 import MbPhase1Guide from "@/components/MbPhase1Guide";
 import { parseMbRun, resolveDayMeal, runDates, todayISO, fmtQty, RUN_DAYS, RUN_MEALS } from "@/lib/mb-run";
@@ -45,7 +45,6 @@ interface ClientState {
   name: string;
   phase: Phase;
   food_limits: Record<string, number>;
-  food_limit_counts: Record<string, number>;
   cap_week_start?: string | null;
   cap_week_end?: string | null;
   cap_fold?: CapFold | null;
@@ -473,7 +472,6 @@ export default function ClientPortal() {
 
 
   const foodLimits = (client?.food_limits ?? {}) as Record<string, number>;
-  const foodLimitCounts = (client?.food_limit_counts ?? {}) as Record<string, number>;
   const capFold = (client?.cap_fold ?? null) as CapFold | null;
   const capWindow = client?.cap_week_start && client?.cap_week_end
     ? { week_start: client.cap_week_start, week_end: client.cap_week_end }
@@ -684,7 +682,7 @@ export default function ClientPortal() {
     </main>
   );
 
-  // Eggs limit/used now sourced from food_limits / food_limit_counts where needed.
+  // Eggs limit/used now sourced from food_limits + the MB cap ledger fold.
   const waterTarget = Number(client.water_target_litres ?? 2.5) || 2.5;
   const lastMealLoggedLabel = client.last_meal_logged_at
     ? formatDistanceToNow(new Date(client.last_meal_logged_at), { addSuffix: true })
@@ -765,7 +763,6 @@ export default function ClientPortal() {
             waterToday={Number(client.water_today_litres ?? 0)}
             waterTarget={waterTarget}
             foodLimits={foodLimits}
-            foodLimitCounts={foodLimitCounts}
             capFold={capFold}
             capWindow={capWindow}
             showLimitTotals={Boolean(client.mb_pdf_path)}
@@ -1055,7 +1052,7 @@ export default function ClientPortal() {
                                 optionDef={opt}
                                 phase={client.phase}
                                 foodLimits={foodLimits}
-                                foodLimitCounts={foodLimitCounts}
+                                capFold={capFold}
                                 lockedRecipe={null}
                                 lockedSelections={{}}
                                 extraComponents={buildExtras(opt)}
@@ -1077,7 +1074,7 @@ export default function ClientPortal() {
                   <div className="space-y-4">
                     {!hidePrimary && primaryOption && (() => {
                       const eggsMaxInner = Number(foodLimits.eggs ?? 0) || null;
-                      const eggsUsed = Number(foodLimitCounts.eggs ?? 0);
+                      const eggsUsed = capTallyFor(foodLimits.eggs != null ? "eggs" : "egg", capFold).committed;
                       const eggsExhausted = isSplit && eggsMaxInner != null && eggsMaxInner > 0 && eggsUsed >= eggsMaxInner;
                       const block = eggsExhausted
                         ? { reason: `You've used ${eggsUsed} of ${eggsMaxInner} eggs this week — the egg meal is unavailable until next week.` }
@@ -1091,7 +1088,7 @@ export default function ClientPortal() {
                           optionDef={primaryOption}
                           phase={client.phase}
                           foodLimits={foodLimits}
-                          foodLimitCounts={foodLimitCounts}
+                          capFold={capFold}
                           lockedRecipe={primaryLocked}
                           lockedSelections={primarySelections}
                           sectionTitle={isSplit ? `Egg meal (${primaryLogCount}/${primaryDays} this week)` : undefined}
@@ -1113,7 +1110,7 @@ export default function ClientPortal() {
                         optionDef={altOption}
                         phase={client.phase}
                         foodLimits={foodLimits}
-                        foodLimitCounts={foodLimitCounts}
+                        capFold={capFold}
                         lockedRecipe={altLocked}
                         lockedSelections={altSelections}
                         sectionTitle="Backup meal"

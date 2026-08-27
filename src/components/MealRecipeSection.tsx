@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { MB_FOODS, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { oilAllowed as oilAllowedFn, type Phase } from "@/lib/phases";
+import { capTallyFor, type CapFold } from "@/lib/mb-food-list";
 
 export type LockedRecipe = { recipe_title: string; recipe: string[]; method: string[]; notes: string[] };
 
@@ -20,7 +21,8 @@ interface Props {
   optionDef: OptionDef;
   phase: Phase;
   foodLimits: Record<string, number>;
-  foodLimitCounts: Record<string, number>;
+  /** MB weekly ledger fold for the current cap window (Phase 5: sole usage source). */
+  capFold: CapFold | null;
 
   lockedRecipe: LockedRecipe | null;
   lockedSelections: Record<string, string>;
@@ -85,7 +87,7 @@ const OIL_OPTIONS = [
 ];
 
 export default function MealRecipeSection({
-  token, meal, variant, optionDef, phase, foodLimits, foodLimitCounts,
+  token, meal, variant, optionDef, phase, foodLimits, capFold,
   lockedRecipe, lockedSelections, sectionTitle, extraComponents, filteredSources, onLogged, blockGeneration, fullScreenOnSelect,
   lunchProteinBonus = 0, lunchCarbBonus = 0,
 }: Props) {
@@ -337,7 +339,7 @@ export default function MealRecipeSection({
     for (const [key, max] of Object.entries(foodLimits)) {
       const m = Number(max);
       if (!m || m <= 0) continue;
-      const used = Number(foodLimitCounts[key] ?? 0);
+      const used = capTallyFor(key, capFold).committed;
       if (used < m) continue;
       // Match by substring on the key (e.g. "avocado", "eggs"). Singular/plural tolerant.
       const k = key.toLowerCase();

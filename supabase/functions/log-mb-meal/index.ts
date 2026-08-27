@@ -75,7 +75,6 @@ Deno.serve(async (req) => {
     if (!c) return new Response(JSON.stringify({ error: "Invalid link" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const foodLimits = (c.food_limits ?? {}) as Record<string, number>;
-    const foodLimitCounts = (c.food_limit_counts ?? {}) as Record<string, number>;
 
     // For each limited food key, count how many times this meal would use it.
     // Default: +1 per meal if any ingredient label matches the key. Eggs are
@@ -153,7 +152,7 @@ Deno.serve(async (req) => {
     }).select("id").single();
     if (insErr) throw insErr;
 
-    // ---- Ledger annotation (Phase 3, dual-write alongside food_limit_counts) ----
+    // ---- Ledger annotation (Phase 5: the only consumption store) ----
     // Planned rows for today's slot get flipped to 'eaten' with the real logged
     // qty (set, never add — re-logging the same meal can't double-count).
     // Capped foods with no planned row insert an 'eaten'/'log' row instead.
@@ -226,15 +225,11 @@ Deno.serve(async (req) => {
     }
 
 
-    const nextCounts: Record<string, number> = { ...foodLimitCounts };
-    for (const [key, uses] of Object.entries(usesByKey)) {
-      nextCounts[key] = Number(nextCounts[key] ?? 0) + uses;
-    }
-    // Ledger-consistent: weekly committed eggs now include this meal.
+    // Phase 5: the ledger is the only consumption store; food_limit_counts is no
+    // longer written. Weekly committed eggs now include this meal.
     eggsUsedThisWeek = eggsUsedThisWeek + eggsInMeal;
 
     await admin.from("clients").update({
-      food_limit_counts: nextCounts,
       meal_streak: (c.meal_streak ?? 0) + 1,
     }).eq("id", c.id);
 
@@ -309,7 +304,6 @@ Deno.serve(async (req) => {
       eggs_in_meal: eggsInMeal,
       eggs_used_this_week: eggsUsedThisWeek,
       eggs_max_per_week: eggsMax,
-      food_limit_counts: nextCounts,
       plan: updatedPlan,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

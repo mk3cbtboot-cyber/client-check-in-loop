@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
               "phase3_mb_legumes", "phase3_mb_vegetables", "phase3_mb_veg_lettuce",
               "phase3_mb_sprouts", "phase3_mb_fat_oil",
               "eggs_min_per_week", "mb_plan",
-              "water_target_litres", "food_limits", "food_limit_counts",
+              "water_target_litres", "food_limits",
               "food_exclusions",
               "keys_to_success", "digestion_protocol", "recommended_supplements",
             ].join(", "))
