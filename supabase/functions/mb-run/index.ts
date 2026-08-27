@@ -87,13 +87,18 @@ interface LedgerRow {
   meal: string;
   food: string;
   qty: number;
+  status?: string | null;
 }
 
-/** week_start → food → qty, ignoring the days this run itself owns. */
+/**
+ * week_start → food → qty, ignoring the days this run itself owns.
+ * Committed = planned + eaten (skipped rows free their allowance).
+ */
 function foldConsumed(rows: LedgerRow[], excludeDays: Set<string>): CapConsumed {
   const out: CapConsumed = {};
   for (const r of rows) {
     if (excludeDays.has(r.day)) continue;
+    if (String(r.status ?? "planned") === "skipped") continue;
     const week = (out[r.week_start] = out[r.week_start] ?? {});
     week[r.food] = (week[r.food] ?? 0) + Number(r.qty || 0);
   }
@@ -130,7 +135,7 @@ Deno.serve(async (req) => {
     const loadRows = async (): Promise<LedgerRow[]> => {
       const { data } = await admin
         .from("mb_cap_ledger")
-        .select("week_start, day, meal, food, qty")
+        .select("week_start, day, meal, food, qty, status")
         .eq("client_id", c.id)
         .gte("day", addDays(todayISO(), -HISTORY_DAYS));
       return (data ?? []) as LedgerRow[];

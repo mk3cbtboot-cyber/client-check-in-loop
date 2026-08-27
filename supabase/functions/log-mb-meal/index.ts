@@ -230,7 +230,8 @@ Deno.serve(async (req) => {
     for (const [key, uses] of Object.entries(usesByKey)) {
       nextCounts[key] = Number(nextCounts[key] ?? 0) + uses;
     }
-    eggsUsedThisWeek = Number(nextCounts.eggs ?? nextCounts.egg ?? eggsUsedThisWeek);
+    // Ledger-consistent: weekly committed eggs now include this meal.
+    eggsUsedThisWeek = eggsUsedThisWeek + eggsInMeal;
 
     await admin.from("clients").update({
       food_limit_counts: nextCounts,
