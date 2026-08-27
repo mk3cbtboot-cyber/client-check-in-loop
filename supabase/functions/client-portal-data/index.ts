@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
+import { foldLedger, weekWindowFor } from "../_shared/mb-cap.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -102,6 +103,15 @@ Deno.serve(async (req) => {
       else break;
     }
 
+    // MB weekly cap ledger — the single consumption store (Phase 4 readers).
+    const capWindow = weekWindowFor((c.phase2_strict_started_at as string | null)?.slice(0, 10) ?? null, td);
+    const { data: ledgerRows } = await admin
+      .from("mb_cap_ledger")
+      .select("week_start, day, food, qty, status")
+      .eq("client_id", c.id)
+      .eq("week_start", capWindow.week_start);
+    const capFold = foldLedger(ledgerRows ?? []);
+
     // Phase 4 — upcoming scheduled appointments (used to gate the check-in window)
     let phase4Appointments: Array<{ id: string; title: string; scheduled_at: string; status: string | null }> = [];
     if (c.phase === "phase4") {
@@ -183,6 +193,9 @@ Deno.serve(async (req) => {
         id: c.id, name: c.name, phase: c.phase,
         food_limits: c.food_limits ?? {},
         food_limit_counts: c.food_limit_counts ?? {},
+        cap_week_start: capWindow.week_start,
+        cap_week_end: capWindow.week_end,
+        cap_fold: capFold,
         water_today_litres: Number(c.water_today_litres), meal_streak: c.meal_streak,
         water_target_litres: WATER_TARGET,
         water_streak: waterStreak,
