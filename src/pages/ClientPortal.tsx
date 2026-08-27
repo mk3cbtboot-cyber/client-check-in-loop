@@ -34,6 +34,8 @@ import FoodListClientHome from "@/components/FoodListClientHome";
 import FoodListGeneratedClientHome from "@/components/FoodListGeneratedClientHome";
 import FoodListGeneratedMyPlan from "@/components/FoodListGeneratedMyPlan";
 import RecipePlanClientHome, { type RecipeAssignment } from "@/components/RecipePlanClientHome";
+import ClientTrackerRow from "@/components/ClientTrackerRow";
+import { formatDistanceToNow } from "date-fns";
 
 
 
@@ -47,6 +49,8 @@ interface ClientState {
   water_target_litres?: number | null;
   meal_streak: number;
   water_streak: number;
+  last_meal_logged_at?: string | null;
+
   mb_pdf_path: string | null;
   phase3_additional_foods: string;
   phase3_meat: string;
@@ -674,6 +678,10 @@ export default function ClientPortal() {
 
   // Eggs limit/used now sourced from food_limits / food_limit_counts where needed.
   const waterTarget = Number(client.water_target_litres ?? 2.5) || 2.5;
+  const lastMealLoggedLabel = client.last_meal_logged_at
+    ? formatDistanceToNow(new Date(client.last_meal_logged_at), { addSuffix: true })
+    : "No meals yet";
+
 
   // My Plan categories — uses practitioner-customised list when set, otherwise defaults.
   const planCategories = (() => {
@@ -741,6 +749,22 @@ export default function ClientPortal() {
         </div>
       </header>
 
+      {tab === "home" && (
+        <section className="max-w-5xl mx-auto p-4 pb-0">
+          <ClientTrackerRow
+            mealStreak={client.meal_streak}
+            waterStreak={client.water_streak ?? 0}
+            waterToday={Number(client.water_today_litres ?? 0)}
+            waterTarget={waterTarget}
+            foodLimits={foodLimits}
+            foodLimitCounts={foodLimitCounts}
+            showLimitTotals={Boolean(client.mb_pdf_path)}
+            lastMealLogged={lastMealLoggedLabel}
+            onAddWater={addWater}
+          />
+        </section>
+      )}
+
 
       {tab === "home" && client.phase === "phase4" && (
         <section className="max-w-3xl mx-auto p-4 pb-0 space-y-4">
@@ -760,23 +784,6 @@ export default function ClientPortal() {
 
       {tab === "home" && client.client_type === "custom" && (client.plan_format === "food_list" || client.plan_format === "food_list_generated") && (
         <section className="max-w-3xl mx-auto p-4 space-y-6">
-          <div className="grid grid-cols-3 gap-3">
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Water Today</p>
-              <p className="text-2xl font-semibold">{client.water_today_litres.toFixed(2)}L<span className="text-sm text-muted-foreground"> / {waterTarget}L</span></p>
-              <Button size="sm" variant="outline" className="mt-2 w-full" onClick={addWater}>+ Glass (250ml)</Button>
-            </Card>
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Meal Streak</p>
-              <p className="text-2xl font-semibold">{client.meal_streak}</p>
-              <p className="text-xs text-muted-foreground">consecutive meals logged</p>
-            </Card>
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Water Streak</p>
-              <p className="text-2xl font-semibold">{client.water_streak ?? 0}</p>
-              <p className="text-xs text-muted-foreground">consecutive days on target</p>
-            </Card>
-          </div>
           {client.plan_format === "food_list_generated" ? (
             <FoodListGeneratedClientHome
               token={token!}
@@ -799,23 +806,6 @@ export default function ClientPortal() {
 
       {tab === "home" && client.plan_format === "recipe" && client.client_type === "custom" && (
         <section className="max-w-3xl mx-auto p-4 space-y-6">
-          <div className="grid grid-cols-3 gap-3">
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Water Today</p>
-              <p className="text-2xl font-semibold">{client.water_today_litres.toFixed(2)}L<span className="text-sm text-muted-foreground"> / {waterTarget}L</span></p>
-              <Button size="sm" variant="outline" className="mt-2 w-full" onClick={addWater}>+ Glass (250ml)</Button>
-            </Card>
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Meal Streak</p>
-              <p className="text-2xl font-semibold">{client.meal_streak}</p>
-              <p className="text-xs text-muted-foreground">consecutive meals logged</p>
-            </Card>
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Water Streak</p>
-              <p className="text-2xl font-semibold">{client.water_streak ?? 0}</p>
-              <p className="text-xs text-muted-foreground">consecutive days on target</p>
-            </Card>
-          </div>
           <RecipePlanClientHome
             token={token!}
             assignments={client.recipe_assignments ?? []}
@@ -912,42 +902,6 @@ export default function ClientPortal() {
 
           {client.phase !== "phase4" && !mbRunGateActive && (
             <>
-          {/* Trackers */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {Object.entries(foodLimits)
-              .filter(([, lim]) => Number(lim) > 0)
-              .map(([name, lim]) => {
-                const used = Number(foodLimitCounts[name] ?? 0);
-                const left = Math.max(0, Number(lim) - used);
-                const label = name.charAt(0).toUpperCase() + name.slice(1);
-                return (
-                  <Card key={name} className="p-4">
-                    <p className="text-xs uppercase text-muted-foreground">{label}</p>
-                    <p className="text-2xl font-semibold">
-                      {client.mb_pdf_path ? `${used}/${Number(lim)}` : `${used}`}
-                    </p>
-                    {client.mb_pdf_path && (
-                      <p className="text-xs text-muted-foreground">{left} remaining this week</p>
-                    )}
-                  </Card>
-                );
-              })}
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Water Today</p>
-              <p className="text-2xl font-semibold">{client.water_today_litres.toFixed(2)}L<span className="text-sm text-muted-foreground"> / {waterTarget}L</span></p>
-              <Button size="sm" variant="outline" className="mt-2 w-full" onClick={addWater}>+ Glass (250ml)</Button>
-            </Card>
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Meal Streak</p>
-              <p className="text-2xl font-semibold">{client.meal_streak}</p>
-              <p className="text-xs text-muted-foreground">consecutive meals logged</p>
-            </Card>
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Water Streak</p>
-              <p className="text-2xl font-semibold">{client.water_streak ?? 0}</p>
-              <p className="text-xs text-muted-foreground">consecutive days on target</p>
-            </Card>
-          </div>
 
 
 

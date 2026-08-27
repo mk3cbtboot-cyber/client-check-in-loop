@@ -113,7 +113,18 @@ Deno.serve(async (req) => {
       phase4Appointments = (appts ?? []) as typeof phase4Appointments;
     }
 
+    // Most recent logged meal (drives the "Last Meal Logged" tracker card).
+    const { data: lastMealRow } = await admin
+      .from("recipes")
+      .select("created_at")
+      .eq("client_id", c.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const lastMealLoggedAt = (lastMealRow as { created_at: string } | null)?.created_at ?? null;
+
     // Recipe Plan assignments — resolve to recipes with portion overrides applied.
+
     let recipeAssignments: Array<{
       id: string;
       meal_slot: string;
@@ -175,6 +186,8 @@ Deno.serve(async (req) => {
         water_today_litres: Number(c.water_today_litres), meal_streak: c.meal_streak,
         water_target_litres: WATER_TARGET,
         water_streak: waterStreak,
+        last_meal_logged_at: lastMealLoggedAt,
+
         mb_pdf_path: c.mb_pdf_path ?? null,
         // Confirmed colour-day plan (null/unconfirmed → portal falls back to legacy structure)
         mb_plan: c.mb_plan ?? null,

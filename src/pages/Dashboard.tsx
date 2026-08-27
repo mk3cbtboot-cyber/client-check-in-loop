@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import ClientTrackerRow from "@/components/ClientTrackerRow";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -1878,21 +1880,8 @@ export default function Dashboard() {
                     }
                     const foodLimits = (client.food_limits ?? {}) as Record<string, number>;
                     const foodLimitCounts = (client.food_limit_counts ?? {}) as Record<string, number>;
-                    const foodLimitCards = isOwnPractice ? [] : Object.entries(foodLimits)
-                      .filter(([, lim]) => Number(lim) > 0)
-                      .map(([name, lim]) => ({
-                        label: `${name.charAt(0).toUpperCase() + name.slice(1)} / Week`,
-                        value: client.mb_pdf_path
-                          ? `${Number(foodLimitCounts[name] ?? 0)} / ${Number(lim)}`
-                          : `${Number(foodLimitCounts[name] ?? 0)}`,
-                      }));
-                    const stats = [
-                      { label: "Meal Streak", value: `${mealStreak}d` },
-                      { label: "Water Streak", value: `${waterStreak}d` },
-                      { label: "Water Today", value: `${waterToday.toFixed(1)} L` },
-                      ...foodLimitCards,
-                      { label: "Last Meal Logged", value: lastLogged },
-                    ];
+                    const trackerLimits = isOwnPractice ? {} : foodLimits;
+
                     const lastMealText = (() => {
                       if (!lastRecipe) return "No meals logged yet";
                       const d = new Date(lastRecipe.created_at);
@@ -1973,14 +1962,17 @@ export default function Dashboard() {
                         </div>
                       );
                     })()}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                      {stats.map((s) => (
-                        <div key={s.label} className="rounded-md border p-2">
-                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
-                          <p className="text-sm font-semibold truncate">{s.value}</p>
-                        </div>
-                      ))}
-                    </div>
+                    <ClientTrackerRow
+                      variant="compact"
+                      mealStreak={mealStreak}
+                      waterStreak={waterStreak}
+                      waterToday={waterToday}
+                      foodLimits={trackerLimits}
+                      foodLimitCounts={foodLimitCounts}
+                      showLimitTotals={Boolean(client.mb_pdf_path)}
+                      lastMealLogged={lastLogged}
+                    />
+
 
 
                     <Tabs defaultValue="overview" className="w-full" value={(client as unknown as { _activeTab?: string })._activeTab ?? undefined} onValueChange={(v) => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: v } as typeof x) : x)))}>
