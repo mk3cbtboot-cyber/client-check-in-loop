@@ -167,20 +167,27 @@ export function evaluateRunCaps(
     const suggestion = (suggestions ?? []).find((s) => s?.colour === colour);
     const items = suggestion?.meals?.[meal]?.items ?? [];
     for (const it of items) {
-      const pick = rm?.picks?.[String(it.id ?? "")];
-      const food = capFoodFor(it, pick);
-      if (!food) continue;
-      const per = perMealQty(it);
-      const res = capBlocksRun(food, per, runDays, enriched, legacy);
-      if (res.blocked && res.cap != null) {
-        out.push({
-          meal,
-          item_id: String(it.id ?? ""),
-          food,
-          per_meal: per,
-          needed: res.needed,
-          cap: res.cap,
-        });
+      const altId = vegAltIdFor(it);
+      const entries: Array<{ id: string; food: string }> = [];
+      const food = capFoodFor(it, rm?.picks?.[String(it.id ?? "")]);
+      if (food) entries.push({ id: String(it.id ?? ""), food });
+      if (altId) {
+        const altFood = String(rm?.picks?.[altId] ?? "").trim();
+        if (altFood) entries.push({ id: altId, food: altFood });
+      }
+      for (const e of entries) {
+        const per = perMealQty(it);
+        const res = capBlocksRun(e.food, per, runDays, enriched, legacy);
+        if (res.blocked && res.cap != null) {
+          out.push({
+            meal,
+            item_id: e.id,
+            food: e.food,
+            per_meal: per,
+            needed: res.needed,
+            cap: res.cap,
+          });
+        }
       }
     }
   }
