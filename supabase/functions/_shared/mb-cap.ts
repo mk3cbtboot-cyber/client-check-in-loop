@@ -423,3 +423,59 @@ export function describeBlock(b: CapMealPlanResult & { date?: string }): string 
   const when = b.date ? ` on ${b.date}` : "";
   return `${meal}${when} — ${b.food}: ${b.need} needed, ${b.remaining} left of your weekly ${b.cap}.`;
 }
+
+/* ------------------------------------------------------------------ */
+/* Phase 4 — the ONE fold every reader uses.                           */
+/*                                                                     */
+/* eaten     = rows the client actually logged                         */
+/* planned   = rows committed by a confirmed run, not yet logged       */
+/* committed = planned + eaten  (what the cap gate enforces against)   */
+/* 'skipped' rows never count.                                          */
+/* ------------------------------------------------------------------ */
+
+export interface CapLedgerFoldRow {
+  week_start?: string | null;
+  day?: string | null;
+  food: string;
+  qty: number | string | null;
+  status?: string | null;
+}
+
+export interface CapFold {
+  eaten: Record<string, number>;
+  planned: Record<string, number>;
+  committed: Record<string, number>;
+}
+
+export const emptyCapFold = (): CapFold => ({ eaten: {}, planned: {}, committed: {} });
+
+export function foldLedger(
+  rows: CapLedgerFoldRow[] | null | undefined,
+  opts: { weekStart?: string | null; excludeDays?: Iterable<string> } = {},
+): CapFold {
+  const out = emptyCapFold();
+  const exclude = new Set(opts.excludeDays ?? []);
+  for (const r of rows ?? []) {
+    if (!r || !r.food) continue;
+    const status = String(r.status ?? "planned");
+    if (status === "skipped") continue;
+    if (opts.weekStart && String(r.week_start ?? "") !== opts.weekStart) continue;
+    if (r.day && exclude.has(String(r.day))) continue;
+    const qty = Number(r.qty ?? 0);
+    if (!Number.isFinite(qty) || qty <= 0) continue;
+    const food = String(r.food);
+    const bucket = status === "eaten" ? out.eaten : out.planned;
+    bucket[food] = (bucket[food] ?? 0) + qty;
+    out.committed[food] = (out.committed[food] ?? 0) + qty;
+  }
+  return out;
+}
+
+/** Per-cap tallies for one food, using the same loose name matching. */
+export function capTallyFor(food: string, fold: CapFold | null | undefined) {
+  return {
+    eaten: consumedFor(food, fold?.eaten),
+    planned: consumedFor(food, fold?.planned),
+    committed: consumedFor(food, fold?.committed),
+  };
+}
