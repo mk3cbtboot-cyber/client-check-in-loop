@@ -35,6 +35,7 @@ import FoodListGeneratedClientHome from "@/components/FoodListGeneratedClientHom
 import FoodListGeneratedMyPlan from "@/components/FoodListGeneratedMyPlan";
 import RecipePlanClientHome, { type RecipeAssignment } from "@/components/RecipePlanClientHome";
 import ClientTrackerRow from "@/components/ClientTrackerRow";
+import type { CapFold } from "@/lib/mb-food-list";
 import { formatDistanceToNow } from "date-fns";
 
 
@@ -45,6 +46,9 @@ interface ClientState {
   phase: Phase;
   food_limits: Record<string, number>;
   food_limit_counts: Record<string, number>;
+  cap_week_start?: string | null;
+  cap_week_end?: string | null;
+  cap_fold?: CapFold | null;
   water_today_litres: number;
   water_target_litres?: number | null;
   meal_streak: number;
@@ -470,6 +474,10 @@ export default function ClientPortal() {
 
   const foodLimits = (client?.food_limits ?? {}) as Record<string, number>;
   const foodLimitCounts = (client?.food_limit_counts ?? {}) as Record<string, number>;
+  const capFold = (client?.cap_fold ?? null) as CapFold | null;
+  const capWindow = client?.cap_week_start && client?.cap_week_end
+    ? { week_start: client.cap_week_start, week_end: client.cap_week_end }
+    : null;
 
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
     const items = [...sources.flatMap((s) => MB_FOODS[s]), ...phase3ExtrasForSources(sources)];
@@ -758,6 +766,8 @@ export default function ClientPortal() {
             waterTarget={waterTarget}
             foodLimits={foodLimits}
             foodLimitCounts={foodLimitCounts}
+            capFold={capFold}
+            capWindow={capWindow}
             showLimitTotals={Boolean(client.mb_pdf_path)}
             lastMealLogged={lastMealLoggedLabel}
             onAddWater={addWater}
