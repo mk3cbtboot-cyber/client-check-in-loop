@@ -1,110 +1,135 @@
-# MB weekly cap ledger + per-day meal swap inside a 3-day run
+# Phase 3 — one weekly-consumption store (`mb_cap_ledger`)
 
-MB / Metabolic Rx clients only (`client_type = 'mb'` / `system_mode !== 'own_practice'`). Custom is untouched: no edits to `MealPlanner.tsx`, `CustomFoodListEditor.tsx`, the `FoodList*` components, or Dashboard's Custom branch.
+Goal: planning writes ledger rows, logging annotates them, every reader derives its number from that one table. `clients.food_limits` / `mb_food_limits` stay exactly as they are — they define caps, not consumption. `food_limit_counts` is retired.
 
-Kept as-is: the 3-day colour-locked run, the explicit Confirm gate, `confirmed_on`, the server backstop in `mb-run`, and the single shared evaluator in `supabase/functions/_shared/mb-cap.ts`. What changes is the cap maths and the granularity of a swap.
+MB only. Custom (`own_practice`) clients are untouched everywhere in this plan.
 
-## a) How the run is stored today, and what it must gain
+## 1. Schema change
 
-Today (`src/lib/mb-run.ts`, `clients.mb_run`):
-
-```text
-mb_run = {
-  colour, started_on, confirmed_on,
-  meals: { breakfast|lunch|dinner: { colour, picks: { itemId: "Food" } } | null }
-}
-```
-
-One meals object for the whole run. A swap replaces a meal for **all three days**. There is no per-day detail, so "eggs on days 1–2, swapped on day 3" is unrepresentable. There is also no history: the row is overwritten each run, so nothing knows what an earlier run in the same week already consumed.
-
-Proposed shape (same column, additive, `version: 2`):
+Add three columns to `public.mb_cap_ledger` (all nullable / defaulted, so existing rows stay valid):
 
 ```text
-mb_run = {
-  version: 2,
-  colour, started_on, confirmed_on,       // unchanged meaning: one colour, 3 days
-  week_start: "YYYY-MM-DD",               // cap window this run was planned against
-  days: [
-    { date: "YYYY-MM-DD",
-      meals: {
-        breakfast: { colour, picks: { itemId: "Food" } },   // colour = run colour unless swapped
-        lunch:     { ... },
-        dinner:    { ... }
-      } },
-    ... exactly 3 entries
-  ],
-  // v1 keys left in place on old rows; ignored by v2 readers
-  meals?
-}
+status      text  not null default 'planned'   -- 'planned' | 'eaten' | 'skipped'
+source      text  not null default 'run'       -- 'run' | 'log'
+logged_at   timestamptz                        -- set when status flips to 'eaten'
+recipe_id   uuid                               -- provenance of the log, nullable
 ```
 
-- `days[i].meals[m].colour` is the per-day per-meal swap. Default = the run colour; a swap sets it to another suggestion for that day only, everything else that day stays on the chosen colour.
-- Picks are per day, so a swapped day carries its own food choices.
-- `parseMbRun` gains a read-time v1 → v2 upgrade: a v1 run expands into 3 days from `started_on` (or today), each day copying the v1 meal colours/picks. No SQL migration, no data loss, rollback = revert code.
-- `mb_food_limits` stays authoritative, `food_limits` stays the fallback. No consolidation.
-
-## b) Phase 2 start date as the week anchor
-
-It already exists: `clients.phase2_strict_started_at` (timestamptz), set when the practitioner starts Phase 2 strict.
-
-Anchor rule, one shared function `weekWindowFor(anchor, onDate)` in `_shared/mb-cap.ts`:
-
-- `week_index = floor(days_between(anchor_date, on_date) / 7)`, `week_start = anchor_date + 7 * week_index`, `week_end = week_start + 6`.
-- Phase 2's 14 days is therefore exactly two consecutive windows off the same anchor; nothing special-cased.
-- Fallback when `phase2_strict_started_at` is null (Phase 3/4, or not yet started): anchor on the client's first confirmed run in the current model, persisted as `mb_run.week_start`; if that is also absent, anchor on today. The fallback is deterministic and stored, so the window never silently shifts under the client.
-- A 3-day run can straddle a window boundary. Each day is charged to the window that day falls in — the ledger is keyed by `week_start`, so a run spanning the roll simply writes to two windows and the reset happens mid-run exactly as the rules say.
-
-## c) The weekly ledger (consumption across runs)
-
-`mb_run` is overwritten per run, so the ledger needs its own durable store. New MB-only table:
+Row shape, planned then eaten:
 
 ```text
-public.mb_cap_ledger
-  id uuid pk
-  client_id uuid not null references public.clients(id) on delete cascade
-  week_start date not null          -- from the Phase 2 anchor
-  day date not null                 -- the day consumed
-  meal text not null                -- breakfast | lunch | dinner
-  food text not null                -- normalised cap food name
-  qty numeric not null              -- perMealQty for that item
-  run_started_on date               -- provenance
-  created_at timestamptz default now()
-  unique (client_id, day, meal, food)   -- re-confirming a run replaces, never double-counts
+{ client_id, week_start: '2026-08-24', day: '2026-08-26', meal: 'breakfast',
+  food: 'eggs', qty: 2, run_started_on: '2026-08-26',
+  status: 'planned', source: 'run', logged_at: null }
+
+-- after the client logs that breakfast
+  status: 'eaten', source: 'run', logged_at: '2026-08-26T07:40Z', recipe_id: …
 ```
 
-Grants (`authenticated` select, `service_role` all), RLS enabled: practitioners read their own clients' rows; writes are service-role only from the `mb-run` edge function. Clients reach it only through the token-authed function, exactly like `mb_run` today.
+Unplanned eaten food (client logged a recipe containing a capped food with no planned row for that day+meal):
 
-- Written on **confirm**, in one transaction-ish upsert: the function deletes the rows for that run's days and reinserts from the confirmed run, so editing and re-confirming a run is idempotent.
-- Read on **plan/pick**: `remaining(food) = cap(food) − sum(qty) for (client, week_start)`, excluding rows belonging to the run currently being edited (so a client editing an already-confirmed run isn't blocked by their own prior confirmation).
-- Only capped foods are recorded, keeping the table small (a handful of rows per week per client).
+```text
+{ client_id, week_start: '2026-08-24', day: '2026-08-26', meal: 'lunch',
+  food: 'avocado', qty: 1, run_started_on: null,
+  status: 'eaten', source: 'log', logged_at: …, recipe_id: … }
+```
 
-## d) Selection-time enforcement
+The existing unique key `(client_id, day, meal, food)` still holds and is what makes this work: an unplanned row and a planned row for the same slot+food can never coexist — the logger updates the planned row instead of inserting.
 
-The moment the client taps a Suggestion (before any confirm):
+Constraint to add: `check (status in ('planned','eaten','skipped'))`, `check (source in ('run','log'))`. Index `(client_id, week_start)` for the readers.
 
-1. `startRun(colour)` builds the 3 dated days and fetches the week ledger via `mb-run action: "get"` (extended to return `{ run, week_start, consumed: { food: qty } }`).
-2. The shared evaluator runs `planRunAgainstLedger(run, suggestions, limits, consumed, capacityByFood)`: it walks days 1→3 in order, and for each meal/item resolves the cap food (fixed items by `label`, picks by chosen food) and `perMealQty` — unchanged logic, so "2 eggs" and `as_listed "2 Eggs"` still count as 2. It debits the running weekly total per day and returns, per day+meal, either `ok` or a `blocked` record `{ day, meal, food, need, remaining }`.
-3. Any blocked day/meal renders inline, immediately, on that day: an amber panel naming the food and the remaining allowance, with the only remedy — a Select offering the other two suggestions for **that meal on that day**. Choosing one rewrites `days[i].meals[m]` to the new colour with empty picks; the rest of that day stays on the run colour. The replacement meal is itself run through the evaluator (a swap can't smuggle in another over-cap food).
-4. Confirm stays disabled while any day/meal is blocked or any required pick is empty; the copy states the swap is the way forward.
-5. Because the ledger is consulted, a second run of the same colour later in the same week finds the allowance already spent and blocks that meal on **all** days of the new run until the window rolls — the worked example (eggs cap 4, 2-egg breakfast: days 1–2 keep it, day 3 swaps; next run same week swaps every day) is a direct consequence and becomes a named test.
+Grants unchanged (`select` to `authenticated`, `all` to `service_role`), RLS unchanged.
 
-## e) Components and server
+## 2. Run confirm (`mb-run` confirm)
 
-- `src/lib/mb-run.ts` — v2 types, `parseMbRun` upgrade, `startRun(colour, dates)`, `setDayPick`, `swapDayMeal`, `resolveDayMeal` (per-day successor to `resolveRunMeal`).
-- `supabase/functions/_shared/mb-cap.ts` — keep `weeklyCapFor`, `perMealQty`, `capFoodFor` untouched. Replace the `needed = per × RUN_DAYS` rule with `planRunAgainstLedger` (sequential per-day debit against `cap − consumed`) plus `ledgerRowsForRun` (what to write on confirm) and `weekWindowFor`. Still the one module imported by both the browser (`src/lib/mb-food-list.ts` re-exports) and the edge function.
-- `src/components/MbRunPlanner.tsx` — the three-card colour choice is unchanged; after locking, the body becomes Day 1 / Day 2 / Day 3 sections, each with the three meals, per-day picks, per-day swap control on a blocked meal, a "remaining this week" line for capped foods, and the existing gated Confirm button and server-error surface.
-- `src/pages/ClientPortal.tsx` — My Plan tab props gain the ledger (returned by `mb-run get`); `mbRunGateActive` still keys off `confirmed_on`, unchanged. Home handoff (`onGoHome`) unchanged; the Home/recipe surface reads **today's** day entry from the run instead of the single meals object.
-- `src/components/MbPlanMirror.tsx` (practitioner, read-only) — mirrors the same Day 1–3 layout with swap badges and the week's consumed/remaining tallies. Still zero controls, zero writes.
-- `src/pages/Dashboard.tsx` — passes `mb_run` through as today plus the ledger for the mirror; no Custom-path change.
-- `supabase/functions/mb-run/index.ts` — `get` returns run + `week_start` + `consumed`; `save` stays permissive and clears `confirmed_on`; `confirm` re-runs `planRunAgainstLedger` server-side against the practitioner's stored `mb_plan` suggestions (never client-supplied items) and the ledger read under the service role, rejects with `409 cap_exceeded` carrying per-day/per-meal detail, and on success writes `confirmed_on` **and** upserts the ledger rows. Zod schema updated to the v2 run (exactly 3 dated days, bounded picks); v1 payloads upgraded by the same shared parser so a stale tab can't corrupt a row.
+Almost no change. The delete-then-insert of this run's days stays, with two adjustments:
 
-## f) Build order (each phase independently testable)
+- Insert rows with `status: 'planned'`, `source: 'run'`.
+- The wholesale delete must **not** destroy already-eaten history. Change it to `delete … where client_id = … and day in (days) and status = 'planned'`. Rows already flipped to `eaten` (the client ate day 1, then re-plans days 2–3) survive re-confirmation and keep counting.
 
-1. **Model** — v2 `mb_run` types + read-time v1→v2 upgrade + day helpers in `src/lib/mb-run.ts`. Unit tests only; existing rows parse into an identical 3-day run.
-2. **Ledger table** — migration for `public.mb_cap_ledger` with grants, RLS and the uniqueness key. Verified by direct query; nothing reads it yet.
-3. **Evaluator** — `weekWindowFor`, `planRunAgainstLedger`, `ledgerRowsForRun` in `_shared/mb-cap.ts`, with `src/test/mb-cap.test.ts` rewritten around the eggs example (cap 4, 2-egg breakfast, days 1–2 ok / day 3 blocked; second run same week blocked on all days; window roll clears it).
-4. **Server** — `mb-run` `get`/`confirm` updated to read and write the ledger, deployed; verified by posting an over-cap run and getting `409`, then confirming a clean run and seeing ledger rows.
-5. **Client planner** — `MbRunPlanner` Day 1–3 layout, selection-time block, per-day swap, remaining-allowance copy, gated Confirm. Verified in the preview as an MB client.
-6. **Mirror + Home handoff** — `MbPlanMirror` week/ledger view and the Home surface reading today's day. Verified side by side against the client portal.
+`ledgerRowsForRun` gains the two literal fields; `planRunAgainstLedger` is unchanged.
 
-Custom stays untouched in every phase; no file on the `own_practice` path is edited, and both cap stores stay exactly as they are.
+## 3. Meal logging (`log-mb-meal`) — the matching step
+
+Today the logger derives `usesByKey` from `clients.food_limits` + ingredient regex. That derivation is kept verbatim (it is the only thing that knows how to read a recipe), but its output is written to the ledger rather than to `food_limit_counts`.
+
+Per logged meal, for each `(food, qty)` in `usesByKey`:
+
+1. **Slot match.** Look for a row `(client_id, day = today, meal = meal_type, status = 'planned')`.
+2. **Food match** within that slot, in order:
+   a. exact normalised equality (`eggs` = `Eggs`);
+   b. the same loose containment `weeklyCapFor` already uses (`f.includes(rk) || rk.includes(f)`), so `egg` matches a planned `eggs` row;
+   c. no match → unplanned.
+3. **Matched** → `update status='eaten', logged_at=now(), recipe_id=…`, and set `qty` to the logged quantity **only when it differs** (the egg case: planned 2, cooked 3 → row becomes qty 3, eaten). Planned qty is a forecast; eaten qty is truth.
+4. **Unmatched** → insert an `eaten` / `source='log'` row with `week_start = weekWindowFor(anchor, today).week_start`. On unique-key conflict (a planned row for the same food existed under a different meal-name spelling) fall back to the update path.
+5. Planned rows for days that have passed with no log are left `planned` — they still count against the cap (the client committed to them). A later phase could add a nightly sweep to `skipped`; not in scope.
+
+Egg-count case: `countEggsInRecipe` is unchanged and supplies the qty for the `eggs` key, so "3 eggs cooked against a planned 2" is recorded as 3 and the cap sees 3.
+
+Substring risk: matching is scoped to one `(day, meal)` slot with at most a handful of rows, so the loose match can't collide across meals the way a global map can.
+
+## 4. Readers — what each shows afterwards
+
+All read `mb_cap_ledger` for the current window (`weekWindowFor(phase2_strict_started_at, today).week_start`), returned by the edge functions so no client re-derives it.
+
+| Reader | Number shown | Definition |
+|---|---|---|
+| Portal card (`ClientTrackerRow`) | `used / cap`, `remaining` | used = **sum of qty for planned + eaten** in the window. This is "committed", which is the only number that matches what the run gate will let them do next. Card sub-line changes to "X eaten, Y planned". |
+| Run gate (`planRunAgainstLedger`) | blocked / remaining | unchanged semantics: `cap − sum(qty of planned+eaten)`, still excluding the run being edited (excluded by `day`, as today). |
+| Practitioner tracker (`Dashboard.tsx:1866`) | same as portal | same fold, compact variant. Practitioner also gets the eaten/planned split in the MB mirror. |
+| AI assistant (`client-messages`) | "Used this week" | switch to the ledger fold, phrased explicitly: "eaten: {…}, planned: {…}, remaining: {…}". |
+
+One shared fold helper in `_shared/mb-cap.ts` (`foldLedger(rows) → { eaten, planned, committed }`) used by every server reader, mirrored to the browser through the existing `src/lib/mb-food-list.ts` re-export.
+
+**Decision needed (A):** portal card = *committed* (planned+eaten) or *eaten only*? I recommend committed, so the card never disagrees with the gate. Eaten-only is more literal ("what I've actually had") but will read lower than the allowance the gate enforces.
+
+## 5. Retiring `food_limit_counts`
+
+Reads/writes today: written in `log-mb-meal` (increment) and reset lazily every UTC Monday in `client-portal-data:60`; read in `client-portal-data` (portal payload), `ClientPortal.tsx:472`, `Dashboard.tsx:1866`, `client-messages:202,591`, and `log-mb-meal`'s own enforcement.
+
+Migration:
+
+1. Backfill — for each MB client with non-empty `food_limit_counts`, insert one `eaten` / `source='log'` row per food into the **current** window, `day = today`, `meal = 'unknown'`, qty = the count. Coarse but correct in total; history before this week is not reconstructable and is not needed (caps are weekly). Requires relaxing `meal` to allow `'unknown'` — it is free text, so no change needed.
+2. Flip readers to the ledger (phase 5 below).
+3. Stop writing the column and delete the Monday reset block.
+4. Leave the column in place, unused, for one release; drop it in a follow-up migration.
+
+The Monday reset disappears with the column — window boundaries come from `week_start` on each row.
+
+**Decision needed (B):** backfill into a `meal='unknown'` bucket, or start the ledger clean and accept that in-flight clients get a one-time reset of this week's tallies? Clean start is simpler and self-heals in ≤7 days.
+
+## 6. Week window
+
+Standardise on `weekWindowFor(phase2_strict_started_at, today)` — the Phase-2-anchored rolling 7-day window already used by enforcement. To drop UTC-Monday:
+
+- remove the `mondayOf` reset in `client-portal-data`;
+- `log-mb-meal` computes `week_start` via `weekWindowFor` (it must import the shared module — it currently has its own `mondayOf`, which stays only for the unrelated `weekly_meal_plans` batch-cooking lookup);
+- `client-portal-data` returns `week_start`, `week_end`, and the folded tallies so the portal shows the right dates;
+- the portal card copy changes from "this week" to the window dates when they aren't Mon–Sun.
+
+Fallback when `phase2_strict_started_at` is null is the existing one in `weekWindowFor` (anchor on the date being asked about) — unchanged.
+
+## 7. Enforcement continuity
+
+Both logging-path guards survive, in the same function, reading the ledger instead of the counts map:
+
+- **Hard block (non-egg):** `used + uses > cap` where `used` is the ledger fold **minus any planned row in this same slot for that food** (otherwise a client's own plan blocks them from logging it). Same 400 response, same copy.
+- **Egg `requires_confirmation` override:** unchanged shape (`eggs_in_meal`, `eggs_used_this_week`, `eggs_max_per_week`), with `eggs_used_this_week` from the ledger fold. `force: true` still writes through, and the resulting row records the real qty — so an over-cap confirmed meal is visible in the ledger rather than silently absorbed.
+
+The run-gate backstop in `mb-run confirm` is untouched.
+
+## 8. Phased rollout
+
+1. **Schema** — migration adding `status`, `source`, `logged_at`, `recipe_id`, checks and index. Nothing reads them. Rollback: drop the four columns; the table works as before.
+2. **Writers — plan side** — `mb-run confirm` writes `status/source` and deletes only `planned` rows. Verified by confirming a run and querying rows.
+3. **Writers — log side** — `log-mb-meal` annotates/inserts ledger rows **while still writing `food_limit_counts`** (dual write). Verified by logging a planned meal, an over-plan egg meal and an unplanned capped food, then comparing the ledger fold to the counts map — they should agree.
+4. **Readers** — `foldLedger` + switch portal payload, `ClientTrackerRow`, practitioner tracker, AI context, and both `log-mb-meal` guards to the ledger. Verified side-by-side against the still-live counts map.
+5. **Retire** — remove the `food_limit_counts` write and the Monday reset, run the backfill (or clean start, per decision B). Column dropped in a later release.
+
+Rollback for each phase is a code revert; only phase 1 touches schema and it is purely additive. The dual-write window in phase 3 means phases 3–4 can be reverted independently without losing consumption data.
+
+## Decisions I need
+
+- **A** — portal card shows committed (planned+eaten) or eaten only?
+- **B** — backfill existing `food_limit_counts` into the ledger, or clean start?
+- **C** — should an unlogged planned day eventually flip to `skipped` and free its allowance, or keep counting? (Plan currently: keeps counting, no sweep.)
