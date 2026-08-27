@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { MB_FOODS, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { oilAllowed as oilAllowedFn, type Phase } from "@/lib/phases";
-import { capTallyFor, type CapFold } from "@/lib/mb-food-list";
+import { capTallyFor, capBlocksMeal, describeMealBlock, type CapFold } from "@/lib/mb-food-list";
 
 export type LockedRecipe = { recipe_title: string; recipe: string[]; method: string[]; notes: string[] };
 
@@ -99,9 +98,7 @@ export default function MealRecipeSection({
   const [lastIngredients, setLastIngredients] = useState<Array<{ label: string; qty: string }>>([]);
   const [regenCount, setRegenCount] = useState(0);
   const [loggingIdx, setLoggingIdx] = useState<number | null>(null);
-  const [eggConfirm, setEggConfirm] = useState<{ idx: number; recipe: LockedRecipe; eggsInMeal: number; eggsUsed: number; eggsMax: number } | null>(null);
   const [loggingLocked, setLoggingLocked] = useState(false);
-  const [eggConfirmLocked, setEggConfirmLocked] = useState<{ eggsInMeal: number; eggsUsed: number; eggsMax: number } | null>(null);
   const [fullScreenIdx, setFullScreenIdx] = useState<number | null>(null);
   const regenLimitReached = regenCount >= 1;
   const oilAllow = oilAllowedFn(phase);
@@ -160,8 +157,8 @@ export default function MealRecipeSection({
   };
 
   const generate = async () => {
-    if (blockGeneration) {
-      toast.error(blockGeneration.reason);
+    if (effectiveBlock) {
+      toast.error(effectiveBlock.reason);
       return;
     }
     for (const c of optionDef.components) {
@@ -196,30 +193,19 @@ export default function MealRecipeSection({
   const logRecipe = async (
     recipe: LockedRecipe,
     ingredients: Array<{ label: string; qty: string }>,
-    force = false,
   ) => {
     const { data, error } = await supabase.functions.invoke("log-mb-meal", {
-      body: { token, meal_type: meal, option_label: optionDef.label, ingredients, recipe, variant, force },
+      body: { token, meal_type: meal, option_label: optionDef.label, ingredients, recipe, variant },
     });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
     return data;
   };
 
-  const handleLogFromOptions = async (idx: number, recipe: LockedRecipe, force = false) => {
+  const handleLogFromOptions = async (idx: number, recipe: LockedRecipe) => {
     setLoggingIdx(idx);
     try {
-      const data = await logRecipe(recipe, lastIngredients, force);
-      if (data?.requires_confirmation && data.reason === "eggs_over_limit") {
-        setEggConfirm({
-          idx,
-          recipe,
-          eggsInMeal: Number(data.eggs_in_meal) || 0,
-          eggsUsed: Number(data.eggs_used_this_week) || 0,
-          eggsMax: Number(data.eggs_max_per_week) || 0,
-        });
-        return;
-      }
+      await logRecipe(recipe, lastIngredients);
       toast.success("Meal logged");
       await onLogged();
       setRecipeOptions([]);
@@ -231,7 +217,7 @@ export default function MealRecipeSection({
     }
   };
 
-  const handleLogLocked = async (force = false) => {
+  const handleLogLocked = async () => {
     if (!lockedRecipe) return;
     setLoggingLocked(true);
     try {
@@ -255,15 +241,7 @@ export default function MealRecipeSection({
           return [{ label: lockedRecipe.recipe_title, qty: "1 serving" }];
         }
       })();
-      const data = await logRecipe(lockedRecipe, ingredients, force);
-      if (data?.requires_confirmation && data.reason === "eggs_over_limit") {
-        setEggConfirmLocked({
-          eggsInMeal: Number(data.eggs_in_meal) || 0,
-          eggsUsed: Number(data.eggs_used_this_week) || 0,
-          eggsMax: Number(data.eggs_max_per_week) || 0,
-        });
-        return;
-      }
+      await logRecipe(lockedRecipe, ingredients);
       toast.success("Meal logged");
       await onLogged();
     } catch (e: any) {
@@ -274,6 +252,26 @@ export default function MealRecipeSection({
   };
 
   const title = sectionTitle ?? optionDef.label;
+
+  // ---- Hard weekly caps, enforced at SELECTION (all foods, eggs included) ----
+  const capIngredients = (selections: Record<string, string>) => [
+    ...(optionDef.fixed ?? []).map((f) => ({ label: f.label, qty: f.qty })),
+    ...optionDef.components
+      .filter((c) => selections[c.key])
+      .map((c) => ({ label: selections[c.key], qty: c.qty || "" })),
+  ];
+  // Planned rows for this meal were already cap-validated at run confirm, so
+  // the client's own commitment must never block them from eating it.
+  const plannedAllowance: CapFold | null = capFold
+    ? { eaten: {}, planned: {}, committed: capFold.planned ?? {} }
+    : null;
+  const lockedBlock = lockedRecipe
+    ? capBlocksMeal(capIngredients(lockedSelections), foodLimits, capFold, plannedAllowance)
+    : null;
+  const builderBlock = capBlocksMeal(capIngredients(picks), foodLimits, capFold, plannedAllowance);
+  const capBlockReason = (b: ReturnType<typeof capBlocksMeal>) => (b ? describeMealBlock(b) : null);
+  const effectiveBlock =
+    blockGeneration ?? (builderBlock ? { reason: capBlockReason(builderBlock)! } : null);
 
   // === Locked view ===
   if (lockedRecipe) {
@@ -303,28 +301,14 @@ export default function MealRecipeSection({
               <ul className="list-disc list-inside text-sm space-y-1">{lockedRecipe.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
             </TabsContent>
           </Tabs>
-          <Button className="w-full" disabled={loggingLocked} onClick={() => handleLogLocked(false)}>
+          {lockedBlock && (
+            <p className="text-xs text-destructive">{capBlockReason(lockedBlock)}</p>
+          )}
+          <Button className="w-full" disabled={loggingLocked || !!lockedBlock} onClick={() => handleLogLocked()}>
             {loggingLocked ? "Logging…" : "I Ate This"}
           </Button>
         </Card>
 
-        <Dialog open={!!eggConfirmLocked} onOpenChange={(o) => !o && setEggConfirmLocked(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Egg limit reached</DialogTitle>
-            </DialogHeader>
-            {eggConfirmLocked && (
-              <p className="text-sm">
-                This meal contains {eggConfirmLocked.eggsInMeal} egg(s). You've already logged {eggConfirmLocked.eggsUsed} of {eggConfirmLocked.eggsMax} eggs this week.
-                Log anyway?
-              </p>
-            )}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setEggConfirmLocked(null)}>Cancel</Button>
-              <Button onClick={async () => { setEggConfirmLocked(null); await handleLogLocked(true); }}>Log anyway</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </>
     );
   }
@@ -429,10 +413,10 @@ export default function MealRecipeSection({
           </div>
         )}
 
-        {blockGeneration && (
-          <p className="text-xs text-destructive">{blockGeneration.reason}</p>
+        {effectiveBlock && (
+          <p className="text-xs text-destructive">{effectiveBlock.reason}</p>
         )}
-        <Button onClick={generate} disabled={generating || !!blockGeneration} className="w-full">
+        <Button onClick={generate} disabled={generating || !!effectiveBlock} className="w-full">
           {generating ? "Generating recipes…" : "Generate Recipes"}
         </Button>
       </Card>
@@ -470,7 +454,7 @@ export default function MealRecipeSection({
                   disabled={loggingIdx !== null}
                   onClick={() => {
                     if (fullScreenOnSelect) setFullScreenIdx(idx);
-                    else handleLogFromOptions(idx, r, false);
+                    else handleLogFromOptions(idx, r);
                   }}
                 >
                   {loggingIdx === idx ? "Selecting…" : "Select this recipe"}
@@ -480,28 +464,6 @@ export default function MealRecipeSection({
           </div>
         </div>
       )}
-
-      <Dialog open={!!eggConfirm} onOpenChange={(o) => !o && setEggConfirm(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Egg limit reached</DialogTitle>
-          </DialogHeader>
-          {eggConfirm && (
-            <p className="text-sm">
-              This meal contains {eggConfirm.eggsInMeal} egg(s). You've already logged {eggConfirm.eggsUsed} of {eggConfirm.eggsMax} eggs this week. Log anyway?
-            </p>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEggConfirm(null)}>Cancel</Button>
-            <Button onClick={async () => {
-              if (!eggConfirm) return;
-              const { idx, recipe } = eggConfirm;
-              setEggConfirm(null);
-              await handleLogFromOptions(idx, recipe, true);
-            }}>Log anyway</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {fullScreenIdx !== null && recipeOptions[fullScreenIdx] && (() => {
         const r = recipeOptions[fullScreenIdx];
@@ -541,7 +503,7 @@ export default function MealRecipeSection({
               <Button
                 className="w-full"
                 disabled={loggingIdx !== null}
-                onClick={() => handleLogFromOptions(fullScreenIdx, r, false)}
+                onClick={() => handleLogFromOptions(fullScreenIdx, r)}
               >
                 {loggingIdx === fullScreenIdx ? "Logging…" : "I Ate This"}
               </Button>

@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
+import { capBlocksMeal, capHeadroom, capUnitsForIngredient, describeMealBlock, foldLedger, weekWindowFor } from "../_shared/mb-cap.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,6 +55,31 @@ Deno.serve(async (req) => {
       return i;
     });
 
+    // ---- Hard weekly caps: never generate a recipe the client can't log ----
+    const foodLimits = (c.food_limits ?? {}) as Record<string, number>;
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const capWindow = weekWindowFor((c.phase2_strict_started_at as string | null)?.slice(0, 10) ?? null, todayIso);
+    const { data: capRowsRaw } = await admin
+      .from("mb_cap_ledger")
+      .select("day, meal, food, qty, status")
+      .eq("client_id", c.id)
+      .eq("week_start", capWindow.week_start);
+    const capRows = (capRowsRaw ?? []) as Array<{ day: string; meal: string; food: string; qty: number; status: string }>;
+    const capFold = foldLedger(capRows);
+    const plannedAllowance = { eaten: {}, planned: {}, committed: capFold.planned };
+    const mealBlock = capBlocksMeal(ingredients, foodLimits, capFold, plannedAllowance);
+    if (mealBlock) {
+      return new Response(JSON.stringify({ error: describeMealBlock(mealBlock) }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const headroom = capHeadroom(foodLimits, capFold);
+    // Planned rows for a meal the client already committed to don't reduce headroom.
+    for (const [k, v] of Object.entries(capFold.planned)) {
+      if (headroom[k] != null) headroom[k] = headroom[k] + Number(v || 0);
+    }
+    const headroomLines = Object.entries(headroom)
+      .map(([food, left]) => `- ${food}: at most ${left} remaining for the rest of this week`)
+      .join("\n");
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -92,6 +118,9 @@ METHOD RULES (write for someone who has never turned on a stove):
 - Include exact temperatures in BOTH °C and °F.
 - Include exact timings, visual cues, smell cues, equipment, prep instructions, beginner mistakes to avoid, and safety basics where relevant.
 - If two vegetables are used, give each its own clearly labelled prep + cook step.
+
+HARD WEEKLY LIMITS (never exceed — the client physically cannot log a recipe that breaks these):
+${headroomLines || "- none"}
 
 OUTPUT: Call the provided tool with an array of EXACTLY THREE distinct options. Each option has RECIPE (every ingredient with exact quantity), METHOD (numbered beginner-friendly steps), NOTES (3-5 MB compliance reminders).`;
 
@@ -152,8 +181,26 @@ OUTPUT: Call the provided tool with an array of EXACTLY THREE distinct options. 
     const args = tc ? JSON.parse(tc.function.arguments) : null;
     if (!args?.options || !Array.isArray(args.options) || args.options.length < 1) throw new Error("No recipes returned");
 
+    // Post-scrub: drop any option that uses more of a capped food than the
+    // remaining headroom, so we can never return an unloggable recipe.
+    const withinCaps = (opt: { recipe?: string[] }) => {
+      const lines = (opt.recipe ?? []).map((l) => ({ label: String(l), qty: "" }));
+      for (const [food, left] of Object.entries(headroom)) {
+        let need = 0;
+        for (const line of lines) need += capUnitsForIngredient(line, food);
+        if (need > left) return false;
+      }
+      return true;
+    };
+    const safeOptions = (args.options as Array<{ recipe?: string[] }>).filter(withinCaps);
+    if (safeOptions.length === 0) {
+      return new Response(JSON.stringify({
+        error: "Every recipe for this meal would exceed one of your weekly food limits. Please choose a different option — if none fit, contact your practitioner.",
+      }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Return options without persisting — the client confirms via "I Ate This" which calls log-mb-meal.
-    return new Response(JSON.stringify({ ok: true, options: args.options.slice(0, 3) }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ ok: true, options: safeOptions.slice(0, 3) }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("generate-mb-recipe error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

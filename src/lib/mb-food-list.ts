@@ -168,6 +168,10 @@ export {
   foldLedger,
   capTallyFor,
   emptyCapFold,
+  capBlocksMeal,
+  capUnitsForIngredient,
+  capHeadroom,
+  describeMealBlock,
 } from "../../supabase/functions/_shared/mb-cap";
 export type {
   CapViolation,
@@ -178,6 +182,9 @@ export type {
   CapWeekWindow,
   CapFold,
   CapLedgerFoldRow,
+  CapMealBlock,
+  CapMealIngredient,
 } from "../../supabase/functions/_shared/mb-cap";
+
 
 
