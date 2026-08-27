@@ -3,6 +3,7 @@ import {
   addDays,
   consumedFor,
   evaluateRunCaps,
+  mealDemand,
   ledgerRowsForRun,
   perMealQty,
   planRunAgainstLedger,
@@ -12,6 +13,7 @@ import {
   type CapSuggestion,
 } from "../../supabase/functions/_shared/mb-cap";
 import { parseMbRun, resolveDayMeal, startRun, swapDayMeal } from "@/lib/mb-run";
+import { vegAltIdFor, vegQtyOverrides } from "@/lib/mb-plan";
 
 const suggestions = [
   {
@@ -260,5 +262,113 @@ describe("planRunAgainstLedger — eggs capped at 4/week, 2-egg breakfast", () =
     );
     // Day 3's breakfast is blocked on eggs, so its cheese is not charged either.
     expect(res.rows.filter((r) => r.food === "Cheese")).toHaveLength(2);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Optional second vegetable (veg2)                                     */
+/* ------------------------------------------------------------------ */
+
+const vegSuggestions = [
+  {
+    colour: "blue",
+    label: "Suggestion 1",
+    meals: {
+      breakfast: { items: [] },
+      lunch: {
+        items: [
+          { id: "v1", category: "vegetables", label: "Vegetables", qty: 190, unit: "g" },
+        ],
+      },
+      dinner: { items: [] },
+    },
+  },
+] as unknown as CapSuggestion[];
+
+const vegRun = (picks: Record<string, string>) => ({
+  colour: "blue",
+  started_on: "2026-08-24",
+  meals: {
+    breakfast: { colour: "blue", picks: {} },
+    lunch: { colour: "blue", picks },
+    dinner: { colour: "blue", picks: {} },
+  },
+  day_overrides: {},
+});
+
+describe("second vegetable pick and weekly caps", () => {
+  it("counts a capped food picked as the second vegetable", () => {
+    const rows = mealDemand(
+      [{ id: "v1", category: "vegetables", label: "Vegetables", qty: 190, unit: "g" }],
+      { v1: "Broccoli", "v1-alt": "Avocado" },
+    );
+    expect(rows).toEqual([
+      { food: "Broccoli", qty: 1 },
+      { food: "Avocado", qty: 1 },
+    ]);
+  });
+
+  it("does not add demand when no second vegetable is chosen", () => {
+    expect(
+      mealDemand([{ id: "v1", category: "vegetables", label: "Vegetables", qty: 190, unit: "g" }], {
+        v1: "Broccoli",
+      }),
+    ).toEqual([{ food: "Broccoli", qty: 1 }]);
+  });
+
+  it("blocks a second-vegetable pick that exceeds its weekly cap", () => {
+    const consumed: CapConsumed = { "2026-08-24": { Avocado: 3 } };
+    const plan = planRunAgainstLedger(
+      vegRun({ v1: "Broccoli", "v1-alt": "Avocado" }),
+      vegSuggestions,
+      [],
+      { Avocado: 3 },
+      consumed,
+      { anchor: "2026-08-24", runDays: 3, startDate: "2026-08-24" },
+    );
+    expect(plan.blocks.length).toBe(3);
+    expect(plan.blocks[0].food).toBe("Avocado");
+  });
+
+  it("allows the second-vegetable pick inside the cap", () => {
+    const plan = planRunAgainstLedger(
+      vegRun({ v1: "Broccoli", "v1-alt": "Avocado" }),
+      vegSuggestions,
+      [],
+      { Avocado: 3 },
+      {},
+      { anchor: "2026-08-24", runDays: 3, startDate: "2026-08-24" },
+    );
+    expect(plan.blocks.length).toBe(0);
+    expect(plan.rows.filter((r) => r.food === "Avocado").length).toBe(3);
+  });
+});
+
+describe("veg qty split helpers", () => {
+  it("halves gram portions only when both vegetables are picked", () => {
+    const components = [
+      { key: "vegetables-0", qty: "190g" },
+      { key: "vegetables-0-alt", qty: "" },
+    ];
+    expect(vegQtyOverrides(components, { "vegetables-0": "Broccoli" })).toEqual({});
+    expect(
+      vegQtyOverrides(components, { "vegetables-0": "Broccoli", "vegetables-0-alt": "Kale" }),
+    ).toEqual({ "vegetables-0": "95g", "vegetables-0-alt": "95g" });
+  });
+
+  it("supports the legacy veg1/veg2 keys", () => {
+    expect(
+      vegQtyOverrides([{ key: "veg1", qty: "200g" }, { key: "veg2", qty: "" }], {
+        veg1: "Broccoli",
+        veg2: "Kale",
+      }),
+    ).toEqual({ veg1: "100g", veg2: "100g" });
+  });
+
+  it("only offers a second pick for non-optional veg categories", () => {
+    expect(vegAltIdFor({ id: "v1", category: "vegetables" })).toBe("v1-alt");
+    expect(vegAltIdFor({ id: "v2", category: "vegLettuce" })).toBe("v2-alt");
+    expect(vegAltIdFor({ id: "v3", category: "vegetables", optional: true })).toBeNull();
+    expect(vegAltIdFor({ id: "p1", category: "protein" })).toBeNull();
   });
 });
