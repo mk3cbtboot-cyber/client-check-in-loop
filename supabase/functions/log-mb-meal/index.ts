@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { error: insErr } = await admin.from("recipes").insert({
+    const { data: insertedRecipe, error: insErr } = await admin.from("recipes").insert({
       client_id: c.id,
       name: recipe.recipe_title || option_label,
       meal_type,
@@ -129,8 +129,77 @@ Deno.serve(async (req) => {
       prep_time: "",
       servings: "1",
       egg_count: eggsInMeal,
-    });
+    }).select("id").single();
     if (insErr) throw insErr;
+
+    // ---- Ledger annotation (Phase 3, dual-write alongside food_limit_counts) ----
+    // Planned rows for today's slot get flipped to 'eaten' with the real logged
+    // qty (set, never add — re-logging the same meal can't double-count).
+    // Capped foods with no planned row insert an 'eaten'/'log' row instead.
+    try {
+      const todayIsoLedger = new Date().toISOString().slice(0, 10);
+      const anchor = (c.phase2_strict_started_at as string | null) ?? null;
+      const { week_start } = weekWindowFor(anchor ? anchor.slice(0, 10) : null, todayIsoLedger);
+      const recipeId = (insertedRecipe as { id: string } | null)?.id ?? null;
+
+      const { data: plannedRows } = await admin
+        .from("mb_cap_ledger")
+        .select("id, food, qty")
+        .eq("client_id", c.id)
+        .eq("day", todayIsoLedger)
+        .eq("meal", meal_type)
+        .eq("status", "planned");
+
+      const nrm = (s: string) => String(s ?? "").trim().toLowerCase();
+      const available = [...((plannedRows ?? []) as Array<{ id: string; food: string; qty: number }>)];
+
+      for (const [key, uses] of Object.entries(usesByKey)) {
+        const k = nrm(key);
+        let idx = available.findIndex((r) => nrm(r.food) === k);
+        if (idx < 0) {
+          idx = available.findIndex((r) => {
+            const f = nrm(r.food);
+            return f.includes(k) || k.includes(f);
+          });
+        }
+        if (idx >= 0) {
+          const row = available.splice(idx, 1)[0];
+          const patch: Record<string, unknown> = {
+            status: "eaten",
+            logged_at: new Date().toISOString(),
+            recipe_id: recipeId,
+          };
+          if (Number(row.qty) !== Number(uses)) patch.qty = uses;
+          await admin.from("mb_cap_ledger").update(patch).eq("id", row.id);
+          continue;
+        }
+        // Unplanned capped food — insert; on unique-key conflict update instead.
+        const { error: ledInsErr } = await admin.from("mb_cap_ledger").insert({
+          client_id: c.id,
+          week_start,
+          day: todayIsoLedger,
+          meal: meal_type,
+          food: key,
+          qty: uses,
+          status: "eaten",
+          source: "log",
+          logged_at: new Date().toISOString(),
+          recipe_id: recipeId,
+        });
+        if (ledInsErr) {
+          await admin
+            .from("mb_cap_ledger")
+            .update({ qty: uses, status: "eaten", logged_at: new Date().toISOString(), recipe_id: recipeId })
+            .eq("client_id", c.id)
+            .eq("day", todayIsoLedger)
+            .eq("meal", meal_type)
+            .eq("food", key);
+        }
+      }
+    } catch (ledgerErr) {
+      console.error("log-mb-meal ledger sync failed:", ledgerErr);
+    }
+
 
     const nextCounts: Record<string, number> = { ...foodLimitCounts };
     for (const [key, uses] of Object.entries(usesByKey)) {
