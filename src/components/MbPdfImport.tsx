@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Loader2, UploadCloud, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { mbPlanFromParsedOptions } from "@/lib/mb-plan-parsed";
 import { canonicaliseFoodLimits } from "@/lib/food-limits";
+import { parseMbFoodLimits } from "@/lib/mb-plan";
 
 type MealItem = { category: string; qty: number | null; unit: string };
 type MealOption = {
@@ -319,7 +320,30 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         const val = v.value;
         if (k === "food_limits") {
           const parsed = (val && typeof val === "object") ? val as Record<string, number> : {};
-          update.food_limits = canonicaliseFoodLimits({ ...existingLimits, ...parsed });
+          const merged = canonicaliseFoodLimits({ ...existingLimits, ...parsed });
+          update.food_limits = merged;
+          // Food caps (mb_food_limits) are the MB source of truth — mirror the
+          // parsed weekly limits there too, preserving any non-weekly caps.
+          const { data: existingCaps } = await supabase
+            .from("clients")
+            .select("mb_food_limits")
+            .eq("id", clientId)
+            .maybeSingle();
+          const prevCaps = parseMbFoodLimits((existingCaps as { mb_food_limits?: unknown } | null)?.mb_food_limits);
+          const nonWeekly = prevCaps.filter((r) => r.type !== "weekly");
+          const weekly = Object.entries(merged).map(([food, max]) => {
+            const prior = prevCaps.find((r) => r.type === "weekly" && r.food.trim().toLowerCase() === food.toLowerCase());
+            return {
+              id: prior?.id ?? (globalThis.crypto?.randomUUID?.() ?? `${food}-${Date.now()}`),
+              food,
+              type: "weekly" as const,
+              min: prior?.min ?? null,
+              max: Number(max),
+              unit: prior?.unit ?? "count",
+              ...(prior?.note ? { note: prior.note } : {}),
+            };
+          });
+          update.mb_food_limits = [...weekly, ...nonWeekly];
           continue;
         }
         // Coerce numeric fields
