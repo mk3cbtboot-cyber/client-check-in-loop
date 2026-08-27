@@ -678,6 +678,10 @@ export default function ClientPortal() {
 
   // Eggs limit/used now sourced from food_limits / food_limit_counts where needed.
   const waterTarget = Number(client.water_target_litres ?? 2.5) || 2.5;
+  const lastMealLoggedLabel = client.last_meal_logged_at
+    ? formatDistanceToNow(new Date(client.last_meal_logged_at), { addSuffix: true })
+    : "No meals yet";
+
 
   // My Plan categories — uses practitioner-customised list when set, otherwise defaults.
   const planCategories = (() => {
