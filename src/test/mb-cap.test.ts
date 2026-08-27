@@ -231,8 +231,8 @@ describe("planRunAgainstLedger — eggs capped at 4/week, 2-egg breakfast", () =
   it("ledgerRowsForRun returns exactly what a confirm would write", () => {
     const rows = ledgerRowsForRun(run("2026-08-03"), plan, limits, {}, {}, { anchor });
     expect(rows).toEqual([
-      { week_start: "2026-08-03", day: "2026-08-03", meal: "breakfast", food: "Eggs", qty: 2 },
-      { week_start: "2026-08-03", day: "2026-08-04", meal: "breakfast", food: "Eggs", qty: 2 },
+      { week_start: "2026-08-03", day: "2026-08-03", meal: "breakfast", food: "Eggs", qty: 2, status: "planned", source: "run" },
+      { week_start: "2026-08-03", day: "2026-08-04", meal: "breakfast", food: "Eggs", qty: 2, status: "planned", source: "run" },
     ]);
   });
 
