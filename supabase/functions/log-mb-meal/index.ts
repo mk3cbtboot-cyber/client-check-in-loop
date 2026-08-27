@@ -142,16 +142,21 @@ Deno.serve(async (req) => {
       const { week_start } = weekWindowFor(anchor ? anchor.slice(0, 10) : null, todayIsoLedger);
       const recipeId = (insertedRecipe as { id: string } | null)?.id ?? null;
 
-      const { data: plannedRows } = await admin
+      // All rows for today's slot, planned first — matching an already-eaten
+      // row (a re-log of the same meal) updates it instead of adding a second
+      // debit for the same food.
+      const { data: slotRows } = await admin
         .from("mb_cap_ledger")
-        .select("id, food, qty")
+        .select("id, food, qty, status")
         .eq("client_id", c.id)
         .eq("day", todayIsoLedger)
         .eq("meal", meal_type)
-        .eq("status", "planned");
+        .in("status", ["planned", "eaten"]);
 
       const nrm = (s: string) => String(s ?? "").trim().toLowerCase();
-      const available = [...((plannedRows ?? []) as Array<{ id: string; food: string; qty: number }>)];
+      const available = [...((slotRows ?? []) as Array<{ id: string; food: string; qty: number; status: string }>)]
+        .sort((a, b) => (a.status === "planned" ? -1 : 0) - (b.status === "planned" ? -1 : 0));
+
 
       for (const [key, uses] of Object.entries(usesByKey)) {
         const k = nrm(key);
