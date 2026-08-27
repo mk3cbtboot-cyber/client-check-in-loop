@@ -743,6 +743,22 @@ export default function ClientPortal() {
         </div>
       </header>
 
+      {tab === "home" && (
+        <section className="max-w-5xl mx-auto p-4 pb-0">
+          <ClientTrackerRow
+            mealStreak={client.meal_streak}
+            waterStreak={client.water_streak ?? 0}
+            waterToday={Number(client.water_today_litres ?? 0)}
+            waterTarget={waterTarget}
+            foodLimits={foodLimits}
+            foodLimitCounts={foodLimitCounts}
+            showLimitTotals={Boolean(client.mb_pdf_path)}
+            lastMealLogged={lastMealLoggedLabel}
+            onAddWater={addWater}
+          />
+        </section>
+      )}
+
 
       {tab === "home" && client.phase === "phase4" && (
         <section className="max-w-3xl mx-auto p-4 pb-0 space-y-4">
