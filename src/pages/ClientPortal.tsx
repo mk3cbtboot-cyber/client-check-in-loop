@@ -47,6 +47,8 @@ interface ClientState {
   water_target_litres?: number | null;
   meal_streak: number;
   water_streak: number;
+  last_meal_logged_at?: string | null;
+
   mb_pdf_path: string | null;
   phase3_additional_foods: string;
   phase3_meat: string;
