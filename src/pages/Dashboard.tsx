@@ -1878,21 +1878,8 @@ export default function Dashboard() {
                     }
                     const foodLimits = (client.food_limits ?? {}) as Record<string, number>;
                     const foodLimitCounts = (client.food_limit_counts ?? {}) as Record<string, number>;
-                    const foodLimitCards = isOwnPractice ? [] : Object.entries(foodLimits)
-                      .filter(([, lim]) => Number(lim) > 0)
-                      .map(([name, lim]) => ({
-                        label: `${name.charAt(0).toUpperCase() + name.slice(1)} / Week`,
-                        value: client.mb_pdf_path
-                          ? `${Number(foodLimitCounts[name] ?? 0)} / ${Number(lim)}`
-                          : `${Number(foodLimitCounts[name] ?? 0)}`,
-                      }));
-                    const stats = [
-                      { label: "Meal Streak", value: `${mealStreak}d` },
-                      { label: "Water Streak", value: `${waterStreak}d` },
-                      { label: "Water Today", value: `${waterToday.toFixed(1)} L` },
-                      ...foodLimitCards,
-                      { label: "Last Meal Logged", value: lastLogged },
-                    ];
+                    const trackerLimits = isOwnPractice ? {} : foodLimits;
+
                     const lastMealText = (() => {
                       if (!lastRecipe) return "No meals logged yet";
                       const d = new Date(lastRecipe.created_at);
