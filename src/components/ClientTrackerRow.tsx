@@ -89,11 +89,11 @@ export default function ClientTrackerRow({
 
 
   if (variant === "compact") {
-    const stats = [
+    const stats: Array<{ label: string; value: string; sub?: string }> = [
       { label: "Meal Streak", value: `${mealStreak}d` },
       { label: "Water Streak", value: `${waterStreak}d` },
       { label: "Water Today", value: `${waterToday.toFixed(1)} L` },
-      ...limitCards.map((c) => ({ label: c.label, value: c.value })),
+      ...limitCards.map((c) => ({ label: c.label, value: c.value, sub: capFold ? c.sub : undefined })),
       { label: "Last Meal Logged", value: lastMealLogged },
     ];
     return (
@@ -102,10 +102,12 @@ export default function ClientTrackerRow({
           <div key={s.label} className="rounded-md border p-2">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
             <p className="text-sm font-semibold truncate">{s.value}</p>
+            {s.sub && <p className="text-[10px] text-muted-foreground truncate">{s.sub}</p>}
           </div>
         ))}
       </div>
     );
+
   }
 
   return (
