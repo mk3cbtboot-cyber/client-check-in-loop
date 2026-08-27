@@ -193,23 +193,44 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Replace this run's days wholesale — re-confirming can never double-count.
+    // Replace this run's days wholesale — but only rows still 'planned'. A row
+    // already flipped to 'eaten' (client logged it, then re-plans the run)
+    // must survive and keep counting, so re-confirming can never double-count
+    // or erase eaten history.
     const { error: delErr } = await admin
       .from("mb_cap_ledger")
       .delete()
       .eq("client_id", c.id)
+      .eq("status", "planned")
       .in("day", days);
     if (delErr) return json({ error: delErr.message }, 500);
 
-    if (result.rows.length > 0) {
+    // An eaten row for the same slot already represents that consumption —
+    // don't re-insert a planned row over it (the unique key forbids it too).
+    const { data: eatenRows } = await admin
+      .from("mb_cap_ledger")
+      .select("day, meal, food")
+      .eq("client_id", c.id)
+      .eq("status", "eaten")
+      .in("day", days);
+    const eatenKeys = new Set(
+      (eatenRows ?? []).map((r) => `${r.day}|${r.meal}|${String(r.food).toLowerCase()}`),
+    );
+    const freshRows = result.rows.filter(
+      (r) => !eatenKeys.has(`${r.day}|${r.meal}|${r.food.toLowerCase()}`),
+    );
+
+    if (freshRows.length > 0) {
       const { error: insErr } = await admin.from("mb_cap_ledger").insert(
-        result.rows.map((r) => ({
+        freshRows.map((r) => ({
           client_id: c.id,
           week_start: r.week_start,
           day: r.day,
           meal: r.meal,
           food: r.food,
           qty: r.qty,
+          status: r.status,
+          source: r.source,
           run_started_on: start,
         })),
       );

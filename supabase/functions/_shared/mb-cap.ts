@@ -232,6 +232,8 @@ export interface CapLedgerRow {
   meal: string;
   food: string;
   qty: number;
+  status: "planned" | "eaten" | "skipped";
+  source: "run" | "log";
 }
 
 export interface CapPlanResult {
@@ -390,7 +392,7 @@ export function planRunAgainstLedger(
 
       for (const [food, qty] of Object.entries(pending)) {
         used[week_start][food] = (used[week_start][food] ?? 0) + qty;
-        result.rows.push({ week_start, day: date, meal, food, qty });
+        result.rows.push({ week_start, day: date, meal, food, qty, status: "planned", source: "run" });
       }
       dayResult.meals.push({ meal, colour, blocked: false });
     }
