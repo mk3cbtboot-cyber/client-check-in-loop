@@ -914,42 +914,6 @@ export default function ClientPortal() {
 
           {client.phase !== "phase4" && !mbRunGateActive && (
             <>
-          {/* Trackers */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {Object.entries(foodLimits)
-              .filter(([, lim]) => Number(lim) > 0)
-              .map(([name, lim]) => {
-                const used = Number(foodLimitCounts[name] ?? 0);
-                const left = Math.max(0, Number(lim) - used);
-                const label = name.charAt(0).toUpperCase() + name.slice(1);
-                return (
-                  <Card key={name} className="p-4">
-                    <p className="text-xs uppercase text-muted-foreground">{label}</p>
-                    <p className="text-2xl font-semibold">
-                      {client.mb_pdf_path ? `${used}/${Number(lim)}` : `${used}`}
-                    </p>
-                    {client.mb_pdf_path && (
-                      <p className="text-xs text-muted-foreground">{left} remaining this week</p>
-                    )}
-                  </Card>
-                );
-              })}
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Water Today</p>
-              <p className="text-2xl font-semibold">{client.water_today_litres.toFixed(2)}L<span className="text-sm text-muted-foreground"> / {waterTarget}L</span></p>
-              <Button size="sm" variant="outline" className="mt-2 w-full" onClick={addWater}>+ Glass (250ml)</Button>
-            </Card>
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Meal Streak</p>
-              <p className="text-2xl font-semibold">{client.meal_streak}</p>
-              <p className="text-xs text-muted-foreground">consecutive meals logged</p>
-            </Card>
-            <Card className="p-4">
-              <p className="text-xs uppercase text-muted-foreground">Water Streak</p>
-              <p className="text-2xl font-semibold">{client.water_streak ?? 0}</p>
-              <p className="text-xs text-muted-foreground">consecutive days on target</p>
-            </Card>
-          </div>
 
 
 
