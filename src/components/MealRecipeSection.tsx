@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { MB_FOODS, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { oilAllowed as oilAllowedFn, type Phase } from "@/lib/phases";
 import { capTallyFor, capBlocksMeal, describeMealBlock, type CapFold } from "@/lib/mb-food-list";
-import { vegQtyOverrides } from "@/lib/mb-plan";
+import { baseKeyForAlt, isVegAltKey, vegQtyOverrides } from "@/lib/mb-plan";
 
 export type LockedRecipe = { recipe_title: string; recipe: string[]; method: string[]; notes: string[] };
 
@@ -335,7 +335,10 @@ export default function MealRecipeSection({
           <p key={i} className="text-sm text-muted-foreground">Fixed: <span className="font-medium text-foreground">{f.label} — {f.qty}</span></p>
         ))}
         {allComponents.map((comp) => {
-          const items = restrictedItems(comp.sources, comp.key, (comp as { items?: string[] }).items);
+          const allItems = restrictedItems(comp.sources, comp.key, (comp as { items?: string[] }).items);
+          // The optional second vegetable must differ from the primary pick.
+          const primaryPick = isVegAltKey(comp.key) ? picks[baseKeyForAlt(comp.key)] : "";
+          const items = primaryPick ? allItems.filter((i) => i !== primaryPick) : allItems;
           const showOilBefore = oilAllow && comp.key === "fruit";
           const eggMeal = !!optionDef.fixed?.some((f) => /egg/i.test(f.label));
           const carbAdd = isLunchCarb(comp.sources, meal) ? lunchCarbBonus : 0;
