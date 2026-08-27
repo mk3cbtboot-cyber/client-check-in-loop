@@ -666,9 +666,13 @@ export type Database = {
           day: string
           food: string
           id: string
+          logged_at: string | null
           meal: string
           qty: number
+          recipe_id: string | null
           run_started_on: string | null
+          source: string
+          status: string
           week_start: string
         }
         Insert: {
@@ -677,9 +681,13 @@ export type Database = {
           day: string
           food: string
           id?: string
+          logged_at?: string | null
           meal: string
           qty?: number
+          recipe_id?: string | null
           run_started_on?: string | null
+          source?: string
+          status?: string
           week_start: string
         }
         Update: {
@@ -688,9 +696,13 @@ export type Database = {
           day?: string
           food?: string
           id?: string
+          logged_at?: string | null
           meal?: string
           qty?: number
+          recipe_id?: string | null
           run_started_on?: string | null
+          source?: string
+          status?: string
           week_start?: string
         }
         Relationships: [
