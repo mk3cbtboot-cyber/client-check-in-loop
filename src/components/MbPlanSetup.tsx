@@ -186,7 +186,7 @@ export function MbPlanSetup({
         return false;
       }
       // Background autosave must NOT force a parent reload: the refreshed props
-      // would land mid-keystroke in the Weekly Food Limits editor.
+      // would land mid-keystroke in the Food caps editor.
       if (notifyParent) onSaved?.();
       return true;
     },
