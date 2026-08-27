@@ -18,7 +18,7 @@ import ClientWelcome from "@/components/ClientWelcome";
 
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS, parseMbFoodLimits } from "@/lib/mb-plan";
-import { resolveMbFoodList, categoryLabel, capTallyFor } from "@/lib/mb-food-list";
+import { resolveMbFoodList, categoryLabel, capTallyFor, capBlocksMeal, describeMealBlock } from "@/lib/mb-food-list";
 import MbRunPlanner from "@/components/MbRunPlanner";
 import MbPhase1Guide from "@/components/MbPhase1Guide";
 import { parseMbRun, resolveDayMeal, runDates, todayISO, fmtQty, RUN_DAYS, RUN_MEALS } from "@/lib/mb-run";
@@ -167,7 +167,6 @@ export default function ClientPortal() {
   const regenCount = slotKey ? (regenCounts[slotKey] ?? 0) : 0;
   const regenLimitReached = regenCount >= 1;
   const [lastIngredients, setLastIngredients] = useState<Array<{ label: string; qty: string }>>([]);
-  const [eggLogConfirm, setEggLogConfirm] = useState<{ idx: number; recipe: RecipeOption; eggsInMeal: number; eggsUsed: number; eggsMax: number } | null>(null);
 
   // Check-in state
   const [feeling, setFeeling] = useState<number>(3);
@@ -473,6 +472,20 @@ export default function ClientPortal() {
 
   const foodLimits = (client?.food_limits ?? {}) as Record<string, number>;
   const capFold = (client?.cap_fold ?? null) as CapFold | null;
+  /** Hard weekly-cap gate for a plan option, shared with the server evaluator. */
+  const mealCapBlock = (opt: { fixed?: { label: string; qty: string }[] } | null | undefined) => {
+    if (!opt) return null;
+    const plannedAllowance: CapFold | null = capFold
+      ? { eaten: {}, planned: {}, committed: capFold.planned ?? {} }
+      : null;
+    const b = capBlocksMeal(
+      (opt.fixed ?? []).map((f) => ({ label: f.label, qty: f.qty })),
+      foodLimits,
+      capFold,
+      plannedAllowance,
+    );
+    return b ? { reason: describeMealBlock(b) } : null;
+  };
   const capWindow = client?.cap_week_start && client?.cap_week_end
     ? { week_start: client.cap_week_start, week_end: client.cap_week_end }
     : null;
@@ -1058,6 +1071,7 @@ export default function ClientPortal() {
                                 extraComponents={buildExtras(opt)}
                                 filteredSources={filteredSources}
                                 onLogged={refetchAll}
+                                blockGeneration={mealCapBlock(opt)}
                                 fullScreenOnSelect
                                 lunchProteinBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
                                 lunchCarbBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
@@ -1073,12 +1087,7 @@ export default function ClientPortal() {
                 return (
                   <div className="space-y-4">
                     {!hidePrimary && primaryOption && (() => {
-                      const eggsMaxInner = Number(foodLimits.eggs ?? 0) || null;
-                      const eggsUsed = capTallyFor(foodLimits.eggs != null ? "eggs" : "egg", capFold).committed;
-                      const eggsExhausted = isSplit && eggsMaxInner != null && eggsMaxInner > 0 && eggsUsed >= eggsMaxInner;
-                      const block = eggsExhausted
-                        ? { reason: `You've used ${eggsUsed} of ${eggsMaxInner} eggs this week — the egg meal is unavailable until next week.` }
-                        : null;
+                      const block = mealCapBlock(primaryOption);
                       return (
                         <MealRecipeSection
                           key={`${meal}-primary`}
@@ -1117,6 +1126,7 @@ export default function ClientPortal() {
                         extraComponents={buildExtras(altOption)}
                         filteredSources={filteredSources}
                         onLogged={refetchAll}
+                        blockGeneration={mealCapBlock(altOption)}
                         lunchProteinBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
                         lunchCarbBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
                       />
