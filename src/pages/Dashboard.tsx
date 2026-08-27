@@ -84,6 +84,7 @@ import { MbPdfImport } from "@/components/MbPdfImport";
 import { MbPlanSetup } from "@/components/MbPlanSetup";
 import MbPlanMirror from "@/components/MbPlanMirror";
 import { getMbPlan, isMbPlanConfirmed, parseMbFoodLimits } from "@/lib/mb-plan";
+import { canonicaliseFoodLimits } from "@/lib/food-limits";
 import { resolveMbFoodList } from "@/lib/mb-food-list";
 
 import { MacrosTab } from "@/components/MacrosTab";
