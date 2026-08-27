@@ -110,8 +110,6 @@ interface Props {
   mbPlan: unknown;
   /** Enriched caps draft (clients.mb_food_limits). */
   mbFoodLimits?: unknown;
-  /** Legacy flat caps (clients.food_limits) — shown read-only for reference. */
-  legacyFoodLimits?: Record<string, number> | null;
   /** Full client row — seeds the Personal Food List from the food_* columns. */
   client?: Record<string, unknown> | null;
   onSaved?: () => void;
@@ -121,14 +119,12 @@ interface Props {
   phase?: string | null;
   phase3Groups?: Phase2Category[];
   weeklyAcks?: WeeklyAck[];
-  onSaveWeeklyLimits?: (limits: Record<string, number>) => void;
 }
 
 export function MbPlanSetup({
-  clientId, mbPlan, mbFoodLimits, legacyFoodLimits, client, onSaved,
+  clientId, mbPlan, mbFoodLimits, client, onSaved,
   clientName = "This client", phase,
   phase3Groups = [], weeklyAcks = [],
-  onSaveWeeklyLimits,
 }: Props) {
 
 

@@ -2097,7 +2097,6 @@ export default function Dashboard() {
                                 clientId={client.id}
                                 mbPlan={(client as unknown as { mb_plan?: unknown }).mb_plan}
                                 mbFoodLimits={(client as unknown as { mb_food_limits?: unknown }).mb_food_limits}
-                                legacyFoodLimits={client.food_limits ?? {}}
                                 client={client as unknown as Record<string, unknown>}
                                 onSaved={load}
                                 clientName={client.name}
@@ -2108,7 +2107,6 @@ export default function Dashboard() {
                                 })).filter((g) => g.items.length > 0)}
 
                                 weeklyAcks={weeklyAcks[client.id] ?? []}
-                                onSaveWeeklyLimits={(next) => saveWeeklyFoodLimits(client.id, next)}
                               />
                             )}
 
