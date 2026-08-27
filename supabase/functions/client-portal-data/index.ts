@@ -113,7 +113,18 @@ Deno.serve(async (req) => {
       phase4Appointments = (appts ?? []) as typeof phase4Appointments;
     }
 
+    // Most recent logged meal (drives the "Last Meal Logged" tracker card).
+    const { data: lastMealRow } = await admin
+      .from("recipes")
+      .select("created_at")
+      .eq("client_id", c.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const lastMealLoggedAt = (lastMealRow as { created_at: string } | null)?.created_at ?? null;
+
     // Recipe Plan assignments — resolve to recipes with portion overrides applied.
+
     let recipeAssignments: Array<{
       id: string;
       meal_slot: string;
