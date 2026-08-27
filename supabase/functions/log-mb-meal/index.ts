@@ -112,10 +112,9 @@ Deno.serve(async (req) => {
     const ledgerUsed = (food: string): number =>
       Math.max(0, capTallyFor(food, capFold).committed - capTallyFor(food, slotPlanned).committed);
 
-    // Enforce hard limits first (non-egg) — selection should have already
-    // prevented this, but block here defensively.
+    // Every weekly cap is a HARD limit — eggs included. Selection-time gates
+    // should have prevented this; this is defence-in-depth.
     for (const [key, uses] of Object.entries(usesByKey)) {
-      if (key.toLowerCase() === "eggs" || key.toLowerCase() === "egg") continue; // eggs use the confirm flow below
       const max = Number(foodLimits[key]);
       const used = ledgerUsed(key);
       if (used + uses > max) {
@@ -125,20 +124,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Egg confirm flow (kept compatible with existing client UI).
     const eggsMax = Number(foodLimits.eggs ?? foodLimits.egg ?? 0) || null;
     let eggsUsedThisWeek = ledgerUsed(foodLimits.eggs != null ? "eggs" : "egg");
-    if (eggsMax != null && eggsMax > 0) {
-      if (!force && eggsInMeal > 0 && eggsUsedThisWeek + eggsInMeal > eggsMax) {
-        return new Response(JSON.stringify({
-          requires_confirmation: true,
-          reason: "eggs_over_limit",
-          eggs_in_meal: eggsInMeal,
-          eggs_used_this_week: eggsUsedThisWeek,
-          eggs_max_per_week: eggsMax,
-        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-    }
+
 
     const { data: insertedRecipe, error: insErr } = await admin.from("recipes").insert({
       client_id: c.id,
