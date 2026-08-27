@@ -116,6 +116,20 @@ export function capFoodFor(item: CapItem, pick?: string | null): string {
 }
 
 /**
+ * The pick id of an item's optional second vegetable, or null.
+ * Mirror of vegAltIdFor in src/lib/mb-plan.ts — keep the two in sync.
+ * The second veg is a variety split of the SAME allowance (no extra portion),
+ * but it is still a real food, so it must be counted against weekly caps.
+ */
+export function vegAltIdFor(item: CapItem | null | undefined): string | null {
+  const cat = String(item?.category ?? "");
+  if (!item?.id) return null;
+  if (cat !== "vegetables" && cat !== "vegLettuce") return null;
+  if (item.optional === true) return null;
+  return `${item.id}-alt`;
+}
+
+/**
  * True when a weekly-capped food cannot cover every day of the run at the
  * item's per-meal quantity.
  */
