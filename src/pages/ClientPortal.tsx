@@ -745,7 +745,66 @@ export default function ClientPortal() {
   const phase4CheckinHidden = client.phase === "phase4" && !phase4CheckinState.inWindow;
   const fmtDate = (d: Date) => d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
 
-
+  /** "I ate this" from the nudge card — routes to this client's existing logger. */
+  const logPendingSlot = async (p: PendingLog) => {
+    try {
+      if (client.client_type === "custom" && client.plan_format === "recipe") {
+        if (!p.assignment_id) throw new Error("No recipe assigned for this meal");
+        const { data, error } = await supabase.functions.invoke("log-recipe-meal", {
+          body: { token, assignment_id: p.assignment_id },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+      } else if (client.client_type === "custom") {
+        const items = (client.food_list ?? {})[p.slot] ?? [];
+        const { data, error } = await supabase.functions.invoke("log-foodlist-meal", {
+          body: {
+            token,
+            slot_key: p.slot,
+            recipe: {
+              recipe_title: p.label,
+              recipe: items.map((i) => (i.portion ? `${i.name} — ${i.portion}` : i.name)),
+              method: [],
+              notes: [],
+            },
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+      } else {
+        const r = parseMbRun((client as any).mb_run);
+        const sugg = getMbPlan(client as any).suggestions;
+        const mealType = p.slot as MealType;
+        const { items, picks, suggestion } = resolveDayMeal(r, sugg, p.date, mealType);
+        const ingredients = items.map((it) => ({
+          label: it.category === "fixed" ? it.label : (picks[it.id] || categoryLabel(it.category)),
+          qty: fmtQty(it) || "as planned",
+        }));
+        if (!ingredients.length) throw new Error("This meal isn't set up yet");
+        const { data, error } = await supabase.functions.invoke("log-mb-meal", {
+          body: {
+            token,
+            meal_type: mealType,
+            option_label: suggestion?.label ?? "Planned meal",
+            ingredients,
+            recipe: {
+              recipe_title: `${p.label} — ${suggestion?.label ?? "planned"}`,
+              recipe: ingredients.map((i) => `${i.label} — ${i.qty}`),
+              method: [],
+              notes: [],
+            },
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+      }
+      toast.success("Meal logged");
+      await refresh();
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to log meal");
+      throw e;
+    }
+  };
 
   return (
     <main className="min-h-screen bg-background pb-24">
