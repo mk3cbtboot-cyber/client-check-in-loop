@@ -529,19 +529,8 @@ export function MbPlanSetup({
                     value={row.food}
                     onChange={(e) => setLimit(row.id, { food: e.target.value })}
                   />
-                  <Select
-                    value={row.type}
-                    onValueChange={(v) => setLimit(row.id, { type: v as MbLimitType })}
-                  >
-                    <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="per_day">Per day</SelectItem>
-                      <SelectItem value="combination">Combination</SelectItem>
-                    </SelectContent>
-                  </Select>
                   <Button
-                    type="button" variant="ghost" size="icon" className="h-8 w-8"
+                    type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0"
                     aria-label="Remove cap"
                     onClick={() => mutateLimits((rows) => rows.filter((r) => r.id !== row.id))}
                   >
@@ -551,14 +540,7 @@ export function MbPlanSetup({
 
                 <div className="flex gap-1.5">
                   <Input
-                    className="h-8 w-20 text-xs" type="number" inputMode="decimal" placeholder="Min"
-                    value={row.min ?? ""}
-                    onChange={(e) =>
-                      setLimit(row.id, { min: e.target.value === "" ? null : Number(e.target.value) })
-                    }
-                  />
-                  <Input
-                    className="h-8 w-20 text-xs" type="number" inputMode="decimal" placeholder="Max"
+                    className="h-8 w-24 text-xs" type="number" inputMode="decimal" placeholder="Max / week"
                     value={row.max ?? ""}
                     onChange={(e) =>
                       setLimit(row.id, { max: e.target.value === "" ? null : Number(e.target.value) })
@@ -572,21 +554,7 @@ export function MbPlanSetup({
                   />
                 </div>
 
-                {row.type === "combination" && (
-                  <Input
-                    className="h-8 text-xs"
-                    placeholder="Combines with (comma separated)"
-                    value={(row.combines_with ?? []).join(", ")}
-                    onChange={(e) =>
-                      setLimit(row.id, {
-                        combines_with: e.target.value
-                          .split(",")
-                          .map((s) => s.trim())
-                          .filter(Boolean),
-                      })
-                    }
-                  />
-                )}
+
 
                 <Input
                   className="h-8 text-xs"
