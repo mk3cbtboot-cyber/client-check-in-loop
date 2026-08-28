@@ -1,4 +1,5 @@
 
+import { PlanInstructions } from "@/components/PlanInstructions";
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,6 +119,7 @@ interface ClientState {
   meals_per_day?: number;
   recipe_assignments?: RecipeAssignment[];
   food_exclusions?: string[] | null;
+  plan_instructions?: unknown;
   keys_to_success?: string | null;
   digestion_protocol?: string | null;
   recommended_supplements?: string | null;
@@ -1442,6 +1444,7 @@ export default function ClientPortal() {
                   Your assigned recipes appear on the Home tab. Use it to choose a recipe and log what you ate.
                 </Card>
               )}
+              <PlanInstructions instructions={client.plan_instructions} />
               {Array.isArray(client.food_exclusions) && client.food_exclusions.length > 0 && (
                 <Card className="p-4">
                   <p className="font-medium mb-2">Foods to avoid</p>
@@ -1633,6 +1636,7 @@ export default function ClientPortal() {
 
 
 
+              <PlanInstructions instructions={client.plan_instructions} />
               {Array.isArray(client.food_exclusions) && client.food_exclusions.length > 0 && (
                 <Card className="p-4">
                   <p className="font-medium mb-2">Foods to avoid</p>
