@@ -114,34 +114,7 @@ function GeneratedSlotSection({
   const [regenCount, setRegenCount] = useState(0);
   const [loggingIdx, setLoggingIdx] = useState<number | null>(null);
   const [fullScreenIdx, setFullScreenIdx] = useState<number | null>(null);
-  const [veg2, setVeg2] = useState<string | null>(slotSelection.veg2 ?? null);
-  const [savingVeg2, setSavingVeg2] = useState(false);
   const regenLimitReached = regenCount >= 1;
-
-  const vegFoods = selectedFoods.filter(({ cat }) => cat === "veg").map(({ food }) => food);
-  const primaryVegKey = slotSelection.veg ?? (vegFoods[0] ? foodKey(vegFoods[0]) : null);
-  const veg2Choices = vegFoods.filter((f) => foodKey(f) !== primaryVegKey);
-
-  const chooseVeg2 = async (key: string) => {
-    const next = veg2 === key ? null : key;
-    const prev = veg2;
-    setVeg2(next);
-    setSavingVeg2(true);
-    try {
-      const payload = { ...slotSelection, veg: primaryVegKey ?? null, veg2: next };
-      const { data, error } = await supabase.functions.invoke("save-food-selections", {
-        body: { token, slot_key: slotKey, selections: payload },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      onSelectionsSaved?.({ ...allSelections, [slotKey]: payload });
-    } catch (e: unknown) {
-      setVeg2(prev);
-      toast.error(e instanceof Error ? e.message : "Failed to save");
-    } finally {
-      setSavingVeg2(false);
-    }
-  };
 
   const generate = async () => {
     if (!hasAnySelected) return;
