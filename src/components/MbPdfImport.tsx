@@ -209,6 +209,14 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       setMealSwapNote(response.mealSwapNote ?? null);
       setTreatMealNote(response.treatMealNote ?? null);
       setCombinationRules(response.combinationRules ?? []);
+      setInstructions([
+        ...Object.entries(response.foodNotes ?? {})
+          .filter(([, v]) => typeof v === "string" && v.trim().length > 0)
+          .map(([k, v]) => makeInstruction(String(v), "parsed", LABELS[k] ?? k)),
+        ...(response.mealSwapNote ? [makeInstruction(response.mealSwapNote, "parsed", "Meal swaps")] : []),
+        ...(response.treatMealNote ? [makeInstruction(response.treatMealNote, "parsed", "Treat meal")] : []),
+        ...(response.combinationRules ?? []).map((t) => makeInstruction(t, "parsed", "Food combinations")),
+      ]);
       if (response.needsReview) {
         // Log low-confidence extractions so patterns across documents are visible.
         console.warn("[MbPdfImport] low-confidence extraction", {
