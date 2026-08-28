@@ -510,7 +510,7 @@ export function MbPlanSetup({
                 onClick={() =>
                   mutateLimits((rows) => [
                     ...rows,
-                    { id: uid(), food: "", type: "weekly", min: null, max: null, unit: "count" },
+                    { id: uid(), food: "", type: "weekly", max: null, unit: "count" },
                   ])
                 }
               >
