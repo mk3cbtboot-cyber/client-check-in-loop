@@ -151,22 +151,18 @@ export function parseMbFoodLimits(raw: unknown): MbFoodLimit[] {
       const o = r as Record<string, unknown>;
       const food = typeof o.food === "string" ? o.food.trim() : "";
       if (!food) return null;
-      const type: MbLimitType =
-        o.type === "per_day" || o.type === "combination" ? o.type : "weekly";
       const num = (v: unknown) =>
         typeof v === "number" && Number.isFinite(v) ? v : null;
       return {
         id: typeof o.id === "string" && o.id ? o.id : `limit-${i}`,
         food,
-        type,
-        min: num(o.min),
+        // Legacy per_day / combination rows were never evaluated; read as weekly.
+        type: "weekly",
         max: num(o.max),
         unit: typeof o.unit === "string" ? o.unit : undefined,
-        combines_with: Array.isArray(o.combines_with)
-          ? (o.combines_with as unknown[]).map(String)
-          : undefined,
         note: typeof o.note === "string" ? o.note : undefined,
       };
+
     })
     .filter((l): l is MbFoodLimit => l !== null);
 }
