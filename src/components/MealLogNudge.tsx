@@ -72,8 +72,8 @@ export default function MealLogNudge({ pending, onLog }: Props) {
             <li key={k} className="flex items-center justify-between gap-3 text-sm">
               <span>
                 {retro
-                  ? `Yesterday's ${p.label.toLowerCase()} wasn't logged`
-                  : `You haven't logged ${p.label.toLowerCase()} yet`}
+                  ? `Yesterday's ${p.label} wasn't logged`
+                  : `You haven't logged ${p.label} yet`}
                 {p.prepped && (
                   <span className="text-muted-foreground"> · you prepped this</span>
                 )}
