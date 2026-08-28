@@ -97,6 +97,8 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
   const [foodNotes, setFoodNotes] = useState<Record<string, string>>({});
   const [mealSwapNote, setMealSwapNote] = useState<string | null>(null);
   const [treatMealNote, setTreatMealNote] = useState<string | null>(null);
+  const [combinationRules, setCombinationRules] = useState<string[]>([]);
+
   const [confirmedFlags, setConfirmedFlags] = useState(false);
   const [confirmedRules, setConfirmedRules] = useState(false);
 
