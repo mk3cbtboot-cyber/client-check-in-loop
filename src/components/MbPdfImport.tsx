@@ -172,6 +172,8 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         needsReview?: boolean; validation?: string[]; debug?: Record<string, unknown>;
         fieldFlags?: Record<string, FieldFlag>; parseFailures?: string[];
         foodNotes?: Record<string, string>; mealSwapNote?: string | null; treatMealNote?: string | null;
+        combinationRules?: string[];
+
       };
       if (response.error || !response.fields) {
         const detail = [
