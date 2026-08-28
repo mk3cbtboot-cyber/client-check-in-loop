@@ -35,6 +35,7 @@ import FoodListGeneratedClientHome from "@/components/FoodListGeneratedClientHom
 import FoodListGeneratedMyPlan from "@/components/FoodListGeneratedMyPlan";
 import RecipePlanClientHome, { type RecipeAssignment } from "@/components/RecipePlanClientHome";
 import ClientTrackerRow from "@/components/ClientTrackerRow";
+import MealLogNudge, { type PendingLog } from "@/components/MealLogNudge";
 import type { CapFold } from "@/lib/mb-food-list";
 import { formatDistanceToNow } from "date-fns";
 
