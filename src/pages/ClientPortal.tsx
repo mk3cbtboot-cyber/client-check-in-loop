@@ -19,7 +19,7 @@ import ClientWelcome from "@/components/ClientWelcome";
 
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS, parseMbFoodLimits, vegQtyOverrides } from "@/lib/mb-plan";
-import { resolveMbFoodList, categoryLabel, capTallyFor, capBlocksMeal, describeMealBlock } from "@/lib/mb-food-list";
+import { resolveMbFoodList, categoryLabel, capTallyFor, capBlocksMeal, describeMealBlock, weeklyCapFor } from "@/lib/mb-food-list";
 import MbRunPlanner from "@/components/MbRunPlanner";
 import MbPhase1Guide from "@/components/MbPhase1Guide";
 import { parseMbRun, resolveDayMeal, runDates, todayISO, fmtQty, RUN_DAYS, RUN_MEALS } from "@/lib/mb-run";
@@ -1719,7 +1719,7 @@ export default function ClientPortal() {
               filteredSources={filteredSources}
               mealOptions={resolvedOptions}
               weeklyFoodLimits={foodLimits}
-              eggsMaxPerWeek={Number(foodLimits.eggs ?? 0) || null}
+              eggsMaxPerWeek={weeklyCapFor("eggs", parseMbFoodLimits((client as any).mb_food_limits), foodLimits)}
               onPlanChanged={(p) => setWeeklyPlan(p)}
               oilAllowed={oilAllowed(client.phase)}
               batchCookingMode={client.batch_cooking_mode ?? "3-day"}
