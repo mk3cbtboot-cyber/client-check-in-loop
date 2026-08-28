@@ -1185,11 +1185,21 @@ function mergeLimit(out: Record<string, number>, key: string | null, max: number
 /**
  * Extract every weekly frequency rule expressed in the text, in any of the
  * phrasings MB documents use:
- *   "2 avocados per week", "no more than three times a week" (subject before),
- *   "eat potatoes with eggs only twice per week".
+ *   "2 avocados per week", "no more than three times a week" (subject before).
+ *
+ * Combination rules ("eat potatoes with eggs only twice per week") are NOT
+ * caps: the limit applies to the pairing, not to the food on its own, and caps
+ * are hard blocks. Those sentences are pushed into `combos` instead, to be
+ * surfaced verbatim as plan instructions.
  */
-function parseFoodLimits(text: string): Record<string, number> {
+const COMBO_RE = /\b(?:with|together with|combined with|alongside|plus)\b/i;
+
+function parseFoodLimits(text: string, combos?: string[]): Record<string, number> {
   const out: Record<string, number> = {};
+  const noteCombo = (sentence: string) => {
+    const s = sentence.replace(/\s+/g, " ").trim();
+    if (s.length > 8 && combos && !combos.includes(s)) combos.push(s);
+  };
 
   // Pattern A: "<N|word> <food> per week" / "<N> <food> a week"
   const reA = /(\d+|[a-z]+)\s*(?:[-–]\s*(\d+))?\s+([A-Za-z][A-Za-z\- ]{1,40}?)\s+(?:per|a|each)\s*week/gi;
@@ -1199,6 +1209,7 @@ function parseFoodLimits(text: string): Record<string, number> {
     const hi = m[2] ? parseInt(m[2], 10) : null;
     const max = hi ?? lo;
     if (max == null) continue;
+    if (COMBO_RE.test(m[3])) { noteCombo(m[0]); continue; }
     mergeLimit(out, limitKey(m[3]), max);
   }
 
@@ -1208,6 +1219,7 @@ function parseFoodLimits(text: string): Record<string, number> {
   while ((m = reB.exec(text)) !== null) {
     const max = numFrom(m[2]);
     if (max == null) continue;
+    if (COMBO_RE.test(m[0])) { noteCombo(m[0]); continue; }
     mergeLimit(out, limitKey(m[1]), max);
   }
 
@@ -1217,6 +1229,7 @@ function parseFoodLimits(text: string): Record<string, number> {
   while ((m = reC.exec(text)) !== null) {
     const max = numFrom(m[2]);
     if (max == null) continue;
+    if (COMBO_RE.test(m[0])) { noteCombo(m[0]); continue; }
     mergeLimit(out, limitKey(m[1]), max);
   }
 
@@ -1225,6 +1238,7 @@ function parseFoodLimits(text: string): Record<string, number> {
   if (eggs.eggs_max_per_week) mergeLimit(out, "egg", eggs.eggs_max_per_week);
   return out;
 }
+
 
 /**
  * Per-client meal-swap adjustment ("you may swap lunch and dinner…") and
