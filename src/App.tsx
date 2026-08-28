@@ -11,7 +11,6 @@ import CheckIn from "./pages/CheckIn";
 import ClientPortal from "./pages/ClientPortal";
 import Onboarding from "./pages/Onboarding";
 import OAuthConsent from "./pages/OAuthConsent";
-import Unsubscribe from "./pages/Unsubscribe";
 import NotFound from "./pages/NotFound.tsx";
 
 
@@ -34,7 +33,6 @@ const App = () => (
           <Route path="/checkin/:token" element={<CheckIn />} />
           <Route path="/portal/:token" element={<ClientPortal />} />
           <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
-          <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="*" element={<NotFound />} />
 
         </Routes>

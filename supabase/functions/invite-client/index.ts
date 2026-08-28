@@ -1,6 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 import { z } from "https://esm.sh/zod@3.23.8";
+import { sendTemplateEmail } from "../_shared/transactional-email-templates/send-email.ts";
+import { logEmailSend } from "../_shared/email-send-log.ts";
 
 const BodySchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -107,26 +109,34 @@ Deno.serve(async (req) => {
 
       const clientFirstName = (name.trim().split(/\s+/)[0] || "there");
 
+      const messageId = `client-invite-${client.id}-${Date.now()}`;
       try {
-        const { data: emailRes, error: fnErr } = await admin.functions.invoke("send-transactional-email", {
-          body: {
-            templateName: "client-invite",
-            recipientEmail: email,
-            idempotencyKey: `client-invite-${client.id}-${Date.now()}`,
-            templateData: {
-              client_first_name: clientFirstName,
-              practitioner_name: practitionerName,
-              portal_url: link,
-            },
+        const result = await sendTemplateEmail("client-invite", email, {
+          idempotencyKey: messageId,
+          templateData: {
+            client_first_name: clientFirstName,
+            practitioner_name: practitionerName,
+            portal_url: link,
           },
         });
-        if (fnErr) throw fnErr;
-        if (emailRes?.error) throw new Error(String(emailRes.error));
-        emailSent = Boolean(emailRes?.queued);
-        if (!emailSent) emailError = emailRes?.suppressed ? "Recipient address is suppressed" : "Email was not queued";
+        emailSent = result.sent;
+        if (!emailSent) emailError = "Recipient address is suppressed";
+        await logEmailSend(admin, {
+          message_id: messageId,
+          template_name: "client-invite",
+          recipient_email: email,
+          status: result.sent ? "sent" : "suppressed",
+        });
       } catch (err: any) {
         emailError = err?.message ?? "Failed to send invite email";
         console.error("invite-client: invite email failed", { clientId: client.id, email, error: err });
+        await logEmailSend(admin, {
+          message_id: messageId,
+          template_name: "client-invite",
+          recipient_email: email,
+          status: "failed",
+          error_message: String(emailError).slice(0, 1000),
+        });
       }
     }
 

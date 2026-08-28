@@ -1,6 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 import { z } from "https://esm.sh/zod@3.23.8";
+import { sendTemplateEmail } from "../_shared/transactional-email-templates/send-email.ts";
+import { logEmailSend } from "../_shared/email-send-log.ts";
 
 const rating = z.number().int().min(1).max(5).optional();
 
@@ -88,19 +90,33 @@ Deno.serve(async (req) => {
         .eq("id", client.practitioner_id)
         .maybeSingle();
       if (prof?.email) {
-        await admin.functions.invoke("send-transactional-email", {
-          body: {
-            templateName: "checkin-notification",
-            recipientEmail: prof.email,
-            idempotencyKey: `checkin-notify-${checkIn.id}`,
+        const messageId = `checkin-notify-${checkIn.id}`;
+        try {
+          const result = await sendTemplateEmail("checkin-notification", prof.email, {
+            idempotencyKey: messageId,
             templateData: {
               clientName: client.name,
               feeling: rest.feeling ?? null,
               waterLitres: rest.water_litres ?? null,
               notes: notes || "",
             },
-          },
-        });
+          });
+          await logEmailSend(admin, {
+            message_id: messageId,
+            template_name: "checkin-notification",
+            recipient_email: prof.email,
+            status: result.sent ? "sent" : "suppressed",
+          });
+        } catch (sendErr) {
+          console.warn("Notification email failed (non-fatal):", sendErr);
+          await logEmailSend(admin, {
+            message_id: messageId,
+            template_name: "checkin-notification",
+            recipient_email: prof.email,
+            status: "failed",
+            error_message: String(sendErr instanceof Error ? sendErr.message : sendErr).slice(0, 1000),
+          });
+        }
       }
     } catch (emailErr) {
       console.warn("Notification email failed (non-fatal):", emailErr);

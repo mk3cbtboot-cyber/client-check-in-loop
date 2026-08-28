@@ -9,7 +9,6 @@ import {
   Head,
   Heading,
   Html,
-  Link,
   Preview,
   Text,
 } from 'npm:@react-email/components@0.0.22'
@@ -24,30 +23,23 @@ export const MagicLinkEmail = ({
   confirmationUrl,
 }: MagicLinkEmailProps) => (
   <Html lang="en" dir="ltr">
-    <Head />
-    <Preview>Your {siteName} sign-in link</Preview>
+    <Head>
+      <style>{darkModeCss}</style>
+    </Head>
+    <Preview>Your login link for {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Your {siteName} sign-in link</Heading>
+        <Heading style={h1}>Your login link</Heading>
         <Text style={text}>
-          Here is your secure sign-in link for {siteName}.
+          Click the button below to log in to {siteName}. This link will expire
+          shortly.
         </Text>
-        <Text style={text}>
-          Sign in using the button below. For your security, this link will expire soon.
-        </Text>
-        <Button style={button} href={confirmationUrl}>
-          Sign in to {siteName}
+        <Button className="dm-btn" style={button} href={confirmationUrl}>
+          Log In
         </Button>
-        <Text style={fallback}>
-          If the button does not work, copy and paste this link into your browser:{' '}
-          <Link href={confirmationUrl} style={link}>
-            {confirmationUrl}
-          </Link>
-        </Text>
         <Text style={footer}>
-          If you did not request this link, you can ignore this email.
+          If you didn't request this link, you can safely ignore this email.
         </Text>
-        <Text style={signoff}>The {siteName} team</Text>
       </Container>
     </Body>
   </Html>
@@ -69,20 +61,21 @@ const text = {
   lineHeight: '1.5',
   margin: '0 0 25px',
 }
-const fallback = {
-  fontSize: '14px',
-  color: '#55575d',
-  lineHeight: '1.5',
-  margin: '0 0 15px',
-}
-const link = { color: 'inherit', textDecoration: 'underline', wordBreak: 'break-all' as const }
 const button = {
   backgroundColor: '#000000',
   color: '#ffffff',
   fontSize: '14px',
+  border: '1px solid #000000',
   borderRadius: '8px',
   padding: '12px 20px',
   textDecoration: 'none',
 }
-const footer = { fontSize: '14px', color: '#55575d', lineHeight: '1.5', margin: '0 0 15px' }
-const signoff = { fontSize: '14px', color: '#55575d', lineHeight: '1.5', margin: '0' }
+const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
+// Rendered as a text child, which React may HTML-escape: keep this CSS free of >, &, and quotes.
+const darkModeCss = `
+  @media (prefers-color-scheme: dark) {
+    .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+  }
+  [data-ogsc] .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+  [data-ogsb] .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+`

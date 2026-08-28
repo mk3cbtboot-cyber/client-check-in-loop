@@ -23,30 +23,38 @@ interface SignupEmailProps {
 
 export const SignupEmail = ({
   siteName,
+  siteUrl,
+  recipient,
   confirmationUrl,
 }: SignupEmailProps) => (
   <Html lang="en" dir="ltr">
-    <Head />
+    <Head>
+      <style>{darkModeCss}</style>
+    </Head>
     <Preview>Confirm your email for {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Welcome to {siteName}</Heading>
+        <Heading style={h1}>Confirm your email</Heading>
         <Text style={text}>
-          Confirm your email address to finish setting up your account.
-        </Text>
-        <Button style={button} href={confirmationUrl}>
-          Confirm email address
-        </Button>
-        <Text style={fallback}>
-          If the button does not work, copy and paste this link into your browser:{' '}
-          <Link href={confirmationUrl} style={link}>
-            {confirmationUrl}
+          Thanks for signing up for{' '}
+          <Link href={siteUrl} style={link}>
+            <strong>{siteName}</strong>
           </Link>
+          !
         </Text>
+        <Text style={text}>
+          Please confirm your email address (
+          <Link href={`mailto:${recipient}`} style={link}>
+            {recipient}
+          </Link>
+          ) by clicking the button below:
+        </Text>
+        <Button className="dm-btn" style={button} href={confirmationUrl}>
+          Verify Email
+        </Button>
         <Text style={footer}>
-          If you did not create a {siteName} account, you can ignore this email.
+          If you didn't create an account, you can safely ignore this email.
         </Text>
-        <Text style={signoff}>The {siteName} team</Text>
       </Container>
     </Body>
   </Html>
@@ -68,20 +76,22 @@ const text = {
   lineHeight: '1.5',
   margin: '0 0 25px',
 }
-const fallback = {
-  fontSize: '14px',
-  color: '#55575d',
-  lineHeight: '1.5',
-  margin: '0 0 15px',
-}
-const link = { color: 'inherit', textDecoration: 'underline', wordBreak: 'break-all' as const }
+const link = { color: 'inherit', textDecoration: 'underline' }
 const button = {
   backgroundColor: '#000000',
   color: '#ffffff',
   fontSize: '14px',
+  border: '1px solid #000000',
   borderRadius: '8px',
   padding: '12px 20px',
   textDecoration: 'none',
 }
-const footer = { fontSize: '14px', color: '#55575d', lineHeight: '1.5', margin: '0 0 15px' }
-const signoff = { fontSize: '14px', color: '#55575d', lineHeight: '1.5', margin: '0' }
+const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
+// Rendered as a text child, which React may HTML-escape: keep this CSS free of >, &, and quotes.
+const darkModeCss = `
+  @media (prefers-color-scheme: dark) {
+    .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+  }
+  [data-ogsc] .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+  [data-ogsb] .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+`

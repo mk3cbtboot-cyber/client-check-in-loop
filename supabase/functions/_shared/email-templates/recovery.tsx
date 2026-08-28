@@ -9,7 +9,6 @@ import {
   Head,
   Heading,
   Html,
-  Link,
   Preview,
   Text,
 } from 'npm:@react-email/components@0.0.22'
@@ -24,30 +23,24 @@ export const RecoveryEmail = ({
   confirmationUrl,
 }: RecoveryEmailProps) => (
   <Html lang="en" dir="ltr">
-    <Head />
-    <Preview>Reset your {siteName} password</Preview>
+    <Head>
+      <style>{darkModeCss}</style>
+    </Head>
+    <Preview>Reset your password for {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Reset your {siteName} password</Heading>
+        <Heading style={h1}>Reset your password</Heading>
         <Text style={text}>
-          We received a request to reset the password for your {siteName} account.
+          We received a request to reset your password for {siteName}. Click
+          the button below to choose a new password.
         </Text>
-        <Text style={text}>
-          Choose a new password using the button below. For your security, this link will expire soon.
-        </Text>
-        <Button style={button} href={confirmationUrl}>
-          Reset password
+        <Button className="dm-btn" style={button} href={confirmationUrl}>
+          Reset Password
         </Button>
-        <Text style={fallback}>
-          If the button does not work, copy and paste this link into your browser:{' '}
-          <Link href={confirmationUrl} style={link}>
-            {confirmationUrl}
-          </Link>
-        </Text>
         <Text style={footer}>
-          If you did not request a password reset, you can ignore this email. Your password will stay the same.
+          If you didn't request a password reset, you can safely ignore this
+          email. Your password will not be changed.
         </Text>
-        <Text style={signoff}>The {siteName} team</Text>
       </Container>
     </Body>
   </Html>
@@ -69,20 +62,21 @@ const text = {
   lineHeight: '1.5',
   margin: '0 0 25px',
 }
-const fallback = {
-  fontSize: '14px',
-  color: '#55575d',
-  lineHeight: '1.5',
-  margin: '0 0 15px',
-}
-const link = { color: 'inherit', textDecoration: 'underline', wordBreak: 'break-all' as const }
 const button = {
   backgroundColor: '#000000',
   color: '#ffffff',
   fontSize: '14px',
+  border: '1px solid #000000',
   borderRadius: '8px',
   padding: '12px 20px',
   textDecoration: 'none',
 }
-const footer = { fontSize: '14px', color: '#55575d', lineHeight: '1.5', margin: '0 0 15px' }
-const signoff = { fontSize: '14px', color: '#55575d', lineHeight: '1.5', margin: '0' }
+const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
+// Rendered as a text child, which React may HTML-escape: keep this CSS free of >, &, and quotes.
+const darkModeCss = `
+  @media (prefers-color-scheme: dark) {
+    .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+  }
+  [data-ogsc] .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+  [data-ogsb] .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+`
