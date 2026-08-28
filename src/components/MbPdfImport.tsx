@@ -330,21 +330,20 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
             .eq("id", clientId)
             .maybeSingle();
           const prevCaps = parseMbFoodLimits((existingCaps as { mb_food_limits?: unknown } | null)?.mb_food_limits);
-          const nonWeekly = prevCaps.filter((r) => r.type !== "weekly");
           const weekly = Object.entries(merged).map(([food, max]) => {
-            const prior = prevCaps.find((r) => r.type === "weekly" && r.food.trim().toLowerCase() === food.toLowerCase());
+            const prior = prevCaps.find((r) => r.food.trim().toLowerCase() === food.toLowerCase());
             return {
               id: prior?.id ?? (globalThis.crypto?.randomUUID?.() ?? `${food}-${Date.now()}`),
               food,
               type: "weekly" as const,
-              min: prior?.min ?? null,
               max: Number(max),
               unit: prior?.unit ?? "count",
               ...(prior?.note ? { note: prior.note } : {}),
             };
           });
-          update.mb_food_limits = [...weekly, ...nonWeekly];
+          update.mb_food_limits = weekly;
           continue;
+
         }
         // Coerce numeric fields
         const numericKeys = new Set([
