@@ -451,6 +451,13 @@ export function MbPlanSetup({
 
           <MbPersonalFoodList clientId={clientId} client={client} phase={phase} onSaved={onSaved} />
 
+          <PlanInstructionsEditor
+            clientId={clientId}
+            value={(client as { plan_instructions?: unknown } | null)?.plan_instructions}
+            onSaved={onSaved}
+          />
+
+
 
           {phase === "phase3" && phase3Groups.length > 0 && (
             <div className="rounded-lg border p-3 space-y-3">
