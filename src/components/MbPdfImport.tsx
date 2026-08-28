@@ -115,6 +115,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
     setFoodNotes({});
     setMealSwapNote(null);
     setTreatMealNote(null);
+    setCombinationRules([]);
     setConfirmedFlags(false);
     setConfirmedRules(false);
     setReviewOpen(false);
@@ -196,6 +197,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       setFoodNotes(response.foodNotes ?? {});
       setMealSwapNote(response.mealSwapNote ?? null);
       setTreatMealNote(response.treatMealNote ?? null);
+      setCombinationRules(response.combinationRules ?? []);
       if (response.needsReview) {
         // Log low-confidence extractions so patterns across documents are visible.
         console.warn("[MbPdfImport] low-confidence extraction", {
