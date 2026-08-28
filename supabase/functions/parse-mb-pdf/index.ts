@@ -407,8 +407,9 @@ function parseFoodSection(
     }
     const cleanRules = rules
       .map((r) => stripClientName(stripTrailingArtifacts(r), clientNames) ?? "")
-      .map((r) => r.trim())
+      .map((r) => stripBannerArtifacts(r))
       .filter((r) => r.length > 0 && !isLetterSpacedRun(r));
+
     // A rule printed next to a category row is not necessarily about that
     // category ("…1 eggs and a maximum of 5 eggs per week" sat under Legumes).
     // Route by the rule's actual subject when it names a different food.
