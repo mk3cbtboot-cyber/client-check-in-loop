@@ -1,4 +1,5 @@
-import { makeInstruction, mergeInstructions, parsePlanInstructions } from "@/lib/plan-instructions";
+import { makeInstruction, mergeInstructions, parsePlanInstructions, type PlanInstruction } from "@/lib/plan-instructions";
+import PlanInstructionsEditor from "@/components/PlanInstructionsEditor";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
