@@ -7,6 +7,8 @@ project_id = "mzwsjiuwctmlioloqswj"
     verify_jwt = false
   [functions.client-messages]
     verify_jwt = false
+  [functions.client-portal-ack-instructions]
+    verify_jwt = false
   [functions.generate-foodlist-recipe]
     verify_jwt = false
   [functions.handle-email-unsubscribe]
