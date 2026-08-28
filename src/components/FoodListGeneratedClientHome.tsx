@@ -184,36 +184,6 @@ function GeneratedSlotSection({
               </ul>
             </div>
 
-            {veg2Choices.length > 0 && (
-              <div className="space-y-2 border-t pt-3">
-                <p className="text-xs uppercase text-muted-foreground tracking-wide">Second vegetable (optional)</p>
-                <p className="text-xs text-muted-foreground">
-                  Pick another vegetable for variety. This does not add an extra portion, and leaving it blank is fine.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {veg2Choices.map((f) => {
-                    const key = foodKey(f);
-                    const selected = veg2 === key;
-                    return (
-                      <button
-                        type="button"
-                        key={key}
-                        disabled={savingVeg2}
-                        onClick={() => chooseVeg2(key)}
-                        className={cn(
-                          "text-left rounded-md border p-3 transition-colors disabled:opacity-60",
-                          selected ? "border-primary bg-primary/10 ring-1 ring-primary" : "border-input hover:bg-accent",
-                        )}
-                      >
-                        <p className="text-sm font-medium">{stripEstimated(f.name)}</p>
-                        {f.portion && <p className="text-xs text-muted-foreground">{f.portion}</p>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             {note && (
               <p className="text-xs text-muted-foreground border-t pt-2">
                 <span className="font-medium text-foreground">Note: </span>{note}
