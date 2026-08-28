@@ -1770,6 +1770,8 @@ Deno.serve(async (req) => {
       foodNotes,
       mealSwapNote: mealRules.meal_swap,
       treatMealNote: mealRules.treat_meal,
+      combinationRules,
+
       fieldFlags,
       parseFailures,
 
