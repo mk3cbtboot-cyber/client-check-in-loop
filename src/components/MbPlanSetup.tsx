@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -140,7 +140,7 @@ export function MbPlanSetup({
   const dirty = useRef(false);
 
   /** Legacy flat caps stored on clients.food_limits. */
-  const existingFlatLimits = useMemo(() => {
+  const existingFlatLimits = useMemo<Record<string, number>>(() => {
     const raw = (client as { food_limits?: unknown } | null | undefined)?.food_limits;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {} as Record<string, number>;
     const out: Record<string, number> = {};
@@ -155,7 +155,7 @@ export function MbPlanSetup({
   const seedLimits = useCallback((): MbFoodLimit[] => {
     const parsed = parseMbFoodLimits(mbFoodLimits);
     if (parsed.length > 0) return parsed;
-    return Object.entries(existingFlatLimits).map(([food, max], i) => ({
+    return Object.entries(existingFlatLimits).map(([food, max]: [string, number], i) => ({
       id: `legacy-${i}-${food}`,
       food,
       type: "weekly" as const,
@@ -209,7 +209,7 @@ export function MbPlanSetup({
           ...projected,
         }) as never;
       }
-      const { error } = await supabase.from("clients").update(update).eq("id", clientId);
+      const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
       setSaving(false);
       if (error) {
         toast.error(`Not saved: ${error.message}`);
