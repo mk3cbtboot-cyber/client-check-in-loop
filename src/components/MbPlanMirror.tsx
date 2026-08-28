@@ -14,6 +14,7 @@ import {
 } from "@/components/MbSuggestionBoard";
 import MbPhase1Guide from "@/components/MbPhase1Guide";
 import { PlanInstructions } from "@/components/PlanInstructions";
+import PlanInstructionsAckStatus from "@/components/PlanInstructionsAckStatus";
 
 const dayLabel = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
@@ -116,6 +117,11 @@ export function MbPlanMirror({
         <MbSuggestionsBoard suggestions={suggestions} />
         <MbFoodListReadonly foodList={foodList} phase={phase} client={client} />
         <PlanInstructions instructions={client?.plan_instructions} />
+      <PlanInstructionsAckStatus
+        instructions={client?.plan_instructions}
+        ackedHash={(client as { plan_instructions_acked_hash?: string | null } | null)?.plan_instructions_acked_hash ?? null}
+        ackedAt={(client as { plan_instructions_acked_at?: string | null } | null)?.plan_instructions_acked_at ?? null}
+      />
       </Card>
     );
   }
@@ -252,6 +258,11 @@ export function MbPlanMirror({
 
       <MbFoodListReadonly foodList={foodList} phase={phase} client={client} />
       <PlanInstructions instructions={client?.plan_instructions} />
+      <PlanInstructionsAckStatus
+        instructions={client?.plan_instructions}
+        ackedHash={(client as { plan_instructions_acked_hash?: string | null } | null)?.plan_instructions_acked_hash ?? null}
+        ackedAt={(client as { plan_instructions_acked_at?: string | null } | null)?.plan_instructions_acked_at ?? null}
+      />
     </Card>
   );
 }
