@@ -1,0 +1,1 @@
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS plan_instructions jsonb NOT NULL DEFAULT '[]'::jsonb;

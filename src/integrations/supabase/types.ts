@@ -298,6 +298,7 @@ export type Database = {
           phase3_vegetables: string
           phase4_start_date: string | null
           plan_format: string
+          plan_instructions: Json
           practitioner_id: string
           practitioner_last_read_at: string | null
           practitioner_notes: string
@@ -411,6 +412,7 @@ export type Database = {
           phase3_vegetables?: string
           phase4_start_date?: string | null
           plan_format?: string
+          plan_instructions?: Json
           practitioner_id: string
           practitioner_last_read_at?: string | null
           practitioner_notes?: string
@@ -524,6 +526,7 @@ export type Database = {
           phase3_vegetables?: string
           phase4_start_date?: string | null
           plan_format?: string
+          plan_instructions?: Json
           practitioner_id?: string
           practitioner_last_read_at?: string | null
           practitioner_notes?: string
