@@ -266,6 +266,8 @@ Deno.serve(async (req) => {
         meals_per_day: Number(c.meals_per_day ?? 3),
         recipe_assignments: recipeAssignments,
         food_exclusions: Array.isArray(c.food_exclusions) ? c.food_exclusions : null,
+        plan_instructions: Array.isArray(c.plan_instructions) ? c.plan_instructions : [],
+
         keys_to_success: typeof c.keys_to_success === "string" && c.keys_to_success.trim().length > 0 ? c.keys_to_success : null,
         digestion_protocol: typeof c.digestion_protocol === "string" && c.digestion_protocol.trim().length > 0 ? c.digestion_protocol : null,
         recommended_supplements: typeof c.recommended_supplements === "string" && c.recommended_supplements.trim().length > 0 ? c.recommended_supplements : null,
