@@ -826,6 +826,12 @@ export default function ClientPortal() {
         </div>
       </header>
 
+      {tab === "home" && pendingLogs.length > 0 && (
+        <section className="max-w-5xl mx-auto p-4 pb-0">
+          <MealLogNudge pending={pendingLogs} onLog={logPendingSlot} />
+        </section>
+      )}
+
       {tab === "home" && (
         <section className="max-w-5xl mx-auto p-4 pb-0">
           <ClientTrackerRow
