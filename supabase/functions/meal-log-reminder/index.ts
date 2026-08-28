@@ -136,30 +136,38 @@ Deno.serve(async (req) => {
     }
 
     try {
-      const { data: res, error: fnErr } = await admin.functions.invoke("send-transactional-email", {
-        body: {
-          templateName: "meal-log-reminder",
-          recipientEmail: c.email,
-          idempotencyKey,
-          templateData: {
-            client_first_name: String(c.name ?? "").trim().split(/\s+/)[0] || "there",
-            missed_meals: missedMeals,
-            portal_url: `${portalBase}/portal/${c.magic_token}`,
-          },
+      const result = await sendTemplateEmail("meal-log-reminder", c.email, {
+        idempotencyKey,
+        templateData: {
+          client_first_name: String(c.name ?? "").trim().split(/\s+/)[0] || "there",
+          missed_meals: missedMeals,
+          portal_url: `${portalBase}/portal/${c.magic_token}`,
         },
       });
-      if (fnErr) throw fnErr;
-      if (res?.error) throw new Error(String(res.error));
-      if (res?.queued) sent++;
+      if (result.sent) sent++;
+      // Keeps the once-per-day dedupe read above working.
+      await logEmailSend(admin, {
+        message_id: idempotencyKey,
+        template_name: "meal-log-reminder",
+        recipient_email: c.email,
+        status: result.sent ? "sent" : "suppressed",
+      });
       results.push({
         client_id: c.id,
         tz,
-        queued: Boolean(res?.queued),
-        suppressed: Boolean(res?.suppressed),
+        sent: result.sent,
+        suppressed: !result.sent,
         missed_meals: missedMeals,
       });
     } catch (err) {
       console.error("meal-log-reminder: send failed", { clientId: c.id, err });
+      await logEmailSend(admin, {
+        message_id: idempotencyKey,
+        template_name: "meal-log-reminder",
+        recipient_email: c.email,
+        status: "failed",
+        error_message: String(err instanceof Error ? err.message : err).slice(0, 1000),
+      });
       results.push({ client_id: c.id, tz, error: String(err) });
     }
   }
