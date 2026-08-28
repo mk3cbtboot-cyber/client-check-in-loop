@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
+import PlanInstructionsAckStatus from "@/components/PlanInstructionsAckStatus";
 import {
   makeInstruction,
   parsePlanInstructions,
@@ -24,6 +25,9 @@ interface Props {
   className?: string;
   title?: string;
   description?: string;
+  /** Practitioner accountability: client's last acknowledgement. */
+  ackedHash?: string | null;
+  ackedAt?: string | null;
 }
 
 /**
@@ -36,6 +40,8 @@ export default function PlanInstructionsEditor({
   onChange,
   onSaved,
   className = "",
+  ackedHash,
+  ackedAt,
   title = "Plan instructions",
   description = "Free-text guidance shown to the client on their My Plan tab. Not enforced.",
 }: Props) {
@@ -94,6 +100,12 @@ export default function PlanInstructionsEditor({
             {saving && <Loader2 className="inline h-3 w-3 ml-2 animate-spin text-muted-foreground" />}
           </p>
           <p className="text-xs text-muted-foreground">{description}</p>
+          <PlanInstructionsAckStatus
+            className="mt-1"
+            instructions={items}
+            ackedHash={ackedHash}
+            ackedAt={ackedAt}
+          />
         </div>
         <Button
           type="button"

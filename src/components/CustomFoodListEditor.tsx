@@ -125,6 +125,8 @@ interface Props {
   planFormat?: "food_list" | "food_list_generated";
   /** Raw clients.plan_instructions jsonb. */
   initialPlanInstructions?: unknown;
+  planInstructionsAckedHash?: string | null;
+  planInstructionsAckedAt?: string | null;
   macros?: MacroSet | null;
   macroAllocation?: MacroAllocation | null;
   onGoToMacros?: () => void;
@@ -150,7 +152,7 @@ export async function estimateFoodMacros(name: string, portion: string, category
   }
 }
 
-export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialNotesStale, initialMealsPerDay, planFormat, initialPlanInstructions, macros, macroAllocation, onGoToMacros, onClientPatched }: Props) {
+export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialNotesStale, initialMealsPerDay, planFormat, initialPlanInstructions, planInstructionsAckedHash, planInstructionsAckedAt, macros, macroAllocation, onGoToMacros, onClientPatched }: Props) {
   const [list, setList] = useState<FoodList>(() => normalizeList(initialList));
   const [notes, setNotes] = useState<FoodListNotes>(() => normalizeNotes(initialNotes));
   const [notesStale, setNotesStale] = useState<Record<string, boolean>>(() => normalizeStale(initialNotesStale));
@@ -291,7 +293,7 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
           allocation={macroAllocation}
         />
       )}
-      <PlanInstructionsEditor clientId={clientId} value={initialPlanInstructions} />
+      <PlanInstructionsEditor clientId={clientId} value={initialPlanInstructions} ackedHash={planInstructionsAckedHash} ackedAt={planInstructionsAckedAt} />
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">Meal Plan</h3>
         <span className="text-xs text-muted-foreground">Meal Plan</span>

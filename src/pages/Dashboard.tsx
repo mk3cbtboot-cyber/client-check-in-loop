@@ -2467,6 +2467,8 @@ export default function Dashboard() {
                                   initialMealsPerDay={(client as unknown as { meals_per_day?: number }).meals_per_day ?? 3}
                                   planFormat={client.plan_format as "food_list" | "food_list_generated"}
                                   initialPlanInstructions={(client as unknown as { plan_instructions?: unknown }).plan_instructions}
+                                  planInstructionsAckedHash={(client as unknown as { plan_instructions_acked_hash?: string | null }).plan_instructions_acked_hash ?? null}
+                                  planInstructionsAckedAt={(client as unknown as { plan_instructions_acked_at?: string | null }).plan_instructions_acked_at ?? null}
                                   macros={(client as unknown as { macros?: { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null }).macros ?? null}
                                   macroAllocation={(client as unknown as { macro_allocation?: Record<string, { calories: number; protein_g: number; carbs_g: number; fat_g: number }> | null }).macro_allocation ?? null}
                                   onGoToMacros={() => {
