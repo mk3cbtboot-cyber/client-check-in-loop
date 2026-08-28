@@ -375,6 +375,30 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       // so Starch / ml portions are not lost through the legacy flat fields.
       update.mb_plan = mbPlanFromParsedOptions(mealOptions);
       update.food_exclusions = foodExclusions && foodExclusions.length ? foodExclusions : null;
+
+      // Free-text guidance from the document → client-visible plan instructions.
+      // Merged into whatever is already stored so practitioner-authored entries
+      // and previously imported ones survive a re-import.
+      const incoming = [
+        ...Object.entries(foodNotes)
+          .filter(([, v]) => v && v.trim().length > 0)
+          .map(([k, v]) => makeInstruction(v, "parsed", FIELD_LABELS[k] ?? k)),
+        ...(mealSwapNote ? [makeInstruction(mealSwapNote, "parsed", "Meal swaps")] : []),
+        ...(treatMealNote ? [makeInstruction(treatMealNote, "parsed", "Treat meal")] : []),
+        ...combinationRules.map((t) => makeInstruction(t, "parsed", "Food combinations")),
+      ];
+      if (incoming.length) {
+        const { data: existingPi } = await supabase
+          .from("clients")
+          .select("plan_instructions")
+          .eq("id", clientId)
+          .maybeSingle();
+        const prior = parsePlanInstructions(
+          (existingPi as { plan_instructions?: unknown } | null)?.plan_instructions,
+        );
+        update.plan_instructions = mergeInstructions(prior, incoming);
+      }
+
       const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
 
       if (error) throw error;
