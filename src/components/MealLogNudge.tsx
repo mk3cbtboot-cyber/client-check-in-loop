@@ -40,10 +40,17 @@ export default function MealLogNudge({ pending, onLog }: Props) {
 
   const handleLog = async (p: PendingLog) => {
     const k = keyOf(p);
+    // Optimistic: drop the row immediately, restore it if the log fails.
     setBusy(k);
+    setLogged((s) => new Set(s).add(k));
     try {
       await onLog(p);
-      setLogged((s) => new Set(s).add(k));
+    } catch {
+      setLogged((s) => {
+        const next = new Set(s);
+        next.delete(k);
+        return next;
+      });
     } finally {
       setBusy(null);
     }

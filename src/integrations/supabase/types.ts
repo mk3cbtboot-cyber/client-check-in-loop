@@ -302,6 +302,7 @@ export type Database = {
           practitioner_last_read_at: string | null
           practitioner_notes: string
           recommended_supplements: string | null
+          reminders_enabled: boolean
           show_8_rules: boolean
           show_rules: boolean
           system_mode: string
@@ -414,6 +415,7 @@ export type Database = {
           practitioner_last_read_at?: string | null
           practitioner_notes?: string
           recommended_supplements?: string | null
+          reminders_enabled?: boolean
           show_8_rules?: boolean
           show_rules?: boolean
           system_mode?: string
@@ -526,6 +528,7 @@ export type Database = {
           practitioner_last_read_at?: string | null
           practitioner_notes?: string
           recommended_supplements?: string | null
+          reminders_enabled?: boolean
           show_8_rules?: boolean
           show_rules?: boolean
           system_mode?: string
