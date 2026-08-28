@@ -902,7 +902,7 @@ export default function ClientPortal() {
 
       {tab === "home" && client.client_type === "custom" && (client.plan_format === "food_list" || client.plan_format === "food_list_generated") && (
         <section className="max-w-3xl mx-auto p-4 space-y-6">
-          {client.plan_format === "food_list_generated" ? (
+          {instructionsGate ? instructionsLockCard : client.plan_format === "food_list_generated" ? (
             <FoodListGeneratedClientHome
               token={token!}
               foodList={client.food_list ?? {}}
@@ -924,12 +924,14 @@ export default function ClientPortal() {
 
       {tab === "home" && client.plan_format === "recipe" && client.client_type === "custom" && (
         <section className="max-w-3xl mx-auto p-4 space-y-6">
-          <RecipePlanClientHome
-            token={token!}
-            assignments={client.recipe_assignments ?? []}
-            mealsPerDay={Number(client.meals_per_day ?? 3)}
-            onLogged={refresh}
-          />
+          {instructionsGate ? instructionsLockCard : (
+            <RecipePlanClientHome
+              token={token!}
+              assignments={client.recipe_assignments ?? []}
+              mealsPerDay={Number(client.meals_per_day ?? 3)}
+              onLogged={refresh}
+            />
+          )}
         </section>
       )}
 
