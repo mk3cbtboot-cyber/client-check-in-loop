@@ -16,6 +16,7 @@ import { ArrowDown, ArrowUp, Copy, Loader2, Plus, Trash2, X } from "lucide-react
 import { type MealType } from "@/lib/mb-foods";
 import { canonicaliseFoodLimits } from "@/lib/food-limits";
 import MbPersonalFoodList from "@/components/MbPersonalFoodList";
+import PlanInstructionsEditor from "@/components/PlanInstructionsEditor";
 import {
   AlertDialog,
   AlertDialogAction,
