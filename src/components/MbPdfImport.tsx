@@ -467,12 +467,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
     client_name: "Client name (footer)",
     coach_name: "Coach name (footer)",
   };
-  const FIELD_LABELS: Record<string, string> = Object.fromEntries([
-    ...PHASE2_PROTEIN, ...PHASE2_CARB, ...PHASE3,
-    ["water_target_litres", "Water (litres/day)"],
-    ["eggs_min_per_week", "Eggs min/week"],
-    ["eggs", "Eggs"],
-  ]);
+  const FIELD_LABELS: Record<string, string> = LABELS;
   const openFlags = parseFailures.filter((k) => !fields?.[k]?.extracted);
   const needsConfirm = openFlags.length > 0 || validation.length > 0;
   const rawLimits: unknown = fields?.food_limits?.value ?? null;
