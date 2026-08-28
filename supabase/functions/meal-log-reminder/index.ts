@@ -9,6 +9,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { missedMealSlots } from "../_shared/missed-meals.ts";
+import { sendTemplateEmail } from "../_shared/transactional-email-templates/send-email.ts";
+import { logEmailSend } from "../_shared/email-send-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
