@@ -1,135 +1,56 @@
-# Phase 3 — one weekly-consumption store (`mb_cap_ledger`)
+# Plan instructions: findings + scoped plan
 
-Goal: planning writes ledger rows, logging annotates them, every reader derives its number from that one table. `clients.food_limits` / `mb_food_limits` stay exactly as they are — they define caps, not consumption. `food_limit_counts` is retired.
+## 1. What the parser captures today
 
-MB only. Custom (`own_practice`) clients are untouched everywhere in this plan.
+All of it comes out of `parse-mb-pdf` and is returned to the browser in the parse response:
 
-## 1. Schema change
+| Thing captured | Response field | Shape | Mechanism |
+|---|---|---|---|
+| Per-category preparation / usage rules split out of food-list rows (e.g. "When eating oatmeal…") | `foodNotes` | `Record<categoryField, string>` keyed by client column name (`food_fish`, `food_starch`, `phase3_*`, plus a synthetic `eggs` key) | Generic free text — any long/note-looking fragment inside a category row becomes a note |
+| Frequency / combination rules ("…twice per week", "max 5 eggs per week") | mined out of those same notes into `fields.food_limits` | `Record<foodKey, number>` — a weekly count only | Hardcoded: only a weekly numeric max survives; the "with eggs only" / combination part of the sentence is dropped |
+| Meal-swap note | `mealSwapNote` | single string \| null | Hardcoded regex (`swap/exchange/switch` + a meal word), verbatim sentence |
+| Treat-meal note | `treatMealNote` | single string \| null | Hardcoded regex (`treat/cheat/free meal`), verbatim sentence |
+| Foods not included | `foodExclusions` | `string[]` | Generic list |
+| Eggs min/week, water target | `fields.eggs_min_per_week`, `fields.water_target_litres` | numbers | Hardcoded |
 
-Add three columns to `public.mb_cap_ledger` (all nullable / defaulted, so existing rows stay valid):
+**Critical gap:** `foodNotes`, `mealSwapNote` and `treatMealNote` are **never persisted**. `MbPdfImport.save()` writes `mb_pdf_path`, the flat category fields, `food_limits`, `mb_food_limits`, `mb_meal_options`, `mb_plan`, `food_exclusions` — and nothing else. The notes exist only in React state for the life of the review dialog and are discarded on save. There is no client column holding MB plan instructions (`food_list_notes` is the Custom/Food-List path only; `practitioner_notes` is a private practitioner scratchpad).
 
-```text
-status      text  not null default 'planned'   -- 'planned' | 'eaten' | 'skipped'
-source      text  not null default 'run'       -- 'run' | 'log'
-logged_at   timestamptz                        -- set when status flips to 'eaten'
-recipe_id   uuid                               -- provenance of the log, nullable
-```
+## 2. What the client sees today
 
-Row shape, planned then eaten:
+Nothing from the above. MB portal surfaces (`MbRunPlanner`, `MbSuggestionBoard`, `MbPersonalFoodList`, `MbPlanMirror`) render zero note text — no `note` reference in any of them. `mb_plan` is sent to the portal by `client-portal-data`, and `MbPlanSetup` lets the practitioner type a per-meal note into `mb_plan.suggestions[].meals[].note`, but that note is never displayed anywhere, to anyone. `practitioner_notes` is dashboard-only. `food_list_notes` is displayed only for Custom clients (`CustomFoodListEditor`, `FoodListClientHome`).
 
-```text
-{ client_id, week_start: '2026-08-24', day: '2026-08-26', meal: 'breakfast',
-  food: 'eggs', qty: 2, run_started_on: '2026-08-26',
-  status: 'planned', source: 'run', logged_at: null }
+So: parsed instructions are visible for a few seconds in the review dialog and then vanish; practitioner-typed meal notes are saved but invisible.
 
--- after the client logs that breakfast
-  status: 'eaten', source: 'run', logged_at: '2026-08-26T07:40Z', recipe_id: …
-```
+## 3. Practitioner editing after import
 
-Unplanned eaten food (client logged a recipe containing a capped food with no planned row for that day+meal):
+Not possible. The review dialog shows `mealSwapNote` / `treatMealNote` as read-only `<p>` text and the food notes as a read-only list. Nothing is editable, nothing is stored, and there is no "add an instruction" affordance anywhere for MB clients. The only editable free text that persists is the invisible `mb_plan` meal note and the private `practitioner_notes`.
 
-```text
-{ client_id, week_start: '2026-08-24', day: '2026-08-26', meal: 'lunch',
-  food: 'avocado', qty: 1, run_started_on: null,
-  status: 'eaten', source: 'log', logged_at: …, recipe_id: … }
-```
+## 4. The inert cap fields
 
-The existing unique key `(client_id, day, meal, food)` still holds and is what makes this work: an unplanned row and a planned row for the same slot+food can never coexist — the logger updates the planned row instead of inserting.
+- Type: `MbFoodLimit` in `src/lib/mb-plan.ts` — `{ id, food, type: "weekly"|"per_day"|"combination", min, max, unit?, combines_with?, note? }`; `parseMbFoodLimits` reads them all off `clients.mb_food_limits` (jsonb array).
+- UI: `src/components/MbPlanSetup.tsx` "Food caps" block — type `<Select>` with Weekly / Per day / Combination, a Min input, a Max input, a Unit input, a conditional "Combines with" input, and a Note input.
+- Evaluation: `supabase/functions/_shared/mb-cap.ts` line 74 — `if (!row || row.type !== "weekly" || row.max == null) continue;`. That is the only reader. `min`, `per_day`, `combination` and `combines_with` are read by nothing else in `src/` or `supabase/`. Removing them from the editor is safe.
+- Data today: across all clients, 10 cap rows exist, **0** of type `per_day`/`combination`, **0** with `combines_with`, **1** with a non-null `min`. The PDF import writes `type: "weekly"` only and carries `min` over as `prior?.min ?? null`, so no parsed data populates them.
+- The cap `note` field *is* stored but, like everything else, is never shown to the client.
 
-Constraint to add: `check (status in ('planned','eaten','skipped'))`, `check (source in ('run','log'))`. Index `(client_id, week_start)` for the readers.
+## 5. Scoped plan
 
-Grants unchanged (`select` to `authenticated`, `all` to `service_role`), RLS unchanged.
+### (a) Trim the Food caps editor
+`src/components/MbPlanSetup.tsx` only: drop the type `<Select>` (rows become implicitly weekly), the Min input, and the "Combines with" input. "Add cap" seeds `{ food, type: "weekly", max: null, unit: "count" }`. Keep Food / Max / Unit / Note and the whole weekly-max path untouched.
+`src/lib/mb-plan.ts`: narrow `MbLimitType` to `"weekly"`, drop `min` and `combines_with` from `MbFoodLimit`, and have `parseMbFoodLimits` ignore those keys (existing rows keep working; stale keys in stored jsonb are simply not read). `src/components/MbPdfImport.tsx` stops copying `min`. No change to `mb-cap.ts`, `mb-run`, or `food_limits`.
 
-## 2. Run confirm (`mb-run` confirm)
+### (b) Store and show "Your plan instructions"
+New column `clients.plan_instructions` — jsonb array of `{ id, text, source: "parsed" | "practitioner", origin?: string }`, default `[]`, generic free text, no enforcement (migration + GRANT-free since `clients` already has them).
+- `src/components/MbPdfImport.tsx`: on save, seed `plan_instructions` from `foodNotes` (one entry per category, `origin` = the category label), `mealSwapNote`, and `treatMealNote`, merging with any existing practitioner entries rather than clobbering.
+- `supabase/functions/client-portal-data/index.ts`: add `plan_instructions` to the returned client payload.
+- New `src/components/PlanInstructions.tsx`: a simple card, "Your plan instructions", bulleted list, hidden when empty.
+- `src/pages/ClientPortal.tsx`: render it on the plan tab above the suggestion board (MB) and alongside the food list (Custom), so it is not MB-only.
 
-Almost no change. The delete-then-insert of this run's days stays, with two adjustments:
+### (c) Practitioner editing
+- New `src/components/PlanInstructionsEditor.tsx`: list of rows (textarea + delete), "Add instruction" button, autosave to `clients.plan_instructions`, with parsed entries marked and freely editable.
+- Mount it in `src/components/MbPlanSetup.tsx` (MB) and in `src/components/CustomFoodListEditor.tsx` or the Dashboard client panel (Custom), so both client types get one editor.
 
-- Insert rows with `status: 'planned'`, `source: 'run'`.
-- The wholesale delete must **not** destroy already-eaten history. Change it to `delete … where client_id = … and day in (days) and status = 'planned'`. Rows already flipped to `eaten` (the client ate day 1, then re-plans days 2–3) survive re-confirmation and keep counting.
+### Files touched
+`supabase/migrations/<new>.sql`, `src/lib/mb-plan.ts`, `src/components/MbPlanSetup.tsx`, `src/components/MbPdfImport.tsx`, `supabase/functions/client-portal-data/index.ts`, `src/pages/ClientPortal.tsx`, new `src/components/PlanInstructions.tsx`, new `src/components/PlanInstructionsEditor.tsx`, plus the mount point in `src/pages/Dashboard.tsx` / `CustomFoodListEditor.tsx`.
 
-`ledgerRowsForRun` gains the two literal fields; `planRunAgainstLedger` is unchanged.
-
-## 3. Meal logging (`log-mb-meal`) — the matching step
-
-Today the logger derives `usesByKey` from `clients.food_limits` + ingredient regex. That derivation is kept verbatim (it is the only thing that knows how to read a recipe), but its output is written to the ledger rather than to `food_limit_counts`.
-
-Per logged meal, for each `(food, qty)` in `usesByKey`:
-
-1. **Slot match.** Look for a row `(client_id, day = today, meal = meal_type, status = 'planned')`.
-2. **Food match** within that slot, in order:
-   a. exact normalised equality (`eggs` = `Eggs`);
-   b. the same loose containment `weeklyCapFor` already uses (`f.includes(rk) || rk.includes(f)`), so `egg` matches a planned `eggs` row;
-   c. no match → unplanned.
-3. **Matched** → `update status='eaten', logged_at=now(), recipe_id=…`, and set `qty` to the logged quantity **only when it differs** (the egg case: planned 2, cooked 3 → row becomes qty 3, eaten). Planned qty is a forecast; eaten qty is truth.
-4. **Unmatched** → insert an `eaten` / `source='log'` row with `week_start = weekWindowFor(anchor, today).week_start`. On unique-key conflict (a planned row for the same food existed under a different meal-name spelling) fall back to the update path.
-5. Planned rows for days that have passed with no log are left `planned` — they still count against the cap (the client committed to them). A later phase could add a nightly sweep to `skipped`; not in scope.
-
-Egg-count case: `countEggsInRecipe` is unchanged and supplies the qty for the `eggs` key, so "3 eggs cooked against a planned 2" is recorded as 3 and the cap sees 3.
-
-Substring risk: matching is scoped to one `(day, meal)` slot with at most a handful of rows, so the loose match can't collide across meals the way a global map can.
-
-## 4. Readers — what each shows afterwards
-
-All read `mb_cap_ledger` for the current window (`weekWindowFor(phase2_strict_started_at, today).week_start`), returned by the edge functions so no client re-derives it.
-
-| Reader | Number shown | Definition |
-|---|---|---|
-| Portal card (`ClientTrackerRow`) | `used / cap`, `remaining` | used = **sum of qty for planned + eaten** in the window. This is "committed", which is the only number that matches what the run gate will let them do next. Card sub-line changes to "X eaten, Y planned". |
-| Run gate (`planRunAgainstLedger`) | blocked / remaining | unchanged semantics: `cap − sum(qty of planned+eaten)`, still excluding the run being edited (excluded by `day`, as today). |
-| Practitioner tracker (`Dashboard.tsx:1866`) | same as portal | same fold, compact variant. Practitioner also gets the eaten/planned split in the MB mirror. |
-| AI assistant (`client-messages`) | "Used this week" | switch to the ledger fold, phrased explicitly: "eaten: {…}, planned: {…}, remaining: {…}". |
-
-One shared fold helper in `_shared/mb-cap.ts` (`foldLedger(rows) → { eaten, planned, committed }`) used by every server reader, mirrored to the browser through the existing `src/lib/mb-food-list.ts` re-export.
-
-**Decision needed (A):** portal card = *committed* (planned+eaten) or *eaten only*? I recommend committed, so the card never disagrees with the gate. Eaten-only is more literal ("what I've actually had") but will read lower than the allowance the gate enforces.
-
-## 5. Retiring `food_limit_counts`
-
-Reads/writes today: written in `log-mb-meal` (increment) and reset lazily every UTC Monday in `client-portal-data:60`; read in `client-portal-data` (portal payload), `ClientPortal.tsx:472`, `Dashboard.tsx:1866`, `client-messages:202,591`, and `log-mb-meal`'s own enforcement.
-
-Migration:
-
-1. Backfill — for each MB client with non-empty `food_limit_counts`, insert one `eaten` / `source='log'` row per food into the **current** window, `day = today`, `meal = 'unknown'`, qty = the count. Coarse but correct in total; history before this week is not reconstructable and is not needed (caps are weekly). Requires relaxing `meal` to allow `'unknown'` — it is free text, so no change needed.
-2. Flip readers to the ledger (phase 5 below).
-3. Stop writing the column and delete the Monday reset block.
-4. Leave the column in place, unused, for one release; drop it in a follow-up migration.
-
-The Monday reset disappears with the column — window boundaries come from `week_start` on each row.
-
-**Decision needed (B):** backfill into a `meal='unknown'` bucket, or start the ledger clean and accept that in-flight clients get a one-time reset of this week's tallies? Clean start is simpler and self-heals in ≤7 days.
-
-## 6. Week window
-
-Standardise on `weekWindowFor(phase2_strict_started_at, today)` — the Phase-2-anchored rolling 7-day window already used by enforcement. To drop UTC-Monday:
-
-- remove the `mondayOf` reset in `client-portal-data`;
-- `log-mb-meal` computes `week_start` via `weekWindowFor` (it must import the shared module — it currently has its own `mondayOf`, which stays only for the unrelated `weekly_meal_plans` batch-cooking lookup);
-- `client-portal-data` returns `week_start`, `week_end`, and the folded tallies so the portal shows the right dates;
-- the portal card copy changes from "this week" to the window dates when they aren't Mon–Sun.
-
-Fallback when `phase2_strict_started_at` is null is the existing one in `weekWindowFor` (anchor on the date being asked about) — unchanged.
-
-## 7. Enforcement continuity
-
-Both logging-path guards survive, in the same function, reading the ledger instead of the counts map:
-
-- **Hard block (non-egg):** `used + uses > cap` where `used` is the ledger fold **minus any planned row in this same slot for that food** (otherwise a client's own plan blocks them from logging it). Same 400 response, same copy.
-- **Egg `requires_confirmation` override:** unchanged shape (`eggs_in_meal`, `eggs_used_this_week`, `eggs_max_per_week`), with `eggs_used_this_week` from the ledger fold. `force: true` still writes through, and the resulting row records the real qty — so an over-cap confirmed meal is visible in the ledger rather than silently absorbed.
-
-The run-gate backstop in `mb-run confirm` is untouched.
-
-## 8. Phased rollout
-
-1. **Schema** — migration adding `status`, `source`, `logged_at`, `recipe_id`, checks and index. Nothing reads them. Rollback: drop the four columns; the table works as before.
-2. **Writers — plan side** — `mb-run confirm` writes `status/source` and deletes only `planned` rows. Verified by confirming a run and querying rows.
-3. **Writers — log side** — `log-mb-meal` annotates/inserts ledger rows **while still writing `food_limit_counts`** (dual write). Verified by logging a planned meal, an over-plan egg meal and an unplanned capped food, then comparing the ledger fold to the counts map — they should agree.
-4. **Readers** — `foldLedger` + switch portal payload, `ClientTrackerRow`, practitioner tracker, AI context, and both `log-mb-meal` guards to the ledger. Verified side-by-side against the still-live counts map.
-5. **Retire** — remove the `food_limit_counts` write and the Monday reset, run the backfill (or clean start, per decision B). Column dropped in a later release.
-
-Rollback for each phase is a code revert; only phase 1 touches schema and it is purely additive. The dual-write window in phase 3 means phases 3–4 can be reverted independently without losing consumption data.
-
-## Decisions I need
-
-- **A** — portal card shows committed (planned+eaten) or eaten only?
-- **B** — backfill existing `food_limit_counts` into the ledger, or clean start?
-- **C** — should an unlogged planned day eventually flip to `skipped` and free its allowance, or keep counting? (Plan currently: keeps counting, no sweep.)
+No changes to the ledger, caps evaluation, `mb_run`, or email.
