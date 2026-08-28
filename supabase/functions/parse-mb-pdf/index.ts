@@ -196,6 +196,32 @@ function isLetterSpacedRun(s: string): boolean {
   return tokens.filter((t) => t.length === 1).length / tokens.length >= 0.7;
 }
 
+/**
+ * Strip PDF page-banner artifacts from any captured note/instruction text:
+ * letter-spaced ALL-CAPS heading runs ("E X T E N D E D  P H A S E  2 …") and
+ * stray leading page numbers ("7 8 …"). Real prose is left untouched.
+ */
+function stripBannerArtifacts(s: string): string {
+  const tokens = s.replace(/\s+/g, " ").trim().split(" ");
+  const single = (t: string) => t.length === 1 && !/[a-z]/.test(t);
+  const out: string[] = [];
+  let i = 0;
+  while (i < tokens.length) {
+    if (single(tokens[i])) {
+      let j = i;
+      while (j < tokens.length && single(tokens[j])) j++;
+      if (j - i >= 4) { i = j; continue; } // banner run — drop
+    }
+    out.push(tokens[i]);
+    i++;
+  }
+  // Leading page numbers left behind by the banner.
+  while (out.length && /^\d{1,3}$/.test(out[0])) out.shift();
+  return out.join(" ").replace(/^[\s|·®-]+/, "").trim();
+}
+
+
+
 function isNoteFragment(s: string): boolean {
   if (NOTE_START_RE.test(s)) return true;
   if (NOTE_INLINE_RE.test(s)) return true;
@@ -381,8 +407,9 @@ function parseFoodSection(
     }
     const cleanRules = rules
       .map((r) => stripClientName(stripTrailingArtifacts(r), clientNames) ?? "")
-      .map((r) => r.trim())
+      .map((r) => stripBannerArtifacts(r))
       .filter((r) => r.length > 0 && !isLetterSpacedRun(r));
+
     // A rule printed next to a category row is not necessarily about that
     // category ("…1 eggs and a maximum of 5 eggs per week" sat under Legumes).
     // Route by the rule's actual subject when it names a different food.
@@ -1600,7 +1627,7 @@ Deno.serve(async (req) => {
     const mealRules = (() => {
       const clean = (s: string | null) => {
         if (!s) return null;
-        const out = stripFooter(s).replace(/\s{2,}/g, " ").replace(/^[\s|·-]+/, "").trim();
+        const out = stripBannerArtifacts(stripFooter(s)).replace(/\s{2,}/g, " ").replace(/^[\s|·-]+/, "").trim();
         return out.length > 12 ? out : null;
       };
       const scoped = parseMealRules(stripFooter(additionalInfoSection || ""));
