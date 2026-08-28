@@ -7,7 +7,16 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
 import { formatPortionDisplay } from "@/lib/portion";
-import { type FoodItem, categorize, type CategoryKey } from "@/components/FoodSelectionPlanSection";
+import { cn } from "@/lib/utils";
+import {
+  type FoodItem,
+  type CategoryKey,
+  type FoodSelections,
+  type SlotSelection,
+  categorize,
+  foodKey,
+  stripEstimated,
+} from "@/lib/food-categories";
 
 type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
 
@@ -20,10 +29,6 @@ interface RecipeOption {
 
 const ALL_SLOTS: SlotKey[] = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
 
-function stripEstimated(name: string): string {
-  return (name ?? "").replace(/\s*\(estimated\)\s*$/i, "").trim();
-}
-
 function visibleSlotKeys(meals: number): SlotKey[] {
   if (meals === 5) return ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
   if (meals === 4) return ["breakfast", "lunch", "afternoon_snack", "dinner"];
@@ -35,10 +40,20 @@ interface Props {
   foodList: Record<string, FoodItem[]>;
   foodListNotes: Record<string, string>;
   mealsPerDay: number;
+  selections?: FoodSelections;
+  onSelectionsSaved?: (next: FoodSelections) => void;
   onLogged: () => Promise<void> | void;
 }
 
-export default function FoodListGeneratedClientHome({ token, foodList, foodListNotes, mealsPerDay, onLogged }: Props) {
+export default function FoodListGeneratedClientHome({
+  token,
+  foodList,
+  foodListNotes,
+  mealsPerDay,
+  selections,
+  onSelectionsSaved,
+  onLogged,
+}: Props) {
   const slots = ALL_SLOTS.filter((s) => visibleSlotKeys(mealsPerDay).includes(s));
   return (
     <div className="space-y-5">
@@ -60,6 +75,9 @@ export default function FoodListGeneratedClientHome({ token, foodList, foodListN
             selectedFoods={orderedFoods}
             hasAnySelected={orderedFoods.length > 0}
             note={note}
+            slotSelection={selections?.[s] ?? {}}
+            allSelections={selections ?? {}}
+            onSelectionsSaved={onSelectionsSaved}
             onLogged={onLogged}
           />
         );
@@ -75,16 +93,57 @@ interface SectionProps {
   selectedFoods: { cat: CategoryKey; food: FoodItem }[];
   hasAnySelected: boolean;
   note: string;
+  slotSelection: SlotSelection;
+  allSelections: FoodSelections;
+  onSelectionsSaved?: (next: FoodSelections) => void;
   onLogged: () => Promise<void> | void;
 }
 
-function GeneratedSlotSection({ token, slotKey, label, selectedFoods, hasAnySelected, note, onLogged }: SectionProps) {
+function GeneratedSlotSection({
+  token,
+  slotKey,
+  label,
+  selectedFoods,
+  hasAnySelected,
+  note,
+  slotSelection,
+  allSelections,
+  onSelectionsSaved,
+  onLogged,
+}: SectionProps) {
   const [generating, setGenerating] = useState(false);
   const [options, setOptions] = useState<RecipeOption[]>([]);
   const [regenCount, setRegenCount] = useState(0);
   const [loggingIdx, setLoggingIdx] = useState<number | null>(null);
   const [fullScreenIdx, setFullScreenIdx] = useState<number | null>(null);
+  const [veg2, setVeg2] = useState<string | null>(slotSelection.veg2 ?? null);
+  const [savingVeg2, setSavingVeg2] = useState(false);
   const regenLimitReached = regenCount >= 1;
+
+  const vegFoods = selectedFoods.filter(({ cat }) => cat === "veg").map(({ food }) => food);
+  const primaryVegKey = slotSelection.veg ?? (vegFoods[0] ? foodKey(vegFoods[0]) : null);
+  const veg2Choices = vegFoods.filter((f) => foodKey(f) !== primaryVegKey);
+
+  const chooseVeg2 = async (key: string) => {
+    const next = veg2 === key ? null : key;
+    const prev = veg2;
+    setVeg2(next);
+    setSavingVeg2(true);
+    try {
+      const payload = { ...slotSelection, veg: primaryVegKey ?? null, veg2: next };
+      const { data, error } = await supabase.functions.invoke("save-food-selections", {
+        body: { token, slot_key: slotKey, selections: payload },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      onSelectionsSaved?.({ ...allSelections, [slotKey]: payload });
+    } catch (e: unknown) {
+      setVeg2(prev);
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSavingVeg2(false);
+    }
+  };
 
   const generate = async () => {
     if (!hasAnySelected) return;
@@ -145,15 +204,45 @@ function GeneratedSlotSection({ token, slotKey, label, selectedFoods, hasAnySele
             <div className="space-y-1">
               <p className="text-xs uppercase text-muted-foreground">Approved foods</p>
               <ul className="text-sm space-y-1">
-                {selectedFoods.map(({ cat, food }) => (
-                  <li key={cat}>
+                {selectedFoods.map(({ cat, food }, i) => (
+                  <li key={`${cat}-${i}`}>
                     <span className="font-medium">{stripEstimated(food.name)}</span>
                     {food.portion ? <> · {formatPortionDisplay(food.portion, food.name)}</> : null}
-
                   </li>
                 ))}
               </ul>
             </div>
+
+            {veg2Choices.length > 0 && (
+              <div className="space-y-2 border-t pt-3">
+                <p className="text-xs uppercase text-muted-foreground tracking-wide">Second vegetable (optional)</p>
+                <p className="text-xs text-muted-foreground">
+                  Pick another vegetable for variety. This does not add an extra portion, and leaving it blank is fine.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {veg2Choices.map((f) => {
+                    const key = foodKey(f);
+                    const selected = veg2 === key;
+                    return (
+                      <button
+                        type="button"
+                        key={key}
+                        disabled={savingVeg2}
+                        onClick={() => chooseVeg2(key)}
+                        className={cn(
+                          "text-left rounded-md border p-3 transition-colors disabled:opacity-60",
+                          selected ? "border-primary bg-primary/10 ring-1 ring-primary" : "border-input hover:bg-accent",
+                        )}
+                      >
+                        <p className="text-sm font-medium">{stripEstimated(f.name)}</p>
+                        {f.portion && <p className="text-xs text-muted-foreground">{f.portion}</p>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {note && (
               <p className="text-xs text-muted-foreground border-t pt-2">
                 <span className="font-medium text-foreground">Note: </span>{note}
