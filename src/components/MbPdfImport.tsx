@@ -1,3 +1,4 @@
+import { makeInstruction, mergeInstructions, parsePlanInstructions } from "@/lib/plan-instructions";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -97,6 +98,8 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
   const [foodNotes, setFoodNotes] = useState<Record<string, string>>({});
   const [mealSwapNote, setMealSwapNote] = useState<string | null>(null);
   const [treatMealNote, setTreatMealNote] = useState<string | null>(null);
+  const [combinationRules, setCombinationRules] = useState<string[]>([]);
+
   const [confirmedFlags, setConfirmedFlags] = useState(false);
   const [confirmedRules, setConfirmedRules] = useState(false);
 
@@ -113,6 +116,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
     setFoodNotes({});
     setMealSwapNote(null);
     setTreatMealNote(null);
+    setCombinationRules([]);
     setConfirmedFlags(false);
     setConfirmedRules(false);
     setReviewOpen(false);
@@ -172,6 +176,8 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
         needsReview?: boolean; validation?: string[]; debug?: Record<string, unknown>;
         fieldFlags?: Record<string, FieldFlag>; parseFailures?: string[];
         foodNotes?: Record<string, string>; mealSwapNote?: string | null; treatMealNote?: string | null;
+        combinationRules?: string[];
+
       };
       if (response.error || !response.fields) {
         const detail = [
@@ -192,6 +198,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       setFoodNotes(response.foodNotes ?? {});
       setMealSwapNote(response.mealSwapNote ?? null);
       setTreatMealNote(response.treatMealNote ?? null);
+      setCombinationRules(response.combinationRules ?? []);
       if (response.needsReview) {
         // Log low-confidence extractions so patterns across documents are visible.
         console.warn("[MbPdfImport] low-confidence extraction", {
@@ -330,21 +337,20 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
             .eq("id", clientId)
             .maybeSingle();
           const prevCaps = parseMbFoodLimits((existingCaps as { mb_food_limits?: unknown } | null)?.mb_food_limits);
-          const nonWeekly = prevCaps.filter((r) => r.type !== "weekly");
           const weekly = Object.entries(merged).map(([food, max]) => {
-            const prior = prevCaps.find((r) => r.type === "weekly" && r.food.trim().toLowerCase() === food.toLowerCase());
+            const prior = prevCaps.find((r) => r.food.trim().toLowerCase() === food.toLowerCase());
             return {
               id: prior?.id ?? (globalThis.crypto?.randomUUID?.() ?? `${food}-${Date.now()}`),
               food,
               type: "weekly" as const,
-              min: prior?.min ?? null,
               max: Number(max),
               unit: prior?.unit ?? "count",
               ...(prior?.note ? { note: prior.note } : {}),
             };
           });
-          update.mb_food_limits = [...weekly, ...nonWeekly];
+          update.mb_food_limits = weekly;
           continue;
+
         }
         // Coerce numeric fields
         const numericKeys = new Set([
@@ -370,6 +376,30 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       // so Starch / ml portions are not lost through the legacy flat fields.
       update.mb_plan = mbPlanFromParsedOptions(mealOptions);
       update.food_exclusions = foodExclusions && foodExclusions.length ? foodExclusions : null;
+
+      // Free-text guidance from the document → client-visible plan instructions.
+      // Merged into whatever is already stored so practitioner-authored entries
+      // and previously imported ones survive a re-import.
+      const incoming = [
+        ...Object.entries(foodNotes)
+          .filter(([, v]) => v && v.trim().length > 0)
+          .map(([k, v]) => makeInstruction(v, "parsed", FIELD_LABELS[k] ?? k)),
+        ...(mealSwapNote ? [makeInstruction(mealSwapNote, "parsed", "Meal swaps")] : []),
+        ...(treatMealNote ? [makeInstruction(treatMealNote, "parsed", "Treat meal")] : []),
+        ...combinationRules.map((t) => makeInstruction(t, "parsed", "Food combinations")),
+      ];
+      if (incoming.length) {
+        const { data: existingPi } = await supabase
+          .from("clients")
+          .select("plan_instructions")
+          .eq("id", clientId)
+          .maybeSingle();
+        const prior = parsePlanInstructions(
+          (existingPi as { plan_instructions?: unknown } | null)?.plan_instructions,
+        );
+        update.plan_instructions = mergeInstructions(prior, incoming);
+      }
+
       const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
 
       if (error) throw error;
