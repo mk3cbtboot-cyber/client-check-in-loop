@@ -90,19 +90,33 @@ Deno.serve(async (req) => {
         .eq("id", client.practitioner_id)
         .maybeSingle();
       if (prof?.email) {
-        await admin.functions.invoke("send-transactional-email", {
-          body: {
-            templateName: "checkin-notification",
-            recipientEmail: prof.email,
-            idempotencyKey: `checkin-notify-${checkIn.id}`,
+        const messageId = `checkin-notify-${checkIn.id}`;
+        try {
+          const result = await sendTemplateEmail("checkin-notification", prof.email, {
+            idempotencyKey: messageId,
             templateData: {
               clientName: client.name,
               feeling: rest.feeling ?? null,
               waterLitres: rest.water_litres ?? null,
               notes: notes || "",
             },
-          },
-        });
+          });
+          await logEmailSend(admin, {
+            message_id: messageId,
+            template_name: "checkin-notification",
+            recipient_email: prof.email,
+            status: result.sent ? "sent" : "suppressed",
+          });
+        } catch (sendErr) {
+          console.warn("Notification email failed (non-fatal):", sendErr);
+          await logEmailSend(admin, {
+            message_id: messageId,
+            template_name: "checkin-notification",
+            recipient_email: prof.email,
+            status: "failed",
+            error_message: String(sendErr instanceof Error ? sendErr.message : sendErr).slice(0, 1000),
+          });
+        }
       }
     } catch (emailErr) {
       console.warn("Notification email failed (non-fatal):", emailErr);
