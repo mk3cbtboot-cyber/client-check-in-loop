@@ -653,32 +653,14 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
                     </div>
                   )}
 
-                  {noteEntries.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium mb-1">Preparation rules by category</p>
-                      <ul className="text-xs text-muted-foreground space-y-1">
-                        {noteEntries.map(([k, v]) => (
-                          <li key={k}>
-                            <span className="text-foreground">{FIELD_LABELS[k] ?? k}</span>: {v}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  <PlanInstructionsEditor
+                    value={instructions}
+                    onChange={setInstructions}
+                    className="border-0 p-0"
+                    title="Plan instructions"
+                    description="Correct anything mis-parsed or add your own. These are shown to the client on their My Plan tab."
+                  />
 
-                  {mealSwapNote && (
-                    <div>
-                      <p className="text-xs font-medium mb-1">Meal swap</p>
-                      <p className="text-xs text-muted-foreground">{mealSwapNote}</p>
-                    </div>
-                  )}
-
-                  {treatMealNote && (
-                    <div>
-                      <p className="text-xs font-medium mb-1">Treat meal</p>
-                      <p className="text-xs text-muted-foreground">{treatMealNote}</p>
-                    </div>
-                  )}
 
                   <label className="flex items-start gap-2 text-xs pt-1">
                     <Checkbox checked={confirmedRules} onCheckedChange={(c) => setConfirmedRules(!!c)} />
