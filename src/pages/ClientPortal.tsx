@@ -146,6 +146,7 @@ export default function ClientPortal() {
   const [archived, setArchived] = useState(false);
   const [client, setClient] = useState<ClientState | null>(null);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [pendingLogs, setPendingLogs] = useState<PendingLog[]>([]);
 
   // Home/recipe builder state
   const [meal, setMeal] = useState<MealType | null>(null);
