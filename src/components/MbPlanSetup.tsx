@@ -139,13 +139,37 @@ export function MbPlanSetup({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
 
+  /** Legacy flat caps stored on clients.food_limits. */
+  const existingFlatLimits = useMemo(() => {
+    const raw = (client as { food_limits?: unknown } | null | undefined)?.food_limits;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {} as Record<string, number>;
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      const n = Number(v);
+      if (k.trim() !== "" && Number.isFinite(n) && n > 0) out[k.trim().toLowerCase()] = n;
+    }
+    return out;
+  }, [client]);
+
+  /** Seed the caps editor from legacy food_limits when no enriched caps exist yet. */
+  const seedLimits = useCallback((): MbFoodLimit[] => {
+    const parsed = parseMbFoodLimits(mbFoodLimits);
+    if (parsed.length > 0) return parsed;
+    return Object.entries(existingFlatLimits).map(([food, max], i) => ({
+      id: `legacy-${i}-${food}`,
+      food,
+      type: "weekly" as const,
+      max,
+    }));
+  }, [mbFoodLimits, existingFlatLimits]);
+
   // Load the stored draft whenever the dialog opens (never mid-edit).
   useEffect(() => {
     if (open) {
       dirty.current = false;
       setIssues([]);
       setPlan(parseMbPlan(mbPlan) ?? blankPlan());
-      setLimits(parseMbFoodLimits(mbFoodLimits));
+      setLimits(seedLimits());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, clientId]);
@@ -173,14 +197,19 @@ export function MbPlanSetup({
             .map((r) => [r.food.trim().toLowerCase(), Number(r.max)]),
         ),
       );
-      const { error } = await supabase
-        .from("clients")
-        .update({
-          mb_plan: payload as never,
-          mb_food_limits: nextLimits as never,
-          food_limits: projected as never,
-        })
-        .eq("id", clientId);
+      const update: Record<string, unknown> = {
+        mb_plan: payload as never,
+        mb_food_limits: nextLimits as never,
+      };
+      // Never let an empty caps editor wipe existing limits; merge instead of
+      // replacing keys the caps editor doesn't own.
+      if (Object.keys(projected).length > 0) {
+        update.food_limits = canonicaliseFoodLimits({
+          ...existingFlatLimits,
+          ...projected,
+        }) as never;
+      }
+      const { error } = await supabase.from("clients").update(update).eq("id", clientId);
       setSaving(false);
       if (error) {
         toast.error(`Not saved: ${error.message}`);
@@ -191,8 +220,9 @@ export function MbPlanSetup({
       if (notifyParent) onSaved?.();
       return true;
     },
-    [clientId, onSaved],
+    [clientId, onSaved, existingFlatLimits],
   );
+
 
   // Debounced autosave.
   useEffect(() => {
