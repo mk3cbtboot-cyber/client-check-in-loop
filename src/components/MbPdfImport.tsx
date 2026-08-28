@@ -399,14 +399,9 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       // Free-text guidance from the document → client-visible plan instructions.
       // Merged into whatever is already stored so practitioner-authored entries
       // and previously imported ones survive a re-import.
-      const incoming = [
-        ...Object.entries(foodNotes)
-          .filter(([, v]) => v && v.trim().length > 0)
-          .map(([k, v]) => makeInstruction(v, "parsed", FIELD_LABELS[k] ?? k)),
-        ...(mealSwapNote ? [makeInstruction(mealSwapNote, "parsed", "Meal swaps")] : []),
-        ...(treatMealNote ? [makeInstruction(treatMealNote, "parsed", "Treat meal")] : []),
-        ...combinationRules.map((t) => makeInstruction(t, "parsed", "Food combinations")),
-      ];
+      const incoming = instructions
+        .map((i) => ({ ...i, text: i.text.replace(/\s+/g, " ").trim() }))
+        .filter((i) => i.text.length > 0);
       if (incoming.length) {
         const { data: existingPi } = await supabase
           .from("clients")
