@@ -101,33 +101,8 @@ export function daySplitLabel(start: number, end: number): string {
 }
 
 /**
- * Collapse singular/plural duplicates so a food never persists under two keys
- * (e.g. { egg: 5, eggs: 5 } -> { eggs: 5 }). Must run before any write to
- * clients.food_limits. When values differ, the larger limit wins.
+ * Single shared canonicaliser (also used by the MB PDF parser edge function):
+ * plural key wins, more restrictive (lower) value wins.
  */
-export function canonicaliseFoodLimits(limits: FoodLimits | null | undefined): FoodLimits {
-  if (!limits || typeof limits !== "object") return {};
-  const groups = new Map<string, { key: string; value: number }>();
-  for (const [rawKey, rawVal] of Object.entries(limits)) {
-    const key = String(rawKey).trim();
-    if (!key) continue;
-    const value = Number(rawVal);
-    if (!Number.isFinite(value)) continue;
-    const norm = normalize(key);
-    if (!norm) continue;
-    const existing = groups.get(norm);
-    if (!existing) {
-      groups.set(norm, { key, value });
-      continue;
-    }
-    // Prefer the plural spelling as the canonical key; keep the larger limit.
-    const preferNew = /s$/i.test(key) && !/s$/i.test(existing.key);
-    groups.set(norm, {
-      key: preferNew ? key : existing.key,
-      value: Math.max(existing.value, value),
-    });
-  }
-  const out: FoodLimits = {};
-  for (const { key, value } of groups.values()) out[key] = value;
-  return out;
-}
+export { canonicaliseFoodLimits } from "../../supabase/functions/_shared/food-limits-canonical.ts";
+

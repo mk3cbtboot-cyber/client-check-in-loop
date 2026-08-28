@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { canonicaliseFoodLimits } from "../_shared/food-limits-canonical.ts";
 import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
 import { z } from "https://esm.sh/zod@3.23.8";
 
@@ -1184,21 +1185,6 @@ function limitKey(phrase: string): string | null {
 }
 
 /**
- * Final safety net: collapse any singular/plural duplicates in a limits map so
- * a food can never appear twice ("egg: 5" + "eggs: 5" -> "egg: 5").
- * The most restrictive count wins.
- */
-function canonicaliseLimits(limits: Record<string, number>): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(limits)) {
-    const key = singularise(String(k).trim().toLowerCase());
-    if (!key) continue;
-    out[key] = key in out ? Math.min(out[key], v) : v;
-  }
-  return out;
-}
-
-/**
  * Merge a limit into the map. Colliding keys never silently overwrite: the more
  * restrictive (lower) weekly count wins, so two rules about the same food can't
  * cancel each other out depending on document order.
@@ -1262,7 +1248,7 @@ function parseFoodLimits(text: string, combos?: string[]): Record<string, number
 
   // Eggs may also appear as "min N max M eggs" (handled by parseEggs); merge in.
   const eggs = parseEggs(text);
-  if (eggs.eggs_max_per_week) mergeLimit(out, "egg", eggs.eggs_max_per_week);
+  if (eggs.eggs_max_per_week) mergeLimit(out, "eggs", eggs.eggs_max_per_week);
   return out;
 }
 
@@ -1617,8 +1603,16 @@ Deno.serve(async (req) => {
       }
       void field;
     }
+    // eggs max is captured (not dropped) and surfaced through food_limits,
+    // since clients has no eggs_max_per_week column. Set BEFORE canonicalising
+    // so the shared canonicaliser decides the final key ("eggs").
+    if (eggs.eggs_max_per_week != null) {
+      foodLimits.eggs = "eggs" in foodLimits
+        ? Math.min(foodLimits.eggs, eggs.eggs_max_per_week)
+        : eggs.eggs_max_per_week;
+    }
     // Never let the same food appear twice (singular + plural) in the limits.
-    foodLimits = canonicaliseLimits(foodLimits);
+    foodLimits = canonicaliseFoodLimits(foodLimits);
 
 
     // Meal-swap adjustment and treat-meal timing (per-client, verbatim).
@@ -1675,13 +1669,6 @@ Deno.serve(async (req) => {
     for (const k of Object.keys(mealLegacy)) result[k] = buildField(mealLegacy[k], k);
     result.eggs_min_per_week = buildField(eggs.eggs_min_per_week, "eggs_min_per_week");
     result.water_target_litres = buildField(water, "water_target_litres");
-    // eggs max is captured (not dropped) and surfaced through food_limits + extras,
-    // since clients has no eggs_max_per_week / water_target_ml column.
-    if (eggs.eggs_max_per_week != null) {
-      foodLimits.egg = "egg" in foodLimits
-        ? Math.min(foodLimits.egg, eggs.eggs_max_per_week)
-        : eggs.eggs_max_per_week;
-    }
     result.food_limits = { value: foodLimits, extracted: Object.keys(foodLimits).length > 0 };
 
 
