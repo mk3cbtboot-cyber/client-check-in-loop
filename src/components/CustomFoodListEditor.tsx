@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import PlanInstructionsEditor from "@/components/PlanInstructionsEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -122,6 +123,8 @@ interface Props {
   initialNotesStale?: unknown;
   initialMealsPerDay?: number;
   planFormat?: "food_list" | "food_list_generated";
+  /** Raw clients.plan_instructions jsonb. */
+  initialPlanInstructions?: unknown;
   macros?: MacroSet | null;
   macroAllocation?: MacroAllocation | null;
   onGoToMacros?: () => void;
@@ -147,7 +150,7 @@ export async function estimateFoodMacros(name: string, portion: string, category
   }
 }
 
-export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialNotesStale, initialMealsPerDay, planFormat, macros, macroAllocation, onGoToMacros, onClientPatched }: Props) {
+export default function CustomFoodListEditor({ clientId, initialList, initialNotes, initialNotesStale, initialMealsPerDay, planFormat, initialPlanInstructions, macros, macroAllocation, onGoToMacros, onClientPatched }: Props) {
   const [list, setList] = useState<FoodList>(() => normalizeList(initialList));
   const [notes, setNotes] = useState<FoodListNotes>(() => normalizeNotes(initialNotes));
   const [notesStale, setNotesStale] = useState<Record<string, boolean>>(() => normalizeStale(initialNotesStale));
@@ -288,6 +291,7 @@ export default function CustomFoodListEditor({ clientId, initialList, initialNot
           allocation={macroAllocation}
         />
       )}
+      <PlanInstructionsEditor clientId={clientId} value={initialPlanInstructions} />
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">Meal Plan</h3>
         <span className="text-xs text-muted-foreground">Meal Plan</span>

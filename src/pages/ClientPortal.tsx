@@ -1489,6 +1489,7 @@ export default function ClientPortal() {
 
           ) : (
             <>
+              <PlanInstructions instructions={client.plan_instructions} />
               <Card className="p-6 space-y-3">
                 <p className="font-medium">The 8 Metabolic Balance Rules</p>
                 <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
@@ -1636,7 +1637,6 @@ export default function ClientPortal() {
 
 
 
-              <PlanInstructions instructions={client.plan_instructions} />
               {Array.isArray(client.food_exclusions) && client.food_exclusions.length > 0 && (
                 <Card className="p-4">
                   <p className="font-medium mb-2">Foods to avoid</p>

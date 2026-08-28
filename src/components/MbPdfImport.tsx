@@ -1,4 +1,5 @@
-import { makeInstruction, mergeInstructions, parsePlanInstructions } from "@/lib/plan-instructions";
+import { makeInstruction, mergeInstructions, parsePlanInstructions, type PlanInstruction } from "@/lib/plan-instructions";
+import PlanInstructionsEditor from "@/components/PlanInstructionsEditor";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -71,6 +72,13 @@ const PHASE3 = [
   ["phase3_mb_fat_oil", "Fat / Oil"],
 ] as const;
 
+const LABELS: Record<string, string> = Object.fromEntries([
+  ...PHASE2_PROTEIN, ...PHASE2_CARB, ...PHASE3,
+  ["water_target_litres", "Water (litres/day)"],
+  ["eggs_min_per_week", "Eggs min/week"],
+  ["eggs", "Eggs"],
+]);
+
 const MEALS = [
   { key: "breakfast", label: "Breakfast" },
   { key: "lunch", label: "Lunch" },
@@ -99,6 +107,8 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
   const [mealSwapNote, setMealSwapNote] = useState<string | null>(null);
   const [treatMealNote, setTreatMealNote] = useState<string | null>(null);
   const [combinationRules, setCombinationRules] = useState<string[]>([]);
+  const [instructions, setInstructions] = useState<PlanInstruction[]>([]);
+
 
   const [confirmedFlags, setConfirmedFlags] = useState(false);
   const [confirmedRules, setConfirmedRules] = useState(false);
@@ -117,6 +127,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
     setMealSwapNote(null);
     setTreatMealNote(null);
     setCombinationRules([]);
+    setInstructions([]);
     setConfirmedFlags(false);
     setConfirmedRules(false);
     setReviewOpen(false);
@@ -199,6 +210,14 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       setMealSwapNote(response.mealSwapNote ?? null);
       setTreatMealNote(response.treatMealNote ?? null);
       setCombinationRules(response.combinationRules ?? []);
+      setInstructions([
+        ...Object.entries(response.foodNotes ?? {})
+          .filter(([, v]) => typeof v === "string" && v.trim().length > 0)
+          .map(([k, v]) => makeInstruction(String(v), "parsed", LABELS[k] ?? k)),
+        ...(response.mealSwapNote ? [makeInstruction(response.mealSwapNote, "parsed", "Meal swaps")] : []),
+        ...(response.treatMealNote ? [makeInstruction(response.treatMealNote, "parsed", "Treat meal")] : []),
+        ...(response.combinationRules ?? []).map((t) => makeInstruction(t, "parsed", "Food combinations")),
+      ]);
       if (response.needsReview) {
         // Log low-confidence extractions so patterns across documents are visible.
         console.warn("[MbPdfImport] low-confidence extraction", {
@@ -380,14 +399,9 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
       // Free-text guidance from the document → client-visible plan instructions.
       // Merged into whatever is already stored so practitioner-authored entries
       // and previously imported ones survive a re-import.
-      const incoming = [
-        ...Object.entries(foodNotes)
-          .filter(([, v]) => v && v.trim().length > 0)
-          .map(([k, v]) => makeInstruction(v, "parsed", FIELD_LABELS[k] ?? k)),
-        ...(mealSwapNote ? [makeInstruction(mealSwapNote, "parsed", "Meal swaps")] : []),
-        ...(treatMealNote ? [makeInstruction(treatMealNote, "parsed", "Treat meal")] : []),
-        ...combinationRules.map((t) => makeInstruction(t, "parsed", "Food combinations")),
-      ];
+      const incoming = instructions
+        .map((i) => ({ ...i, text: i.text.replace(/\s+/g, " ").trim() }))
+        .filter((i) => i.text.length > 0);
       if (incoming.length) {
         const { data: existingPi } = await supabase
           .from("clients")
@@ -460,19 +474,13 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
     client_name: "Client name (footer)",
     coach_name: "Coach name (footer)",
   };
-  const FIELD_LABELS: Record<string, string> = Object.fromEntries([
-    ...PHASE2_PROTEIN, ...PHASE2_CARB, ...PHASE3,
-    ["water_target_litres", "Water (litres/day)"],
-    ["eggs_min_per_week", "Eggs min/week"],
-    ["eggs", "Eggs"],
-  ]);
+  const FIELD_LABELS: Record<string, string> = LABELS;
   const openFlags = parseFailures.filter((k) => !fields?.[k]?.extracted);
   const needsConfirm = openFlags.length > 0 || validation.length > 0;
   const rawLimits: unknown = fields?.food_limits?.value ?? null;
   const foodLimits = (rawLimits && typeof rawLimits === "object" ? rawLimits : null) as Record<string, number> | null;
 
-  const noteEntries = Object.entries(foodNotes).filter(([, v]) => v && v.trim().length > 0);
-  const hasExtras = !!(foodLimits && Object.keys(foodLimits).length) || noteEntries.length > 0 || mealSwapNote || treatMealNote;
+  const hasExtras = !!(foodLimits && Object.keys(foodLimits).length) || instructions.length > 0;
 
 
   return (
@@ -650,32 +658,14 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
                     </div>
                   )}
 
-                  {noteEntries.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium mb-1">Preparation rules by category</p>
-                      <ul className="text-xs text-muted-foreground space-y-1">
-                        {noteEntries.map(([k, v]) => (
-                          <li key={k}>
-                            <span className="text-foreground">{FIELD_LABELS[k] ?? k}</span>: {v}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  <PlanInstructionsEditor
+                    value={instructions}
+                    onChange={setInstructions}
+                    className="border-0 p-0"
+                    title="Plan instructions"
+                    description="Correct anything mis-parsed or add your own. These are shown to the client on their My Plan tab."
+                  />
 
-                  {mealSwapNote && (
-                    <div>
-                      <p className="text-xs font-medium mb-1">Meal swap</p>
-                      <p className="text-xs text-muted-foreground">{mealSwapNote}</p>
-                    </div>
-                  )}
-
-                  {treatMealNote && (
-                    <div>
-                      <p className="text-xs font-medium mb-1">Treat meal</p>
-                      <p className="text-xs text-muted-foreground">{treatMealNote}</p>
-                    </div>
-                  )}
 
                   <label className="flex items-start gap-2 text-xs pt-1">
                     <Checkbox checked={confirmedRules} onCheckedChange={(c) => setConfirmedRules(!!c)} />
