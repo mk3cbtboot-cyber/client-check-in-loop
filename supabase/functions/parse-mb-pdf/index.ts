@@ -1572,10 +1572,12 @@ Deno.serve(async (req) => {
     let eggs = { eggs_min_per_week: null as number | null, eggs_max_per_week: null as number | null };
     let water: number | null = null;
     let foodLimits: Record<string, number> = {};
+    // Combination frequency sentences — instructions, never caps.
+    const combinationRules: string[] = [];
     if (additionalInfoSection) {
       eggs = parseEggs(additionalInfoSection);
       water = parseWater(additionalInfoSection);
-      foodLimits = parseFoodLimits(additionalInfoSection);
+      foodLimits = parseFoodLimits(additionalInfoSection, combinationRules);
     }
 
     // The rules split out of the food-list categories are per-client guidance —
@@ -1583,13 +1585,14 @@ Deno.serve(async (req) => {
     // notes (foodNotes already carries them, keyed by field).
     for (const [field, note] of Object.entries(foodNotes)) {
       if (!note) continue;
-      for (const [k, v] of Object.entries(parseFoodLimits(note))) {
+      for (const [k, v] of Object.entries(parseFoodLimits(note, combinationRules))) {
         foodLimits[k] = k in foodLimits ? Math.min(foodLimits[k], v) : v;
       }
       void field;
     }
     // Never let the same food appear twice (singular + plural) in the limits.
     foodLimits = canonicaliseLimits(foodLimits);
+
 
     // Meal-swap adjustment and treat-meal timing (per-client, verbatim).
     // The captured region can start mid-page, so strip the page footer
