@@ -122,6 +122,8 @@ interface Props {
   initialNotesStale?: unknown;
   initialMealsPerDay?: number;
   planFormat?: "food_list" | "food_list_generated";
+  /** Raw clients.plan_instructions jsonb. */
+  initialPlanInstructions?: unknown;
   macros?: MacroSet | null;
   macroAllocation?: MacroAllocation | null;
   onGoToMacros?: () => void;
