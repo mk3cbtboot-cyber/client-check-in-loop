@@ -1478,7 +1478,12 @@ export default function ClientPortal() {
                   Your assigned recipes appear on the Home tab. Use it to choose a recipe and log what you ate.
                 </Card>
               )}
-              <PlanInstructions instructions={client.plan_instructions} />
+              {!instructionsGate && (
+                <PlanInstructions
+                  instructions={client.plan_instructions}
+                  ackedAt={client.plan_instructions_acked_at ?? null}
+                />
+              )}
               {Array.isArray(client.food_exclusions) && client.food_exclusions.length > 0 && (
                 <Card className="p-4">
                   <p className="font-medium mb-2">Foods to avoid</p>
