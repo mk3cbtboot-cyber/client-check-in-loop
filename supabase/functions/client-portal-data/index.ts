@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { foldLedger, weekWindowFor } from "../_shared/mb-cap.ts";
+import { missedMealSlots } from "../_shared/missed-meals.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -176,8 +177,17 @@ Deno.serve(async (req) => {
     }
 
 
+    // Meal-log nudge: slots expected today/yesterday with no "I ate this" row.
+    let pendingLogs: unknown[] = [];
+    try {
+      pendingLogs = await missedMealSlots(admin, c as Record<string, unknown>, 2, td);
+    } catch (err) {
+      console.error("missedMealSlots failed", err);
+    }
+
     return new Response(JSON.stringify({
       valid: true,
+      pending_logs: pendingLogs,
       client: {
         id: c.id, name: c.name, phase: c.phase,
         food_limits: c.food_limits ?? {},

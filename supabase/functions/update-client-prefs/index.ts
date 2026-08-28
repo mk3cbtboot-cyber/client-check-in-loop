@@ -12,6 +12,7 @@ const Body = z.object({
   length_unit: z.enum(["cm", "in"]).optional(),
   welcome_seen: z.boolean().optional(),
   phase3_lunch_action: z.enum(["accept", "confirm", "defer"]).optional(),
+  timezone: z.string().min(1).max(64).optional(),
 });
 
 function todayIso() {

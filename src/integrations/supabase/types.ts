@@ -305,6 +305,7 @@ export type Database = {
           show_8_rules: boolean
           show_rules: boolean
           system_mode: string
+          timezone: string | null
           vitamins_supplements: string
           water_date: string
           water_target_litres: number
@@ -416,6 +417,7 @@ export type Database = {
           show_8_rules?: boolean
           show_rules?: boolean
           system_mode?: string
+          timezone?: string | null
           vitamins_supplements?: string
           water_date?: string
           water_target_litres?: number
@@ -527,6 +529,7 @@ export type Database = {
           show_8_rules?: boolean
           show_rules?: boolean
           system_mode?: string
+          timezone?: string | null
           vitamins_supplements?: string
           water_date?: string
           water_target_litres?: number

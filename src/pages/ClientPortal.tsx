@@ -35,6 +35,7 @@ import FoodListGeneratedClientHome from "@/components/FoodListGeneratedClientHom
 import FoodListGeneratedMyPlan from "@/components/FoodListGeneratedMyPlan";
 import RecipePlanClientHome, { type RecipeAssignment } from "@/components/RecipePlanClientHome";
 import ClientTrackerRow from "@/components/ClientTrackerRow";
+import MealLogNudge, { type PendingLog } from "@/components/MealLogNudge";
 import type { CapFold } from "@/lib/mb-food-list";
 import { formatDistanceToNow } from "date-fns";
 
@@ -145,6 +146,7 @@ export default function ClientPortal() {
   const [archived, setArchived] = useState(false);
   const [client, setClient] = useState<ClientState | null>(null);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
+  const [pendingLogs, setPendingLogs] = useState<PendingLog[]>([]);
 
   // Home/recipe builder state
   const [meal, setMeal] = useState<MealType | null>(null);
@@ -208,6 +210,7 @@ export default function ClientPortal() {
     if (data?.valid) {
       setArchived(false);
       setClient(data.client);
+      setPendingLogs(Array.isArray(data.pending_logs) ? (data.pending_logs as PendingLog[]) : []);
       setWaterLitres(Number(data.client.water_today_litres) || 0);
       setWeightUnit(data.client.weight_unit || "kg");
       setLengthUnit(data.client.length_unit || "cm");
@@ -220,6 +223,14 @@ export default function ClientPortal() {
 
   useEffect(() => {
     refresh().finally(() => setLoading(false));
+  }, [token]);
+
+  // Capture the browser timezone once per load (Phase 2 reminders will read it).
+  useEffect(() => {
+    if (!token) return;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!tz) return;
+    void supabase.functions.invoke("update-client-prefs", { body: { token, timezone: tz } });
   }, [token]);
 
   useEffect(() => {
@@ -734,7 +745,66 @@ export default function ClientPortal() {
   const phase4CheckinHidden = client.phase === "phase4" && !phase4CheckinState.inWindow;
   const fmtDate = (d: Date) => d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
 
-
+  /** "I ate this" from the nudge card — routes to this client's existing logger. */
+  const logPendingSlot = async (p: PendingLog) => {
+    try {
+      if (client.client_type === "custom" && client.plan_format === "recipe") {
+        if (!p.assignment_id) throw new Error("No recipe assigned for this meal");
+        const { data, error } = await supabase.functions.invoke("log-recipe-meal", {
+          body: { token, assignment_id: p.assignment_id },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+      } else if (client.client_type === "custom") {
+        const items = (client.food_list ?? {})[p.slot] ?? [];
+        const { data, error } = await supabase.functions.invoke("log-foodlist-meal", {
+          body: {
+            token,
+            slot_key: p.slot,
+            recipe: {
+              recipe_title: p.label,
+              recipe: items.map((i) => (i.portion ? `${i.name} — ${i.portion}` : i.name)),
+              method: [],
+              notes: [],
+            },
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+      } else {
+        const r = parseMbRun((client as any).mb_run);
+        const sugg = getMbPlan(client as any).suggestions;
+        const mealType = p.slot as MealType;
+        const { items, picks, suggestion } = resolveDayMeal(r, sugg, p.date, mealType);
+        const ingredients = items.map((it) => ({
+          label: it.category === "fixed" ? it.label : (picks[it.id] || categoryLabel(it.category)),
+          qty: fmtQty(it) || "as planned",
+        }));
+        if (!ingredients.length) throw new Error("This meal isn't set up yet");
+        const { data, error } = await supabase.functions.invoke("log-mb-meal", {
+          body: {
+            token,
+            meal_type: mealType,
+            option_label: suggestion?.label ?? "Planned meal",
+            ingredients,
+            recipe: {
+              recipe_title: `${p.label} — ${suggestion?.label ?? "planned"}`,
+              recipe: ingredients.map((i) => `${i.label} — ${i.qty}`),
+              method: [],
+              notes: [],
+            },
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+      }
+      toast.success("Meal logged");
+      await refresh();
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to log meal");
+      throw e;
+    }
+  };
 
   return (
     <main className="min-h-screen bg-background pb-24">
@@ -755,6 +825,12 @@ export default function ClientPortal() {
           </button>
         </div>
       </header>
+
+      {tab === "home" && pendingLogs.length > 0 && (
+        <section className="max-w-5xl mx-auto p-4 pb-0">
+          <MealLogNudge pending={pendingLogs} onLog={logPendingSlot} />
+        </section>
+      )}
 
       {tab === "home" && (
         <section className="max-w-5xl mx-auto p-4 pb-0">
