@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -139,13 +139,58 @@ export function MbPlanSetup({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
 
+  /** Legacy flat caps stored on clients.food_limits. */
+  const existingFlatLimits = useMemo<Record<string, number>>(() => {
+    const raw = (client as { food_limits?: unknown } | null | undefined)?.food_limits;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {} as Record<string, number>;
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      const n = Number(v);
+      if (k.trim() !== "" && Number.isFinite(n) && n > 0) out[k.trim().toLowerCase()] = n;
+    }
+    return out;
+  }, [client]);
+
+  /**
+   * Seed the caps editor from legacy food_limits: fill in maxima the enriched
+   * draft is missing and add legacy-only foods, without clobbering real caps.
+   */
+  const seedLimits = useCallback((): MbFoodLimit[] => {
+    const parsed = parseMbFoodLimits(mbFoodLimits);
+    const seen = new Set(parsed.map((r) => r.food.trim().toLowerCase()));
+    const filled = parsed.map((r) => {
+      const legacy = existingFlatLimits[r.food.trim().toLowerCase()];
+      return r.max == null && legacy != null ? { ...r, max: legacy } : r;
+    });
+    const extras = Object.entries(existingFlatLimits)
+      .filter(([food]) => !seen.has(food))
+      .map(([food, max]: [string, number], i): MbFoodLimit => ({
+        id: `legacy-${i}-${food}`,
+        food,
+        type: "weekly" as const,
+        max,
+      }));
+    return [...filled, ...extras];
+  }, [mbFoodLimits, existingFlatLimits]);
+
+  /** Canonical keys the caps editor owns this session (so deletions can apply). */
+  const ownedKeys = useRef<Set<string>>(new Set());
+
   // Load the stored draft whenever the dialog opens (never mid-edit).
   useEffect(() => {
     if (open) {
       dirty.current = false;
       setIssues([]);
       setPlan(parseMbPlan(mbPlan) ?? blankPlan());
-      setLimits(parseMbFoodLimits(mbFoodLimits));
+      const seeded = seedLimits();
+      ownedKeys.current = new Set(
+        Object.keys(
+          canonicaliseFoodLimits(
+            Object.fromEntries(seeded.map((r) => [r.food.trim().toLowerCase(), 1])),
+          ),
+        ),
+      );
+      setLimits(seeded);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, clientId]);
@@ -173,14 +218,28 @@ export function MbPlanSetup({
             .map((r) => [r.food.trim().toLowerCase(), Number(r.max)]),
         ),
       );
-      const { error } = await supabase
-        .from("clients")
-        .update({
-          mb_plan: payload as never,
-          mb_food_limits: nextLimits as never,
-          food_limits: projected as never,
-        })
-        .eq("id", clientId);
+      const update: Record<string, unknown> = {
+        mb_plan: payload as never,
+        mb_food_limits: nextLimits as never,
+      };
+      // Never let an empty caps editor wipe existing limits; merge with the
+      // stored map instead of replacing keys the caps editor doesn't own.
+      if (Object.keys(projected).length > 0 || ownedKeys.current.size > 0) {
+        const base = canonicaliseFoodLimits(existingFlatLimits);
+        const merged: Record<string, number> = {};
+        for (const [k, v] of Object.entries(base)) {
+          // Keys the editor owns are re-supplied by the projection below;
+          // if they were deleted in the editor, they drop out here.
+          if (!ownedKeys.current.has(k)) merged[k] = Number(v);
+        }
+        const next = canonicaliseFoodLimits({ ...merged, ...projected });
+        if (Object.keys(next).length > 0 || Object.keys(base).length === 0) {
+          update.food_limits = next as never;
+          for (const k of Object.keys(projected)) ownedKeys.current.add(k);
+        }
+      }
+
+      const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
       setSaving(false);
       if (error) {
         toast.error(`Not saved: ${error.message}`);
@@ -191,8 +250,9 @@ export function MbPlanSetup({
       if (notifyParent) onSaved?.();
       return true;
     },
-    [clientId, onSaved],
+    [clientId, onSaved, existingFlatLimits],
   );
+
 
   // Debounced autosave.
   useEffect(() => {
