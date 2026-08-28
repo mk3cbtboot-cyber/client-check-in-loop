@@ -1427,6 +1427,7 @@ export default function ClientPortal() {
             </Card>
           )}
           {mbPlanConfirmed && client.client_type !== "custom" && client.phase !== "phase1" && (
+            instructionsGate ? instructionsLockCard : (
             <MbRunPlanner
               token={token!}
               suggestions={getMbPlan(client as any).suggestions}
@@ -1438,6 +1439,7 @@ export default function ClientPortal() {
               phase={client.phase}
               client={client as unknown as Record<string, unknown>}
             />
+            )
           )}
           {client.macros_shared && client.macros && (
             <Card className="p-4">
