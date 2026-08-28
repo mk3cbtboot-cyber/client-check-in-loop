@@ -35,7 +35,7 @@ import {
   parseMbPlan,
   type MbColour,
   type MbFoodLimit,
-  type MbLimitType,
+  
   type MbPlan,
   type MbPlanItem,
   type MbSuggestion,
