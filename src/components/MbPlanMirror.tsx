@@ -13,6 +13,7 @@ import {
   COLOUR_BAR, COLOUR_LABEL, MEAL_LABEL, MbColourHeader, MbFoodListReadonly, MbSuggestionsBoard,
 } from "@/components/MbSuggestionBoard";
 import MbPhase1Guide from "@/components/MbPhase1Guide";
+import { PlanInstructions } from "@/components/PlanInstructions";
 
 const dayLabel = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
@@ -114,6 +115,7 @@ export function MbPlanMirror({
         </div>
         <MbSuggestionsBoard suggestions={suggestions} />
         <MbFoodListReadonly foodList={foodList} phase={phase} client={client} />
+        <PlanInstructions instructions={client?.plan_instructions} />
       </Card>
     );
   }
@@ -249,6 +251,7 @@ export function MbPlanMirror({
       )}
 
       <MbFoodListReadonly foodList={foodList} phase={phase} client={client} />
+      <PlanInstructions instructions={client?.plan_instructions} />
     </Card>
   );
 }
