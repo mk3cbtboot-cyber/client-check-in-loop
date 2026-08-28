@@ -6,7 +6,6 @@ import {
   type CategoryKey,
   type FoodSelections,
   categorize,
-  foodKey,
   stripEstimated,
 } from "@/lib/food-categories";
 
@@ -27,7 +26,7 @@ interface Props {
   selections?: FoodSelections;
 }
 
-export default function FoodListGeneratedMyPlan({ foodList, foodListNotes, mealsPerDay, selections }: Props) {
+export default function FoodListGeneratedMyPlan({ foodList, foodListNotes, mealsPerDay }: Props) {
   const slots = ALL_SLOTS.filter((s) => visibleSlotKeys(mealsPerDay).includes(s));
   return (
     <div className="space-y-5">
@@ -39,8 +38,6 @@ export default function FoodListGeneratedMyPlan({ foodList, foodListNotes, meals
       {slots.map((s) => {
         const foods = Array.isArray(foodList?.[s]) ? foodList[s] : [];
         const note = typeof foodListNotes?.[s] === "string" ? foodListNotes![s] : "";
-        const veg2Key = selections?.[s]?.veg2 ?? null;
-        const veg2Food = veg2Key ? foods.find((f) => foodKey(f) === veg2Key) ?? null : null;
         const ordered: { cat: CategoryKey; food: FoodItem }[] = [];
         for (const cat of ["protein", "carbs", "veg", "fat"] as CategoryKey[]) {
           for (const f of foods) {
@@ -65,13 +62,6 @@ export default function FoodListGeneratedMyPlan({ foodList, foodListNotes, meals
                     </li>
                   ))}
                 </ul>
-
-                {veg2Food && (
-                  <p className="text-xs text-muted-foreground border-t pt-2">
-                    <span className="font-medium text-foreground">Second vegetable: </span>
-                    {stripEstimated(veg2Food.name)}
-                  </p>
-                )}
 
                 {note && (
                   <p className="text-xs text-muted-foreground border-t pt-2">

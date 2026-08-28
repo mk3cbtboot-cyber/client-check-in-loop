@@ -7,14 +7,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
 import { formatPortionDisplay } from "@/lib/portion";
-import { cn } from "@/lib/utils";
 import {
   type FoodItem,
   type CategoryKey,
   type FoodSelections,
   type SlotSelection,
   categorize,
-  foodKey,
   stripEstimated,
 } from "@/lib/food-categories";
 
@@ -116,34 +114,7 @@ function GeneratedSlotSection({
   const [regenCount, setRegenCount] = useState(0);
   const [loggingIdx, setLoggingIdx] = useState<number | null>(null);
   const [fullScreenIdx, setFullScreenIdx] = useState<number | null>(null);
-  const [veg2, setVeg2] = useState<string | null>(slotSelection.veg2 ?? null);
-  const [savingVeg2, setSavingVeg2] = useState(false);
   const regenLimitReached = regenCount >= 1;
-
-  const vegFoods = selectedFoods.filter(({ cat }) => cat === "veg").map(({ food }) => food);
-  const primaryVegKey = slotSelection.veg ?? (vegFoods[0] ? foodKey(vegFoods[0]) : null);
-  const veg2Choices = vegFoods.filter((f) => foodKey(f) !== primaryVegKey);
-
-  const chooseVeg2 = async (key: string) => {
-    const next = veg2 === key ? null : key;
-    const prev = veg2;
-    setVeg2(next);
-    setSavingVeg2(true);
-    try {
-      const payload = { ...slotSelection, veg: primaryVegKey ?? null, veg2: next };
-      const { data, error } = await supabase.functions.invoke("save-food-selections", {
-        body: { token, slot_key: slotKey, selections: payload },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      onSelectionsSaved?.({ ...allSelections, [slotKey]: payload });
-    } catch (e: unknown) {
-      setVeg2(prev);
-      toast.error(e instanceof Error ? e.message : "Failed to save");
-    } finally {
-      setSavingVeg2(false);
-    }
-  };
 
   const generate = async () => {
     if (!hasAnySelected) return;
@@ -212,36 +183,6 @@ function GeneratedSlotSection({
                 ))}
               </ul>
             </div>
-
-            {veg2Choices.length > 0 && (
-              <div className="space-y-2 border-t pt-3">
-                <p className="text-xs uppercase text-muted-foreground tracking-wide">Second vegetable (optional)</p>
-                <p className="text-xs text-muted-foreground">
-                  Pick another vegetable for variety. This does not add an extra portion, and leaving it blank is fine.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {veg2Choices.map((f) => {
-                    const key = foodKey(f);
-                    const selected = veg2 === key;
-                    return (
-                      <button
-                        type="button"
-                        key={key}
-                        disabled={savingVeg2}
-                        onClick={() => chooseVeg2(key)}
-                        className={cn(
-                          "text-left rounded-md border p-3 transition-colors disabled:opacity-60",
-                          selected ? "border-primary bg-primary/10 ring-1 ring-primary" : "border-input hover:bg-accent",
-                        )}
-                      >
-                        <p className="text-sm font-medium">{stripEstimated(f.name)}</p>
-                        {f.portion && <p className="text-xs text-muted-foreground">{f.portion}</p>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             {note && (
               <p className="text-xs text-muted-foreground border-t pt-2">
