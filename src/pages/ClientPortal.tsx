@@ -209,6 +209,7 @@ export default function ClientPortal() {
     if (data?.valid) {
       setArchived(false);
       setClient(data.client);
+      setPendingLogs(Array.isArray(data.pending_logs) ? (data.pending_logs as PendingLog[]) : []);
       setWaterLitres(Number(data.client.water_today_litres) || 0);
       setWeightUnit(data.client.weight_unit || "kg");
       setLengthUnit(data.client.length_unit || "cm");
@@ -221,6 +222,14 @@ export default function ClientPortal() {
 
   useEffect(() => {
     refresh().finally(() => setLoading(false));
+  }, [token]);
+
+  // Capture the browser timezone once per load (Phase 2 reminders will read it).
+  useEffect(() => {
+    if (!token) return;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!tz) return;
+    void supabase.functions.invoke("update-client-prefs", { body: { token, timezone: tz } });
   }, [token]);
 
   useEffect(() => {
