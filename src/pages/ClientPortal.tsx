@@ -1414,6 +1414,15 @@ export default function ClientPortal() {
               <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseLabel(client.phase)}</span></p>
             )}
           </Card>
+          {instructionsGate && (
+            <PlanInstructions
+              instructions={client.plan_instructions}
+              needsAck
+              ackedAt={client.plan_instructions_acked_at ?? null}
+              onAcknowledge={acknowledgeInstructions}
+              acknowledging={acking}
+            />
+          )}
           {client.client_type !== "custom" && client.phase !== "phase1" && (
             <Card className="p-6">
               <p className="text-sm text-muted-foreground">
