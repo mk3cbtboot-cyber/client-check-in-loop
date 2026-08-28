@@ -120,6 +120,8 @@ interface ClientState {
   recipe_assignments?: RecipeAssignment[];
   food_exclusions?: string[] | null;
   plan_instructions?: unknown;
+  plan_instructions_acked_at?: string | null;
+  needs_instructions_ack?: boolean;
   keys_to_success?: string | null;
   digestion_protocol?: string | null;
   recommended_supplements?: string | null;
