@@ -120,6 +120,8 @@ interface ClientState {
   recipe_assignments?: RecipeAssignment[];
   food_exclusions?: string[] | null;
   plan_instructions?: unknown;
+  plan_instructions_acked_at?: string | null;
+  needs_instructions_ack?: boolean;
   keys_to_success?: string | null;
   digestion_protocol?: string | null;
   recommended_supplements?: string | null;
@@ -546,6 +548,36 @@ export default function ClientPortal() {
   const mbRunGateActive =
     client && client.client_type !== "custom" && mbPlanConfirmed && !mbRunConfirmed;
 
+  // Plan-instruction acknowledgement gate: meal building stays locked until the
+  // client confirms they have read the current instructions. Empty instructions
+  // never gate (server returns needs_instructions_ack = false).
+  const instructionsGate = !!client?.needs_instructions_ack;
+  const [acking, setAcking] = useState(false);
+  const acknowledgeInstructions = async () => {
+    if (!token) return;
+    setAcking(true);
+    const { data, error } = await supabase.functions.invoke("client-portal-ack-instructions", { body: { token } });
+    setAcking(false);
+    if (error || !data?.ok) {
+      toast.error("Could not save your acknowledgement. Please try again.");
+      return;
+    }
+    setClient((c) => (c ? { ...c, needs_instructions_ack: false, plan_instructions_acked_at: data.plan_instructions_acked_at ?? new Date().toISOString() } : c));
+  };
+
+  const instructionsLockCard = (
+    <Card className="p-4 space-y-2 border-primary/40 bg-primary/5">
+      <p className="text-sm font-medium">Plan instructions need your acknowledgement</p>
+      <p className="text-sm text-muted-foreground">
+        Please read and acknowledge your plan instructions above to continue.
+      </p>
+      {tab !== "plan" && (
+        <Button size="sm" onClick={() => changeTab("plan")}>Go to My Plan</Button>
+      )}
+    </Card>
+  );
+
+
   const optionsForMeal = (m: MealType): OptionDef[] => {
     if (!weekConfirmed) return resolvedOptions[m];
     const lockedId = lockedMealIdFor(m);
@@ -870,7 +902,7 @@ export default function ClientPortal() {
 
       {tab === "home" && client.client_type === "custom" && (client.plan_format === "food_list" || client.plan_format === "food_list_generated") && (
         <section className="max-w-3xl mx-auto p-4 space-y-6">
-          {client.plan_format === "food_list_generated" ? (
+          {instructionsGate ? instructionsLockCard : client.plan_format === "food_list_generated" ? (
             <FoodListGeneratedClientHome
               token={token!}
               foodList={client.food_list ?? {}}
@@ -892,12 +924,14 @@ export default function ClientPortal() {
 
       {tab === "home" && client.plan_format === "recipe" && client.client_type === "custom" && (
         <section className="max-w-3xl mx-auto p-4 space-y-6">
-          <RecipePlanClientHome
-            token={token!}
-            assignments={client.recipe_assignments ?? []}
-            mealsPerDay={Number(client.meals_per_day ?? 3)}
-            onLogged={refresh}
-          />
+          {instructionsGate ? instructionsLockCard : (
+            <RecipePlanClientHome
+              token={token!}
+              assignments={client.recipe_assignments ?? []}
+              mealsPerDay={Number(client.meals_per_day ?? 3)}
+              onLogged={refresh}
+            />
+          )}
         </section>
       )}
 
@@ -1382,6 +1416,15 @@ export default function ClientPortal() {
               <p className="text-sm text-muted-foreground">Current phase: <span className="font-medium text-foreground">{phaseLabel(client.phase)}</span></p>
             )}
           </Card>
+          {instructionsGate && (
+            <PlanInstructions
+              instructions={client.plan_instructions}
+              needsAck
+              ackedAt={client.plan_instructions_acked_at ?? null}
+              onAcknowledge={acknowledgeInstructions}
+              acknowledging={acking}
+            />
+          )}
           {client.client_type !== "custom" && client.phase !== "phase1" && (
             <Card className="p-6">
               <p className="text-sm text-muted-foreground">
@@ -1395,6 +1438,7 @@ export default function ClientPortal() {
             </Card>
           )}
           {mbPlanConfirmed && client.client_type !== "custom" && client.phase !== "phase1" && (
+            instructionsGate ? instructionsLockCard : (
             <MbRunPlanner
               token={token!}
               suggestions={getMbPlan(client as any).suggestions}
@@ -1406,6 +1450,7 @@ export default function ClientPortal() {
               phase={client.phase}
               client={client as unknown as Record<string, unknown>}
             />
+            )
           )}
           {client.macros_shared && client.macros && (
             <Card className="p-4">
@@ -1444,7 +1489,12 @@ export default function ClientPortal() {
                   Your assigned recipes appear on the Home tab. Use it to choose a recipe and log what you ate.
                 </Card>
               )}
-              <PlanInstructions instructions={client.plan_instructions} />
+              {!instructionsGate && (
+                <PlanInstructions
+                  instructions={client.plan_instructions}
+                  ackedAt={client.plan_instructions_acked_at ?? null}
+                />
+              )}
               {Array.isArray(client.food_exclusions) && client.food_exclusions.length > 0 && (
                 <Card className="p-4">
                   <p className="font-medium mb-2">Foods to avoid</p>
@@ -1489,7 +1539,12 @@ export default function ClientPortal() {
 
           ) : (
             <>
-              <PlanInstructions instructions={client.plan_instructions} />
+              {!instructionsGate && (
+                <PlanInstructions
+                  instructions={client.plan_instructions}
+                  ackedAt={client.plan_instructions_acked_at ?? null}
+                />
+              )}
               <Card className="p-6 space-y-3">
                 <p className="font-medium">The 8 Metabolic Balance Rules</p>
                 <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">

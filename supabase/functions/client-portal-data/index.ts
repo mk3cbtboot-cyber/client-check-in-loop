@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { foldLedger, weekWindowFor } from "../_shared/mb-cap.ts";
 import { missedMealSlots } from "../_shared/missed-meals.ts";
+import { planInstructionsHash } from "../_shared/plan-instructions-hash.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -267,6 +268,11 @@ Deno.serve(async (req) => {
         recipe_assignments: recipeAssignments,
         food_exclusions: Array.isArray(c.food_exclusions) ? c.food_exclusions : null,
         plan_instructions: Array.isArray(c.plan_instructions) ? c.plan_instructions : [],
+        plan_instructions_acked_at: c.plan_instructions_acked_at ?? null,
+        needs_instructions_ack: (() => {
+          const h = planInstructionsHash(c.plan_instructions);
+          return h !== "" && c.plan_instructions_acked_hash !== h;
+        })(),
 
         keys_to_success: typeof c.keys_to_success === "string" && c.keys_to_success.trim().length > 0 ? c.keys_to_success : null,
         digestion_protocol: typeof c.digestion_protocol === "string" && c.digestion_protocol.trim().length > 0 ? c.digestion_protocol : null,

@@ -455,6 +455,8 @@ export function MbPlanSetup({
           <PlanInstructionsEditor
             clientId={clientId}
             value={(client as { plan_instructions?: unknown } | null)?.plan_instructions}
+            ackedHash={(client as { plan_instructions_acked_hash?: string | null } | null)?.plan_instructions_acked_hash ?? null}
+            ackedAt={(client as { plan_instructions_acked_at?: string | null } | null)?.plan_instructions_acked_at ?? null}
             onSaved={onSaved}
           />
 

@@ -17,6 +17,30 @@ const uid = () =>
 
 const normalise = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 
+/**
+ * Stable content hash of the instruction list — order-independent and
+ * whitespace/case-insensitive. Empty list -> "" (never gates).
+ * Keep in sync with supabase/functions/_shared/plan-instructions-hash.ts.
+ */
+export function planInstructionsHash(raw: unknown): string {
+  const texts = (Array.isArray(raw) ? raw : [])
+    .map((r) => {
+      if (!r || typeof r !== "object") return "";
+      const t = (r as Record<string, unknown>).text;
+      return typeof t === "string" ? normalise(t) : "";
+    })
+    .filter((t) => t.length > 0)
+    .sort();
+  if (!texts.length) return "";
+  const s = texts.join("\n");
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `${texts.length}-${h.toString(16)}`;
+}
+
 /** Narrow an unknown jsonb value into the instruction list. */
 export function parsePlanInstructions(raw: unknown): PlanInstruction[] {
   if (!Array.isArray(raw)) return [];
