@@ -151,17 +151,30 @@ export function MbPlanSetup({
     return out;
   }, [client]);
 
-  /** Seed the caps editor from legacy food_limits when no enriched caps exist yet. */
+  /**
+   * Seed the caps editor from legacy food_limits: fill in maxima the enriched
+   * draft is missing and add legacy-only foods, without clobbering real caps.
+   */
   const seedLimits = useCallback((): MbFoodLimit[] => {
     const parsed = parseMbFoodLimits(mbFoodLimits);
-    if (parsed.length > 0) return parsed;
-    return Object.entries(existingFlatLimits).map(([food, max]: [string, number], i) => ({
-      id: `legacy-${i}-${food}`,
-      food,
-      type: "weekly" as const,
-      max,
-    }));
+    const seen = new Set(parsed.map((r) => r.food.trim().toLowerCase()));
+    const filled = parsed.map((r) => {
+      const legacy = existingFlatLimits[r.food.trim().toLowerCase()];
+      return r.max == null && legacy != null ? { ...r, max: legacy } : r;
+    });
+    const extras = Object.entries(existingFlatLimits)
+      .filter(([food]) => !seen.has(food))
+      .map(([food, max]: [string, number], i): MbFoodLimit => ({
+        id: `legacy-${i}-${food}`,
+        food,
+        type: "weekly" as const,
+        max,
+      }));
+    return [...filled, ...extras];
   }, [mbFoodLimits, existingFlatLimits]);
+
+  /** Canonical keys the caps editor owns this session (so deletions can apply). */
+  const ownedKeys = useRef<Set<string>>(new Set());
 
   // Load the stored draft whenever the dialog opens (never mid-edit).
   useEffect(() => {
@@ -169,7 +182,15 @@ export function MbPlanSetup({
       dirty.current = false;
       setIssues([]);
       setPlan(parseMbPlan(mbPlan) ?? blankPlan());
-      setLimits(seedLimits());
+      const seeded = seedLimits();
+      ownedKeys.current = new Set(
+        Object.keys(
+          canonicaliseFoodLimits(
+            Object.fromEntries(seeded.map((r) => [r.food.trim().toLowerCase(), 1])),
+          ),
+        ),
+      );
+      setLimits(seeded);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, clientId]);
@@ -201,14 +222,22 @@ export function MbPlanSetup({
         mb_plan: payload as never,
         mb_food_limits: nextLimits as never,
       };
-      // Never let an empty caps editor wipe existing limits; merge instead of
-      // replacing keys the caps editor doesn't own.
-      if (Object.keys(projected).length > 0) {
-        update.food_limits = canonicaliseFoodLimits({
-          ...existingFlatLimits,
-          ...projected,
-        }) as never;
+      // Never let an empty caps editor wipe existing limits; merge with the
+      // stored map instead of replacing keys the caps editor doesn't own.
+      if (Object.keys(projected).length > 0 || ownedKeys.current.size > 0) {
+        const base = canonicaliseFoodLimits(existingFlatLimits);
+        const merged: Record<string, number> = {};
+        for (const [k, v] of Object.entries(base)) {
+          // Keys the editor owns are re-supplied by the projection below;
+          // if they were deleted in the editor, they drop out here.
+          if (!ownedKeys.current.has(k)) merged[k] = Number(v);
+        }
+        const next = canonicaliseFoodLimits({ ...merged, ...projected });
+        if (Object.keys(next).length > 0 || Object.keys(base).length === 0) {
+          update.food_limits = next as never;
+        }
       }
+
       const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
       setSaving(false);
       if (error) {
