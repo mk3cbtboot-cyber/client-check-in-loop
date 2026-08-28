@@ -48,18 +48,18 @@ export interface MbPlan {
   suggestions: MbSuggestion[];
 }
 
-export type MbLimitType = "weekly" | "per_day" | "combination";
+/** Only weekly maximums are evaluated; older per-day/combination rows are read as weekly. */
+export type MbLimitType = "weekly";
 
 export interface MbFoodLimit {
   id: string;
   food: string;
   type: MbLimitType;
-  min: number | null;
   max: number | null;
   unit?: string;
-  combines_with?: string[];
   note?: string;
 }
+
 
 export interface ResolvedMbPlan {
   source: "confirmed" | "legacy";
