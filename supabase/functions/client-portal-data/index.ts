@@ -177,8 +177,17 @@ Deno.serve(async (req) => {
     }
 
 
+    // Meal-log nudge: slots expected today/yesterday with no "I ate this" row.
+    let pendingLogs: unknown[] = [];
+    try {
+      pendingLogs = await missedMealSlots(admin, c as Record<string, unknown>, 2, td);
+    } catch (err) {
+      console.error("missedMealSlots failed", err);
+    }
+
     return new Response(JSON.stringify({
       valid: true,
+      pending_logs: pendingLogs,
       client: {
         id: c.id, name: c.name, phase: c.phase,
         food_limits: c.food_limits ?? {},
