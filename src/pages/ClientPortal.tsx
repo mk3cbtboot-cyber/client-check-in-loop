@@ -548,6 +548,36 @@ export default function ClientPortal() {
   const mbRunGateActive =
     client && client.client_type !== "custom" && mbPlanConfirmed && !mbRunConfirmed;
 
+  // Plan-instruction acknowledgement gate: meal building stays locked until the
+  // client confirms they have read the current instructions. Empty instructions
+  // never gate (server returns needs_instructions_ack = false).
+  const instructionsGate = !!client?.needs_instructions_ack;
+  const [acking, setAcking] = useState(false);
+  const acknowledgeInstructions = async () => {
+    if (!token) return;
+    setAcking(true);
+    const { data, error } = await supabase.functions.invoke("client-portal-ack-instructions", { body: { token } });
+    setAcking(false);
+    if (error || !data?.ok) {
+      toast.error("Could not save your acknowledgement. Please try again.");
+      return;
+    }
+    setClient((c) => (c ? { ...c, needs_instructions_ack: false, plan_instructions_acked_at: data.plan_instructions_acked_at ?? new Date().toISOString() } : c));
+  };
+
+  const instructionsLockCard = (
+    <Card className="p-4 space-y-2 border-primary/40 bg-primary/5">
+      <p className="text-sm font-medium">Plan instructions need your acknowledgement</p>
+      <p className="text-sm text-muted-foreground">
+        Please read and acknowledge your plan instructions above to continue.
+      </p>
+      {tab !== "plan" && (
+        <Button size="sm" onClick={() => changeTab("plan")}>Go to My Plan</Button>
+      )}
+    </Card>
+  );
+
+
   const optionsForMeal = (m: MealType): OptionDef[] => {
     if (!weekConfirmed) return resolvedOptions[m];
     const lockedId = lockedMealIdFor(m);
