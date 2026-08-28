@@ -7,14 +7,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { customSlotLabel } from "@/lib/meal-slots";
 import { formatPortionDisplay } from "@/lib/portion";
-import { cn } from "@/lib/utils";
 import {
   type FoodItem,
   type CategoryKey,
   type FoodSelections,
   type SlotSelection,
   categorize,
-  foodKey,
   stripEstimated,
 } from "@/lib/food-categories";
 
