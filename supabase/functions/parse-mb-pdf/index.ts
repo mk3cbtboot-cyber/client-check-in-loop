@@ -1627,7 +1627,7 @@ Deno.serve(async (req) => {
     const mealRules = (() => {
       const clean = (s: string | null) => {
         if (!s) return null;
-        const out = stripFooter(s).replace(/\s{2,}/g, " ").replace(/^[\s|·-]+/, "").trim();
+        const out = stripBannerArtifacts(stripFooter(s)).replace(/\s{2,}/g, " ").replace(/^[\s|·-]+/, "").trim();
         return out.length > 12 ? out : null;
       };
       const scoped = parseMealRules(stripFooter(additionalInfoSection || ""));
