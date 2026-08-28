@@ -11,6 +11,7 @@ export interface TemplateEntry {
 }
 
 import { template as clientInvite } from './client-invite.tsx'
+import { template as mealLogReminder } from './meal-log-reminder.tsx'
 
 /**
  * Registry of app (transactional) email templates.
@@ -18,6 +19,7 @@ import { template as clientInvite } from './client-invite.tsx'
  */
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'client-invite': clientInvite,
+  'meal-log-reminder': mealLogReminder,
 }
 
 export function resolveSubject(entry: TemplateEntry, data: Record<string, unknown>): string {
