@@ -127,6 +127,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
     setMealSwapNote(null);
     setTreatMealNote(null);
     setCombinationRules([]);
+    setInstructions([]);
     setConfirmedFlags(false);
     setConfirmedRules(false);
     setReviewOpen(false);
