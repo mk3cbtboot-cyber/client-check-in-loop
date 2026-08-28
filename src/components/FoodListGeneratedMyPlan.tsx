@@ -8,7 +8,35 @@ import {
   categorize,
   stripEstimated,
 } from "@/lib/food-categories";
-...
+
+type SlotKey = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
+
+const ALL_SLOTS: SlotKey[] = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
+
+function visibleSlotKeys(meals: number): SlotKey[] {
+  if (meals === 5) return ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner"];
+  if (meals === 4) return ["breakfast", "lunch", "afternoon_snack", "dinner"];
+  return ["breakfast", "lunch", "dinner"];
+}
+
+interface Props {
+  foodList: Record<string, FoodItem[]>;
+  foodListNotes?: Record<string, string>;
+  mealsPerDay: number;
+  selections?: FoodSelections;
+}
+
+export default function FoodListGeneratedMyPlan({ foodList, foodListNotes, mealsPerDay }: Props) {
+  const slots = ALL_SLOTS.filter((s) => visibleSlotKeys(mealsPerDay).includes(s));
+  return (
+    <div className="space-y-5">
+      <Card className="p-4">
+        <p className="text-sm text-muted-foreground">
+          Here's your meal plan. Each meal below lists all the foods your practitioner has set for you.
+        </p>
+      </Card>
+      {slots.map((s) => {
+        const foods = Array.isArray(foodList?.[s]) ? foodList[s] : [];
         const note = typeof foodListNotes?.[s] === "string" ? foodListNotes![s] : "";
         const ordered: { cat: CategoryKey; food: FoodItem }[] = [];
         for (const cat of ["protein", "carbs", "veg", "fat"] as CategoryKey[]) {
@@ -34,13 +62,6 @@ import {
                     </li>
                   ))}
                 </ul>
-
-                {veg2Food && (
-                  <p className="text-xs text-muted-foreground border-t pt-2">
-                    <span className="font-medium text-foreground">Second vegetable: </span>
-                    {stripEstimated(veg2Food.name)}
-                  </p>
-                )}
 
                 {note && (
                   <p className="text-xs text-muted-foreground border-t pt-2">
