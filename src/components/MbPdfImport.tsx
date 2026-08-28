@@ -473,8 +473,7 @@ export function MbPdfImport({ clientId, onSaved, hasUpload = false }: Props) {
   const rawLimits: unknown = fields?.food_limits?.value ?? null;
   const foodLimits = (rawLimits && typeof rawLimits === "object" ? rawLimits : null) as Record<string, number> | null;
 
-  const noteEntries = Object.entries(foodNotes).filter(([, v]) => v && v.trim().length > 0);
-  const hasExtras = !!(foodLimits && Object.keys(foodLimits).length) || noteEntries.length > 0 || mealSwapNote || treatMealNote;
+  const hasExtras = !!(foodLimits && Object.keys(foodLimits).length) || instructions.length > 0;
 
 
   return (
