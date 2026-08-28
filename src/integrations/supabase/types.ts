@@ -229,7 +229,6 @@ export type Database = {
           food_fish: string
           food_fruit: string
           food_legumes: string
-          food_limit_counts: Json
           food_limits: Json
           food_list: Json
           food_list_notes: Json
@@ -345,7 +344,6 @@ export type Database = {
           food_fish?: string
           food_fruit?: string
           food_legumes?: string
-          food_limit_counts?: Json
           food_limits?: Json
           food_list?: Json
           food_list_notes?: Json
@@ -461,7 +459,6 @@ export type Database = {
           food_fish?: string
           food_fruit?: string
           food_legumes?: string
-          food_limit_counts?: Json
           food_limits?: Json
           food_list?: Json
           food_list_notes?: Json
