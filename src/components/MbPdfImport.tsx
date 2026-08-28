@@ -71,6 +71,13 @@ const PHASE3 = [
   ["phase3_mb_fat_oil", "Fat / Oil"],
 ] as const;
 
+const LABELS: Record<string, string> = Object.fromEntries([
+  ...PHASE2_PROTEIN, ...PHASE2_CARB, ...PHASE3,
+  ["water_target_litres", "Water (litres/day)"],
+  ["eggs_min_per_week", "Eggs min/week"],
+  ["eggs", "Eggs"],
+]);
+
 const MEALS = [
   { key: "breakfast", label: "Breakfast" },
   { key: "lunch", label: "Lunch" },
