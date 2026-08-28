@@ -1523,7 +1523,12 @@ export default function ClientPortal() {
 
           ) : (
             <>
-              <PlanInstructions instructions={client.plan_instructions} />
+              {!instructionsGate && (
+                <PlanInstructions
+                  instructions={client.plan_instructions}
+                  ackedAt={client.plan_instructions_acked_at ?? null}
+                />
+              )}
               <Card className="p-6 space-y-3">
                 <p className="font-medium">The 8 Metabolic Balance Rules</p>
                 <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
