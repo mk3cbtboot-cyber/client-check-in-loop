@@ -235,6 +235,7 @@ export function MbPlanSetup({
         const next = canonicaliseFoodLimits({ ...merged, ...projected });
         if (Object.keys(next).length > 0 || Object.keys(base).length === 0) {
           update.food_limits = next as never;
+          for (const k of Object.keys(projected)) ownedKeys.current.add(k);
         }
       }
 
