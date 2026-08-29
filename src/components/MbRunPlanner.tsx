@@ -41,6 +41,9 @@ interface Props {
   legacyLimits: Record<string, number>;
   initialRun: unknown;
   onGoHome: () => void;
+  /** Lifts the server-confirmed run into the parent so Home sees it immediately. */
+  onRunChanged?: (run: unknown) => void;
+
   /** Client's current MB phase — labels the food list. */
   phase?: string | null;
   /** Full client row — used to show the separate Phase 3 additional foods. */
@@ -57,7 +60,8 @@ interface Props {
  * the same shared evaluator the server runs on confirm.
  */
 export function MbRunPlanner({
-  token, suggestions, foodList, enrichedLimits, legacyLimits, initialRun, onGoHome, phase = null,
+  token, suggestions, foodList, enrichedLimits, legacyLimits, initialRun, onGoHome,
+  onRunChanged, phase = null,
   client = null,
 }: Props) {
   const [run, setRun] = useState<MbRun>(() => parseMbRun(initialRun));
@@ -90,12 +94,14 @@ export function MbRunPlanner({
 
   const save = useCallback(async (next: MbRun) => {
     setSaving(true);
-    const { error } = await supabase.functions.invoke("mb-run", {
+    const { data, error } = await supabase.functions.invoke("mb-run", {
       body: { token, action: "save", run: next },
     });
     setSaving(false);
-    if (error) toast.error("Couldn't save your choice — please try again.");
-  }, [token]);
+    if (error) return toast.error("Couldn't save your choice — please try again.");
+    // A draft save always clears confirmation server-side — keep the parent in sync.
+    onRunChanged?.((data as { run?: unknown } | null)?.run ?? { ...next, confirmed_on: null });
+  }, [token, onRunChanged]);
 
   useEffect(() => {
     if (!dirty.current) return;
@@ -211,6 +217,7 @@ export function MbRunPlanner({
     dirty.current = false;
     setRun(parseMbRun(payload.run));
     if (payload.consumed) setConsumed(payload.consumed);
+    onRunChanged?.(payload.run);
     toast.success("Run confirmed.");
     onGoHome();
   };
@@ -440,7 +447,20 @@ export function MbRunPlanner({
 
       {serverError && <p className="text-xs text-destructive">{serverError}</p>}
 
-      {runReady ? (
+      {run.confirmed_on ? (
+        <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
+          <p className="text-sm font-medium flex items-center gap-1.5">
+            <Check className="h-4 w-4" /> Run confirmed
+          </p>
+          <p className="text-sm text-muted-foreground">
+            You're set through {dayLabel(dates[dates.length - 1] ?? start)}. Head Home to cook today's meals.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={onGoHome}>Go to Home</Button>
+            <Button size="sm" variant="outline" onClick={clearRun}>Start a new run</Button>
+          </div>
+        </div>
+      ) : runReady ? (
         <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
           <p className="text-sm font-medium">Your run is ready</p>
           <p className="text-sm text-muted-foreground">

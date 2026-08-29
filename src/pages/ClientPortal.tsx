@@ -1,6 +1,6 @@
 
 import { PlanInstructions } from "@/components/PlanInstructions";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -541,12 +541,34 @@ export default function ClientPortal() {
   // Runtime MB structure + portions: the practitioner-confirmed colour plan when
   // one exists, otherwise the legacy hardcoded MB_OPTIONS (identical to before).
   const mbPlanConfirmed = isMbPlanConfirmed(client as any);
-  const resolvedOptions = mbOptions(client as any);
+  const allMbOptions = mbOptions(client as any);
   // MB colour-run gate: cooking surfaces stay closed until the client confirms a
   // cap-clean run (server-validated). MB clients only — Custom is unaffected.
   const mbRunConfirmed = client ? !!parseMbRun(client.mb_run).confirmed_on : false;
   const mbRunGateActive =
     client && client.client_type !== "custom" && mbPlanConfirmed && !mbRunConfirmed;
+
+  // Once a run is confirmed the client cooks one colour — the recipe surfaces
+  // collapse to the suggestion that meal actually resolves to today (a
+  // cap-forced day swap resolves to its own colour).
+  const resolvedOptions = useMemo(() => {
+    if (!client || !mbRunConfirmed || client.client_type === "custom") return allMbOptions;
+    const r = parseMbRun((client as any).mb_run);
+    const sugg = getMbPlan(client as any).suggestions;
+    const today = todayISO();
+    if (!runDates(r, RUN_DAYS).includes(today)) return allMbOptions;
+    const out = { ...allMbOptions };
+    for (const m of RUN_MEALS) {
+      const { colour } = resolveDayMeal(r, sugg, today, m);
+      const idx = sugg.findIndex((s) => s.colour === colour);
+      if (idx < 0) continue;
+      const only = allMbOptions[m].filter((o) => o.id === idx + 1);
+      if (only.length) out[m] = only;
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, mbRunConfirmed, allMbOptions]);
+
 
   // Plan-instruction acknowledgement gate: meal building stays locked until the
   // client confirms they have read the current instructions. Empty instructions
@@ -1450,6 +1472,7 @@ export default function ClientPortal() {
               legacyLimits={foodLimits}
               initialRun={(client as any).mb_run}
               onGoHome={() => changeTab("home")}
+              onRunChanged={(r) => setClient((c) => (c ? { ...c, mb_run: r } : c))}
               phase={client.phase}
               client={client as unknown as Record<string, unknown>}
             />
