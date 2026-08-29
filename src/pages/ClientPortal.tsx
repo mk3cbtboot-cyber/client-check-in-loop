@@ -22,6 +22,7 @@ import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS, parseMbFoodLimits,
 import { resolveMbFoodList, categoryLabel, capTallyFor, capBlocksMeal, describeMealBlock, weeklyCapFor } from "@/lib/mb-food-list";
 import MbRunPlanner from "@/components/MbRunPlanner";
 import MbPhase1Guide from "@/components/MbPhase1Guide";
+import MbProgramGuide from "@/components/MbProgramGuide";
 import { parseMbRun, resolveDayMeal, runDates, todayISO, fmtQty, RUN_DAYS, RUN_MEALS } from "@/lib/mb-run";
 
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
@@ -1623,6 +1624,9 @@ export default function ClientPortal() {
                   {MB_RULES.map((r, i) => <li key={i}>{r}</li>)}
                 </ol>
               </Card>
+
+              <MbProgramGuide phase={client.phase} />
+
 
 
               {client.phase === "phase3" && !mbPlanConfirmed && (() => {
