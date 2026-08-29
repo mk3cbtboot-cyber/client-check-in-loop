@@ -569,6 +569,28 @@ export default function ClientPortal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, mbRunConfirmed, allMbOptions]);
 
+  // The foods the client already picked in My Plan, translated to the recipe
+  // builder's component keys, so a confirmed run needs no re-selection.
+  const runSelections = useMemo(() => {
+    const empty: Record<MealType, Record<string, string>> = { breakfast: {}, lunch: {}, dinner: {} };
+    if (!client || !mbRunConfirmed || client.client_type === "custom") return empty;
+    const r = parseMbRun((client as any).mb_run);
+    const sugg = getMbPlan(client as any).suggestions;
+    const today = todayISO();
+    if (!runDates(r, RUN_DAYS).includes(today)) return empty;
+    const out = { ...empty };
+    for (const m of RUN_MEALS) {
+      const { colour, picks } = resolveDayMeal(r, sugg, today, m);
+      const idx = sugg.findIndex((s) => s.colour === colour);
+      if (idx < 0) continue;
+      const opt = resolvedOptions[m].find((o) => o.id === idx + 1);
+      if (!opt) continue;
+      out[m] = runPicksToSelections(opt, picks);
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, mbRunConfirmed, resolvedOptions]);
+
 
   // Plan-instruction acknowledgement gate: meal building stays locked until the
   // client confirms they have read the current instructions. Empty instructions
