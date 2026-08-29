@@ -13,6 +13,7 @@ import {
   COLOUR_BAR, COLOUR_LABEL, MEAL_LABEL, MbColourHeader, MbFoodListReadonly, MbSuggestionsBoard,
 } from "@/components/MbSuggestionBoard";
 import MbPhase1Guide from "@/components/MbPhase1Guide";
+import MbProgramGuide from "@/components/MbProgramGuide";
 import { PlanInstructions } from "@/components/PlanInstructions";
 import PlanInstructionsAckStatus from "@/components/PlanInstructionsAckStatus";
 
@@ -122,6 +123,7 @@ export function MbPlanMirror({
         ackedHash={(client as { plan_instructions_acked_hash?: string | null } | null)?.plan_instructions_acked_hash ?? null}
         ackedAt={(client as { plan_instructions_acked_at?: string | null } | null)?.plan_instructions_acked_at ?? null}
       />
+      <MbProgramGuide phase={phase} />
       </Card>
     );
   }
@@ -263,6 +265,7 @@ export function MbPlanMirror({
         ackedHash={(client as { plan_instructions_acked_hash?: string | null } | null)?.plan_instructions_acked_hash ?? null}
         ackedAt={(client as { plan_instructions_acked_at?: string | null } | null)?.plan_instructions_acked_at ?? null}
       />
+      <MbProgramGuide phase={phase} />
     </Card>
   );
 }
