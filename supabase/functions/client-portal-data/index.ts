@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { foldLedger, weekWindowFor } from "../_shared/mb-cap.ts";
-import { missedMealSlots } from "../_shared/missed-meals.ts";
+import { localParts, missedMealSlots } from "../_shared/missed-meals.ts";
 import { planInstructionsHash } from "../_shared/plan-instructions-hash.ts";
 
 const corsHeaders = {
@@ -11,7 +11,7 @@ const corsHeaders = {
 
 const Body = z.object({ token: z.string().min(10).max(200) });
 
-const today = () => new Date().toISOString().slice(0, 10);
+
 
 function normalizeGender(value: unknown): "female" | "male" | "unspecified" | null {
   if (typeof value !== "string") return null;
@@ -51,7 +51,10 @@ Deno.serve(async (req) => {
     }
 
     const updates: Record<string, unknown> = {};
-    const td = today();
+    // "Today" in the client's timezone — not UTC — so late-evening portal
+    // visits don't roll water/nudges onto the wrong calendar day.
+    const clientTz = typeof c.timezone === "string" && c.timezone.trim() ? c.timezone.trim() : "America/Toronto";
+    const td = localParts(clientTz, new Date()).date;
     if (c.water_date !== td) {
       updates.water_date = td;
       updates.water_today_litres = 0;
@@ -181,7 +184,7 @@ Deno.serve(async (req) => {
     // Meal-log nudge: slots expected today/yesterday with no "I ate this" row.
     let pendingLogs: unknown[] = [];
     try {
-      pendingLogs = await missedMealSlots(admin, c as Record<string, unknown>, 2, td);
+      pendingLogs = await missedMealSlots(admin, c as Record<string, unknown>, 2, { tz: clientTz });
     } catch (err) {
       console.error("missedMealSlots failed", err);
     }

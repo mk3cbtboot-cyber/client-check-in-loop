@@ -55,6 +55,53 @@ export interface PendingLog {
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
+const FALLBACK_TZ = "America/Toronto";
+
+/**
+ * Local clock for `now` in `tz`. Invalid zones fall back to Toronto so a
+ * client with a missing/garbage timezone still gets sane nudge timing.
+ */
+export function localParts(
+  tz: string,
+  now: Date,
+): { date: string; hour: number; minute: number } {
+  let zone = tz && tz.trim() ? tz.trim() : FALLBACK_TZ;
+  const make = (z: string) =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: z,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    });
+  let fmt: Intl.DateTimeFormat;
+  try {
+    fmt = make(zone);
+  } catch {
+    zone = FALLBACK_TZ;
+    fmt = make(zone);
+  }
+  const parts = Object.fromEntries(fmt.formatToParts(now).map((p) => [p.type, p.value]));
+  const hour = Number(parts.hour === "24" ? "0" : parts.hour);
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, hour, minute: Number(parts.minute) };
+}
+
+/** Hour-of-day (client-local) after which a slot counts as "missed" if unlogged. */
+export const DEFAULT_SLOT_DUE_HOUR: Record<SlotKey, number> = {
+  breakfast: 10,
+  morning_snack: 11,
+  lunch: 14,
+  afternoon_snack: 16,
+  dinner: 20,
+};
+
+/** Small buffer past the due hour before a slot is treated as missed. */
+export const DUE_GRACE_MINUTES = 30;
+
+/** True once the slot's due time (due hour + grace) has passed locally. */
+export function isSlotDue(slot: SlotKey, localHour: number, localMinute: number): boolean {
+  const dueMinutes = DEFAULT_SLOT_DUE_HOUR[slot] * 60 + DUE_GRACE_MINUTES;
+  return localHour * 60 + localMinute >= dueMinutes;
+}
+
 export function addDaysISO(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
@@ -131,8 +178,14 @@ export async function missedMealSlots(
   admin: any,
   client: Record<string, any>,
   days = 2,
-  today: string = isoDate(new Date()),
+  opts: { tz?: string; now?: Date } = {},
 ): Promise<PendingLog[]> {
+  const now = opts.now ?? new Date();
+  const tz = typeof client.timezone === "string" && client.timezone.trim()
+    ? client.timezone.trim()
+    : (opts.tz ?? FALLBACK_TZ);
+  const local = localParts(tz, now);
+  const today = local.date;
   const dates = Array.from({ length: Math.max(1, days) }, (_, i) => addDaysISO(today, -i));
   const windowStart = dates[dates.length - 1];
 
@@ -142,10 +195,11 @@ export async function missedMealSlots(
     .eq("client_id", client.id)
     .gte("created_at", `${windowStart}T00:00:00Z`);
 
-  // date → meal_type → count of logged meals
+  // date → meal_type → count of logged meals (bucketed in the client's tz so
+  // a late-evening log isn't pushed across the UTC day boundary)
   const logged = new Map<string, Map<string, number>>();
   for (const r of (logs ?? []) as Array<{ meal_type: string | null; created_at: string }>) {
-    const d = String(r.created_at).slice(0, 10);
+    const d = localParts(tz, new Date(r.created_at)).date;
     const mt = r.meal_type ?? "";
     const byType = logged.get(d) ?? new Map<string, number>();
     byType.set(mt, (byType.get(mt) ?? 0) + 1);
@@ -169,8 +223,11 @@ export async function missedMealSlots(
   for (const date of dates) {
     const expected = await expectedSlotsFor(admin, client, date);
     if (!expected.length) continue;
+    const daysAgo = dates.indexOf(date);
     const remaining = new Map(logged.get(date) ?? []);
     for (const e of expected) {
+      // Today only: don't nag about a meal whose time hasn't come yet.
+      if (daysAgo === 0 && !isSlotDue(e.slot, local.hour, local.minute)) continue;
       const mealType = SLOT_TO_MEAL_TYPE[e.slot];
       const left = remaining.get(mealType) ?? 0;
       if (left > 0) {
@@ -179,7 +236,7 @@ export async function missedMealSlots(
       }
       pending.push({
         date,
-        days_ago: dates.indexOf(date),
+        days_ago: daysAgo,
         slot: e.slot,
         meal_type: mealType,
         label: e.label,
