@@ -41,6 +41,9 @@ interface Props {
   legacyLimits: Record<string, number>;
   initialRun: unknown;
   onGoHome: () => void;
+  /** Lifts the server-confirmed run into the parent so Home sees it immediately. */
+  onRunChanged?: (run: unknown) => void;
+
   /** Client's current MB phase — labels the food list. */
   phase?: string | null;
   /** Full client row — used to show the separate Phase 3 additional foods. */
