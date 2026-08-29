@@ -66,8 +66,9 @@ Deno.serve(async (req) => {
 
     const { data: latestCheckIn } = await admin
       .from("check_ins")
-      .select("weight_kg")
+      .select("weight_kg, created_at")
       .eq("client_id", c.id)
+      .not("weight_kg", "is", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -252,6 +253,7 @@ Deno.serve(async (req) => {
         food_bread: c.food_bread ?? "",
         food_fruit: c.food_fruit ?? "",
         latest_weight_kg: latestCheckIn?.weight_kg != null ? Number(latestCheckIn.weight_kg) : null,
+        latest_weight_at: latestCheckIn?.created_at ?? null,
         system_mode: c.system_mode === "own_practice" ? "own_practice" : "mb",
         gender: normalizeGender(c.gender),
         batch_cooking_mode: c.batch_cooking_mode === "off" ? "off" : "3-day",
