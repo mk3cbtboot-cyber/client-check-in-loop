@@ -93,7 +93,7 @@ import { MacrosTab } from "@/components/MacrosTab";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
 import { formatDistanceToNow } from "date-fns";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, LabelList } from "recharts";
 import ClientTrendGraphs from "@/components/ClientTrendGraphs";
 import PractitionerMessages from "@/components/PractitionerMessages";
 import MealsOverviewSection from "@/components/MealsOverviewSection";
@@ -2157,22 +2157,35 @@ export default function Dashboard() {
                           const weightEntries = [...list]
                             .filter((ci) => ci.weight_kg != null)
                             .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                          if (weightEntries.length === 0) return null;
                           const isLbs = client.weight_unit === "lbs";
+                          if (weightEntries.length === 0) {
+                            return (
+                              <div className="space-y-1">
+                                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Weight Trend ({isLbs ? "lbs" : "kg"})</p>
+                                <div className="h-36 w-full rounded border border-dashed flex items-center justify-center">
+                                  <p className="text-xs text-muted-foreground">No weight recorded yet</p>
+                                </div>
+                              </div>
+                            );
+                          }
                           const chartData = weightEntries.map((ci) => ({
                             label: format(new Date(ci.created_at), "MMM d"),
                             weight: isLbs
                               ? Number((Number(ci.weight_kg) * 2.20462).toFixed(1))
                               : Number(Number(ci.weight_kg).toFixed(1)),
                           }));
+                          const weights = chartData.map((d) => d.weight);
+                          const wMin = Math.min(...weights);
+                          const wMax = Math.max(...weights);
+                          const wPad = Math.max(isLbs ? 5 : 2, (wMax - wMin) * 0.5);
                           return (
                             <div className="space-y-1">
                               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Weight Trend ({isLbs ? "lbs" : "kg"})</p>
                               <div className="h-36 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                  <LineChart data={chartData} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
+                                  <LineChart data={chartData} margin={{ top: 14, right: 16, left: -12, bottom: 0 }}>
                                     <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={40} />
+                                    <YAxis domain={[Math.max(0, wMin - wPad), wMax + wPad]} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={40} />
                                     <Tooltip
                                       contentStyle={{ background: "hsl(var(--background))", border: "1px solid hsl(var(--border))", fontSize: 12 }}
                                       formatter={(value: number) => [`${value} ${isLbs ? "lbs" : "kg"}`, "Weight"]}
@@ -2185,7 +2198,13 @@ export default function Dashboard() {
                                       dot={{ r: 3, fill: "hsl(var(--primary))" }}
                                       activeDot={{ r: 5 }}
                                       connectNulls
-                                    />
+                                    >
+                                      <LabelList
+                                        dataKey="weight"
+                                        position="top"
+                                        style={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                                      />
+                                    </Line>
                                   </LineChart>
                                 </ResponsiveContainer>
                               </div>
