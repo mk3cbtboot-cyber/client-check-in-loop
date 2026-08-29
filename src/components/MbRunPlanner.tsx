@@ -60,7 +60,8 @@ interface Props {
  * the same shared evaluator the server runs on confirm.
  */
 export function MbRunPlanner({
-  token, suggestions, foodList, enrichedLimits, legacyLimits, initialRun, onGoHome, phase = null,
+  token, suggestions, foodList, enrichedLimits, legacyLimits, initialRun, onGoHome,
+  onRunChanged, phase = null,
   client = null,
 }: Props) {
   const [run, setRun] = useState<MbRun>(() => parseMbRun(initialRun));
