@@ -434,6 +434,8 @@ function optionFromSuggestion(s: MbSuggestion, meal: MealType, idx: number): Opt
         sources,
         optional: true,
         items,
+        itemId: it.id,
+        isVegAlt: true,
       });
     }
   });
