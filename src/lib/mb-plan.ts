@@ -475,3 +475,27 @@ export function mbOptions(
 export function mbColourForIndex(i: number): MbColour | null {
   return MB_COLOURS[i] ?? null;
 }
+
+/* ------------------------------------------------------------------ */
+/* Run picks → recipe-builder selections bridge                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Translate a confirmed run's picks (keyed by MbPlanItem.id, with `${id}-alt`
+ * for the optional second vegetable) into the recipe builder's component keys.
+ * Components without an itemId (legacy MB_OPTIONS, extras) are ignored.
+ */
+export function runPicksToSelections(
+  option: OptionDef,
+  picks: Record<string, string> | null | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!picks) return out;
+  for (const c of option.components) {
+    if (!c.itemId) continue;
+    const pickKey = c.isVegAlt ? `${c.itemId}${VEG_ALT_SUFFIX}` : c.itemId;
+    const food = picks[pickKey];
+    if (typeof food === "string" && food.trim()) out[c.key] = food;
+  }
+  return out;
+}
