@@ -222,6 +222,7 @@ export default function ClientPortal() {
       setWeightUnit(data.client.weight_unit || "kg");
       setLengthUnit(data.client.length_unit || "cm");
       setLatestWeightKg(data.client.latest_weight_kg ?? null);
+      setLatestWeightAt(data.client.latest_weight_at ?? null);
       if (data.client.welcome_seen === false && data.client.phase !== "phase4") setWelcomeOpen(true);
     } else if (data?.archived) {
       setArchived(true);
@@ -1337,6 +1338,23 @@ export default function ClientPortal() {
                     </div>
                   </div>
                   <Input id="weight" type="number" step="0.1" min={0} value={weightInput} onChange={(e) => setWeightInput(e.target.value)} placeholder={weightUnit === "kg" ? "e.g. 72.4" : "e.g. 159.6"} />
+                  {(() => {
+                    if (latestWeightKg != null) {
+                      const display = weightUnit === "lbs" ? Math.round(latestWeightKg * 2.20462 * 10) / 10 : Math.round(latestWeightKg * 10) / 10;
+                      const days = latestWeightAt ? Math.floor((Date.now() - new Date(latestWeightAt).getTime()) / 86400000) : null;
+                      return (
+                        <p className="text-xs text-muted-foreground">
+                          Last weight: {display} {weightUnit}{days != null ? `, ${days} day${days === 1 ? "" : "s"} ago` : ""}
+                        </p>
+                      );
+                    }
+                    return <p className="text-xs text-muted-foreground">No weight logged yet.</p>;
+                  })()}
+                  {!weightInput && (
+                    <p className="text-xs text-amber-600 dark:text-amber-500">
+                      No weight entered — this check-in won't update the weight trend.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="water">Water intake (litres)</Label>
