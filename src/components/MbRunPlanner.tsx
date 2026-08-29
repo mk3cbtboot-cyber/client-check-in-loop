@@ -94,12 +94,14 @@ export function MbRunPlanner({
 
   const save = useCallback(async (next: MbRun) => {
     setSaving(true);
-    const { error } = await supabase.functions.invoke("mb-run", {
+    const { data, error } = await supabase.functions.invoke("mb-run", {
       body: { token, action: "save", run: next },
     });
     setSaving(false);
-    if (error) toast.error("Couldn't save your choice — please try again.");
-  }, [token]);
+    if (error) return toast.error("Couldn't save your choice — please try again.");
+    // A draft save always clears confirmation server-side — keep the parent in sync.
+    onRunChanged?.((data as { run?: unknown } | null)?.run ?? { ...next, confirmed_on: null });
+  }, [token, onRunChanged]);
 
   useEffect(() => {
     if (!dirty.current) return;
