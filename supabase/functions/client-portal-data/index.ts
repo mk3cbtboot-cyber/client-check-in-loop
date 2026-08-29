@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { foldLedger, weekWindowFor } from "../_shared/mb-cap.ts";
-import { missedMealSlots } from "../_shared/missed-meals.ts";
+import { localParts, missedMealSlots } from "../_shared/missed-meals.ts";
 import { planInstructionsHash } from "../_shared/plan-instructions-hash.ts";
 
 const corsHeaders = {
@@ -11,7 +11,7 @@ const corsHeaders = {
 
 const Body = z.object({ token: z.string().min(10).max(200) });
 
-const today = () => new Date().toISOString().slice(0, 10);
+
 
 function normalizeGender(value: unknown): "female" | "male" | "unspecified" | null {
   if (typeof value !== "string") return null;
