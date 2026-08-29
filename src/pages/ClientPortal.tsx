@@ -1704,35 +1704,15 @@ export default function ClientPortal() {
                   );
                 }
                 if (client.phase === "phase4") {
-
-                  const phase2Populated = categoriesFromFields(phase2ParsedGroups);
-                  const renderReadonlySection = (items: { title: string; items: string[] }[]) => (
-                    items.length > 0 ? (
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {items.map((cat) => (
-                          <Card key={cat.title} className="p-4">
-                            <p className="font-medium mb-2">{cat.title}</p>
-                            <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                              {cat.items.map((it) => <li key={it}><span className="text-foreground">{it}</span></li>)}
-                            </ul>
-                          </Card>
-                        ))}
-                      </div>
-                    ) : (
-                      <Card className="p-4 text-sm text-muted-foreground">No data available</Card>
-                    )
-                  );
+                  // The run planner above already renders the Phase 4 food list;
+                  // don't repeat it once the plan is confirmed.
+                  if (mbPlanConfirmed) return null;
                   return (
-                    <div className="space-y-6">
-                      <div className="space-y-3">
-                        <p className="font-medium">Phase 2 Food List</p>
-                        {renderReadonlySection(phase2Populated)}
-                      </div>
-                      <div className="space-y-3">
-                        <p className="font-medium">Phase 3 Food List</p>
-                        {renderReadonlySection(populated)}
-                      </div>
-                    </div>
+                    <MbFoodListReadonly
+                      foodList={resolveMbFoodList(client as unknown as Record<string, unknown>)}
+                      phase="phase4"
+                      client={client as unknown as Record<string, unknown>}
+                    />
                   );
                 }
                 if (populated.length === 0) {
