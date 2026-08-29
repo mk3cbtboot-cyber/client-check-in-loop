@@ -217,6 +217,7 @@ export function MbRunPlanner({
     dirty.current = false;
     setRun(parseMbRun(payload.run));
     if (payload.consumed) setConsumed(payload.consumed);
+    onRunChanged?.(payload.run);
     toast.success("Run confirmed.");
     onGoHome();
   };
