@@ -422,6 +422,7 @@ function optionFromSuggestion(s: MbSuggestion, meal: MealType, idx: number): Opt
       sources,
       optional: it.optional === true,
       items,
+      itemId: it.id,
     });
     // Vegetables may be split across two choices — the second pick is purely for
     // variety and carries no extra portion (the qty above is the combined amount).
