@@ -223,8 +223,11 @@ export async function missedMealSlots(
   for (const date of dates) {
     const expected = await expectedSlotsFor(admin, client, date);
     if (!expected.length) continue;
+    const daysAgo = dates.indexOf(date);
     const remaining = new Map(logged.get(date) ?? []);
     for (const e of expected) {
+      // Today only: don't nag about a meal whose time hasn't come yet.
+      if (daysAgo === 0 && !isSlotDue(e.slot, local.hour, local.minute)) continue;
       const mealType = SLOT_TO_MEAL_TYPE[e.slot];
       const left = remaining.get(mealType) ?? 0;
       if (left > 0) {
