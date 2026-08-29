@@ -55,6 +55,53 @@ export interface PendingLog {
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
+const FALLBACK_TZ = "America/Toronto";
+
+/**
+ * Local clock for `now` in `tz`. Invalid zones fall back to Toronto so a
+ * client with a missing/garbage timezone still gets sane nudge timing.
+ */
+export function localParts(
+  tz: string,
+  now: Date,
+): { date: string; hour: number; minute: number } {
+  let zone = tz && tz.trim() ? tz.trim() : FALLBACK_TZ;
+  const make = (z: string) =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: z,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    });
+  let fmt: Intl.DateTimeFormat;
+  try {
+    fmt = make(zone);
+  } catch {
+    zone = FALLBACK_TZ;
+    fmt = make(zone);
+  }
+  const parts = Object.fromEntries(fmt.formatToParts(now).map((p) => [p.type, p.value]));
+  const hour = Number(parts.hour === "24" ? "0" : parts.hour);
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, hour, minute: Number(parts.minute) };
+}
+
+/** Hour-of-day (client-local) after which a slot counts as "missed" if unlogged. */
+export const DEFAULT_SLOT_DUE_HOUR: Record<SlotKey, number> = {
+  breakfast: 10,
+  morning_snack: 11,
+  lunch: 14,
+  afternoon_snack: 16,
+  dinner: 20,
+};
+
+/** Small buffer past the due hour before a slot is treated as missed. */
+export const DUE_GRACE_MINUTES = 30;
+
+/** True once the slot's due time (due hour + grace) has passed locally. */
+export function isSlotDue(slot: SlotKey, localHour: number, localMinute: number): boolean {
+  const dueMinutes = DEFAULT_SLOT_DUE_HOUR[slot] * 60 + DUE_GRACE_MINUTES;
+  return localHour * 60 + localMinute >= dueMinutes;
+}
+
 export function addDaysISO(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
