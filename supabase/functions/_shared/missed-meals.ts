@@ -178,8 +178,14 @@ export async function missedMealSlots(
   admin: any,
   client: Record<string, any>,
   days = 2,
-  today: string = isoDate(new Date()),
+  opts: { tz?: string; now?: Date } = {},
 ): Promise<PendingLog[]> {
+  const now = opts.now ?? new Date();
+  const tz = typeof client.timezone === "string" && client.timezone.trim()
+    ? client.timezone.trim()
+    : (opts.tz ?? FALLBACK_TZ);
+  const local = localParts(tz, now);
+  const today = local.date;
   const dates = Array.from({ length: Math.max(1, days) }, (_, i) => addDaysISO(today, -i));
   const windowStart = dates[dates.length - 1];
 
@@ -189,10 +195,11 @@ export async function missedMealSlots(
     .eq("client_id", client.id)
     .gte("created_at", `${windowStart}T00:00:00Z`);
 
-  // date → meal_type → count of logged meals
+  // date → meal_type → count of logged meals (bucketed in the client's tz so
+  // a late-evening log isn't pushed across the UTC day boundary)
   const logged = new Map<string, Map<string, number>>();
   for (const r of (logs ?? []) as Array<{ meal_type: string | null; created_at: string }>) {
-    const d = String(r.created_at).slice(0, 10);
+    const d = localParts(tz, new Date(r.created_at)).date;
     const mt = r.meal_type ?? "";
     const byType = logged.get(d) ?? new Map<string, number>();
     byType.set(mt, (byType.get(mt) ?? 0) + 1);
