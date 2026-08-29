@@ -1156,8 +1156,9 @@ export default function ClientPortal() {
                 const rawAltLocked: any = wp[`${meal}_locked_recipe_alt`] ?? null;
                 const primaryLocked: any = batchMode === "off" ? null : (batchActive(primaryBatchStart) ? rawPrimaryLocked : null);
                 const altLocked: any = batchMode === "off" ? null : (batchActive(altBatchStart) ? rawAltLocked : null);
-                const primarySelections = (wp[`${meal}_selections`] as Record<string, string>) ?? {};
-                const altSelections = (wp[`${meal}_selections_alt`] as Record<string, string>) ?? {};
+                const runSel = runSelections[meal] ?? {};
+                const primarySelections = { ...runSel, ...((wp[`${meal}_selections`] as Record<string, string>) ?? {}) };
+                const altSelections = { ...runSel, ...((wp[`${meal}_selections_alt`] as Record<string, string>) ?? {}) };
 
 
                 const isP3Plus = (client.phase as string) === "phase3" || (client.phase as string) === "phase4";
