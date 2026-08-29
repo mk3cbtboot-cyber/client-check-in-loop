@@ -422,6 +422,7 @@ function optionFromSuggestion(s: MbSuggestion, meal: MealType, idx: number): Opt
       sources,
       optional: it.optional === true,
       items,
+      itemId: it.id,
     });
     // Vegetables may be split across two choices — the second pick is purely for
     // variety and carries no extra portion (the qty above is the combined amount).
@@ -433,6 +434,8 @@ function optionFromSuggestion(s: MbSuggestion, meal: MealType, idx: number): Opt
         sources,
         optional: true,
         items,
+        itemId: it.id,
+        isVegAlt: true,
       });
     }
   });
@@ -471,4 +474,28 @@ export function mbOptions(
 /** Colour of the Nth suggestion (options are ordered by colour). */
 export function mbColourForIndex(i: number): MbColour | null {
   return MB_COLOURS[i] ?? null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Run picks → recipe-builder selections bridge                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Translate a confirmed run's picks (keyed by MbPlanItem.id, with `${id}-alt`
+ * for the optional second vegetable) into the recipe builder's component keys.
+ * Components without an itemId (legacy MB_OPTIONS, extras) are ignored.
+ */
+export function runPicksToSelections(
+  option: OptionDef,
+  picks: Record<string, string> | null | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!picks) return out;
+  for (const c of option.components) {
+    if (!c.itemId) continue;
+    const pickKey = c.isVegAlt ? `${c.itemId}${VEG_ALT_SUFFIX}` : c.itemId;
+    const food = picks[pickKey];
+    if (typeof food === "string" && food.trim()) out[c.key] = food;
+  }
+  return out;
 }

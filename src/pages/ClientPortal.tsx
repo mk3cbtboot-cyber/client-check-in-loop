@@ -18,7 +18,7 @@ import ChatThread, { type ChatMessage } from "@/components/ChatThread";
 import ClientWelcome from "@/components/ClientWelcome";
 
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
-import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS, parseMbFoodLimits, vegQtyOverrides } from "@/lib/mb-plan";
+import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS, parseMbFoodLimits, vegQtyOverrides, runPicksToSelections } from "@/lib/mb-plan";
 import { resolveMbFoodList, categoryLabel, capTallyFor, capBlocksMeal, describeMealBlock, weeklyCapFor } from "@/lib/mb-food-list";
 import MbRunPlanner from "@/components/MbRunPlanner";
 import MbPhase1Guide from "@/components/MbPhase1Guide";
@@ -568,6 +568,28 @@ export default function ClientPortal() {
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, mbRunConfirmed, allMbOptions]);
+
+  // The foods the client already picked in My Plan, translated to the recipe
+  // builder's component keys, so a confirmed run needs no re-selection.
+  const runSelections = useMemo(() => {
+    const empty: Record<MealType, Record<string, string>> = { breakfast: {}, lunch: {}, dinner: {} };
+    if (!client || !mbRunConfirmed || client.client_type === "custom") return empty;
+    const r = parseMbRun((client as any).mb_run);
+    const sugg = getMbPlan(client as any).suggestions;
+    const today = todayISO();
+    if (!runDates(r, RUN_DAYS).includes(today)) return empty;
+    const out = { ...empty };
+    for (const m of RUN_MEALS) {
+      const { colour, picks } = resolveDayMeal(r, sugg, today, m);
+      const idx = sugg.findIndex((s) => s.colour === colour);
+      if (idx < 0) continue;
+      const opt = resolvedOptions[m].find((o) => o.id === idx + 1);
+      if (!opt) continue;
+      out[m] = runPicksToSelections(opt, picks);
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, mbRunConfirmed, resolvedOptions]);
 
 
   // Plan-instruction acknowledgement gate: meal building stays locked until the
@@ -1134,8 +1156,9 @@ export default function ClientPortal() {
                 const rawAltLocked: any = wp[`${meal}_locked_recipe_alt`] ?? null;
                 const primaryLocked: any = batchMode === "off" ? null : (batchActive(primaryBatchStart) ? rawPrimaryLocked : null);
                 const altLocked: any = batchMode === "off" ? null : (batchActive(altBatchStart) ? rawAltLocked : null);
-                const primarySelections = (wp[`${meal}_selections`] as Record<string, string>) ?? {};
-                const altSelections = (wp[`${meal}_selections_alt`] as Record<string, string>) ?? {};
+                const runSel = runSelections[meal] ?? {};
+                const primarySelections = { ...runSel, ...((wp[`${meal}_selections`] as Record<string, string>) ?? {}) };
+                const altSelections = { ...runSel, ...((wp[`${meal}_selections_alt`] as Record<string, string>) ?? {}) };
 
 
                 const isP3Plus = (client.phase as string) === "phase3" || (client.phase as string) === "phase4";
@@ -1192,7 +1215,7 @@ export default function ClientPortal() {
                                 foodLimits={foodLimits}
                                 capFold={capFold}
                                 lockedRecipe={null}
-                                lockedSelections={{}}
+                                lockedSelections={runSelections[meal] ?? {}}
                                 extraComponents={buildExtras(opt)}
                                 filteredSources={filteredSources}
                                 onLogged={refetchAll}
