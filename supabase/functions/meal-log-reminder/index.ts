@@ -8,7 +8,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
-import { missedMealSlots } from "../_shared/missed-meals.ts";
+import { localParts, missedMealSlots } from "../_shared/missed-meals.ts";
 import { sendTemplateEmail } from "../_shared/transactional-email-templates/send-email.ts";
 import { logEmailSend } from "../_shared/email-send-log.ts";
 
@@ -29,25 +29,6 @@ const Body = z.object({
   dry_run: z.boolean().optional(),
 });
 
-function localParts(tz: string, now: Date): { date: string; hour: number } {
-  let zone = tz;
-  let fmt: Intl.DateTimeFormat;
-  try {
-    fmt = new Intl.DateTimeFormat("en-CA", {
-      timeZone: zone,
-      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hour12: false,
-    });
-  } catch {
-    zone = FALLBACK_TZ;
-    fmt = new Intl.DateTimeFormat("en-CA", {
-      timeZone: zone,
-      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hour12: false,
-    });
-  }
-  const parts = Object.fromEntries(fmt.formatToParts(now).map((p) => [p.type, p.value]));
-  const hour = Number(parts.hour === "24" ? "0" : parts.hour);
-  return { date: `${parts.year}-${parts.month}-${parts.day}`, hour };
-}
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -108,8 +89,9 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    // Today only — yesterday's grace window stays an in-app nudge.
-    const pending = await missedMealSlots(admin, c, 1, date);
+    // Today only — yesterday's grace window stays an in-app nudge. Slots
+    // whose due hour hasn't passed yet locally are filtered by the gate.
+    const pending = await missedMealSlots(admin, c, 1, { tz });
     if (!pending.length) {
       results.push({ client_id: c.id, skipped: "nothing_missed", tz });
       continue;
