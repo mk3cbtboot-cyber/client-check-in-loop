@@ -55,6 +55,8 @@ interface ClientState {
   meal_streak: number;
   water_streak: number;
   last_meal_logged_at?: string | null;
+  latest_weight_kg?: number | null;
+  latest_weight_at?: string | null;
 
   mb_pdf_path: string | null;
   phase3_additional_foods: string;
@@ -187,6 +189,7 @@ export default function ClientPortal() {
   const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">("kg");
   const [lengthUnit, setLengthUnit] = useState<"cm" | "in">("cm");
   const [latestWeightKg, setLatestWeightKg] = useState<number | null>(null);
+  const [latestWeightAt, setLatestWeightAt] = useState<string | null>(null);
   const initialRatings = {
     general_wellbeing: 3, fatigue: 3, sleep: 3, headache: 3, pain: 3,
     joint_pain: 3, acid_reflux: 3, digestion: 3, allergy_skin: 3,
