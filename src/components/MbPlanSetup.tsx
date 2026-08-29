@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Copy, Loader2, Plus, Trash2, X } from "lucide-react";
 import { type MealType } from "@/lib/mb-foods";
 import { canonicaliseFoodLimits } from "@/lib/food-limits";
+import { projectFoodLimits } from "@/lib/mb-food-limits-save";
 import MbPersonalFoodList from "@/components/MbPersonalFoodList";
 import PlanInstructionsEditor from "@/components/PlanInstructionsEditor";
 import {
@@ -210,33 +211,17 @@ export function MbPlanSetup({
       };
       // Food caps are the single source of truth for MB: project every weekly
       // cap's max into the flat clients.food_limits map that the portal
-      // counters and log-mb-meal enforcement already read.
-      const projected = canonicaliseFoodLimits(
-        Object.fromEntries(
-          nextLimits
-            .filter((r) => r.type === "weekly" && r.food.trim() !== "" && Number(r.max) > 0)
-            .map((r) => [r.food.trim().toLowerCase(), Number(r.max)]),
-        ),
-      );
+      // counters and log-mb-meal enforcement already read. Intent-based guard:
+      // an empty result is a legitimate "all caps deleted" and propagates; the
+      // key is skipped only when the editor never seeded AND nothing projects.
+      const projection = projectFoodLimits(nextLimits, existingFlatLimits, ownedKeys.current);
       const update: Record<string, unknown> = {
         mb_plan: payload as never,
         mb_food_limits: nextLimits as never,
       };
-      // Never let an empty caps editor wipe existing limits; merge with the
-      // stored map instead of replacing keys the caps editor doesn't own.
-      if (Object.keys(projected).length > 0 || ownedKeys.current.size > 0) {
-        const base = canonicaliseFoodLimits(existingFlatLimits);
-        const merged: Record<string, number> = {};
-        for (const [k, v] of Object.entries(base)) {
-          // Keys the editor owns are re-supplied by the projection below;
-          // if they were deleted in the editor, they drop out here.
-          if (!ownedKeys.current.has(k)) merged[k] = Number(v);
-        }
-        const next = canonicaliseFoodLimits({ ...merged, ...projected });
-        if (Object.keys(next).length > 0 || Object.keys(base).length === 0) {
-          update.food_limits = next as never;
-          for (const k of Object.keys(projected)) ownedKeys.current.add(k);
-        }
+      if (projection) {
+        update.food_limits = projection.foodLimits as never;
+        for (const k of projection.projectedKeys) ownedKeys.current.add(k);
       }
 
       const { error } = await supabase.from("clients").update(update as never).eq("id", clientId);
