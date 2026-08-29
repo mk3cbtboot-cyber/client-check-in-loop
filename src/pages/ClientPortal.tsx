@@ -1450,6 +1450,7 @@ export default function ClientPortal() {
               legacyLimits={foodLimits}
               initialRun={(client as any).mb_run}
               onGoHome={() => changeTab("home")}
+              onRunChanged={(r) => setClient((c) => (c ? { ...c, mb_run: r } : c))}
               phase={client.phase}
               client={client as unknown as Record<string, unknown>}
             />
