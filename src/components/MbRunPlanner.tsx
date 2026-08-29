@@ -447,7 +447,20 @@ export function MbRunPlanner({
 
       {serverError && <p className="text-xs text-destructive">{serverError}</p>}
 
-      {runReady ? (
+      {run.confirmed_on ? (
+        <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
+          <p className="text-sm font-medium flex items-center gap-1.5">
+            <Check className="h-4 w-4" /> Run confirmed
+          </p>
+          <p className="text-sm text-muted-foreground">
+            You're set through {dayLabel(dates[dates.length - 1] ?? start)}. Head Home to cook today's meals.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={onGoHome}>Go to Home</Button>
+            <Button size="sm" variant="outline" onClick={clearRun}>Start a new run</Button>
+          </div>
+        </div>
+      ) : runReady ? (
         <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
           <p className="text-sm font-medium">Your run is ready</p>
           <p className="text-sm text-muted-foreground">
