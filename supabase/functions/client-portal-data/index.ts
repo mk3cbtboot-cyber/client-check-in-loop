@@ -51,7 +51,10 @@ Deno.serve(async (req) => {
     }
 
     const updates: Record<string, unknown> = {};
-    const td = today();
+    // "Today" in the client's timezone — not UTC — so late-evening portal
+    // visits don't roll water/nudges onto the wrong calendar day.
+    const clientTz = typeof c.timezone === "string" && c.timezone.trim() ? c.timezone.trim() : "America/Toronto";
+    const td = localParts(clientTz, new Date()).date;
     if (c.water_date !== td) {
       updates.water_date = td;
       updates.water_today_litres = 0;

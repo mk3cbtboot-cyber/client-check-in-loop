@@ -236,7 +236,7 @@ export async function missedMealSlots(
       }
       pending.push({
         date,
-        days_ago: dates.indexOf(date),
+        days_ago: daysAgo,
         slot: e.slot,
         meal_type: mealType,
         label: e.label,
