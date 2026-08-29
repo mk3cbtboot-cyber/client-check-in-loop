@@ -207,10 +207,10 @@ export function MbRunPlanner({
       setServerError(
         payload.message ??
           (payload.error === "cap_exceeded"
-            ? "This run exceeds a weekly food cap."
-            : "Couldn't confirm your run — please try again."),
+            ? "These meals exceed a weekly food cap."
+            : "Couldn't confirm your meals — please try again."),
       );
-      toast.error(payload.message ?? "Couldn't confirm your run.");
+      toast.error(payload.message ?? "Couldn't confirm your meals.");
       return;
     }
     setServerError(null);
@@ -218,7 +218,7 @@ export function MbRunPlanner({
     setRun(parseMbRun(payload.run));
     if (payload.consumed) setConsumed(payload.consumed);
     onRunChanged?.(payload.run);
-    toast.success("Run confirmed.");
+    toast.success("Meals confirmed.");
     onGoHome();
   };
 
@@ -229,7 +229,7 @@ export function MbRunPlanner({
         <div>
           <p className="font-medium">Choose your suggestion for the next {RUN_DAYS} days</p>
           <p className="text-sm text-muted-foreground">
-            Tap any meal to choose that suggestion. All three meals lock together — you follow one colour for the whole run.
+            Tap any meal to choose that suggestion. All three meals lock together — you follow one colour for all 3 days.
           </p>
         </div>
         <MbSuggestionsBoard suggestions={suggestions} onPick={lockColour} />
@@ -432,7 +432,7 @@ export function MbRunPlanner({
       {plan.blocks.length > 0 && (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 space-y-1">
           <p className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-            <AlertTriangle className="h-4 w-4" /> This run goes over a weekly food cap
+            <AlertTriangle className="h-4 w-4" /> These meals go over a weekly food cap
           </p>
           <ul className="text-xs text-amber-700 dark:text-amber-400 list-disc pl-5">
             {plan.blocks.map((b) => (
@@ -440,7 +440,7 @@ export function MbRunPlanner({
             ))}
           </ul>
           <p className="text-xs text-muted-foreground">
-            Swap the affected meal on those days to another suggestion — then you can confirm your run.
+            Swap the affected meal on those days to another suggestion — then you can confirm your meals.
           </p>
         </div>
       )}
@@ -450,34 +450,31 @@ export function MbRunPlanner({
       {run.confirmed_on ? (
         <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
           <p className="text-sm font-medium flex items-center gap-1.5">
-            <Check className="h-4 w-4" /> Run confirmed
-          </p>
-          <p className="text-sm text-muted-foreground">
-            You're set through {dayLabel(dates[dates.length - 1] ?? start)}. Head Home to cook today's meals.
+            <Check className="h-4 w-4" /> Your meals are confirmed through {dayLabel(dates[dates.length - 1] ?? start)}.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={onGoHome}>Go to Home</Button>
-            <Button size="sm" variant="outline" onClick={clearRun}>Start a new run</Button>
+            <Button size="sm" variant="outline" onClick={clearRun}>Choose new meals</Button>
           </div>
         </div>
       ) : runReady ? (
         <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
-          <p className="text-sm font-medium">Your run is ready</p>
+          <p className="text-sm font-medium">Your 3 days of meals are ready</p>
           <p className="text-sm text-muted-foreground">
-            All {RUN_DAYS} days are picked and within your weekly caps. Confirm to start cooking.
+            All your meals for 3 days are selected and within your caps. Confirm your meals to start.
           </p>
           <Button size="sm" onClick={() => void confirmRun()} disabled={confirming}>
             {confirming && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
-            Confirm run
+            Confirm Meals
           </Button>
         </div>
       ) : (
         <div className="space-y-2">
-          <Button size="sm" disabled>Confirm run</Button>
+          <Button size="sm" disabled>Confirm Meals</Button>
           <p className="text-xs text-muted-foreground">
             {allPicked
-              ? "Resolve the cap conflicts above to confirm your run."
-              : "Pick a food for every group above to finish your run."}
+              ? "Resolve the cap conflicts above to confirm your meals."
+              : "Pick a food for every group above to finish your meals."}
           </p>
         </div>
       )}
