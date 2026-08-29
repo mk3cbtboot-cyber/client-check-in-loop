@@ -1215,7 +1215,7 @@ export default function ClientPortal() {
                                 foodLimits={foodLimits}
                                 capFold={capFold}
                                 lockedRecipe={null}
-                                lockedSelections={{}}
+                                lockedSelections={runSelections[meal] ?? {}}
                                 extraComponents={buildExtras(opt)}
                                 filteredSources={filteredSources}
                                 onLogged={refetchAll}
