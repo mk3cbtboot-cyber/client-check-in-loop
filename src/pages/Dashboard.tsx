@@ -154,6 +154,7 @@ interface Client {
   client_goal: string;
   vitamins_supplements: string;
   weight_unit: string;
+  starting_weight_kg: number | null;
   archived_at: string | null;
   practitioner_last_read_at: string | null;
   phase4_start_date: string | null;
