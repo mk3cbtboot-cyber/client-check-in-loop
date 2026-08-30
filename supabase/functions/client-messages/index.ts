@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { capTallyFor, foldLedger, weekWindowFor, type CapFold } from "../_shared/mb-cap.ts";
+import { retrieveKb } from "../_shared/nutrition-kb.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
