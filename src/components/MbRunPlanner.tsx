@@ -143,8 +143,14 @@ export function MbRunPlanner({
 
   const pickable = (items: MbPlanItem[]) => items.filter((i) => i.category !== "fixed");
 
-  const optionsFor = (it: MbPlanItem): string[] =>
-    (foodList[it.category] ?? []).length ? foodList[it.category] : (it.options ?? []);
+  const optionsFor = (it: MbPlanItem): string[] => {
+    const fromList = foodList[it.category] ?? [];
+    if (fromList.length) return fromList;
+    if (it.options?.length) return it.options;
+    // Last resort: the MB standard list for this group (e.g. a Sunflower Seeds
+    // slot on a client whose practitioner never filled that column in).
+    return (MB_FOODS as Record<string, string[]>)[it.category] ?? [];
+  };
 
   const start = run.started_on ?? todayISO();
   const dates = useMemo(() => (run.colour ? runDates(run, RUN_DAYS) : []), [run]);
