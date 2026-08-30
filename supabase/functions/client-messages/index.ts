@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
               "phase3_mb_sprouts", "phase3_mb_fat_oil",
               "eggs_min_per_week", "mb_plan",
               "water_target_litres", "food_limits",
-              "food_exclusions",
+              "food_exclusions", "plan_instructions",
               "keys_to_success", "digestion_protocol", "recommended_supplements",
             ].join(", "))
 
@@ -579,6 +579,16 @@ Deno.serve(async (req) => {
             return parts.length ? "\n" + parts.join("\n\n") : "";
           })();
 
+          const planInstructionsBlock = ((): string => {
+            const raw = (f as any).plan_instructions;
+            const texts = (Array.isArray(raw) ? raw : [])
+              .map((r: unknown) => (r && typeof r === "object" && typeof (r as any).text === "string" ? (r as any).text.replace(/\s+/g, " ").trim() : ""))
+              .filter((t: string) => t.length > 0);
+            return texts.length
+              ? `\nPLAN INSTRUCTIONS (practitioner guidance for this client's plan):\n${texts.map((t: string) => `- ${t}`).join("\n")}`
+              : "";
+          })();
+
           const planSummary = isRecipePlan
             ? [
                 `Client name: ${f.name ?? "(unknown)"}`,
@@ -589,6 +599,7 @@ Deno.serve(async (req) => {
                 `Water target: ${f.water_target_litres ?? "?"} litres/day`,
                 customExclusionsLine,
                 customExtras,
+                planInstructionsBlock,
               ].filter(Boolean).join("\n")
             : isFoodList
             ? [
@@ -600,6 +611,7 @@ Deno.serve(async (req) => {
                 `Water target: ${f.water_target_litres ?? "?"} litres/day`,
                 customExclusionsLine,
                 customExtras,
+                planInstructionsBlock,
               ].filter(Boolean).join("\n")
             : [
                 `Client name: ${f.name ?? "(unknown)"}`,
@@ -631,6 +643,8 @@ Deno.serve(async (req) => {
                 Array.isArray((f as any).food_exclusions) && (f as any).food_exclusions.length
                   ? `\nFOODS EXCLUDED FROM THIS CLIENT'S PLAN (never suggest): ${((f as any).food_exclusions as string[]).join(", ")}`
                   : "",
+                customExtras,
+                planInstructionsBlock,
               ].filter(Boolean).join("\n");
 
 
