@@ -699,8 +699,15 @@ Deno.serve(async (req) => {
                   : "",
               ].filter(Boolean).join(" ");
 
-
-
+          // Nutrition knowledge base grounding — Custom formats only, never MB.
+          const isCustomBranch = isRecipePlan || isFoodList;
+          const kb = isCustomBranch
+            ? await retrieveKb(admin as any, body, 2)
+            : { indexBlock: "", kbBlock: "", matchedSlugs: [] as string[] };
+          console.log("ai_interceptor: kb", { isCustomBranch, matched: kb.matchedSlugs });
+          const finalSystemPrompt = isCustomBranch
+            ? [systemPrompt, kb.indexBlock, kb.kbBlock].filter(Boolean).join("\n\n")
+            : systemPrompt;
 
 
           const lovableKey = Deno.env.get("LOVABLE_API_KEY");
