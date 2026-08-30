@@ -204,6 +204,8 @@ export default function Dashboard() {
   const [gender, setGender] = useState<"female" | "male" | "">("");
   const [heightCm, setHeightCm] = useState<string>("");
   const [heightUnit, setHeightUnit] = useState<"cm" | "ftin">("cm");
+  const [startWeight, setStartWeight] = useState<string>("");
+  const [startWeightUnit, setStartWeightUnit] = useState<"kg" | "lbs">("kg");
   const [heightFt, setHeightFt] = useState<string>("");
   const [heightIn, setHeightIn] = useState<string>("");
   const [newClientType, setNewClientType] = useState<"mb" | "custom" | null>(null);
