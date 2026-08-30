@@ -788,7 +788,7 @@ export default function Dashboard() {
         console.error("Invite email failed", data?.emailError);
         toast.warning("Client created, but the invite email could not be sent.");
       }
-      setName(""); setEmail(""); setGender(""); setHeightCm(""); setHeightFt(""); setHeightIn(""); setHeightUnit("cm"); setNewClientType(null); setOpen(false);
+      setName(""); setEmail(""); setGender(""); setHeightCm(""); setHeightFt(""); setHeightIn(""); setHeightUnit("cm"); setStartWeight(""); setStartWeightUnit("kg"); setNewClientType(null); setOpen(false);
       await load();
     } catch (err: any) {
       toast.error(err.message ?? "Failed to invite client");
