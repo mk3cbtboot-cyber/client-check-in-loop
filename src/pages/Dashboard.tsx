@@ -2482,7 +2482,8 @@ export default function Dashboard() {
                           client={client as unknown as Parameters<typeof MacrosTab>[0]["client"]}
                           latestWeightKg={(() => {
                             const w = list.find((ci) => ci.weight_kg != null)?.weight_kg;
-                            return w != null ? Number(w) : null;
+                            if (w != null) return Number(w);
+                            return client.starting_weight_kg != null ? Number(client.starting_weight_kg) : null;
                           })()}
                           onChanged={(patch) => {
                             setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));
