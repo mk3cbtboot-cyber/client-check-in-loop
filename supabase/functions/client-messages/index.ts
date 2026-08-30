@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
           const { data: full, error: fullErr } = await admin
             .from("clients")
             .select([
-              "name", "phase", "batch_cooking_mode",
+              "name", "phase", "batch_cooking_mode", "system_mode",
               "plan_format", "food_list", "food_list_notes", "food_list_notes_stale", "meals_per_day",
               "breakfast_protein_category", "breakfast_protein_grams", "breakfast_veg_grams",
               "lunch_protein_category", "lunch_protein_grams", "lunch_veg_grams",
