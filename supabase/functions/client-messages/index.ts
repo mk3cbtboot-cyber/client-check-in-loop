@@ -721,7 +721,7 @@ Deno.serve(async (req) => {
             console.log("ai_interceptor: gateway_request_body", JSON.stringify({
               model: "google/gemini-3.5-flash",
               messages: [
-                { role: "system", content: systemPrompt },
+                { role: "system", content: finalSystemPrompt },
                 { role: "user", content: `CLIENT PLAN DATA:\n${planSummary}\n\nCLIENT MESSAGE:\n${body}` },
               ],
             }));
@@ -734,7 +734,7 @@ Deno.serve(async (req) => {
               body: JSON.stringify({
                 model: "google/gemini-3.5-flash",
                 messages: [
-                  { role: "system", content: systemPrompt },
+                  { role: "system", content: finalSystemPrompt },
                   { role: "user", content: `CLIENT PLAN DATA:\n${planSummary}\n\nCLIENT MESSAGE:\n${body}` },
                 ],
               }),
