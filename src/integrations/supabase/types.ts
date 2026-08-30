@@ -1132,6 +1132,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      match_nutrition_kb: {
+        Args: { _limit?: number; _q: string }
+        Returns: {
+          body: string
+          score: number
+          slug: string
+          summary: string
+          title: string
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
