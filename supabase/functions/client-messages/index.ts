@@ -611,6 +611,7 @@ Deno.serve(async (req) => {
                 `Water target: ${f.water_target_litres ?? "?"} litres/day`,
                 customExclusionsLine,
                 customExtras,
+                planInstructionsBlock,
               ].filter(Boolean).join("\n")
             : [
                 `Client name: ${f.name ?? "(unknown)"}`,
