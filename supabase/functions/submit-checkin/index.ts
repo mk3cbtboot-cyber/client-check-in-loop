@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
 
     const { data: client, error: clientErr } = await admin
       .from("clients")
-      .select("id, name, email, practitioner_id")
+      .select("id, name, email, practitioner_id, practitioner_notes, timezone")
       .eq("magic_token", token)
       .maybeSingle();
     if (clientErr || !client) {
@@ -73,6 +73,29 @@ Deno.serve(async (req) => {
       .select()
       .single();
     if (insertErr) throw insertErr;
+
+    // Carry client check-in notes into Practitioner Notes (append-only, timestamped).
+    if (notes && notes.trim().length > 0) {
+      try {
+        let tz = typeof client.timezone === "string" ? client.timezone.trim() : "";
+        try { if (tz) new Intl.DateTimeFormat("en-US", { timeZone: tz }); } catch { tz = ""; }
+        const stamp = new Intl.DateTimeFormat("en-US", {
+          timeZone: tz || "UTC",
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        }).format(new Date());
+        const entry = `[${stamp}] Client check-in note: ${notes.trim()}`;
+        const existing = (client.practitioner_notes ?? "").trim();
+        const combined = existing ? `${existing}\n${entry}` : entry;
+        await admin.from("clients").update({ practitioner_notes: combined }).eq("id", client.id);
+      } catch (noteErr) {
+        console.warn("Appending check-in note to practitioner_notes failed (non-fatal):", noteErr);
+      }
+    }
 
     // Sync home-screen water tracker if water_litres provided
     if (rest.water_litres !== undefined) {
