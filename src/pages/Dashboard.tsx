@@ -1659,6 +1659,32 @@ export default function Dashboard() {
                           </div>
                         )}
                       </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="cstartweight">Starting weight <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                          <div className="inline-flex rounded-md border border-input p-0.5 text-xs">
+                            <button
+                              type="button"
+                              className={`px-2 py-0.5 rounded ${startWeightUnit === "kg" ? "bg-primary text-primary-foreground" : ""}`}
+                              onClick={() => setStartWeightUnit("kg")}
+                            >kg</button>
+                            <button
+                              type="button"
+                              className={`px-2 py-0.5 rounded ${startWeightUnit === "lbs" ? "bg-primary text-primary-foreground" : ""}`}
+                              onClick={() => setStartWeightUnit("lbs")}
+                            >lbs</button>
+                          </div>
+                        </div>
+                        <Input
+                          id="cstartweight"
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          placeholder={startWeightUnit === "lbs" ? "e.g. 165" : "e.g. 75"}
+                          value={startWeight}
+                          onChange={(e) => setStartWeight(e.target.value)}
+                        />
+                      </div>
                       <Button type="submit" className="w-full" disabled={submitting}>
                         {submitting ? "Sending invite…" : "Add & send invite"}
                       </Button>
