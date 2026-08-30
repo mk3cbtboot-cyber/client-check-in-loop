@@ -20,11 +20,17 @@ export const MB_FOOD_CATEGORIES: MbFoodCategory[] = [
   { key: "poultry", label: "Poultry", field: "food_poultry" },
   { key: "cheese", label: "Cheese", field: "food_cheese" },
   { key: "legumes", label: "Legumes", field: "food_legumes" },
+  { key: "nuts", label: "Nuts", field: "food_nuts" },
+  { key: "pumpkinSeeds", label: "Pumpkin Seeds", field: "food_pumpkin_seeds" },
+  { key: "sunflowerSeeds", label: "Sunflower Seeds", field: "food_sunflower_seeds" },
   { key: "vegetables", label: "Vegetables", field: "food_vegetables" },
   { key: "vegLettuce", label: "Veg./Lettuce", field: "food_veg_lettuce" },
   { key: "starch", label: "Starch", field: "food_starch" },
   { key: "bread", label: "Bread", field: "food_bread" },
   { key: "fruit", label: "Fruit", field: "food_fruit" },
+  // No Phase 2 oils column exists; the only oil list on clients is the
+  // Phase 3 addition column, so that is what this category seeds from.
+  { key: "oils", label: "Oils (Cold-Pressed)", field: "phase3_mb_fat_oil" },
 ];
 
 export type MbFoodListMap = Record<string, string[]>;
