@@ -30,6 +30,8 @@ project_id = "mzwsjiuwctmlioloqswj"
     verify_jwt = false
   [functions.save-food-selections]
     verify_jwt = false
+  [functions.seed-nutrition-kb]
+    verify_jwt = false
   [functions.submit-checkin]
     verify_jwt = false
   [functions.verify-checkin-token]
