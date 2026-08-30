@@ -579,6 +579,16 @@ Deno.serve(async (req) => {
             return parts.length ? "\n" + parts.join("\n\n") : "";
           })();
 
+          const planInstructionsBlock = ((): string => {
+            const raw = (f as any).plan_instructions;
+            const texts = (Array.isArray(raw) ? raw : [])
+              .map((r: unknown) => (r && typeof r === "object" && typeof (r as any).text === "string" ? (r as any).text.replace(/\s+/g, " ").trim() : ""))
+              .filter((t: string) => t.length > 0);
+            return texts.length
+              ? `\nPLAN INSTRUCTIONS (practitioner guidance for this client's plan):\n${texts.map((t: string) => `- ${t}`).join("\n")}`
+              : "";
+          })();
+
           const planSummary = isRecipePlan
             ? [
                 `Client name: ${f.name ?? "(unknown)"}`,
