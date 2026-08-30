@@ -762,6 +762,39 @@ export type Database = {
           },
         ]
       }
+      nutrition_coaching_kb: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          keywords: string[]
+          slug: string
+          summary: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          keywords?: string[]
+          slug: string
+          summary?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          keywords?: string[]
+          slug?: string
+          summary?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       practitioner_recipes: {
         Row: {
           created_at: string
@@ -1099,6 +1132,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       app_role: "practitioner" | "client"
