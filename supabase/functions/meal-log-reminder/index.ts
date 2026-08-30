@@ -85,10 +85,17 @@ Deno.serve(async (req) => {
 
   for (const c of (clients ?? []) as Array<Record<string, any>>) {
     const tz = typeof c.timezone === "string" && c.timezone.trim() ? c.timezone.trim() : FALLBACK_TZ;
-    const { date, hour } = localParts(tz, now);
+    const { date, hour, minute } = localParts(tz, now);
+    const localTimeMinutes = hour * 60 + minute;
 
-    if (!opts.force && hour !== TARGET_HOUR) {
-      results.push({ client_id: c.id, skipped: "not_local_evening", tz, local_hour: hour });
+    if (!opts.force && localTimeMinutes < TARGET_TIME_MINUTES) {
+      results.push({
+        client_id: c.id,
+        skipped: "not_local_evening",
+        tz,
+        local_hour: hour,
+        local_minute: minute,
+      });
       continue;
     }
 
