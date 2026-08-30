@@ -2194,10 +2194,30 @@ export default function Dashboard() {
                             .filter((ci) => ci.weight_kg != null)
                             .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
                           const isLbs = client.weight_unit === "lbs";
+                          const unitLbl = isLbs ? "lbs" : "kg";
+                          const toDisp = (kg: number) => Math.round((isLbs ? kg * 2.20462 : kg) * 10) / 10;
+                          const startKg = client.starting_weight_kg != null ? Number(client.starting_weight_kg) : null;
+                          const currentKg = (() => {
+                            const w = list.find((ci) => ci.weight_kg != null)?.weight_kg;
+                            return w != null ? Number(w) : null;
+                          })();
+                          const summaryParts: string[] = [];
+                          summaryParts.push(`Start: ${startKg != null ? `${toDisp(startKg)} ${unitLbl}` : "not set"}`);
+                          summaryParts.push(`Now: ${currentKg != null ? `${toDisp(currentKg)} ${unitLbl}` : "not set"}`);
+                          if (startKg != null && currentKg != null) {
+                            const diff = Math.round((toDisp(currentKg) - toDisp(startKg)) * 10) / 10;
+                            summaryParts.push(`${diff > 0 ? "+" : ""}${diff} ${unitLbl}`);
+                          }
+                          const header = (
+                            <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Weight Trend ({unitLbl})</p>
+                              <p className="text-[10px] text-muted-foreground">{summaryParts.join(" · ")}</p>
+                            </div>
+                          );
                           if (weightEntries.length === 0) {
                             return (
                               <div className="space-y-1">
-                                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Weight Trend ({isLbs ? "lbs" : "kg"})</p>
+                                {header}
                                 <div className="h-36 w-full rounded border border-dashed flex items-center justify-center">
                                   <p className="text-xs text-muted-foreground">No weight recorded yet</p>
                                 </div>
@@ -2216,7 +2236,7 @@ export default function Dashboard() {
                           const wPad = Math.max(isLbs ? 5 : 2, (wMax - wMin) * 0.5);
                           return (
                             <div className="space-y-1">
-                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Weight Trend ({isLbs ? "lbs" : "kg"})</p>
+                              {header}
                               <div className="h-36 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                   <LineChart data={chartData} margin={{ top: 14, right: 16, left: -12, bottom: 0 }}>
