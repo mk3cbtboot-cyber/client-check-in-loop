@@ -39,20 +39,29 @@ export function scoreKbMatches(rows: KbIndexRow[], message: string, limit = 2): 
   const msg = tokens(message);
   if (!msg.length) return [];
   const msgSet = new Set(msg);
+  // Loose stem match so "bloated" hits the "bloating" keyword.
+  const hit = (t: string): boolean => {
+    if (msgSet.has(t)) return true;
+    if (t.length < 5) return false;
+    const stem = t.slice(0, Math.max(5, t.length - 3));
+    for (const m of msgSet) if (m.length >= 5 && (m.startsWith(stem) || t.startsWith(m.slice(0, Math.max(5, m.length - 3))))) return true;
+    return false;
+  };
   const scored = rows.map((r) => {
     let score = 0;
     for (const kw of r.keywords) {
       const kwTokens = tokens(kw);
       if (!kwTokens.length) continue;
-      const hits = kwTokens.filter((t) => msgSet.has(t)).length;
+      const hits = kwTokens.filter(hit).length;
       if (hits === kwTokens.length) score += 3 * kwTokens.length;
-      else score += hits * 1.5;
+      else score += hits * 0.75;
     }
-    for (const t of tokens(r.title)) if (msgSet.has(t)) score += 2;
+    for (const t of tokens(r.title)) if (hit(t)) score += 2;
     const summarySet = new Set(tokens(r.summary));
     for (const t of msgSet) if (summarySet.has(t)) score += 0.5;
     return { slug: r.slug, score };
   });
+
   return scored
     .filter((s) => s.score >= 2)
     .sort((a, b) => b.score - a.score)
