@@ -82,6 +82,8 @@ Deno.serve(async (req) => {
     if (plan_format) insertRow.plan_format = plan_format;
     if (gender) insertRow.gender = gender;
     if (height_cm != null) insertRow.height_cm = height_cm;
+    if (starting_weight_kg != null) insertRow.starting_weight_kg = starting_weight_kg;
+    if (weight_unit) insertRow.weight_unit = weight_unit;
     const { data: client, error: insertErr } = await admin
       .from("clients")
       .insert(insertRow)
