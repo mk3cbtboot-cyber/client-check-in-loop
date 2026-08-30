@@ -277,7 +277,7 @@ export function MbRunPlanner({
     return (
       <div key={it.id} className="space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium">{categoryLabel(it.category)}</span>
+          <span className="text-sm font-medium">{it.label || categoryLabel(it.category)}</span>
           {fmtQty(it) && <span className="text-xs text-muted-foreground">{fmtQty(it)}</span>}
           {it.optional && <span className="text-xs text-muted-foreground">(optional)</span>}
         </div>
@@ -288,7 +288,7 @@ export function MbRunPlanner({
         ) : (
           <Select value={picked} onValueChange={(v) => onPick(it.id, v)}>
             <SelectTrigger className="h-9">
-              <SelectValue placeholder={`Choose your ${categoryLabel(it.category).toLowerCase()}`} />
+              <SelectValue placeholder={`Choose your ${(it.label || categoryLabel(it.category)).toLowerCase()}`} />
             </SelectTrigger>
             <SelectContent>
               {options.map((f) => (
@@ -302,7 +302,7 @@ export function MbRunPlanner({
         {altId && options.length > 0 && (
           <div className="space-y-1 pl-3 border-l">
             <p className="text-xs text-muted-foreground">
-              Second {categoryLabel(it.category).toLowerCase()} (optional) — splits the same
+              Second {(it.label || categoryLabel(it.category)).toLowerCase()} (optional) — splits the same
               {fmtQty(it) ? ` ${fmtQty(it)}` : ""} amount, it isn't an extra portion.
             </p>
             <Select value={altPicked} onValueChange={(v) => onPick(altId, v)}>
