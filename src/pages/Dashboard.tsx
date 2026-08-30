@@ -771,7 +771,14 @@ export default function Dashboard() {
       }
       if (!gender) throw new Error("Biological sex is required");
       const system_mode = newClientType === "custom" ? "own_practice" : "mb";
-      const body: Record<string, unknown> = { name, email, system_mode, client_type: newClientType, gender, height_cm: heightNum };
+      let startingWeightKg: number | null = null;
+      if (startWeight.trim() !== "") {
+        const w = Number(startWeight.trim());
+        if (!Number.isFinite(w) || w <= 0) throw new Error("Please enter a valid starting weight");
+        startingWeightKg = startWeightUnit === "lbs" ? Math.round((w / 2.20462) * 10) / 10 : Math.round(w * 10) / 10;
+      }
+      const body: Record<string, unknown> = { name, email, system_mode, client_type: newClientType, gender, height_cm: heightNum, weight_unit: startWeightUnit };
+      if (startingWeightKg != null) body.starting_weight_kg = startingWeightKg;
       const { data, error } = await supabase.functions.invoke("invite-client", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
