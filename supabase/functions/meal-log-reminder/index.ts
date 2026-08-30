@@ -1,14 +1,15 @@
 // Evening meal-log reminder sweep.
 //
-// Runs hourly from pg_cron. For each active client it works out the local hour
-// in clients.timezone (falling back to America/Toronto when null) and only
-// sends when that hour is the target evening hour. Combined with the
+// Runs at :30 past every hour from pg_cron. For each active client it works out
+// the local time in clients.timezone (falling back to America/Toronto when null)
+// and only sends once the local time is at or past the target evening window
+// (8pm + the 30-minute dinner grace period = 8:30pm local). Combined with the
 // idempotency key `reminder-<client_id>-<local YYYY-MM-DD>` a client can never
 // receive more than one reminder per day.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
-import { localParts, missedMealSlots } from "../_shared/missed-meals.ts";
+import { DUE_GRACE_MINUTES, localParts, missedMealSlots } from "../_shared/missed-meals.ts";
 import { sendTemplateEmail } from "../_shared/transactional-email-templates/send-email.ts";
 import { logEmailSend } from "../_shared/email-send-log.ts";
 
@@ -18,6 +19,8 @@ const corsHeaders = {
 };
 
 const TARGET_HOUR = 20; // 8pm local
+const TARGET_MINUTE = DUE_GRACE_MINUTES; // 30; wait until dinner's due+grace has passed
+const TARGET_TIME_MINUTES = TARGET_HOUR * 60 + TARGET_MINUTE;
 const FALLBACK_TZ = "America/Toronto";
 
 const Body = z.object({
