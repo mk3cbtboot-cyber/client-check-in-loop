@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
           const { data: full, error: fullErr } = await admin
             .from("clients")
             .select([
-              "name", "phase", "batch_cooking_mode",
+              "name", "phase", "batch_cooking_mode", "system_mode",
               "plan_format", "food_list", "food_list_notes", "food_list_notes_stale", "meals_per_day",
               "breakfast_protein_category", "breakfast_protein_grams", "breakfast_veg_grams",
               "lunch_protein_category", "lunch_protein_grams", "lunch_veg_grams",
@@ -472,8 +472,13 @@ Deno.serve(async (req) => {
             "8. Finish your last meal before 9pm.",
           ].join("\n");
 
-          const isFoodList = String(f.plan_format ?? "") === "food_list" || String(f.plan_format ?? "") === "food_list_generated";
-          const isRecipePlan = String(f.plan_format ?? "") === "recipe";
+          // MB vs Custom is determined by system_mode (same distinction the dashboard uses
+          // to gate MbPlanSetup): "own_practice" = Custom, anything else = MB. MB clients all
+          // have plan_format = "food_list", so plan_format alone must never select the Custom
+          // branches (and never the nutrition KB).
+          const isMb = String(f.system_mode ?? "") !== "own_practice";
+          const isFoodList = !isMb && (String(f.plan_format ?? "") === "food_list" || String(f.plan_format ?? "") === "food_list_generated");
+          const isRecipePlan = !isMb && String(f.plan_format ?? "") === "recipe";
 
           // Fetch Recipe Plan assignments (recipe library + per-client portion overrides).
           let recipeSummary = "";
