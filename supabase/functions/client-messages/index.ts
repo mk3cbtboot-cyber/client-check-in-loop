@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { capTallyFor, foldLedger, weekWindowFor, type CapFold } from "../_shared/mb-cap.ts";
+import { retrieveKb } from "../_shared/nutrition-kb.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -698,8 +699,15 @@ Deno.serve(async (req) => {
                   : "",
               ].filter(Boolean).join(" ");
 
-
-
+          // Nutrition knowledge base grounding — Custom formats only, never MB.
+          const isCustomBranch = isRecipePlan || isFoodList;
+          const kb = isCustomBranch
+            ? await retrieveKb(admin as any, body, 2)
+            : { indexBlock: "", kbBlock: "", matchedSlugs: [] as string[] };
+          console.log("ai_interceptor: kb", { isCustomBranch, matched: kb.matchedSlugs });
+          const finalSystemPrompt = isCustomBranch
+            ? [systemPrompt, kb.indexBlock, kb.kbBlock].filter(Boolean).join("\n\n")
+            : systemPrompt;
 
 
           const lovableKey = Deno.env.get("LOVABLE_API_KEY");
@@ -712,10 +720,10 @@ Deno.serve(async (req) => {
           console.log("ai_interceptor: before AI gateway fetch");
             console.log("ai_interceptor: gateway_request_body", JSON.stringify({
               model: "google/gemini-3.5-flash",
-              messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: `CLIENT PLAN DATA:\n${planSummary}\n\nCLIENT MESSAGE:\n${body}` },
-              ],
+              system_prompt_chars: finalSystemPrompt.length,
+              plan_summary_chars: planSummary.length,
+              kb_matched: kb.matchedSlugs,
+              client_message: body,
             }));
             const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
@@ -726,7 +734,7 @@ Deno.serve(async (req) => {
               body: JSON.stringify({
                 model: "google/gemini-3.5-flash",
                 messages: [
-                  { role: "system", content: systemPrompt },
+                  { role: "system", content: finalSystemPrompt },
                   { role: "user", content: `CLIENT PLAN DATA:\n${planSummary}\n\nCLIENT MESSAGE:\n${body}` },
                 ],
               }),
