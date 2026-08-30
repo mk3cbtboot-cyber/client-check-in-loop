@@ -154,6 +154,7 @@ interface Client {
   client_goal: string;
   vitamins_supplements: string;
   weight_unit: string;
+  starting_weight_kg: number | null;
   archived_at: string | null;
   practitioner_last_read_at: string | null;
   phase4_start_date: string | null;
@@ -204,6 +205,8 @@ export default function Dashboard() {
   const [gender, setGender] = useState<"female" | "male" | "">("");
   const [heightCm, setHeightCm] = useState<string>("");
   const [heightUnit, setHeightUnit] = useState<"cm" | "ftin">("cm");
+  const [startWeight, setStartWeight] = useState<string>("");
+  const [startWeightUnit, setStartWeightUnit] = useState<"kg" | "lbs">("kg");
   const [heightFt, setHeightFt] = useState<string>("");
   const [heightIn, setHeightIn] = useState<string>("");
   const [newClientType, setNewClientType] = useState<"mb" | "custom" | null>(null);
@@ -768,7 +771,14 @@ export default function Dashboard() {
       }
       if (!gender) throw new Error("Biological sex is required");
       const system_mode = newClientType === "custom" ? "own_practice" : "mb";
-      const body: Record<string, unknown> = { name, email, system_mode, client_type: newClientType, gender, height_cm: heightNum };
+      let startingWeightKg: number | null = null;
+      if (startWeight.trim() !== "") {
+        const w = Number(startWeight.trim());
+        if (!Number.isFinite(w) || w <= 0) throw new Error("Please enter a valid starting weight");
+        startingWeightKg = startWeightUnit === "lbs" ? Math.round((w / 2.20462) * 10) / 10 : Math.round(w * 10) / 10;
+      }
+      const body: Record<string, unknown> = { name, email, system_mode, client_type: newClientType, gender, height_cm: heightNum, weight_unit: startWeightUnit };
+      if (startingWeightKg != null) body.starting_weight_kg = startingWeightKg;
       const { data, error } = await supabase.functions.invoke("invite-client", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -778,7 +788,7 @@ export default function Dashboard() {
         console.error("Invite email failed", data?.emailError);
         toast.warning("Client created, but the invite email could not be sent.");
       }
-      setName(""); setEmail(""); setGender(""); setHeightCm(""); setHeightFt(""); setHeightIn(""); setHeightUnit("cm"); setNewClientType(null); setOpen(false);
+      setName(""); setEmail(""); setGender(""); setHeightCm(""); setHeightFt(""); setHeightIn(""); setHeightUnit("cm"); setStartWeight(""); setStartWeightUnit("kg"); setNewClientType(null); setOpen(false);
       await load();
     } catch (err: any) {
       toast.error(err.message ?? "Failed to invite client");
@@ -1649,6 +1659,32 @@ export default function Dashboard() {
                           </div>
                         )}
                       </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="cstartweight">Starting weight <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                          <div className="inline-flex rounded-md border border-input p-0.5 text-xs">
+                            <button
+                              type="button"
+                              className={`px-2 py-0.5 rounded ${startWeightUnit === "kg" ? "bg-primary text-primary-foreground" : ""}`}
+                              onClick={() => setStartWeightUnit("kg")}
+                            >kg</button>
+                            <button
+                              type="button"
+                              className={`px-2 py-0.5 rounded ${startWeightUnit === "lbs" ? "bg-primary text-primary-foreground" : ""}`}
+                              onClick={() => setStartWeightUnit("lbs")}
+                            >lbs</button>
+                          </div>
+                        </div>
+                        <Input
+                          id="cstartweight"
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          placeholder={startWeightUnit === "lbs" ? "e.g. 165" : "e.g. 75"}
+                          value={startWeight}
+                          onChange={(e) => setStartWeight(e.target.value)}
+                        />
+                      </div>
                       <Button type="submit" className="w-full" disabled={submitting}>
                         {submitting ? "Sending invite…" : "Add & send invite"}
                       </Button>
@@ -2158,10 +2194,30 @@ export default function Dashboard() {
                             .filter((ci) => ci.weight_kg != null)
                             .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
                           const isLbs = client.weight_unit === "lbs";
+                          const unitLbl = isLbs ? "lbs" : "kg";
+                          const toDisp = (kg: number) => Math.round((isLbs ? kg * 2.20462 : kg) * 10) / 10;
+                          const startKg = client.starting_weight_kg != null ? Number(client.starting_weight_kg) : null;
+                          const currentKg = (() => {
+                            const w = list.find((ci) => ci.weight_kg != null)?.weight_kg;
+                            return w != null ? Number(w) : null;
+                          })();
+                          const summaryParts: string[] = [];
+                          summaryParts.push(`Start: ${startKg != null ? `${toDisp(startKg)} ${unitLbl}` : "not set"}`);
+                          summaryParts.push(`Now: ${currentKg != null ? `${toDisp(currentKg)} ${unitLbl}` : "not set"}`);
+                          if (startKg != null && currentKg != null) {
+                            const diff = Math.round((toDisp(currentKg) - toDisp(startKg)) * 10) / 10;
+                            summaryParts.push(`${diff > 0 ? "+" : ""}${diff} ${unitLbl}`);
+                          }
+                          const header = (
+                            <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Weight Trend ({unitLbl})</p>
+                              <p className="text-[10px] text-muted-foreground">{summaryParts.join(" · ")}</p>
+                            </div>
+                          );
                           if (weightEntries.length === 0) {
                             return (
                               <div className="space-y-1">
-                                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Weight Trend ({isLbs ? "lbs" : "kg"})</p>
+                                {header}
                                 <div className="h-36 w-full rounded border border-dashed flex items-center justify-center">
                                   <p className="text-xs text-muted-foreground">No weight recorded yet</p>
                                 </div>
@@ -2180,7 +2236,7 @@ export default function Dashboard() {
                           const wPad = Math.max(isLbs ? 5 : 2, (wMax - wMin) * 0.5);
                           return (
                             <div className="space-y-1">
-                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Weight Trend ({isLbs ? "lbs" : "kg"})</p>
+                              {header}
                               <div className="h-36 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                   <LineChart data={chartData} margin={{ top: 14, right: 16, left: -12, bottom: 0 }}>
@@ -2426,7 +2482,8 @@ export default function Dashboard() {
                           client={client as unknown as Parameters<typeof MacrosTab>[0]["client"]}
                           latestWeightKg={(() => {
                             const w = list.find((ci) => ci.weight_kg != null)?.weight_kg;
-                            return w != null ? Number(w) : null;
+                            if (w != null) return Number(w);
+                            return client.starting_weight_kg != null ? Number(client.starting_weight_kg) : null;
                           })()}
                           onChanged={(patch) => {
                             setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, ...patch } as typeof x) : x)));

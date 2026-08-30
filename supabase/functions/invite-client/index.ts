@@ -12,6 +12,8 @@ const BodySchema = z.object({
   plan_format: z.enum(["food_list", "recipe", "food_list_generated"]).optional(),
   gender: z.enum(["male", "female", "unspecified"]).optional(),
   height_cm: z.number().positive().max(300).optional(),
+  starting_weight_kg: z.number().positive().max(700).optional(),
+  weight_unit: z.enum(["kg", "lbs"]).optional(),
 });
 
 const GENERIC_MAILBOX_LOCALS = new Set([
@@ -70,7 +72,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { name, email, system_mode, client_type, plan_format, gender, height_cm } = parsed.data;
+    const { name, email, system_mode, client_type, plan_format, gender, height_cm, starting_weight_kg, weight_unit } = parsed.data;
 
     const admin = createClient(supabaseUrl, serviceKey);
 
@@ -80,6 +82,8 @@ Deno.serve(async (req) => {
     if (plan_format) insertRow.plan_format = plan_format;
     if (gender) insertRow.gender = gender;
     if (height_cm != null) insertRow.height_cm = height_cm;
+    if (starting_weight_kg != null) insertRow.starting_weight_kg = starting_weight_kg;
+    if (weight_unit) insertRow.weight_unit = weight_unit;
     const { data: client, error: insertErr } = await admin
       .from("clients")
       .insert(insertRow)
