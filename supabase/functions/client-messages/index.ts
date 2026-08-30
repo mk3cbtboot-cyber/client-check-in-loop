@@ -648,6 +648,7 @@ Deno.serve(async (req) => {
                 statementRule,
                 "Answer ONLY from the client's assigned recipes provided below. Each meal slot lists the exact recipes the practitioner has assigned, with ingredients (and the client's specific portion amounts) and method.",
                 "When a client asks about a specific food or recipe, report which slot(s) it appears in and the exact portion. Do NOT suggest substitutions across slots or invent recipes that aren't listed.",
+                "If a recipe has a practitioner note, treat it as practitioner guidance for that recipe.",
                 "If a slot has no recipes assigned, say so plainly.",
                 "If the food is not anywhere in the plan, say: \"That food is not in your meal plan.\"",
                 "Be specific: name the recipes, ingredients, and portions from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
