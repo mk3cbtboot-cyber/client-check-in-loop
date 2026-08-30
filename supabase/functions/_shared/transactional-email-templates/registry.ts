@@ -10,6 +10,7 @@ export interface TemplateEntry {
   previewData?: Record<string, unknown>
 }
 
+import { template as checkinNotification } from './checkin-notification.tsx'
 import { template as clientInvite } from './client-invite.tsx'
 import { template as mealLogReminder } from './meal-log-reminder.tsx'
 
@@ -18,6 +19,7 @@ import { template as mealLogReminder } from './meal-log-reminder.tsx'
  * Add new templates here with a kebab-case key.
  */
 export const TEMPLATES: Record<string, TemplateEntry> = {
+  'checkin-notification': checkinNotification,
   'client-invite': clientInvite,
   'meal-log-reminder': mealLogReminder,
 }
