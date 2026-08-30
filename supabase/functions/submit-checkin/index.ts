@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
 
     const { data: client, error: clientErr } = await admin
       .from("clients")
-      .select("id, name, email, practitioner_id")
+      .select("id, name, email, practitioner_id, practitioner_notes, timezone")
       .eq("magic_token", token)
       .maybeSingle();
     if (clientErr || !client) {
