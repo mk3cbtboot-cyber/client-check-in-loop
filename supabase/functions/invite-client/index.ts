@@ -12,6 +12,8 @@ const BodySchema = z.object({
   plan_format: z.enum(["food_list", "recipe", "food_list_generated"]).optional(),
   gender: z.enum(["male", "female", "unspecified"]).optional(),
   height_cm: z.number().positive().max(300).optional(),
+  starting_weight_kg: z.number().positive().max(700).optional(),
+  weight_unit: z.enum(["kg", "lbs"]).optional(),
 });
 
 const GENERIC_MAILBOX_LOCALS = new Set([
