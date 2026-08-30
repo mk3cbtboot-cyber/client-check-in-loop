@@ -307,6 +307,7 @@ export type Database = {
           reminders_enabled: boolean
           show_8_rules: boolean
           show_rules: boolean
+          starting_weight_kg: number | null
           system_mode: string
           timezone: string | null
           vitamins_supplements: string
@@ -422,6 +423,7 @@ export type Database = {
           reminders_enabled?: boolean
           show_8_rules?: boolean
           show_rules?: boolean
+          starting_weight_kg?: number | null
           system_mode?: string
           timezone?: string | null
           vitamins_supplements?: string
@@ -537,6 +539,7 @@ export type Database = {
           reminders_enabled?: boolean
           show_8_rules?: boolean
           show_rules?: boolean
+          starting_weight_kg?: number | null
           system_mode?: string
           timezone?: string | null
           vitamins_supplements?: string
