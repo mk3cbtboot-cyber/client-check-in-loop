@@ -720,10 +720,10 @@ Deno.serve(async (req) => {
           console.log("ai_interceptor: before AI gateway fetch");
             console.log("ai_interceptor: gateway_request_body", JSON.stringify({
               model: "google/gemini-3.5-flash",
-              messages: [
-                { role: "system", content: finalSystemPrompt },
-                { role: "user", content: `CLIENT PLAN DATA:\n${planSummary}\n\nCLIENT MESSAGE:\n${body}` },
-              ],
+              system_prompt_chars: finalSystemPrompt.length,
+              plan_summary_chars: planSummary.length,
+              kb_matched: kb.matchedSlugs,
+              client_message: body,
             }));
             const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
