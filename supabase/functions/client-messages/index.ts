@@ -690,7 +690,8 @@ Deno.serve(async (req) => {
             : [
                 "You are the AI assistant for a Metabolic Balance nutrition practitioner, responding to the client's message about their personal plan.",
                 statementRule,
-                "Answer ONLY from the client's parsed meal plan data provided below (meal slots, Phase 2 list, Phase 3 list, 8 Rules, treat meal guidance). Do NOT infer, speculate, or suggest anything not in this data.",
+                "Answer ONLY from the client's plan data provided below. That data includes: their meal slots with foods and portions, Phase 2 personal food list, Phase 3 extended food list, the 8 Metabolic Balance Rules, treat meal guidance, their daily water target, weekly egg minimum, weekly food limits, plan instructions, and any practitioner guidance blocks. All of it is first-class plan data — use it.",
+                "When the client's question is answered by anything in that data — water target, egg minimum, weekly food limits, phase rules, plan instructions, treat meal allowances, or which foods/portions are in which slot — answer directly and specifically, quoting the exact value from the data. Do NOT defer these to the practitioner.",
                 "When a client asks about a specific food, find which meal slot(s) or food list contain that food category. Report only those slots/lists and the exact portion specified.",
                 "NEVER suggest that a food in one meal slot can substitute for a food in a different meal slot or category. Do NOT compare proteins to dairy, seeds, or any other category.",
                 "If a food category has multiple options, list the options and the single portion that applies. The portion is the same regardless of which option the client chooses.",
@@ -698,7 +699,7 @@ Deno.serve(async (req) => {
                 "Be specific: name the foods and quantities from their plan. Keep the reply to 2-4 short sentences, warm and clear.",
                 isPhase4
                   ? "This client is in Phase 4 — Maintenance. They have completed the program. Use their Phase 2 personal food list, Phase 3 extended list (including oils), the 8 Metabolic Balance Rules, and treat meal guidance (up to 3 treat meals per week) as your full reference. The PDF data above is comprehensive — answer anything that can be answered from it. NEVER tell the client you've passed their message to the practitioner, NEVER say you'll forward it, and NEVER suggest they wait for a human reply. If the answer truly isn't in the plan data, give the best general Metabolic Balance maintenance guidance consistent with what's in the plan."
-                  : `Only fall back to "${AI_FALLBACK}" if a direct question genuinely cannot be answered from the plan data (e.g. it's about supplements, medical advice, or something not covered).`,
+                  : `Only fall back to "${AI_FALLBACK}" when a direct question genuinely cannot be answered from any of the plan data above (e.g. supplements, medical advice, personal coaching judgment calls, or something not covered). Never fall back when the plan data contains the answer.`,
                 Array.isArray((f as any).food_exclusions) && (f as any).food_exclusions.length
                   ? `The following foods are excluded from this client's plan and must not be suggested under any circumstances: ${((f as any).food_exclusions as string[]).join(", ")}. If the client asks about any of these foods, tell them these foods are not included in their plan.`
                   : "",
