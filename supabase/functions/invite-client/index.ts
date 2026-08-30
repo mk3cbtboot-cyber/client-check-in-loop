@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { name, email, system_mode, client_type, plan_format, gender, height_cm } = parsed.data;
+    const { name, email, system_mode, client_type, plan_format, gender, height_cm, starting_weight_kg, weight_unit } = parsed.data;
 
     const admin = createClient(supabaseUrl, serviceKey);
 
