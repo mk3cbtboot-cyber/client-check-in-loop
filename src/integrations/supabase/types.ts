@@ -890,6 +890,7 @@ export type Database = {
           display_name: string | null
           email: string
           id: string
+          last_name: string | null
           office_hours: Json
           ooo_message: string
           ooo_return_date: string | null
@@ -902,6 +903,7 @@ export type Database = {
           display_name?: string | null
           email: string
           id: string
+          last_name?: string | null
           office_hours?: Json
           ooo_message?: string
           ooo_return_date?: string | null
@@ -914,6 +916,7 @@ export type Database = {
           display_name?: string | null
           email?: string
           id?: string
+          last_name?: string | null
           office_hours?: Json
           ooo_message?: string
           ooo_return_date?: string | null
