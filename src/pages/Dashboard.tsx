@@ -1239,6 +1239,7 @@ export default function Dashboard() {
                       <Input
                         id="dispname"
                         value={displayName}
+                        maxLength={60}
                         onChange={(e) => setDisplayName(e.target.value)}
                         placeholder="e.g. Cheryl"
                       />
