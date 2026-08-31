@@ -1243,14 +1243,28 @@ export default function Dashboard() {
                         placeholder="e.g. Cheryl"
                       />
                       <p className="text-[11px] text-muted-foreground">
-                        This is the name clients see (e.g. in messages from your AI assistant). If left blank, your first name will be used.
+                        This is the name clients see (e.g. in messages from your AI assistant).
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastname">Last name</Label>
+                      <Input
+                        id="lastname"
+                        value={lastName}
+                        maxLength={60}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="e.g. Smith"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Internal use only — never shown to clients.
                       </p>
                     </div>
                     <div className="flex justify-end">
                       <Button onClick={saveDisplayName} disabled={savingDisplayName}>
-                        {savingDisplayName ? "Saving…" : "Save display name"}
+                        {savingDisplayName ? "Saving…" : "Save name"}
                       </Button>
                     </div>
+
                   </TabsContent>
 
                   <TabsContent value="practice" className="space-y-2 pt-3">
