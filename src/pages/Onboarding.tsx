@@ -65,9 +65,38 @@ export default function Onboarding() {
     <main className="min-h-screen bg-background p-4 flex items-center justify-center">
       <div className="max-w-4xl w-full space-y-6">
         <div className="text-center space-y-1">
-          <h1 className="text-2xl font-semibold">Choose your practice type</h1>
-          <p className="text-sm text-muted-foreground">This sets which features and plan formats appear in your dashboard. You can change it later in Settings.</p>
+          <h1 className="text-2xl font-semibold">Set up your practice</h1>
+          <p className="text-sm text-muted-foreground">Tell us your name and choose your practice type. You can change these later in Settings.</p>
         </div>
+        <Card className="p-5 space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="ob-first">Display name</Label>
+              <Input
+                id="ob-first"
+                required
+                maxLength={60}
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="e.g. Cheryl"
+              />
+              <p className="text-[11px] text-muted-foreground">First or preferred name — this is what clients see.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ob-last">Last name</Label>
+              <Input
+                id="ob-last"
+                required
+                maxLength={60}
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="e.g. Smith"
+              />
+              <p className="text-[11px] text-muted-foreground">Internal use only — never shown to clients.</p>
+            </div>
+          </div>
+        </Card>
+
         <div className="grid md:grid-cols-3 gap-4">
           {TIERS.map((t) => {
             const active = selected === t.value;
