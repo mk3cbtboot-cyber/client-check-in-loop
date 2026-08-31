@@ -62,7 +62,7 @@ export function aggregateShopping(entries: ShoppingEntry[]): Array<[string, Shop
       let total = parsed.reduce((s, p) => s + (p.qty as number) * p.days, 0);
       if (unit === "kg") { total *= 1000; unit = "g"; }
       if (unit === "l") { total *= 1000; unit = "ml"; }
-      qty = unitLabel(Math.round(total * 100) / 100, unit);
+      qty = unitLabel(unit, Math.round(total * 100) / 100);
     } else {
       // Non-numeric portions ("1 cup", "handful") — keep the text and show the day count.
       qty = g.entries
