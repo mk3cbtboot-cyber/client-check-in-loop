@@ -85,6 +85,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MbPdfImport } from "@/components/MbPdfImport";
 import { MbPlanSetup } from "@/components/MbPlanSetup";
+import Phase3RequestQueue from "@/components/Phase3RequestQueue";
 import MbPlanMirror from "@/components/MbPlanMirror";
 import { getMbPlan, isMbPlanConfirmed, parseMbFoodLimits } from "@/lib/mb-plan";
 import { resolveMbFoodList } from "@/lib/mb-food-list";
@@ -2571,7 +2572,17 @@ export default function Dashboard() {
                             <p className="text-sm text-muted-foreground">No meal plan tools available for this plan format.</p>
                           )
                         ) : (
+                          <>
+                          {client.phase === "phase3" && (
+                            <Phase3RequestQueue
+                              clientId={client.id}
+                              additionalFoods={client.phase3_additional_foods ?? ""}
+                              className="mb-3"
+                              onAdditionalFoodsChange={(next) => setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, phase3_additional_foods: next } : c)))}
+                            />
+                          )}
                           <MbPlanMirror
+
                             clientId={client.id}
                             suggestions={getMbPlan(client as unknown as Record<string, unknown>).suggestions}
                             foodList={resolveMbFoodList(client as unknown as Record<string, unknown>)}
@@ -2585,8 +2596,9 @@ export default function Dashboard() {
                             client={client as unknown as Record<string, unknown>}
 
                           />
-
+                          </>
                         )}
+
 
                       </TabsContent>
                       <TabsContent value="messages" className="pt-3">

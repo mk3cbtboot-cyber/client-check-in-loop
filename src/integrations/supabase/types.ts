@@ -798,6 +798,56 @@ export type Database = {
         }
         Relationships: []
       }
+      phase3_food_requests: {
+        Row: {
+          ai_classification: string
+          ai_reason: string | null
+          client_id: string
+          created_at: string
+          food_name: string
+          id: string
+          practitioner_note: string | null
+          reviewed_at: string | null
+          status: string
+          swap_suggestion: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_classification?: string
+          ai_reason?: string | null
+          client_id: string
+          created_at?: string
+          food_name: string
+          id?: string
+          practitioner_note?: string | null
+          reviewed_at?: string | null
+          status?: string
+          swap_suggestion?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_classification?: string
+          ai_reason?: string | null
+          client_id?: string
+          created_at?: string
+          food_name?: string
+          id?: string
+          practitioner_note?: string | null
+          reviewed_at?: string | null
+          status?: string
+          swap_suggestion?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phase3_food_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       practitioner_recipes: {
         Row: {
           created_at: string

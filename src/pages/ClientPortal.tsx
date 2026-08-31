@@ -1,4 +1,5 @@
 
+import { Phase3FoodRequests } from "@/components/Phase3FoodRequests";
 import { PlanInstructions } from "@/components/PlanInstructions";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -1507,6 +1508,10 @@ export default function ClientPortal() {
               </p>
             </Card>
           )}
+          {token && client.phase === "phase3" && client.client_type !== "custom" && client.system_mode !== "own_practice" && (
+            <Phase3FoodRequests token={token} />
+          )}
+
           {mbPlanConfirmed && client.client_type !== "custom" && client.phase !== "phase1" && (
             instructionsGate ? instructionsLockCard : (
             <MbRunPlanner
