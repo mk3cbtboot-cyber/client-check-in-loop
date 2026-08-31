@@ -132,13 +132,13 @@ export function mbRunShoppingEntries(rawRun: unknown, suggestions: MbSuggestion[
         if (alt && it.qty != null && (it.unit === "g" || it.unit === "ml")) {
           // Second-vegetable variety split: one allowance shared 50/50.
           const half = Math.round(it.qty / 2);
-          entries.push({ name, category, portion: `${half}${it.unit}`, days: 1 });
-          entries.push({ name: alt.trim(), category, portion: `${half}${it.unit}`, days: 1 });
+          entries.push({ name, category, portion: `${half}${it.unit}`, days: 1, date });
+          entries.push({ name: alt.trim(), category, portion: `${half}${it.unit}`, days: 1, date });
           continue;
         }
         const portion = mbItemPortion(it);
-        entries.push({ name, category, portion, days: 1 });
-        if (alt) entries.push({ name: alt.trim(), category, portion, days: 1 });
+        entries.push({ name, category, portion, days: 1, date });
+        if (alt) entries.push({ name: alt.trim(), category, portion, days: 1, date });
       }
     }
   }
