@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { TIERS, type PractitionerTier } from "@/lib/tiers";
@@ -10,8 +12,11 @@ import { TIERS, type PractitionerTier } from "@/lib/tiers";
 export default function Onboarding() {
   const navigate = useNavigate();
   const [userId, setUserId] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [selected, setSelected] = useState<PractitionerTier | null>(null);
   const [saving, setSaving] = useState(false);
+
 
   useEffect(() => {
     (async () => {
