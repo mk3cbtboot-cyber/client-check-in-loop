@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Home, ClipboardCheck, BookOpen, CalendarDays, MessageCircle, Info } from "lucide-react";
 import ChatThread, { type ChatMessage } from "@/components/ChatThread";
 import ClientWelcome from "@/components/ClientWelcome";
+import InstallAppBanner from "@/components/InstallAppBanner";
 
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS, parseMbFoodLimits, vegQtyOverrides, runPicksToSelections } from "@/lib/mb-plan";
@@ -249,6 +250,11 @@ export default function ClientPortal() {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (!tz) return;
     void supabase.functions.invoke("update-client-prefs", { body: { token, timezone: tz } });
+  }, [token]);
+
+  // Remember the portal token so the installed app (start_url "/portal") can resume.
+  useEffect(() => {
+    if (token) window.localStorage.setItem("tenacia_portal_token", token);
   }, [token]);
 
   useEffect(() => {
@@ -930,6 +936,11 @@ export default function ClientPortal() {
           </button>
         </div>
       </header>
+
+      <section className="max-w-5xl mx-auto px-4 pt-4">
+        <InstallAppBanner />
+      </section>
+
 
       {tab === "home" && pendingLogs.length > 0 && (
         <section className="max-w-5xl mx-auto p-4 pb-0">
