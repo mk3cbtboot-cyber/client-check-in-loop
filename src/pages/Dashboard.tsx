@@ -208,6 +208,7 @@ export default function Dashboard() {
   const [heightUnit, setHeightUnit] = useState<"cm" | "ftin">("cm");
   const [startWeight, setStartWeight] = useState<string>("");
   const [startWeightUnit, setStartWeightUnit] = useState<"kg" | "lbs">("kg");
+  const [newAge, setNewAge] = useState<string>("");
   const [heightFt, setHeightFt] = useState<string>("");
   const [heightIn, setHeightIn] = useState<string>("");
   const [newClientType, setNewClientType] = useState<"mb" | "custom" | null>(null);
@@ -778,8 +779,15 @@ export default function Dashboard() {
         if (!Number.isFinite(w) || w <= 0) throw new Error("Please enter a valid starting weight");
         startingWeightKg = startWeightUnit === "lbs" ? Math.round((w / 2.20462) * 10) / 10 : Math.round(w * 10) / 10;
       }
+      let ageNum: number | null = null;
+      if (newAge.trim() !== "") {
+        const a = Number(newAge.trim());
+        if (!Number.isInteger(a) || a < 1 || a > 120) throw new Error("Please enter a valid age (1–120)");
+        ageNum = a;
+      }
       const body: Record<string, unknown> = { name, email, system_mode, client_type: newClientType, gender, height_cm: heightNum, weight_unit: startWeightUnit };
       if (startingWeightKg != null) body.starting_weight_kg = startingWeightKg;
+      if (ageNum != null) body.age = ageNum;
       const { data, error } = await supabase.functions.invoke("invite-client", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -789,7 +797,7 @@ export default function Dashboard() {
         console.error("Invite email failed", data?.emailError);
         toast.warning("Client created, but the invite email could not be sent.");
       }
-      setName(""); setEmail(""); setGender(""); setHeightCm(""); setHeightFt(""); setHeightIn(""); setHeightUnit("cm"); setStartWeight(""); setStartWeightUnit("kg"); setNewClientType(null); setOpen(false);
+      setName(""); setEmail(""); setGender(""); setHeightCm(""); setHeightFt(""); setHeightIn(""); setHeightUnit("cm"); setStartWeight(""); setStartWeightUnit("kg"); setNewAge(""); setNewClientType(null); setOpen(false);
       await load();
     } catch (err: any) {
       toast.error(err.message ?? "Failed to invite client");
@@ -1684,6 +1692,19 @@ export default function Dashboard() {
                           placeholder={startWeightUnit === "lbs" ? "e.g. 165" : "e.g. 75"}
                           value={startWeight}
                           onChange={(e) => setStartWeight(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cage">Age <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                        <Input
+                          id="cage"
+                          type="number"
+                          step="1"
+                          min="1"
+                          max="120"
+                          placeholder="e.g. 45"
+                          value={newAge}
+                          onChange={(e) => setNewAge(e.target.value)}
                         />
                       </div>
                       <Button type="submit" className="w-full" disabled={submitting}>
