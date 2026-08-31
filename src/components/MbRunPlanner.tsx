@@ -64,7 +64,7 @@ interface Props {
 export function MbRunPlanner({
   token, suggestions, foodList, enrichedLimits, legacyLimits, initialRun, onGoHome,
   onRunChanged, phase = null,
-  client = null,
+  client = null, confirmedExtra = null,
 }: Props) {
   const [run, setRun] = useState<MbRun>(() => parseMbRun(initialRun));
   const [consumed, setConsumed] = useState<CapConsumed>({});
