@@ -13,6 +13,7 @@ const BodySchema = z.object({
   gender: z.enum(["male", "female", "unspecified"]).optional(),
   height_cm: z.number().positive().max(300).optional(),
   starting_weight_kg: z.number().positive().max(700).optional(),
+  age: z.number().int().min(1).max(120).optional(),
   weight_unit: z.enum(["kg", "lbs"]).optional(),
 });
 
@@ -72,7 +73,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { name, email, system_mode, client_type, plan_format, gender, height_cm, starting_weight_kg, weight_unit } = parsed.data;
+    const { name, email, system_mode, client_type, plan_format, gender, height_cm, starting_weight_kg, weight_unit, age } = parsed.data;
 
     const admin = createClient(supabaseUrl, serviceKey);
 
@@ -83,6 +84,7 @@ Deno.serve(async (req) => {
     if (gender) insertRow.gender = gender;
     if (height_cm != null) insertRow.height_cm = height_cm;
     if (starting_weight_kg != null) insertRow.starting_weight_kg = starting_weight_kg;
+    if (age != null) insertRow.age = age;
     if (weight_unit) insertRow.weight_unit = weight_unit;
     const { data: client, error: insertErr } = await admin
       .from("clients")
