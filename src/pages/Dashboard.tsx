@@ -2595,8 +2595,9 @@ export default function Dashboard() {
                             client={client as unknown as Record<string, unknown>}
 
                           />
-
+                          </>
                         )}
+
 
                       </TabsContent>
                       <TabsContent value="messages" className="pt-3">
