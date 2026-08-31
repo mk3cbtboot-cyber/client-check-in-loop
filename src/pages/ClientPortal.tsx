@@ -1599,6 +1599,17 @@ export default function ClientPortal() {
                   Your assigned recipes appear on the Home tab. Use it to choose a recipe and log what you ate.
                 </Card>
               )}
+              {customShoppingEntries.length > 0 && (
+                <Card className="p-4 space-y-3">
+                  <div>
+                    <p className="font-medium">Shopping list</p>
+                    <p className="text-sm text-muted-foreground">
+                      One week of everything on your current plan.
+                    </p>
+                  </div>
+                  <ShoppingListDialog entries={customShoppingEntries} periodLabel="Next 7 days" />
+                </Card>
+              )}
               {!instructionsGate && (
                 <PlanInstructions
                   instructions={client.plan_instructions}
