@@ -16,6 +16,9 @@ export interface ShoppingEntry {
   portion: string;
   /** How many days this portion is eaten. */
   days: number;
+  /** Optional calendar date this entry belongs to (MB run). Lets the
+   *  aggregator tell "eaten twice a day for 3 days" from "eaten 6 days". */
+  date?: string;
 }
 
 export interface ShoppingItem {
