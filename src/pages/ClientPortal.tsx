@@ -40,6 +40,14 @@ import RecipePlanClientHome, { type RecipeAssignment } from "@/components/Recipe
 import ClientTrackerRow from "@/components/ClientTrackerRow";
 import MealLogNudge, { type PendingLog } from "@/components/MealLogNudge";
 import type { CapFold } from "@/lib/mb-food-list";
+import ShoppingListDialog from "@/components/ShoppingListDialog";
+import {
+  mbRunShoppingEntries,
+  mbRunLabel,
+  customFoodListEntries,
+  customRecipeEntries,
+  type CustomFoodList,
+} from "@/lib/shopping-list";
 import { formatDistanceToNow } from "date-fns";
 
 
@@ -553,6 +561,19 @@ export default function ClientPortal() {
   const mbRunConfirmed = client ? !!parseMbRun(client.mb_run).confirmed_on : false;
   const mbRunGateActive =
     client && client.client_type !== "custom" && mbPlanConfirmed && !mbRunConfirmed;
+
+  // ---- Shopping list sources (display only) ----
+  const mbShoppingEntries =
+    client && client.client_type !== "custom" && mbRunConfirmed
+      ? mbRunShoppingEntries(client.mb_run, getMbPlan(client as any).suggestions)
+      : [];
+  const mbShoppingPeriod = client ? `Your confirmed meals · ${mbRunLabel(client.mb_run)}` : "";
+  const customShoppingEntries =
+    client && client.client_type === "custom"
+      ? client.plan_format === "recipe"
+        ? customRecipeEntries(client.recipe_assignments ?? [])
+        : customFoodListEntries((client.food_list ?? {}) as CustomFoodList)
+      : [];
 
   // Once a run is confirmed the client cooks one colour — the recipe surfaces
   // collapse to the suggestion that meal actually resolves to today (a
@@ -1528,6 +1549,17 @@ export default function ClientPortal() {
             />
             )
           )}
+          {client.client_type !== "custom" && mbRunConfirmed && mbShoppingEntries.length > 0 && (
+            <Card className="p-4 space-y-3">
+              <div>
+                <p className="font-medium">Shopping list</p>
+                <p className="text-sm text-muted-foreground">
+                  Everything you need for your confirmed meals.
+                </p>
+              </div>
+              <ShoppingListDialog entries={mbShoppingEntries} periodLabel={mbShoppingPeriod} />
+            </Card>
+          )}
           {client.macros_shared && client.macros && (
             <Card className="p-4">
               <p className="font-medium mb-2">My Macro Targets</p>
@@ -1565,6 +1597,17 @@ export default function ClientPortal() {
               {client.plan_format === "recipe" && (
                 <Card className="p-4 text-sm text-muted-foreground">
                   Your assigned recipes appear on the Home tab. Use it to choose a recipe and log what you ate.
+                </Card>
+              )}
+              {customShoppingEntries.length > 0 && (
+                <Card className="p-4 space-y-3">
+                  <div>
+                    <p className="font-medium">Shopping list</p>
+                    <p className="text-sm text-muted-foreground">
+                      One week of everything on your current plan.
+                    </p>
+                  </div>
+                  <ShoppingListDialog entries={customShoppingEntries} periodLabel="Next 7 days" />
                 </Card>
               )}
               {!instructionsGate && (
