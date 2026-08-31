@@ -460,15 +460,20 @@ export default function Dashboard() {
   const saveDisplayName = async () => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) return;
+    const first = displayName.trim();
+    const last = lastName.trim();
+    if (!first) return toast.error("Display name cannot be blank");
+    if (!last) return toast.error("Last name cannot be blank");
     setSavingDisplayName(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ display_name: displayName.trim() || null } as never)
+      .update({ display_name: first, last_name: last } as never)
       .eq("id", data.session.user.id);
     setSavingDisplayName(false);
-    if (error) return toast.error("Could not save display name");
-    toast.success("Display name saved");
+    if (error) return toast.error("Could not save your name");
+    toast.success("Name saved");
   };
+
 
 
 
