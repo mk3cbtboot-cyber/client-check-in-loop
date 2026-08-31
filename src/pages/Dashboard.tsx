@@ -2571,7 +2571,17 @@ export default function Dashboard() {
                             <p className="text-sm text-muted-foreground">No meal plan tools available for this plan format.</p>
                           )
                         ) : (
+                          <>
+                          {client.phase === "phase3" && (
+                            <Phase3RequestQueue
+                              clientId={client.id}
+                              additionalFoods={client.phase3_additional_foods ?? ""}
+                              className="mb-3"
+                              onAdditionalFoodsChange={(next) => updateClient(client.id, { phase3_additional_foods: next })}
+                            />
+                          )}
                           <MbPlanMirror
+
                             clientId={client.id}
                             suggestions={getMbPlan(client as unknown as Record<string, unknown>).suggestions}
                             foodList={resolveMbFoodList(client as unknown as Record<string, unknown>)}
