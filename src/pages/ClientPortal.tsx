@@ -40,6 +40,14 @@ import RecipePlanClientHome, { type RecipeAssignment } from "@/components/Recipe
 import ClientTrackerRow from "@/components/ClientTrackerRow";
 import MealLogNudge, { type PendingLog } from "@/components/MealLogNudge";
 import type { CapFold } from "@/lib/mb-food-list";
+import ShoppingListDialog from "@/components/ShoppingListDialog";
+import {
+  mbRunShoppingEntries,
+  mbRunLabel,
+  customFoodListEntries,
+  customRecipeEntries,
+  type CustomFoodList,
+} from "@/lib/shopping-list";
 import { formatDistanceToNow } from "date-fns";
 
 
