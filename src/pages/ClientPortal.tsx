@@ -554,6 +554,19 @@ export default function ClientPortal() {
   const mbRunGateActive =
     client && client.client_type !== "custom" && mbPlanConfirmed && !mbRunConfirmed;
 
+  // ---- Shopping list sources (display only) ----
+  const mbShoppingEntries =
+    client && client.client_type !== "custom" && mbRunConfirmed
+      ? mbRunShoppingEntries(client.mb_run, getMbPlan(client as any).suggestions)
+      : [];
+  const mbShoppingPeriod = client ? `Your confirmed meals · ${mbRunLabel(client.mb_run)}` : "";
+  const customShoppingEntries =
+    client && client.client_type === "custom"
+      ? client.plan_format === "recipe"
+        ? customRecipeEntries(client.recipe_assignments ?? [])
+        : customFoodListEntries((client.food_list ?? {}) as CustomFoodList)
+      : [];
+
   // Once a run is confirmed the client cooks one colour — the recipe surfaces
   // collapse to the suggestion that meal actually resolves to today (a
   // cap-forced day swap resolves to its own colour).
