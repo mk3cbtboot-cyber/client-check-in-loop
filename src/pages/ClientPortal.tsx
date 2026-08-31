@@ -1549,6 +1549,17 @@ export default function ClientPortal() {
             />
             )
           )}
+          {client.client_type !== "custom" && mbRunConfirmed && mbShoppingEntries.length > 0 && (
+            <Card className="p-4 space-y-3">
+              <div>
+                <p className="font-medium">Shopping list</p>
+                <p className="text-sm text-muted-foreground">
+                  Everything you need for your confirmed meals.
+                </p>
+              </div>
+              <ShoppingListDialog entries={mbShoppingEntries} periodLabel={mbShoppingPeriod} />
+            </Card>
+          )}
           {client.macros_shared && client.macros && (
             <Card className="p-4">
               <p className="font-medium mb-2">My Macro Targets</p>
