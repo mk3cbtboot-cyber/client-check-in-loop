@@ -85,6 +85,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MbPdfImport } from "@/components/MbPdfImport";
 import { MbPlanSetup } from "@/components/MbPlanSetup";
+import Phase3RequestQueue from "@/components/Phase3RequestQueue";
 import MbPlanMirror from "@/components/MbPlanMirror";
 import { getMbPlan, isMbPlanConfirmed, parseMbFoodLimits } from "@/lib/mb-plan";
 import { resolveMbFoodList } from "@/lib/mb-food-list";
