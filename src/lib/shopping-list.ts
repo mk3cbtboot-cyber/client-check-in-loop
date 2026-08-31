@@ -68,9 +68,15 @@ export function aggregateShopping(entries: ShoppingEntry[]): Array<[string, Shop
       if (unit === "l") { total *= 1000; unit = "ml"; }
       qty = unitLabel(unit, Math.round(total * 100) / 100);
     } else {
-      // Non-numeric portions ("1 cup", "handful") — keep the text and show the day count.
-      qty = g.entries
-        .map((e) => `${e.portion.trim() || "1 serving"} × ${e.days} ${e.days === 1 ? "day" : "days"}`)
+      // Non-numeric portions ("1 cup", "handful") — keep the text, collapse
+      // identical portions and show the total day count.
+      const byText = new Map<string, number>();
+      for (const e of g.entries) {
+        const t = e.portion.trim() || "1 serving";
+        byText.set(t, (byText.get(t) ?? 0) + e.days);
+      }
+      qty = Array.from(byText.entries())
+        .map(([t, d]) => `${t} × ${d} ${d === 1 ? "day" : "days"}`)
         .join(" + ");
     }
     const arr = byCat.get(g.category) ?? [];
