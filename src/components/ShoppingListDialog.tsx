@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Share2, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,14 @@ import {
 } from "@/components/ui/dialog";
 import {
   aggregateShopping,
+  gramsToOz,
   shoppingShareText,
   type ShoppingEntry,
+  type ShoppingItem,
 } from "@/lib/shopping-list";
+
+const UNIT_KEY = "shopping-list-unit";
+
 
 interface Props {
   entries: ShoppingEntry[];
@@ -33,12 +38,40 @@ export default function ShoppingListDialog({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [unit, setUnit] = useState<"g" | "oz">(() => {
+    try {
+      return localStorage.getItem(UNIT_KEY) === "oz" ? "oz" : "g";
+    } catch {
+      return "g";
+    }
+  });
 
-  const groups = useMemo(() => aggregateShopping(entries), [entries]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(UNIT_KEY, unit);
+    } catch {
+      /* ignore */
+    }
+  }, [unit]);
+
+  const base = useMemo(() => aggregateShopping(entries), [entries]);
+  const groups = useMemo(
+    () =>
+      unit === "g"
+        ? base
+        : base.map(([cat, items]): [string, ShoppingItem[]] => [
+            cat,
+            items.map((it) =>
+              it.grams != null ? { ...it, qty: `${gramsToOz(it.grams)}oz` } : it,
+            ),
+          ]),
+    [base, unit],
+  );
   const shareText = useMemo(
     () => shoppingShareText(`Shopping List — ${periodLabel}`, groups),
     [groups, periodLabel],
   );
+
 
   const onShare = async () => {
     try {
@@ -70,9 +103,28 @@ export default function ShoppingListDialog({
               <DialogTitle>Shopping List</DialogTitle>
               <p className="text-xs text-muted-foreground mt-1">{periodLabel}</p>
             </div>
-            <Button size="sm" variant="outline" onClick={onShare}>
-              <Share2 className="h-4 w-4" /> Share
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="inline-flex rounded-md border p-0.5">
+                {(["g", "oz"] as const).map((u) => (
+                  <button
+                    key={u}
+                    type="button"
+                    onClick={() => setUnit(u)}
+                    className={`px-2 py-1 text-xs rounded-sm transition-colors ${
+                      unit === u
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
+              <Button size="sm" variant="outline" onClick={onShare}>
+                <Share2 className="h-4 w-4" /> Share
+              </Button>
+            </div>
+
           </DialogHeader>
           <div className="max-h-[65vh] overflow-y-auto space-y-4">
             {groups.length === 0 && (

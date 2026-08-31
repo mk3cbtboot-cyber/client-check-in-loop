@@ -4,6 +4,7 @@
 // Display-only: nothing here writes, and no plan data is modified.
 
 import { parsePortion } from "@/lib/portion";
+import { MB_FOODS } from "@/lib/mb-foods";
 import { MB_COLOURS, type MbPlanItem, type MbSuggestion } from "@/lib/mb-plan";
 import { parseMbRun, resolveDayMeal, runDates, RUN_MEALS } from "@/lib/mb-run";
 
@@ -26,6 +27,8 @@ export interface ShoppingItem {
   name: string;
   category: string;
   qty: string;
+  /** Set when the line is a pure gram total — lets the UI offer a g/oz toggle. */
+  grams?: number;
 }
 
 const titleCase = (s: string) =>
@@ -35,13 +38,17 @@ const titleCase = (s: string) =>
     .replace(/\b\w/g, (c) => c.toUpperCase())
     .trim();
 
-const SUMMABLE = new Set(["g", "kg", "ml", "l", "egg", "slice", "piece"]);
+const SUMMABLE = new Set(["g", "kg", "ml", "l", "egg", "slice", "piece", "ct"]);
 
 const unitLabel = (unit: string, total: number): string => {
   if (unit === "g" || unit === "kg" || unit === "ml" || unit === "l") return `${total}${unit}`;
+  if (unit === "ct") return `${total}`;
   if (unit === "egg") return `${total} ${total === 1 ? "egg" : "eggs"}`;
   return `${total} ${unit}${total === 1 ? "" : "s"}`;
 };
+
+export const gramsToOz = (g: number): number => Math.round(g * 0.035274 * 10) / 10;
+
 
 /** Merge per-day entries into one line per food. */
 export function aggregateShopping(entries: ShoppingEntry[]): Array<[string, ShoppingItem[]]> {
@@ -64,12 +71,15 @@ export function aggregateShopping(entries: ShoppingEntry[]): Array<[string, Shop
     const units = new Set(parsed.map((p) => p.unit));
     const allSummable =
       units.size === 1 && SUMMABLE.has([...units][0]) && parsed.every((p) => p.qty != null);
+    let grams: number | undefined;
     if (allSummable) {
       let unit = [...units][0];
       let total = parsed.reduce((s, p) => s + (p.qty as number) * p.days, 0);
       if (unit === "kg") { total *= 1000; unit = "g"; }
       if (unit === "l") { total *= 1000; unit = "ml"; }
-      qty = unitLabel(unit, Math.round(total * 100) / 100);
+      total = Math.round(total * 100) / 100;
+      qty = unitLabel(unit, total);
+      if (unit === "g") grams = total;
     } else {
       // Non-numeric portions ("1 cup", "handful") — keep the text, collapse
       // identical portions and show the total day count.
@@ -95,8 +105,9 @@ export function aggregateShopping(entries: ShoppingEntry[]): Array<[string, Shop
         .join(" + ");
     }
     const arr = byCat.get(g.category) ?? [];
-    arr.push({ key: k, name: g.name, category: g.category, qty });
+    arr.push({ key: k, name: g.name, category: g.category, qty, grams });
     byCat.set(g.category, arr);
+
   }
 
   for (const arr of byCat.values()) arr.sort((a, b) => a.name.localeCompare(b.name));
@@ -110,6 +121,38 @@ const mbItemPortion = (it: MbPlanItem): string => {
   if (it.qty != null && it.unit === "count") return `${it.qty} pieces`;
   return (it.note ?? "").trim();
 };
+
+/** Catalogue of MB food names → their "(10g)" / "(1)" per-serving suffix. */
+const CATALOGUE_SUFFIX: Map<string, string> = (() => {
+  const m = new Map<string, string>();
+  for (const list of Object.values(MB_FOODS)) {
+    for (const full of list as string[]) {
+      const match = full.match(/^(.*?)\s*(\([^()]*\))\s*$/);
+      if (!match) continue;
+      m.set(match[1].trim().toLowerCase(), match[2]);
+    }
+  }
+  return m;
+})();
+
+/**
+ * Per-serving portion for "as listed" MB items (bread, fruit), taken from the
+ * gram/count suffix on the food name, e.g. "Papaya (170g)" → "170g",
+ * "Apple (1)" → "1 ct". Returns "" when the food carries no such suffix.
+ */
+export function namePortion(name: string): string {
+  const raw = String(name ?? "").trim();
+  if (!raw) return "";
+  const suffixed = /\([^()]*\)\s*$/.test(raw)
+    ? raw
+    : raw + (CATALOGUE_SUFFIX.get(raw.toLowerCase()) ?? "");
+  const weight = suffixed.match(/\(\s*(\d+(?:[.,]\d+)?)\s*(g|ml)\s*\)\s*$/i);
+  if (weight) return `${Number(weight[1].replace(",", "."))}${weight[2].toLowerCase()}`;
+  const count = suffixed.match(/\(\s*(\d+(?:[.,]\d+)?)\s*\)\s*$/);
+  if (count) return `${Number(count[1].replace(",", "."))} ct`;
+  return "";
+}
+
 
 /**
  * Entries for the confirmed MB run: the client's picks over the run's days,
@@ -136,9 +179,20 @@ export function mbRunShoppingEntries(rawRun: unknown, suggestions: MbSuggestion[
           entries.push({ name: alt.trim(), category, portion: `${half}${it.unit}`, days: 1, date });
           continue;
         }
-        const portion = mbItemPortion(it);
+        const base = mbItemPortion(it);
+        const portion = base || namePortion(name);
         entries.push({ name, category, portion, days: 1, date });
-        if (alt) entries.push({ name: alt.trim(), category, portion, days: 1, date });
+        if (alt) {
+          const altName = alt.trim();
+          entries.push({
+            name: altName,
+            category,
+            portion: base || namePortion(altName),
+            days: 1,
+            date,
+          });
+        }
+
       }
     }
   }
