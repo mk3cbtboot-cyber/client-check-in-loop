@@ -364,7 +364,7 @@ export default function Dashboard() {
       setPractitionerId(userId);
       const { data: profile } = await supabase
         .from("profiles")
-        .select("practitioner_tier, office_hours, out_of_office, ooo_message, ooo_return_date, timezone, display_name")
+        .select("practitioner_tier, office_hours, out_of_office, ooo_message, ooo_return_date, timezone, display_name, last_name")
         .eq("id", userId)
         .maybeSingle();
       if (cancelled) return;
@@ -374,6 +374,7 @@ export default function Dashboard() {
       setOooMessage(((profile as any)?.ooo_message ?? "") as string);
       setOooReturnDate(((profile as any)?.ooo_return_date ?? "") as string);
       setDisplayName(((profile as any)?.display_name ?? "") as string);
+      setLastName(((profile as any)?.last_name ?? "") as string);
 
       const t = (profile?.practitioner_tier ?? null) as PractitionerTier | null;
       if (!t) {
