@@ -125,9 +125,10 @@ export default function Onboarding() {
           })}
         </div>
         <div className="flex justify-end">
-          <Button onClick={save} disabled={!selected || saving}>
+          <Button onClick={save} disabled={!canSave || saving}>
             {saving ? "Saving…" : "Continue"}
           </Button>
+
         </div>
       </div>
     </main>
