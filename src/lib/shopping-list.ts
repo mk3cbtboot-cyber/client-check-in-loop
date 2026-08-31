@@ -16,6 +16,9 @@ export interface ShoppingEntry {
   portion: string;
   /** How many days this portion is eaten. */
   days: number;
+  /** Optional calendar date this entry belongs to (MB run). Lets the
+   *  aggregator tell "eaten twice a day for 3 days" from "eaten 6 days". */
+  date?: string;
 }
 
 export interface ShoppingItem {
@@ -70,13 +73,25 @@ export function aggregateShopping(entries: ShoppingEntry[]): Array<[string, Shop
     } else {
       // Non-numeric portions ("1 cup", "handful") — keep the text, collapse
       // identical portions and show the total day count.
-      const byText = new Map<string, number>();
+      const byText = new Map<string, { servings: number; dates: Set<string> }>();
       for (const e of g.entries) {
         const t = e.portion.trim() || "1 serving";
-        byText.set(t, (byText.get(t) ?? 0) + e.days);
+        const cur = byText.get(t) ?? { servings: 0, dates: new Set<string>() };
+        cur.servings += e.days;
+        if (e.date) cur.dates.add(e.date);
+        byText.set(t, cur);
       }
       qty = Array.from(byText.entries())
-        .map(([t, d]) => `${t} × ${d} ${d === 1 ? "day" : "days"}`)
+        .map(([t, v]) => {
+          // With dated entries (MB run) the same food can appear in more than
+          // one meal on the same day — that's servings per day, not extra days.
+          const days = v.dates.size || v.servings;
+          const perDay = days > 0 ? v.servings / days : v.servings;
+          const dayLabel = `${days} ${days === 1 ? "day" : "days"}`;
+          return perDay > 1
+            ? `${t} × ${perDay}/day × ${dayLabel}`
+            : `${t} × ${dayLabel}`;
+        })
         .join(" + ");
     }
     const arr = byCat.get(g.category) ?? [];
@@ -117,13 +132,13 @@ export function mbRunShoppingEntries(rawRun: unknown, suggestions: MbSuggestion[
         if (alt && it.qty != null && (it.unit === "g" || it.unit === "ml")) {
           // Second-vegetable variety split: one allowance shared 50/50.
           const half = Math.round(it.qty / 2);
-          entries.push({ name, category, portion: `${half}${it.unit}`, days: 1 });
-          entries.push({ name: alt.trim(), category, portion: `${half}${it.unit}`, days: 1 });
+          entries.push({ name, category, portion: `${half}${it.unit}`, days: 1, date });
+          entries.push({ name: alt.trim(), category, portion: `${half}${it.unit}`, days: 1, date });
           continue;
         }
         const portion = mbItemPortion(it);
-        entries.push({ name, category, portion, days: 1 });
-        if (alt) entries.push({ name: alt.trim(), category, portion, days: 1 });
+        entries.push({ name, category, portion, days: 1, date });
+        if (alt) entries.push({ name: alt.trim(), category, portion, days: 1, date });
       }
     }
   }

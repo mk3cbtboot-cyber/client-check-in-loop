@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -48,6 +48,8 @@ interface Props {
   phase?: string | null;
   /** Full client row — used to show the separate Phase 3 additional foods. */
   client?: Record<string, unknown> | null;
+  /** Rendered inside the confirmed panel (e.g. the shopping list button). */
+  confirmedExtra?: ReactNode;
 }
 
 /**
@@ -62,7 +64,7 @@ interface Props {
 export function MbRunPlanner({
   token, suggestions, foodList, enrichedLimits, legacyLimits, initialRun, onGoHome,
   onRunChanged, phase = null,
-  client = null,
+  client = null, confirmedExtra = null,
 }: Props) {
   const [run, setRun] = useState<MbRun>(() => parseMbRun(initialRun));
   const [consumed, setConsumed] = useState<CapConsumed>({});
@@ -462,6 +464,7 @@ export function MbRunPlanner({
             <Button size="sm" onClick={onGoHome}>Go to Home</Button>
             <Button size="sm" variant="outline" onClick={clearRun}>Choose new meals</Button>
           </div>
+          {confirmedExtra}
         </div>
       ) : runReady ? (
         <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
