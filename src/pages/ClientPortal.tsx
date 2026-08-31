@@ -1546,19 +1546,13 @@ export default function ClientPortal() {
               onRunChanged={(r) => setClient((c) => (c ? { ...c, mb_run: r } : c))}
               phase={client.phase}
               client={client as unknown as Record<string, unknown>}
+              confirmedExtra={
+                mbShoppingEntries.length > 0 ? (
+                  <ShoppingListDialog entries={mbShoppingEntries} periodLabel={mbShoppingPeriod} />
+                ) : null
+              }
             />
             )
-          )}
-          {client.client_type !== "custom" && mbRunConfirmed && mbShoppingEntries.length > 0 && (
-            <Card className="p-4 space-y-3">
-              <div>
-                <p className="font-medium">Shopping list</p>
-                <p className="text-sm text-muted-foreground">
-                  Everything you need for your confirmed meals.
-                </p>
-              </div>
-              <ShoppingListDialog entries={mbShoppingEntries} periodLabel={mbShoppingPeriod} />
-            </Card>
           )}
           {client.macros_shared && client.macros && (
             <Card className="p-4">
