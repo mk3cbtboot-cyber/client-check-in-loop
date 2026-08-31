@@ -26,7 +26,11 @@ export interface ShoppingItem {
 }
 
 const titleCase = (s: string) =>
-  s.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim();
+  s
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
 
 const SUMMABLE = new Set(["g", "kg", "ml", "l", "egg", "slice", "piece"]);
 
