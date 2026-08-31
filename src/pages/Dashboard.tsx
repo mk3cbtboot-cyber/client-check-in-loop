@@ -2577,7 +2577,7 @@ export default function Dashboard() {
                               clientId={client.id}
                               additionalFoods={client.phase3_additional_foods ?? ""}
                               className="mb-3"
-                              onAdditionalFoodsChange={(next) => updateClient(client.id, { phase3_additional_foods: next })}
+                              onAdditionalFoodsChange={(next) => setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, phase3_additional_foods: next } : c)))}
                             />
                           )}
                           <MbPlanMirror
