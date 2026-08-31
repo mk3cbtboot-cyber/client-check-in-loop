@@ -28,27 +28,38 @@ export default function Onboarding() {
       setUserId(data.session.user.id);
       const { data: profile } = await supabase
         .from("profiles")
-        .select("practitioner_tier")
+        .select("practitioner_tier, display_name, last_name")
         .eq("id", data.session.user.id)
         .maybeSingle();
+      setDisplayName((((profile as any)?.display_name ?? "") as string));
+      setLastName((((profile as any)?.last_name ?? "") as string));
       if (profile?.practitioner_tier) {
         navigate("/dashboard", { replace: true });
       }
     })();
   }, [navigate]);
 
+  const trimmedFirst = displayName.trim();
+  const trimmedLast = lastName.trim();
+  const canSave = !!selected && !!trimmedFirst && !!trimmedLast;
+
   const save = async () => {
-    if (!selected || !userId) return;
+    if (!canSave || !userId) return;
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ practitioner_tier: selected } as never)
+      .update({
+        practitioner_tier: selected,
+        display_name: trimmedFirst,
+        last_name: trimmedLast,
+      } as never)
       .eq("id", userId);
     setSaving(false);
-    if (error) return toast.error("Could not save practice type");
-    toast.success("Practice type saved");
+    if (error) return toast.error("Could not save your details");
+    toast.success("Profile saved");
     navigate("/dashboard", { replace: true });
   };
+
 
   return (
     <main className="min-h-screen bg-background p-4 flex items-center justify-center">
