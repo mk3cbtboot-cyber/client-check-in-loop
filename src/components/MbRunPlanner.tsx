@@ -48,6 +48,8 @@ interface Props {
   phase?: string | null;
   /** Full client row — used to show the separate Phase 3 additional foods. */
   client?: Record<string, unknown> | null;
+  /** Rendered inside the confirmed panel (e.g. the shopping list button). */
+  confirmedExtra?: ReactNode;
 }
 
 /**
