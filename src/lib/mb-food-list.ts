@@ -28,9 +28,9 @@ export const MB_FOOD_CATEGORIES: MbFoodCategory[] = [
   { key: "starch", label: "Starch", field: "food_starch" },
   { key: "bread", label: "Bread", field: "food_bread" },
   { key: "fruit", label: "Fruit", field: "food_fruit" },
-  // No Phase 2 oils column exists; the only oil list on clients is the
-  // Phase 3 addition column, so that is what this category seeds from.
-  { key: "oils", label: "Oils (Cold-Pressed)", field: "phase3_mb_fat_oil" },
+  // No "oils" category: the 8 Rules prohibit oil during the first 14 days of
+  // Phase 2, and oils only appear for the first time on the Phase 3 Extended
+  // Food List (phase3_mb_fat_oil, surfaced via phase3AdditionSections).
 ];
 
 export type MbFoodListMap = Record<string, string[]>;
