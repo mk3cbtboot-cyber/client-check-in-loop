@@ -464,6 +464,7 @@ export function MbRunPlanner({
             <Button size="sm" onClick={onGoHome}>Go to Home</Button>
             <Button size="sm" variant="outline" onClick={clearRun}>Choose new meals</Button>
           </div>
+          {confirmedExtra}
         </div>
       ) : runReady ? (
         <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
