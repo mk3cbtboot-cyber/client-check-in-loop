@@ -109,11 +109,21 @@ export function mbRunShoppingEntries(rawRun: unknown, suggestions: MbSuggestion[
       const resolved = resolveDayMeal(run, suggestions, date, meal);
       for (const it of resolved.items) {
         const chosen = resolved.picks[it.id];
+        const alt = resolved.picks[`${it.id}-alt`];
+        const category = titleCase(it.category || "Other");
         const name = (chosen ?? it.label ?? "").trim();
         if (!name) continue;
         if (it.optional && !chosen) continue;
+        if (alt && it.qty != null && (it.unit === "g" || it.unit === "ml")) {
+          // Second-vegetable variety split: one allowance shared 50/50.
+          const half = Math.round(it.qty / 2);
+          entries.push({ name, category, portion: `${half}${it.unit}`, days: 1 });
+          entries.push({ name: alt.trim(), category, portion: `${half}${it.unit}`, days: 1 });
+          continue;
+        }
         const portion = mbItemPortion(it);
-        entries.push({ name, category: titleCase(it.category || "Other"), portion, days: 1 });
+        entries.push({ name, category, portion, days: 1 });
+        if (alt) entries.push({ name: alt.trim(), category, portion, days: 1 });
       }
     }
   }
