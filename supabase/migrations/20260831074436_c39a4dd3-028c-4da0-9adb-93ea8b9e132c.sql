@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ALTER COLUMN last_name SET NOT NULL;
