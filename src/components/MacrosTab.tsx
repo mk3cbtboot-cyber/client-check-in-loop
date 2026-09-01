@@ -79,7 +79,7 @@ const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
 };
 
 const GOAL_LABELS: Record<MacroGoal, string> = {
-  weight_loss: "Weight loss — calorie deficit",
+  weight_loss: "Fat loss — calorie deficit",
   maintenance: "Maintenance — TDEE",
   muscle_gain: "Muscle gain — 300 cal surplus",
 };
