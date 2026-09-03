@@ -123,6 +123,7 @@ Deno.serve(async (req) => {
       .from("recipes")
       .select("created_at")
       .eq("client_id", c.id)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();

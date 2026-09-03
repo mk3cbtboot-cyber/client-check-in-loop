@@ -930,6 +930,9 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string
+          delete_reason: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           egg_count: number
           id: string
           ingredients: Json
@@ -942,6 +945,9 @@ export type Database = {
         Insert: {
           client_id: string
           created_at?: string
+          delete_reason?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           egg_count?: number
           id?: string
           ingredients?: Json
@@ -954,6 +960,9 @@ export type Database = {
         Update: {
           client_id?: string
           created_at?: string
+          delete_reason?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           egg_count?: number
           id?: string
           ingredients?: Json
@@ -969,6 +978,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recipes_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

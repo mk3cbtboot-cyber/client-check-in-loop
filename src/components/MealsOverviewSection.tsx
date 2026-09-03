@@ -11,6 +11,9 @@ import {
   ReferenceLine,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -88,7 +91,15 @@ function renderInstructions(value: unknown) {
   return <p className="text-sm text-muted-foreground">No method recorded.</p>;
 }
 
-export default function MealsOverviewSection({ recipes }: { recipes: MealSummary[] }) {
+export default function MealsOverviewSection({
+  recipes,
+  onLogRemoved,
+}: {
+  recipes: MealSummary[];
+  onLogRemoved?: () => void | Promise<void>;
+}) {
+  const [removeReason, setRemoveReason] = useState("");
+  const [removing, setRemoving] = useState(false);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -131,6 +142,7 @@ export default function MealsOverviewSection({ recipes }: { recipes: MealSummary
 
   // Load recipe detail when opening
   useEffect(() => {
+    setRemoveReason("");
     if (!openId) {
       setDetail(null);
       return;
@@ -142,6 +154,7 @@ export default function MealsOverviewSection({ recipes }: { recipes: MealSummary
         .from("recipes")
         .select("id, name, meal_type, created_at, prep_time, servings, ingredients, instructions")
         .eq("id", openId)
+        .is("deleted_at", null)
         .maybeSingle();
       if (!cancelled) {
         setDetail((data as RecipeDetail | null) ?? null);
@@ -341,6 +354,44 @@ export default function MealsOverviewSection({ recipes }: { recipes: MealSummary
               <div>
                 <p className="text-sm font-semibold mb-1">Method</p>
                 {renderInstructions(detail.instructions)}
+              </div>
+              <div className="border-t pt-4 space-y-2">
+                <p className="text-sm font-semibold">Remove this log entry</p>
+                <p className="text-xs text-muted-foreground">
+                  The entry is hidden from the client record but kept permanently with your stated reason.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    value={removeReason}
+                    onChange={(e) => setRemoveReason(e.target.value)}
+                    placeholder="Why are you removing this log entry?"
+                    aria-label="Reason for removing this log entry"
+                  />
+                  <Button
+                    variant="destructive"
+                    disabled={removing || removeReason.trim().length < 3}
+                    onClick={async () => {
+                      if (!detail) return;
+                      setRemoving(true);
+                      try {
+                        const { data, error } = await supabase.functions.invoke("soft-delete-recipe-log", {
+                          body: { recipe_id: detail.id, reason: removeReason.trim() },
+                        });
+                        if (error) throw error;
+                        if ((data as { error?: string } | null)?.error) throw new Error((data as { error: string }).error);
+                        toast.success("Log entry removed");
+                        setOpenId(null);
+                        await onLogRemoved?.();
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Failed to remove log entry");
+                      } finally {
+                        setRemoving(false);
+                      }
+                    }}
+                  >
+                    {removing ? "Removing…" : "Remove"}
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (
