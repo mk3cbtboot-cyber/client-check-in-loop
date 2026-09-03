@@ -142,6 +142,7 @@ export default function MealsOverviewSection({ recipes }: { recipes: MealSummary
         .from("recipes")
         .select("id, name, meal_type, created_at, prep_time, servings, ingredients, instructions")
         .eq("id", openId)
+        .is("deleted_at", null)
         .maybeSingle();
       if (!cancelled) {
         setDetail((data as RecipeDetail | null) ?? null);

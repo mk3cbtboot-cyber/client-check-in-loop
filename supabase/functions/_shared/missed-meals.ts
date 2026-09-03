@@ -193,6 +193,7 @@ export async function missedMealSlots(
     .from("recipes")
     .select("meal_type, created_at")
     .eq("client_id", client.id)
+    .is("deleted_at", null)
     .gte("created_at", `${windowStart}T00:00:00Z`);
 
   // date → meal_type → count of logged meals (bucketed in the client's tz so
