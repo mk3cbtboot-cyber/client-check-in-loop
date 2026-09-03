@@ -2387,7 +2387,7 @@ export default function Dashboard() {
                           return (
                             <>
                               {renderGraph("Water Intake (L)", waterData, "litres", "L", WATER_TARGET)}
-                              <MealsOverviewSection recipes={recipesList} />
+                              <MealsOverviewSection recipes={recipesList} onLogRemoved={load} />
                             </>
                           );
                         })()}
