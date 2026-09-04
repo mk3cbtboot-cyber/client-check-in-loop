@@ -79,10 +79,21 @@ export function resolveMbFoodList(client: Record<string, unknown> | null | undef
   return seedMbFoodList(client);
 }
 
+/**
+ * Category keys a slot draws its options from.
+ * A "Veg./Lettuce" slot offers both the client's Veg./Lettuce list and their
+ * Vegetables list (one merged pool), so the optional variety pick can be a
+ * genuinely different vegetable. A "Vegetables" slot is unchanged.
+ */
+export function categorySourceKeys(category: string): string[] {
+  return category === "vegLettuce" ? ["vegLettuce", "vegetables"] : [category];
+}
+
 /** Foods approved for one plan-item category (falls back to an empty list). */
 export function foodsForCategory(list: MbFoodListMap, category: string): string[] {
-  return list[category] ?? [];
+  return dedupe(categorySourceKeys(category).flatMap((k) => list[k] ?? []));
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Phase 3 additions — the extra foods layered on top of the Phase 2   */

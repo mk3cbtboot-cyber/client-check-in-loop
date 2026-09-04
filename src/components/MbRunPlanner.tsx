@@ -9,7 +9,7 @@ import { MB_FOODS, type MealType } from "@/lib/mb-foods";
 import { vegAltIdFor } from "@/lib/mb-plan";
 import type { MbColour, MbFoodLimit, MbPlanItem, MbSuggestion } from "@/lib/mb-plan";
 import {
-  capFoodFor, categoryLabel, consumedFor, describeBlock, perMealQty,
+  capFoodFor, categoryLabel, categorySourceKeys, consumedFor, describeBlock, perMealQty,
   planRunAgainstLedger, weekWindowFor, weeklyCapFor,
   type CapConsumed, type MbFoodListMap,
 } from "@/lib/mb-food-list";
@@ -146,12 +146,19 @@ export function MbRunPlanner({
   const pickable = (items: MbPlanItem[]) => items.filter((i) => i.category !== "fixed");
 
   const optionsFor = (it: MbPlanItem): string[] => {
-    const fromList = foodList[it.category] ?? [];
-    if (fromList.length) return fromList;
-    if (it.options?.length) return it.options;
-    // Last resort: the MB standard list for this group (e.g. a Sunflower Seeds
-    // slot on a client whose practitioner never filled that column in).
-    return (MB_FOODS as Record<string, string[]>)[it.category] ?? [];
+    // A Veg./Lettuce slot draws from the merged Vegetables + Veg./Lettuce pool.
+    const keys = categorySourceKeys(it.category);
+    const out: string[] = [];
+    keys.forEach((key, i) => {
+      const fromList = foodList[key] ?? [];
+      if (fromList.length) return out.push(...fromList);
+      if (i === 0 && it.options?.length) return out.push(...it.options);
+      // Last resort: the MB standard list for this group (e.g. a Sunflower Seeds
+      // slot on a client whose practitioner never filled that column in).
+      out.push(...((MB_FOODS as Record<string, string[]>)[key] ?? []));
+    });
+    const seen = new Set<string>();
+    return out.filter((f) => (seen.has(f) ? false : (seen.add(f), true)));
   };
 
   const start = run.started_on ?? todayISO();
