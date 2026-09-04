@@ -12,6 +12,7 @@
 
 import { MB_FOODS, MB_OPTIONS, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { resolvePhase3MbField } from "@/lib/phase3-mb-defaults";
+import { categorySourceKeys, resolveMbFoodList } from "@/lib/mb-food-list";
 
 export const MB_COLOURS = ["blue", "green", "orange"] as const;
 export type MbColour = (typeof MB_COLOURS)[number];
@@ -403,7 +404,13 @@ export function vegQtyOverrides(
   return out;
 }
 
-function optionFromSuggestion(s: MbSuggestion, meal: MealType, idx: number): OptionDef {
+function optionFromSuggestion(
+  s: MbSuggestion,
+  meal: MealType,
+  idx: number,
+  client?: MbPlanClient | null,
+): OptionDef {
+  const clientList = resolveMbFoodList((client ?? null) as Record<string, unknown> | null);
   const m = s.meals[meal] ?? { items: [] };
   const fixed: { label: string; qty: string }[] = [];
   const components: OptionDef["components"] = [];
@@ -412,8 +419,15 @@ function optionFromSuggestion(s: MbSuggestion, meal: MealType, idx: number): Opt
       fixed.push({ label: it.label, qty: fmtQty(it) });
       return;
     }
-    const sources = [it.category as keyof typeof MB_FOODS].filter((c) => !!MB_FOODS[c]) as (keyof typeof MB_FOODS)[];
-    const items = it.options && it.options.length ? it.options : undefined;
+    // Veg./Lettuce slots offer the merged Vegetables + Veg./Lettuce pool.
+    const sourceKeys = categorySourceKeys(it.category);
+    const sources = sourceKeys.filter((c) => !!MB_FOODS[c as keyof typeof MB_FOODS]) as (keyof typeof MB_FOODS)[];
+    let items = it.options && it.options.length ? it.options : undefined;
+    if (items && sourceKeys.length > 1) {
+      const extra = sourceKeys.slice(1).flatMap((k) => clientList[k] ?? MB_FOODS[k as keyof typeof MB_FOODS] ?? []);
+      const seen = new Set<string>();
+      items = [...items, ...extra].filter((f) => (seen.has(f) ? false : (seen.add(f), true)));
+    }
     const key = `${it.category || "item"}-${i}`;
     components.push({
       key,
@@ -458,7 +472,7 @@ export function mbOptionsForMeal(
   meal: MealType,
 ): OptionDef[] {
   if (!isMbPlanConfirmed(client)) return MB_OPTIONS[meal];
-  return getMbPlan(client).suggestions.map((s, i) => optionFromSuggestion(s, meal, i));
+  return getMbPlan(client).suggestions.map((s, i) => optionFromSuggestion(s, meal, i, client));
 }
 
 export function mbOptions(
