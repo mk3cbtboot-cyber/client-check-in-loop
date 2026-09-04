@@ -5,7 +5,7 @@ import type { MealType } from "@/lib/mb-foods";
 import { vegAltIdFor } from "@/lib/mb-plan";
 import type { MbColour, MbFoodLimit, MbPlanItem, MbSuggestion } from "@/lib/mb-plan";
 import {
-  capFoodFor, categoryLabel, consumedFor, perMealQty, planRunAgainstLedger,
+  capFoodFor, categoryLabel, consumedFor, foodsForCategory, perMealQty, planRunAgainstLedger,
   weekWindowFor, weeklyCapFor, type CapConsumed, type MbFoodListMap,
 } from "@/lib/mb-food-list";
 import { RUN_DAYS, RUN_MEALS, fmtQty, parseMbRun, resolveDayMeal, resolveRunMeal, runDates, todayISO } from "@/lib/mb-run";
@@ -149,7 +149,7 @@ export function MbPlanMirror({
         </div>
       );
     }
-    const hasOptions = ((foodList[it.category] ?? []).length || (it.options ?? []).length) > 0;
+    const hasOptions = (foodsForCategory(foodList, it.category).length || (it.options ?? []).length) > 0;
     const altId = vegAltIdFor(it);
     const altPicked = altId ? picks[altId] ?? "" : "";
     return (
