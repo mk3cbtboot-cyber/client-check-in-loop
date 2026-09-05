@@ -903,7 +903,7 @@ export type Database = {
           display_name?: string | null
           email: string
           id: string
-          last_name: string
+          last_name?: string
           office_hours?: Json
           ooo_message?: string
           ooo_return_date?: string | null
