@@ -147,16 +147,22 @@ export function MbRunPlanner({
 
   const optionsFor = (it: MbPlanItem): string[] => {
     // A Veg./Lettuce slot draws from the merged Vegetables + Veg./Lettuce pool.
+    // Union the client's approved foods from ALL merged keys first — the
+    // standard-catalogue fallback may only fire when the whole union is empty,
+    // never per-key, or an empty Vegetables column would leak the full MB
+    // catalogue into a blood-value-scoped plan.
     const keys = categorySourceKeys(it.category);
     const out: string[] = [];
-    keys.forEach((key, i) => {
-      const fromList = foodList[key] ?? [];
-      if (fromList.length) return out.push(...fromList);
-      if (i === 0 && it.options?.length) return out.push(...it.options);
-      // Last resort: the MB standard list for this group (e.g. a Sunflower Seeds
-      // slot on a client whose practitioner never filled that column in).
-      out.push(...((MB_FOODS as Record<string, string[]>)[key] ?? []));
-    });
+    for (const key of keys) out.push(...(foodList[key] ?? []));
+    if (out.length === 0) {
+      // Last resort, only when the client has nothing approved in any merged
+      // key (e.g. a Sunflower Seeds slot never filled in by the practitioner):
+      // the slot's own options, else the MB standard list for this group.
+      if (it.options?.length) out.push(...it.options);
+      else {
+        for (const key of keys) out.push(...((MB_FOODS as Record<string, string[]>)[key] ?? []));
+      }
+    }
     const seen = new Set<string>();
     return out.filter((f) => (seen.has(f) ? false : (seen.add(f), true)));
   };
