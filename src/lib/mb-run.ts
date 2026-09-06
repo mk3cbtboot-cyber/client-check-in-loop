@@ -219,3 +219,21 @@ export function resolveDayMeal(
     swapped: !!run.colour && override.colour !== run.colour,
   };
 }
+
+/**
+ * Optional per-meal Oil pick. Oils are a genuine selectable category from
+ * Phase 3 onward (never Phase 2), but they are not part of the practitioner's
+ * suggestion items, so both the client planner and the practitioner mirror
+ * append this synthetic optional item when the client has approved oils.
+ */
+export function oilItemFor(meal: MealType): MbPlanItem {
+  return {
+    id: `oil-${meal}`,
+    category: "oils",
+    label: "Oil (optional)",
+    qty: null,
+    unit: "as_listed",
+    note: "up to 1 tbsp (15ml)",
+    optional: true,
+  };
+}
