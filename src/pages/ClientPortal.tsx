@@ -1769,9 +1769,9 @@ export default function ClientPortal() {
                   );
                 }
                 if (client.phase === "phase4") {
-                  // The run planner above already renders the Phase 4 food list;
-                  // don't repeat it once the plan is confirmed.
-                  if (mbPlanConfirmed) return null;
+                  // Same rule as Phase 3: suppress only while the run planner is
+                  // actually rendering the food list (see above).
+                  if (mbPlanConfirmed && !instructionsGate) return null;
                   return (
                     <MbFoodListReadonly
                       foodList={resolveMbFoodList(client as unknown as Record<string, unknown>)}
