@@ -1755,9 +1755,11 @@ export default function ClientPortal() {
                   .map((g) => ({ title: g.title, items: parseList(client[g.field] as string) }))
                   .filter((g) => g.items.length > 0);
                 if (client.phase === "phase3") {
-                  // The run planner above already renders the split Phase 2 base +
-                  // Phase 3 additions list; don't repeat it here.
-                  if (mbPlanConfirmed) return null;
+                  // Suppress only while the run planner is ACTUALLY rendering the
+                  // split Phase 2 base + Phase 3 additions list above. The planner
+                  // mounts when the plan is confirmed — but during the instructions
+                  // gate it's replaced by the lock card, so the list must show here.
+                  if (mbPlanConfirmed && !instructionsGate) return null;
                   return (
                     <MbFoodListReadonly
                       foodList={resolveMbFoodList(client as unknown as Record<string, unknown>)}
@@ -1767,9 +1769,9 @@ export default function ClientPortal() {
                   );
                 }
                 if (client.phase === "phase4") {
-                  // The run planner above already renders the Phase 4 food list;
-                  // don't repeat it once the plan is confirmed.
-                  if (mbPlanConfirmed) return null;
+                  // Same rule as Phase 3: suppress only while the run planner is
+                  // actually rendering the food list (see above).
+                  if (mbPlanConfirmed && !instructionsGate) return null;
                   return (
                     <MbFoodListReadonly
                       foodList={resolveMbFoodList(client as unknown as Record<string, unknown>)}
