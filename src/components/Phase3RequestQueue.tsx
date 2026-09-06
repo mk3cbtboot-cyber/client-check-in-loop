@@ -64,7 +64,7 @@ export function Phase3RequestQueue({
     if (current.some((a) => a.food.toLowerCase() === food.toLowerCase() && a.category === cat)) return;
     const { error } = await supabase
       .from("clients")
-      .update({ phase3_approved_foods: [...current, { food, category: cat }] })
+      .update({ phase3_approved_foods: [...current, { food, category: cat }].map((a) => ({ food: a.food, category: a.category })) as unknown as never })
       .eq("id", clientId);
     if (error) throw error;
   };
