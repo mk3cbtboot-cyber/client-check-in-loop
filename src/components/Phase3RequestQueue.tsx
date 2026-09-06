@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MB_FOOD_CATEGORIES, parsePhase3ApprovedFoods } from "@/lib/mb-food-list";
 import { Sprout, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -37,6 +39,11 @@ export function Phase3RequestQueue({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [swap, setSwap] = useState<Record<string, string>>({});
+  const [category, setCategory] = useState<Record<string, string>>({});
+
+  // The picker categories: the Phase 2 slot categories plus Oils, which only
+  // becomes a real selectable category from Phase 3 onward.
+  const CATEGORY_OPTIONS = [...MB_FOOD_CATEGORIES.map((c) => ({ key: c.key, label: c.label })), { key: "oils", label: "Oils" }];
 
   const load = async () => {
     const { data } = await supabase
@@ -49,6 +56,18 @@ export function Phase3RequestQueue({
   };
 
   useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [clientId]);
+
+  /** Store the approved food with its category so the meal builder can slot it. */
+  const appendApproved = async (food: string, cat: string) => {
+    const { data } = await supabase.from("clients").select("phase3_approved_foods").eq("id", clientId).maybeSingle();
+    const current = parsePhase3ApprovedFoods(data?.phase3_approved_foods);
+    if (current.some((a) => a.food.toLowerCase() === food.toLowerCase() && a.category === cat)) return;
+    const { error } = await supabase
+      .from("clients")
+      .update({ phase3_approved_foods: [...current, { food, category: cat }] })
+      .eq("id", clientId);
+    if (error) throw error;
+  };
 
   const appendToFoodList = async (food: string) => {
     const current = (additionalFoods ?? "").trim();
@@ -63,11 +82,21 @@ export function Phase3RequestQueue({
   const decide = async (row: Row, status: Row["status"]) => {
     setBusy(row.id);
     try {
-      if (status === "approved") await appendToFoodList(row.food_name);
+      const cat = category[row.id] ?? "";
+      if (status === "approved") {
+        if (!cat) {
+          toast.error("Choose a food group for this food first.");
+          setBusy(null);
+          return;
+        }
+        await appendToFoodList(row.food_name);
+        await appendApproved(row.food_name, cat);
+      }
       const { error } = await supabase
         .from("phase3_food_requests")
         .update({
           status,
+          category: status === "approved" ? (category[row.id] ?? null) : null,
           reviewed_at: new Date().toISOString(),
           swap_suggestion: swap[row.id]?.trim() || null,
         })
@@ -101,6 +130,16 @@ export function Phase3RequestQueue({
       {pending.map((r) => (
         <div key={r.id} className="rounded-md border p-3 space-y-2">
           <p className="text-sm font-medium">{r.food_name}</p>
+          <Select value={category[r.id] ?? ""} onValueChange={(v) => setCategory((p) => ({ ...p, [r.id]: v }))}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Food group (required to approve)" />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORY_OPTIONS.map((c) => (
+                <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Input
             className="h-8 text-xs"
             placeholder="Optional swap suggestion"
