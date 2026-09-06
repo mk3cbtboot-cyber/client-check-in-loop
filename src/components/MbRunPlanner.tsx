@@ -146,14 +146,13 @@ export function MbRunPlanner({
   const pickable = (items: MbPlanItem[]) => items.filter((i) => i.category !== "fixed");
 
   const optionsFor = (it: MbPlanItem): string[] => {
-    // A Veg./Lettuce slot draws from the merged Vegetables + Veg./Lettuce pool.
-    // Union the client's approved foods from ALL merged keys first — the
-    // standard-catalogue fallback may only fire when the whole union is empty,
-    // never per-key, or an empty Vegetables column would leak the full MB
-    // catalogue into a blood-value-scoped plan.
+    // ONE shared resolver: the client's Phase 2 approved foods for this slot
+    // (Veg./Lettuce merges Vegetables) plus, for Phase 3/4 clients, their
+    // Phase 3 additions for the same category. Never the standard catalogue
+    // per-key — an empty column must not leak the full MB list into a
+    // blood-value-scoped plan.
     const keys = categorySourceKeys(it.category);
-    const out: string[] = [];
-    for (const key of keys) out.push(...(foodList[key] ?? []));
+    const out: string[] = resolvePickPool(client, it.category);
     if (out.length === 0) {
       // Last resort, only when the client has nothing approved in any merged
       // key (e.g. a Sunflower Seeds slot never filled in by the practitioner):
@@ -166,6 +165,14 @@ export function MbRunPlanner({
     const seen = new Set<string>();
     return out.filter((f) => (seen.has(f) ? false : (seen.add(f), true)));
   };
+
+  /** Oils only exist from Phase 3 onward, and only from the client's own list. */
+  const oilOptions = useMemo(() => resolvePickPool(client, "oils"), [client]);
+  const withOilItem = (meal: MealType, items: MbPlanItem[]): MbPlanItem[] =>
+    oilOptions.length > 0 && !items.some((i) => i.category === "oils")
+      ? [...items, oilItemFor(meal)]
+      : items;
+
 
   const start = run.started_on ?? todayISO();
   const dates = useMemo(() => (run.colour ? runDates(run, RUN_DAYS) : []), [run]);
