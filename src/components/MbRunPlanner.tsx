@@ -10,12 +10,12 @@ import { vegAltIdFor } from "@/lib/mb-plan";
 import type { MbColour, MbFoodLimit, MbPlanItem, MbSuggestion } from "@/lib/mb-plan";
 import {
   capFoodFor, categoryLabel, categorySourceKeys, consumedFor, describeBlock, perMealQty,
-  planRunAgainstLedger, weekWindowFor, weeklyCapFor,
+  planRunAgainstLedger, resolvePickPool, weekWindowFor, weeklyCapFor,
   type CapConsumed, type MbFoodListMap,
 } from "@/lib/mb-food-list";
 import {
   RUN_DAYS, RUN_MEALS, clearDayMeal, emptyRun, fmtQty, parseMbRun, resolveDayMeal,
-  resolveRunMeal, runDates, startRun, swapDayMeal, todayISO, type MbRun,
+  oilItemFor, resolveRunMeal, runDates, startRun, swapDayMeal, todayISO, type MbRun,
 } from "@/lib/mb-run";
 import { MbFoodListReadonly, MbSuggestionsBoard } from "@/components/MbSuggestionBoard";
 
@@ -389,7 +389,8 @@ export function MbRunPlanner({
 
       {/* One set of picks for the whole run. */}
       {RUN_MEALS.map((meal) => {
-        const { items, picks } = resolveRunMeal(run, suggestions, meal);
+        const { items: baseItems, picks } = resolveRunMeal(run, suggestions, meal);
+        const items = withOilItem(meal, baseItems);
         return (
           <div key={meal} className="rounded-lg border p-3 space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wide flex items-center gap-2">
@@ -413,8 +414,9 @@ export function MbRunPlanner({
                 const block = blockFor(date, meal);
                 const override = run.day_overrides[date]?.[meal];
                 if (!block && !override) return null;
-                const { colour: mealColour, suggestion: s, items, picks, swapped } =
+                const { colour: mealColour, suggestion: s, items: dayBaseItems, picks, swapped } =
                   resolveDayMeal(run, suggestions, date, meal);
+                const items = withOilItem(meal, dayBaseItems);
                 return (
                   <div key={meal} className="space-y-2 border-t pt-2 first:border-t-0 first:pt-0">
                     <div className="flex flex-wrap items-center justify-between gap-2">
