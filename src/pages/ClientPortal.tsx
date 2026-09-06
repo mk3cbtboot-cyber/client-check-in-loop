@@ -71,6 +71,7 @@ interface ClientState {
 
   mb_pdf_path: string | null;
   phase3_additional_foods: string;
+  phase3_approved_foods?: { food: string; category: string }[];
   phase3_meat: string;
   phase3_fish: string;
   phase3_vegetables: string;

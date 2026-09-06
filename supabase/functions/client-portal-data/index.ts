@@ -212,6 +212,7 @@ Deno.serve(async (req) => {
         mb_food_list: c.mb_food_list ?? {},
         mb_run: c.mb_run ?? {},
         phase3_additional_foods: c.phase3_additional_foods ?? "",
+        phase3_approved_foods: Array.isArray(c.phase3_approved_foods) ? c.phase3_approved_foods : [],
         phase3_meat: c.phase3_meat ?? "",
         phase3_fish: c.phase3_fish ?? "",
         phase3_vegetables: c.phase3_vegetables ?? "",
