@@ -21,7 +21,7 @@ import InstallAppBanner from "@/components/InstallAppBanner";
 
 import { MB_FOODS, MB_OPTIONS, MB_RULES, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { mbOptions, isMbPlanConfirmed, getMbPlan, MB_COLOURS, parseMbFoodLimits, vegQtyOverrides, runPicksToSelections } from "@/lib/mb-plan";
-import { resolveMbFoodList, categoryLabel, capTallyFor, capBlocksMeal, describeMealBlock, weeklyCapFor } from "@/lib/mb-food-list";
+import { resolveMbFoodList, resolvePickPool, categoryLabel, capTallyFor, capBlocksMeal, describeMealBlock, weeklyCapFor } from "@/lib/mb-food-list";
 import MbRunPlanner from "@/components/MbRunPlanner";
 import MbPhase1Guide from "@/components/MbPhase1Guide";
 import MbProgramGuide from "@/components/MbProgramGuide";
@@ -525,6 +525,12 @@ export default function ClientPortal() {
   const capWindow = client?.cap_week_start && client?.cap_week_end
     ? { week_start: client.cap_week_start, week_end: client.cap_week_end }
     : null;
+
+  /** The client's own approved oils — Phase 3/4 only, no standard-list leak. */
+  const clientOilOptions = resolvePickPool(
+    client as unknown as Record<string, unknown> | null,
+    "oils",
+  );
 
   const filteredSources = (sources: (keyof typeof MB_FOODS)[]) => {
     const items = [...sources.flatMap((s) => MB_FOODS[s]), ...phase3ExtrasForSources(sources)];
@@ -1245,6 +1251,7 @@ export default function ClientPortal() {
                             </Card>
                             {isExpanded && (
                               <MealRecipeSection
+                              oilOptions={clientOilOptions}
                                 key={`${meal}-off-${opt.id}`}
                                 token={token!}
                                 meal={meal}
@@ -1277,6 +1284,7 @@ export default function ClientPortal() {
                       const block = mealCapBlock(primaryOption);
                       return (
                         <MealRecipeSection
+                              oilOptions={clientOilOptions}
                           key={`${meal}-primary`}
                           token={token!}
                           meal={meal}
@@ -1299,6 +1307,7 @@ export default function ClientPortal() {
                     })()}
                     {isSplit && altOption && (
                       <MealRecipeSection
+                              oilOptions={clientOilOptions}
                         key={`${meal}-alt`}
                         token={token!}
                         meal={meal}
