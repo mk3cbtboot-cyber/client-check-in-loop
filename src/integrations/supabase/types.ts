@@ -273,6 +273,7 @@ export type Database = {
           phase2_strict_mode: string
           phase2_strict_started_at: string | null
           phase3_additional_foods: string
+          phase3_approved_foods: Json
           phase3_bread: string
           phase3_dairy: string
           phase3_fish: string
@@ -389,6 +390,7 @@ export type Database = {
           phase2_strict_mode?: string
           phase2_strict_started_at?: string | null
           phase3_additional_foods?: string
+          phase3_approved_foods?: Json
           phase3_bread?: string
           phase3_dairy?: string
           phase3_fish?: string
@@ -505,6 +507,7 @@ export type Database = {
           phase2_strict_mode?: string
           phase2_strict_started_at?: string | null
           phase3_additional_foods?: string
+          phase3_approved_foods?: Json
           phase3_bread?: string
           phase3_dairy?: string
           phase3_fish?: string
@@ -802,6 +805,7 @@ export type Database = {
         Row: {
           ai_classification: string
           ai_reason: string | null
+          category: string | null
           client_id: string
           created_at: string
           food_name: string
@@ -815,6 +819,7 @@ export type Database = {
         Insert: {
           ai_classification?: string
           ai_reason?: string | null
+          category?: string | null
           client_id: string
           created_at?: string
           food_name: string
@@ -828,6 +833,7 @@ export type Database = {
         Update: {
           ai_classification?: string
           ai_reason?: string | null
+          category?: string | null
           client_id?: string
           created_at?: string
           food_name?: string
