@@ -164,7 +164,8 @@ export function MbFoodListReadonly({
   /** Full client row — used to read the separate Phase 3 additional foods. */
   client?: Record<string, unknown> | null;
 }) {
-  const isPhase3 = phase === "phase3";
+  // Phase 3 additions stay visible in Phase 4 (maintenance keeps the expanded list).
+  const isPhase3 = phase === "phase3" || phase === "phase4";
   const base: MbFoodSection[] = MB_FOOD_CATEGORIES
     .filter((c) => (foodList[c.key] ?? []).length > 0)
     .map((c) => ({ key: c.key, label: c.label, items: foodList[c.key] ?? [] }));

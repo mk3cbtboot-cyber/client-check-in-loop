@@ -34,6 +34,8 @@ interface Props {
   fullScreenOnSelect?: boolean;
   lunchProteinBonus?: number;
   lunchCarbBonus?: number;
+  /** The client's own approved oils (Phase 3/4). Falls back to the MB standard oils. */
+  oilOptions?: string[];
 }
 
 const LUNCH_PROTEIN_SOURCES = new Set(["poultry", "fish", "seafood", "meat", "cheese", "legumes"]);
@@ -89,7 +91,7 @@ const OIL_OPTIONS = [
 export default function MealRecipeSection({
   token, meal, variant, optionDef, phase, foodLimits, capFold,
   lockedRecipe, lockedSelections, sectionTitle, extraComponents, filteredSources, onLogged, blockGeneration, fullScreenOnSelect,
-  lunchProteinBonus = 0, lunchCarbBonus = 0,
+  lunchProteinBonus = 0, lunchCarbBonus = 0, oilOptions,
 }: Props) {
 
   const [picks, setPicks] = useState<Record<string, string>>({});
@@ -103,6 +105,9 @@ export default function MealRecipeSection({
   const [fullScreenIdx, setFullScreenIdx] = useState<number | null>(null);
   const regenLimitReached = regenCount >= 1;
   const oilAllow = oilAllowedFn(phase);
+  const oilChoices = oilOptions && oilOptions.length
+    ? [{ value: "none", label: "None" }, ...oilOptions.map((o) => ({ value: o, label: o }))]
+    : OIL_OPTIONS;
 
   // Pre-apply locked selections from the weekly plan once
   useEffect(() => {
@@ -350,7 +355,7 @@ export default function MealRecipeSection({
                   <Select value={oil} onValueChange={setOil}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {OIL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                      {oilChoices.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">Up to 1 tbsp (15ml) per meal · max 3 tbsp total per day.</p>
@@ -399,7 +404,7 @@ export default function MealRecipeSection({
             <Select value={oil} onValueChange={setOil}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {OIL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                {oilChoices.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">Up to 1 tbsp (15ml) per meal · max 3 tbsp total per day.</p>

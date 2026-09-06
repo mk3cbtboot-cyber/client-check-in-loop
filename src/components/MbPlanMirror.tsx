@@ -5,10 +5,10 @@ import type { MealType } from "@/lib/mb-foods";
 import { vegAltIdFor } from "@/lib/mb-plan";
 import type { MbColour, MbFoodLimit, MbPlanItem, MbSuggestion } from "@/lib/mb-plan";
 import {
-  capFoodFor, categoryLabel, consumedFor, foodsForCategory, perMealQty, planRunAgainstLedger,
+  capFoodFor, categoryLabel, consumedFor, perMealQty, planRunAgainstLedger, resolvePickPool,
   weekWindowFor, weeklyCapFor, type CapConsumed, type MbFoodListMap,
 } from "@/lib/mb-food-list";
-import { RUN_DAYS, RUN_MEALS, fmtQty, parseMbRun, resolveDayMeal, resolveRunMeal, runDates, todayISO } from "@/lib/mb-run";
+import { RUN_DAYS, RUN_MEALS, fmtQty, oilItemFor, parseMbRun, resolveDayMeal, resolveRunMeal, runDates, todayISO } from "@/lib/mb-run";
 import {
   COLOUR_BAR, COLOUR_LABEL, MEAL_LABEL, MbColourHeader, MbFoodListReadonly, MbSuggestionsBoard,
 } from "@/components/MbSuggestionBoard";
@@ -149,7 +149,7 @@ export function MbPlanMirror({
         </div>
       );
     }
-    const hasOptions = (foodsForCategory(foodList, it.category).length || (it.options ?? []).length) > 0;
+    const hasOptions = (resolvePickPool(client, it.category).length || (it.options ?? []).length) > 0;
     const altId = vegAltIdFor(it);
     const altPicked = altId ? picks[altId] ?? "" : "";
     return (
@@ -208,7 +208,9 @@ export function MbPlanMirror({
         <MbColourHeader colour={run.colour} />
         <div className="p-3 grid gap-3">
           {RUN_MEALS.map((meal) => {
-            const { items, picks } = resolveRunMeal(run, suggestions, meal);
+            const { items: baseItems, picks } = resolveRunMeal(run, suggestions, meal);
+            // Oils are a real Phase 3/4 category but live outside the suggestion items.
+            const items = picks[`oil-${meal}`] ? [...baseItems, oilItemFor(meal)] : baseItems;
             return (
               <div key={meal} className="rounded-md border p-2 space-y-1.5">
                 <p className="text-xs font-semibold uppercase tracking-wide">{MEAL_LABEL[meal]}</p>
@@ -231,8 +233,9 @@ export function MbPlanMirror({
                 const block = blockFor(date, meal);
                 const override = run.day_overrides[date]?.[meal];
                 if (!block && !override) return null;
-                const { colour: mealColour, suggestion: s, items, picks, swapped } =
+                const { colour: mealColour, suggestion: s, items: dayBaseItems, picks, swapped } =
                   resolveDayMeal(run, suggestions, date, meal);
+                const items = picks[`oil-${meal}`] ? [...dayBaseItems, oilItemFor(meal)] : dayBaseItems;
                 return (
                   <div key={meal} className="space-y-1.5 border-t pt-2 first:border-t-0 first:pt-0">
                     <p className="text-xs font-semibold uppercase tracking-wide flex items-center gap-2">

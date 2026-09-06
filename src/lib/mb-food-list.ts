@@ -156,11 +156,98 @@ export function phase3AdditionSections(
 }
 
 
+/* ------------------------------------------------------------------ */
+/* Pick pool — the ONE resolver every picker uses: the client's Phase 2 */
+/* approved foods for a slot category, plus (Phase 3/4 only) their      */
+/* Phase 3 additions for that same category. No standard-catalogue      */
+/* fallback ever happens here: an empty column means "no additions".    */
+/* ------------------------------------------------------------------ */
+
+/** phase3_mb_* column → the Phase 2 slot category it feeds. */
+export const PHASE3_MB_PICK_MAP: Record<string, string> = {
+  phase3_mb_fish: "fish",
+  phase3_mb_seafood: "seafood",
+  phase3_mb_meat: "meat",
+  phase3_mb_cheese: "cheese",
+  phase3_mb_legumes: "legumes",
+  phase3_mb_vegetables: "vegetables",
+  phase3_mb_veg_lettuce: "vegLettuce",
+  // Sprouts are a meal-plan-only line on the MB PDF, stored as one more
+  // comma list — they fold into Vegetables, same merge as Veg./Lettuce.
+  phase3_mb_sprouts: "vegetables",
+  phase3_mb_fat_oil: "oils",
+};
+
+/** Practitioner-approved Phase 3 food requests, categorised at approval time. */
+export interface Phase3ApprovedFood { food: string; category: string }
+
+export function parsePhase3ApprovedFoods(raw: unknown): Phase3ApprovedFood[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((r) => {
+      const o = (r ?? {}) as Record<string, unknown>;
+      return { food: String(o.food ?? "").trim(), category: String(o.category ?? "").trim() };
+    })
+    .filter((r) => r.food && r.category);
+}
+
+const isPhase3Plus = (client: Record<string, unknown> | null | undefined): boolean => {
+  const p = String(client?.phase ?? "");
+  return p === "phase3" || p === "phase4";
+};
+
+/**
+ * The client's Phase 3 additions for one slot category. Phase 3/4 only.
+ * Empty column → empty list (never the standard MB catalogue).
+ */
+export function phase3PickAdditions(
+  client: Record<string, unknown> | null | undefined,
+  category: string,
+): string[] {
+  if (!client || !isPhase3Plus(client)) return [];
+  const wanted = new Set(categorySourceKeys(category));
+  const out: string[] = [];
+  for (const [field, cat] of Object.entries(PHASE3_MB_PICK_MAP)) {
+    if (!wanted.has(cat)) continue;
+    out.push(...parseList(client[field]));
+  }
+  for (const a of parsePhase3ApprovedFoods(client.phase3_approved_foods)) {
+    if (wanted.has(a.category)) out.push(a.food);
+  }
+  return out;
+}
+
+const dedupeCI = (items: string[]): string[] => {
+  const seen = new Set<string>();
+  return items.filter((i) => {
+    const k = i.trim().toLowerCase();
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+};
+
+/**
+ * The full selectable pool for a slot category: Phase 2 approved foods plus
+ * Phase 3 additions for Phase 3/4 clients. Shared by the client run planner,
+ * the practitioner mirror and the recipe-builder option builder.
+ */
+export function resolvePickPool(
+  client: Record<string, unknown> | null | undefined,
+  category: string,
+): string[] {
+  const base = foodsForCategory(resolveMbFoodList(client), category);
+  return dedupeCI([...base, ...phase3PickAdditions(client, category)]);
+}
+
+
 export function categoryLabel(key: string): string {
+  if (key === "oils") return "Oil";
   return MB_FOOD_CATEGORIES.find((c) => c.key === key)?.label ?? (key
     ? key.replace(/([A-Z])/g, " $1").replace(/^./, (m) => m.toUpperCase())
     : "Item");
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Weekly caps — re-exported from the ONE shared evaluator that the     */

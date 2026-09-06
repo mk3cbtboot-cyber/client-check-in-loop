@@ -12,7 +12,7 @@
 
 import { MB_FOODS, MB_OPTIONS, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { resolvePhase3MbField } from "@/lib/phase3-mb-defaults";
-import { categorySourceKeys, resolveMbFoodList } from "@/lib/mb-food-list";
+import { categorySourceKeys, resolvePickPool } from "@/lib/mb-food-list";
 
 export const MB_COLOURS = ["blue", "green", "orange"] as const;
 export type MbColour = (typeof MB_COLOURS)[number];
@@ -410,7 +410,7 @@ function optionFromSuggestion(
   idx: number,
   client?: MbPlanClient | null,
 ): OptionDef {
-  const clientList = resolveMbFoodList((client ?? null) as Record<string, unknown> | null);
+  const clientRecord = (client ?? null) as Record<string, unknown> | null;
   const m = s.meals[meal] ?? { items: [] };
   const fixed: { label: string; qty: string }[] = [];
   const components: OptionDef["components"] = [];
@@ -422,11 +422,12 @@ function optionFromSuggestion(
     // Veg./Lettuce slots offer the merged Vegetables + Veg./Lettuce pool.
     const sourceKeys = categorySourceKeys(it.category);
     const sources = sourceKeys.filter((c) => !!MB_FOODS[c as keyof typeof MB_FOODS]) as (keyof typeof MB_FOODS)[];
-    let items = it.options && it.options.length ? it.options : undefined;
-    if (items && sourceKeys.length > 1) {
-      const extra = sourceKeys.slice(1).flatMap((k) => clientList[k] ?? MB_FOODS[k as keyof typeof MB_FOODS] ?? []);
+    // One shared pool: Phase 2 approved foods + (Phase 3/4) Phase 3 additions.
+    const pool = resolvePickPool(clientRecord, it.category);
+    let items = it.options && it.options.length ? it.options : (pool.length ? pool : undefined);
+    if (items && pool.length) {
       const seen = new Set<string>();
-      items = [...items, ...extra].filter((f) => (seen.has(f) ? false : (seen.add(f), true)));
+      items = [...items, ...pool].filter((f) => (seen.has(f) ? false : (seen.add(f), true)));
     }
     const key = `${it.category || "item"}-${i}`;
     components.push({
