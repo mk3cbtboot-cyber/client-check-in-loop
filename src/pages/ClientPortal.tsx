@@ -572,6 +572,8 @@ export default function ClientPortal() {
   // MB colour-run gate: cooking surfaces stay closed until the client confirms a
   // cap-clean run (server-validated). MB clients only — Custom is unaffected.
   const mbRunConfirmed = client ? !!parseMbRun(client.mb_run).confirmed_on : false;
+  // Shared source of truth for where today sits in the confirmed run.
+  const mbWin = runWindow(parseMbRun(client?.mb_run));
   const mbRunGateActive =
     client && client.client_type !== "custom" && mbPlanConfirmed && !mbRunConfirmed;
 
