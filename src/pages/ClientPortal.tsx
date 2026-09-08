@@ -25,7 +25,7 @@ import { resolveMbFoodList, resolvePickPool, categoryLabel, capTallyFor, capBloc
 import MbRunPlanner from "@/components/MbRunPlanner";
 import MbPhase1Guide from "@/components/MbPhase1Guide";
 import MbProgramGuide from "@/components/MbProgramGuide";
-import { parseMbRun, resolveDayMeal, runDates, runWindow, todayISO, fmtQty, RUN_DAYS, RUN_MEALS } from "@/lib/mb-run";
+import { parseMbRun, resolveDayMeal, runWindow, todayISO, fmtQty, RUN_MEALS } from "@/lib/mb-run";
 
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
