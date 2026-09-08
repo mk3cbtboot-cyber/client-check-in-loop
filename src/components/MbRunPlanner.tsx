@@ -174,7 +174,10 @@ export function MbRunPlanner({
       : items;
 
 
-  const start = run.started_on ?? todayISO();
+  // A confirmed run whose window is in the past must always be rebuilt from
+  // today — never silently continued.
+  const win = runWindow(run);
+  const start = win.isExpired ? todayISO() : (run.started_on ?? todayISO());
   const dates = useMemo(() => (run.colour ? runDates(run, RUN_DAYS) : []), [run]);
 
   /* Same shared evaluator the mb-run edge function runs on confirm. */
