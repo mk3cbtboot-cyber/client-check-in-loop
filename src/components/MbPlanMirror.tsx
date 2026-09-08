@@ -8,7 +8,7 @@ import {
   capFoodFor, categoryLabel, consumedFor, perMealQty, planRunAgainstLedger, resolvePickPool,
   weekWindowFor, weeklyCapFor, type CapConsumed, type MbFoodListMap,
 } from "@/lib/mb-food-list";
-import { RUN_DAYS, RUN_MEALS, fmtQty, oilItemFor, parseMbRun, resolveDayMeal, resolveRunMeal, runDates, todayISO } from "@/lib/mb-run";
+import { RUN_DAYS, RUN_MEALS, fmtQty, oilItemFor, parseMbRun, resolveDayMeal, resolveRunMeal, runDates, runWindow, todayISO } from "@/lib/mb-run";
 import {
   COLOUR_BAR, COLOUR_LABEL, MEAL_LABEL, MbColourHeader, MbFoodListReadonly, MbSuggestionsBoard,
 } from "@/components/MbSuggestionBoard";
