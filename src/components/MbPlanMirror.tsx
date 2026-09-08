@@ -107,11 +107,15 @@ export function MbPlanMirror({
   }
 
   /* ---------------- not picked yet: three suggestions side by side ---------------- */
-  if (!run.colour) {
+  if (!run.colour || win.isExpired) {
     return (
       <Card className="p-4 space-y-4">
         <div>
-          <p className="font-medium">{firstName} hasn't chosen a suggestion yet</p>
+          <p className="font-medium">
+            {win.isExpired
+              ? `${firstName}'s last ${RUN_DAYS} days are complete — they need to choose their next ${RUN_DAYS} days`
+              : `${firstName} hasn't chosen a suggestion yet`}
+          </p>
           <p className="text-sm text-muted-foreground">
             This is their My Plan view: three suggestions to choose from, locking all meals for {RUN_DAYS} days.
           </p>
