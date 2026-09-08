@@ -230,7 +230,9 @@ export function MbRunPlanner({
     // One confirm path: a run whose start date has already passed starts today.
     const today = todayISO();
     const payloadRun: MbRun =
-      run.started_on && run.started_on < today ? { ...run, started_on: today } : run;
+      run.started_on && run.started_on < today
+        ? { ...run, started_on: today, day_overrides: {} }
+        : run;
     const { data, error } = await supabase.functions.invoke("mb-run", {
       body: { token, action: "confirm", run: payloadRun },
     });
