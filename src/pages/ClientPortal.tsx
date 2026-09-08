@@ -25,7 +25,7 @@ import { resolveMbFoodList, resolvePickPool, categoryLabel, capTallyFor, capBloc
 import MbRunPlanner from "@/components/MbRunPlanner";
 import MbPhase1Guide from "@/components/MbPhase1Guide";
 import MbProgramGuide from "@/components/MbProgramGuide";
-import { parseMbRun, resolveDayMeal, runDates, todayISO, fmtQty, RUN_DAYS, RUN_MEALS } from "@/lib/mb-run";
+import { parseMbRun, resolveDayMeal, runWindow, todayISO, fmtQty, RUN_MEALS } from "@/lib/mb-run";
 
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
@@ -572,6 +572,8 @@ export default function ClientPortal() {
   // MB colour-run gate: cooking surfaces stay closed until the client confirms a
   // cap-clean run (server-validated). MB clients only — Custom is unaffected.
   const mbRunConfirmed = client ? !!parseMbRun(client.mb_run).confirmed_on : false;
+  // Shared source of truth for where today sits in the confirmed run.
+  const mbWin = runWindow(parseMbRun(client?.mb_run));
   const mbRunGateActive =
     client && client.client_type !== "custom" && mbPlanConfirmed && !mbRunConfirmed;
 
@@ -596,7 +598,7 @@ export default function ClientPortal() {
     const r = parseMbRun((client as any).mb_run);
     const sugg = getMbPlan(client as any).suggestions;
     const today = todayISO();
-    if (!runDates(r, RUN_DAYS).includes(today)) return allMbOptions;
+    if (!runWindow(r, today).isActive) return allMbOptions;
     const out = { ...allMbOptions };
     for (const m of RUN_MEALS) {
       const { colour } = resolveDayMeal(r, sugg, today, m);
@@ -617,7 +619,7 @@ export default function ClientPortal() {
     const r = parseMbRun((client as any).mb_run);
     const sugg = getMbPlan(client as any).suggestions;
     const today = todayISO();
-    if (!runDates(r, RUN_DAYS).includes(today)) return empty;
+    if (!runWindow(r, today).isActive) return empty;
     const out = { ...empty };
     for (const m of RUN_MEALS) {
       const { colour, picks } = resolveDayMeal(r, sugg, today, m);
@@ -1072,13 +1074,19 @@ export default function ClientPortal() {
             const today = todayISO();
             const sugg = getMbPlan(client as any).suggestions;
             const list = resolveMbFoodList(client as unknown as Record<string, unknown>);
-            const dates = runDates(r, RUN_DAYS);
-            const inRun = dates.includes(today);
+            const inRun = mbWin.isActive;
             return (
               <Card className="p-4 space-y-3">
                 <p className="text-sm font-medium">
-                  {inRun ? "Today's meals" : "Your run has finished — pick a new one in My Plan"}
+                  {inRun
+                    ? "Today's meals"
+                    : "Your last 3 days of meals are complete — choose your next 3 days below"}
                 </p>
+                {mbWin.isLastDay && (
+                  <p className="text-sm text-muted-foreground">
+                    You're on your last day of meals — pick your next 3 days tomorrow.
+                  </p>
+                )}
                 {inRun && RUN_MEALS.map((m) => {
                   const { suggestion, items, picks, swapped } = resolveDayMeal(r, sugg, today, m);
                   return (

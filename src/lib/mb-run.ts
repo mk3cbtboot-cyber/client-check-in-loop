@@ -138,6 +138,52 @@ export function runDates(run: MbRun, runDays: number = RUN_DAYS): string[] {
   return Array.from({ length: runDays }, (_, i) => addDaysISO(start, i));
 }
 
+/**
+ * Where today sits inside the confirmed run — the single source of truth for
+ * "is this the last day" and "is this expired", shared by Home (ClientPortal)
+ * and the My Plan locked panel so the two can never disagree.
+ */
+export type RunWindowStatus = "none" | "upcoming" | "active" | "last_day" | "expired";
+
+export interface RunWindow {
+  status: RunWindowStatus;
+  dates: string[];
+  lastDate: string | null;
+  /** 0-based index of today in the run, or -1 when outside it. */
+  dayIndex: number;
+  isActive: boolean;
+  isLastDay: boolean;
+  isExpired: boolean;
+}
+
+export function runWindow(
+  run: MbRun,
+  today: string = todayISO(),
+  runDays: number = RUN_DAYS,
+): RunWindow {
+  const none: RunWindow = {
+    status: "none", dates: [], lastDate: null, dayIndex: -1,
+    isActive: false, isLastDay: false, isExpired: false,
+  };
+  if (!run.confirmed_on || !run.started_on || !run.colour) return none;
+  const dates = runDates(run, runDays);
+  const lastDate = dates[dates.length - 1] ?? null;
+  const dayIndex = dates.indexOf(today);
+  let status: RunWindowStatus;
+  if (dayIndex >= 0) status = dayIndex === dates.length - 1 ? "last_day" : "active";
+  else if (lastDate && today > lastDate) status = "expired";
+  else status = "upcoming";
+  return {
+    status,
+    dates,
+    lastDate,
+    dayIndex,
+    isActive: status === "active" || status === "last_day",
+    isLastDay: status === "last_day",
+    isExpired: status === "expired",
+  };
+}
+
 /** True when at least one day has been swapped off the run colour. */
 export function hasDayOverrides(run: MbRun): boolean {
   return Object.values(run.day_overrides).some((d) => Object.keys(d ?? {}).length > 0);

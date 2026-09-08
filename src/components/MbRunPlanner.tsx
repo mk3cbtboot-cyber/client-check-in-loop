@@ -15,7 +15,7 @@ import {
 } from "@/lib/mb-food-list";
 import {
   RUN_DAYS, RUN_MEALS, clearDayMeal, emptyRun, fmtQty, parseMbRun, resolveDayMeal,
-  oilItemFor, resolveRunMeal, runDates, startRun, swapDayMeal, todayISO, type MbRun,
+  oilItemFor, resolveRunMeal, runDates, runWindow, startRun, swapDayMeal, todayISO, type MbRun,
 } from "@/lib/mb-run";
 import { MbFoodListReadonly, MbSuggestionsBoard } from "@/components/MbSuggestionBoard";
 
@@ -174,7 +174,10 @@ export function MbRunPlanner({
       : items;
 
 
-  const start = run.started_on ?? todayISO();
+  // A confirmed run whose window is in the past must always be rebuilt from
+  // today — never silently continued.
+  const win = runWindow(run);
+  const start = win.isExpired ? todayISO() : (run.started_on ?? todayISO());
   const dates = useMemo(() => (run.colour ? runDates(run, RUN_DAYS) : []), [run]);
 
   /* Same shared evaluator the mb-run edge function runs on confirm. */
@@ -224,8 +227,14 @@ export function MbRunPlanner({
   const confirmRun = async () => {
     setConfirming(true);
     if (timer.current) clearTimeout(timer.current);
+    // One confirm path: a run whose start date has already passed starts today.
+    const today = todayISO();
+    const payloadRun: MbRun =
+      run.started_on && run.started_on < today
+        ? { ...run, started_on: today, day_overrides: {} }
+        : run;
     const { data, error } = await supabase.functions.invoke("mb-run", {
-      body: { token, action: "confirm", run },
+      body: { token, action: "confirm", run: payloadRun },
     });
     setConfirming(false);
     const payload = (data ?? {}) as {
@@ -250,10 +259,18 @@ export function MbRunPlanner({
     onGoHome();
   };
 
-  /* ---------------- colour choice ---------------- */
-  if (!run.colour) {
+  /* ---------------- colour choice (also the expired-run restart) ---------------- */
+  if (!run.colour || win.isExpired) {
     return (
       <Card className="p-4 space-y-4">
+        {win.isExpired && (
+          <div className="rounded-md border border-primary/40 bg-primary/5 p-3">
+            <p className="text-sm font-medium">Your last 3 days of meals are complete</p>
+            <p className="text-sm text-muted-foreground">
+              Choose your suggestion and pick your foods for the next {RUN_DAYS} days below.
+            </p>
+          </div>
+        )}
         <div>
           <p className="font-medium">Choose your suggestion for the next {RUN_DAYS} days</p>
           <p className="text-sm text-muted-foreground">
