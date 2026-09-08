@@ -1074,13 +1074,19 @@ export default function ClientPortal() {
             const today = todayISO();
             const sugg = getMbPlan(client as any).suggestions;
             const list = resolveMbFoodList(client as unknown as Record<string, unknown>);
-            const dates = runDates(r, RUN_DAYS);
-            const inRun = dates.includes(today);
+            const inRun = mbWin.isActive;
             return (
               <Card className="p-4 space-y-3">
                 <p className="text-sm font-medium">
-                  {inRun ? "Today's meals" : "Your run has finished — pick a new one in My Plan"}
+                  {inRun
+                    ? "Today's meals"
+                    : "Your last 3 days of meals are complete — choose your next 3 days below"}
                 </p>
+                {mbWin.isLastDay && (
+                  <p className="text-sm text-muted-foreground">
+                    You're on your last day of meals — pick your next 3 days tomorrow.
+                  </p>
+                )}
                 {inRun && RUN_MEALS.map((m) => {
                   const { suggestion, items, picks, swapped } = resolveDayMeal(r, sugg, today, m);
                   return (
