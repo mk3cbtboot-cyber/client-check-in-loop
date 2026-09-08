@@ -227,8 +227,12 @@ export function MbRunPlanner({
   const confirmRun = async () => {
     setConfirming(true);
     if (timer.current) clearTimeout(timer.current);
+    // One confirm path: a run whose start date has already passed starts today.
+    const today = todayISO();
+    const payloadRun: MbRun =
+      run.started_on && run.started_on < today ? { ...run, started_on: today } : run;
     const { data, error } = await supabase.functions.invoke("mb-run", {
-      body: { token, action: "confirm", run },
+      body: { token, action: "confirm", run: payloadRun },
     });
     setConfirming(false);
     const payload = (data ?? {}) as {
