@@ -259,10 +259,18 @@ export function MbRunPlanner({
     onGoHome();
   };
 
-  /* ---------------- colour choice ---------------- */
-  if (!run.colour) {
+  /* ---------------- colour choice (also the expired-run restart) ---------------- */
+  if (!run.colour || win.isExpired) {
     return (
       <Card className="p-4 space-y-4">
+        {win.isExpired && (
+          <div className="rounded-md border border-primary/40 bg-primary/5 p-3">
+            <p className="text-sm font-medium">Your last 3 days of meals are complete</p>
+            <p className="text-sm text-muted-foreground">
+              Choose your suggestion and pick your foods for the next {RUN_DAYS} days below.
+            </p>
+          </div>
+        )}
         <div>
           <p className="font-medium">Choose your suggestion for the next {RUN_DAYS} days</p>
           <p className="text-sm text-muted-foreground">
