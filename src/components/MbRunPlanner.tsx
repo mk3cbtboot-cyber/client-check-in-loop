@@ -15,7 +15,7 @@ import {
 } from "@/lib/mb-food-list";
 import {
   RUN_DAYS, RUN_MEALS, clearDayMeal, emptyRun, fmtQty, parseMbRun, resolveDayMeal,
-  oilItemFor, resolveRunMeal, runDates, startRun, swapDayMeal, todayISO, type MbRun,
+  oilItemFor, resolveRunMeal, runDates, runWindow, startRun, swapDayMeal, todayISO, type MbRun,
 } from "@/lib/mb-run";
 import { MbFoodListReadonly, MbSuggestionsBoard } from "@/components/MbSuggestionBoard";
 
