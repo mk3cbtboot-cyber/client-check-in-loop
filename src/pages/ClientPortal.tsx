@@ -598,7 +598,7 @@ export default function ClientPortal() {
     const r = parseMbRun((client as any).mb_run);
     const sugg = getMbPlan(client as any).suggestions;
     const today = todayISO();
-    if (!runDates(r, RUN_DAYS).includes(today)) return allMbOptions;
+    if (!runWindow(r, today).isActive) return allMbOptions;
     const out = { ...allMbOptions };
     for (const m of RUN_MEALS) {
       const { colour } = resolveDayMeal(r, sugg, today, m);
@@ -619,7 +619,7 @@ export default function ClientPortal() {
     const r = parseMbRun((client as any).mb_run);
     const sugg = getMbPlan(client as any).suggestions;
     const today = todayISO();
-    if (!runDates(r, RUN_DAYS).includes(today)) return empty;
+    if (!runWindow(r, today).isActive) return empty;
     const out = { ...empty };
     for (const m of RUN_MEALS) {
       const { colour, picks } = resolveDayMeal(r, sugg, today, m);
