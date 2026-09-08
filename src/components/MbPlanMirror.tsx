@@ -203,8 +203,11 @@ export function MbPlanMirror({
           )}
         </p>
         <p className="text-sm text-muted-foreground">
-          Locked for {RUN_DAYS} days{run.started_on ? ` from ${dayLabel(run.started_on)}` : ""}.
-          Read-only — this is what {firstName} sees. Edit the plan in MB Plan Setup.
+          {win.status === "upcoming"
+            ? `Starts ${run.started_on ? dayLabel(run.started_on) : "soon"} — locked for ${RUN_DAYS} days.`
+            : `Locked for ${RUN_DAYS} days${run.started_on ? ` from ${dayLabel(run.started_on)}` : ""}.`}
+          {win.isLastDay && " Last day — they pick their next 3 days tomorrow."}
+          {" "}Read-only — this is what {firstName} sees. Edit the plan in MB Plan Setup.
         </p>
       </div>
 
