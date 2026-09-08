@@ -53,7 +53,8 @@ export function MbPlanMirror({
   const [consumed, setConsumed] = useState<CapConsumed>({});
 
   const run = useMemo(() => parseMbRun(rawRun), [rawRun]);
-  const start = run.started_on ?? todayISO();
+  const win = useMemo(() => runWindow(run), [run]);
+  const start = win.isExpired ? todayISO() : (run.started_on ?? todayISO());
 
   useEffect(() => {
     let cancelled = false;
