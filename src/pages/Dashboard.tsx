@@ -796,6 +796,9 @@ export default function Dashboard() {
       const body: Record<string, unknown> = { name, email, system_mode, client_type: newClientType, gender, height_cm: heightNum, weight_unit: startWeightUnit };
       if (startingWeightKg != null) body.starting_weight_kg = startingWeightKg;
       if (ageNum != null) body.age = ageNum;
+      // Seed a real day-boundary timezone from the practitioner's own clock;
+      // the client portal corrects it to the client's zone on first open.
+      try { body.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { /* default applies */ }
       const { data, error } = await supabase.functions.invoke("invite-client", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
