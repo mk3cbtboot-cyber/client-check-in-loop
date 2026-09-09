@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
+import { localTodayISO, mondayOfISO } from "../_shared/local-day.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,12 +32,6 @@ const Body = z.object({
   ack_per_serving_qty: z.number().optional(),
 });
 
-function mondayOf(d: Date): string {
-  const dt = new Date(d);
-  const day = (dt.getUTCDay() + 6) % 7;
-  dt.setUTCDate(dt.getUTCDate() - day);
-  return dt.toISOString().slice(0, 10);
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -50,7 +45,7 @@ Deno.serve(async (req) => {
     }
     const p = parsed.data;
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: client } = await admin.from("clients").select("id").eq("magic_token", p.token).maybeSingle();
+    const { data: client } = await admin.from("clients").select("id, timezone").eq("magic_token", p.token).maybeSingle();
     if (!client) {
       return new Response(JSON.stringify({ error: "Invalid link" }), {
         status: 400,
@@ -58,7 +53,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const week = mondayOf(new Date());
+    // Week anchor on the client's own calendar, not UTC.
+    const week = mondayOfISO(localTodayISO(client.timezone as string | null));
 
     if (p.action === "get") {
       const [{ data: planRow }, { data: ackRows }] = await Promise.all([

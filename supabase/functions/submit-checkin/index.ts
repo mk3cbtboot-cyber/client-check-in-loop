@@ -3,6 +3,7 @@ const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-
 import { z } from "https://esm.sh/zod@3.23.8";
 import { sendTemplateEmail } from "../_shared/transactional-email-templates/send-email.ts";
 import { logEmailSend } from "../_shared/email-send-log.ts";
+import { localTodayISO } from "../_shared/local-day.ts";
 
 const rating = z.number().int().min(1).max(5).optional();
 
@@ -99,7 +100,8 @@ Deno.serve(async (req) => {
 
     // Sync home-screen water tracker if water_litres provided
     if (rest.water_litres !== undefined) {
-      const td = new Date().toISOString().slice(0, 10);
+      // Stamp the client's own calendar day, so a 9pm check-in isn't tomorrow.
+      const td = localTodayISO(client.timezone as string | null);
       await admin.from("clients").update({
         water_today_litres: rest.water_litres,
         water_date: td,
