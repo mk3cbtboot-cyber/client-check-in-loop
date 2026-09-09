@@ -15,7 +15,8 @@ import {
 } from "@/lib/mb-food-list";
 import {
   RUN_DAYS, RUN_MEALS, clearDayMeal, emptyRun, fmtQty, parseMbRun, resolveDayMeal,
-  oilItemFor, resolveRunMeal, runDates, runWindow, startRun, swapDayMeal, todayISO, type MbRun,
+  localTodayISO, oilItemFor, resolveRunMeal, runDates, runWindow, startRun, swapDayMeal,
+  type MbRun,
 } from "@/lib/mb-run";
 import { MbFoodListReadonly, MbSuggestionsBoard } from "@/components/MbSuggestionBoard";
 
@@ -50,6 +51,8 @@ interface Props {
   client?: Record<string, unknown> | null;
   /** Rendered inside the confirmed panel (e.g. the shopping list button). */
   confirmedExtra?: ReactNode;
+  /** Client's IANA timezone — the run window is computed in their local day. */
+  timezone?: string | null;
 }
 
 /**
@@ -64,8 +67,9 @@ interface Props {
 export function MbRunPlanner({
   token, suggestions, foodList, enrichedLimits, legacyLimits, initialRun, onGoHome,
   onRunChanged, phase = null,
-  client = null, confirmedExtra = null,
+  client = null, confirmedExtra = null, timezone = null,
 }: Props) {
+  const todayISO = () => localTodayISO(timezone);
   const [run, setRun] = useState<MbRun>(() => parseMbRun(initialRun));
   const [consumed, setConsumed] = useState<CapConsumed>({});
   const [anchor, setAnchor] = useState<string | null>(null);
@@ -117,7 +121,13 @@ export function MbRunPlanner({
     setRun((r) => fn(structuredClone(r)));
   };
 
-  const lockColour = (colour: MbColour) => mutate(() => startRun(colour));
+  // Re-selecting the suggestion already in progress reopens the existing picks;
+  // only a different colour (or a genuinely ended window) starts a fresh run.
+  const lockColour = (colour: MbColour) =>
+    mutate((r) =>
+      r.colour === colour && !runWindow(r, todayISO()).isExpired && r.started_on
+        ? r
+        : startRun(colour, todayISO()));
   const clearRun = () => mutate(() => emptyRun());
 
   /** Base pick — fills all three days. */
@@ -176,7 +186,7 @@ export function MbRunPlanner({
 
   // A confirmed run whose window is in the past must always be rebuilt from
   // today — never silently continued.
-  const win = runWindow(run);
+  const win = runWindow(run, todayISO());
   const start = win.isExpired ? todayISO() : (run.started_on ?? todayISO());
   const dates = useMemo(() => (run.colour ? runDates(run, RUN_DAYS) : []), [run]);
 

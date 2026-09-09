@@ -8,7 +8,7 @@ import {
   capFoodFor, categoryLabel, consumedFor, perMealQty, planRunAgainstLedger, resolvePickPool,
   weekWindowFor, weeklyCapFor, type CapConsumed, type MbFoodListMap,
 } from "@/lib/mb-food-list";
-import { RUN_DAYS, RUN_MEALS, fmtQty, oilItemFor, parseMbRun, resolveDayMeal, resolveRunMeal, runDates, runWindow, todayISO } from "@/lib/mb-run";
+import { RUN_DAYS, RUN_MEALS, fmtQty, oilItemFor, parseMbRun, resolveDayMeal, resolveRunMeal, localTodayISO, runDates, runWindow } from "@/lib/mb-run";
 import {
   COLOUR_BAR, COLOUR_LABEL, MEAL_LABEL, MbColourHeader, MbFoodListReadonly, MbSuggestionsBoard,
 } from "@/components/MbSuggestionBoard";
@@ -37,6 +37,8 @@ interface Props {
   phase?: string | null;
   /** Full client row — used to show the separate Phase 3 additional foods. */
   client?: Record<string, unknown> | null;
+  /** Client's IANA timezone — the run window is computed in their local day. */
+  timezone?: string | null;
 }
 
 /**
@@ -48,12 +50,14 @@ interface Props {
 export function MbPlanMirror({
   clientId, suggestions, foodList, run: rawRun, confirmed, clientName,
   enrichedLimits = [], legacyLimits = {}, anchor = null, phase = null, client = null,
+  timezone = null,
 }: Props) {
+  const todayISO = () => localTodayISO(timezone);
   const firstName = clientName.split(" ")[0] || "This client";
   const [consumed, setConsumed] = useState<CapConsumed>({});
 
   const run = useMemo(() => parseMbRun(rawRun), [rawRun]);
-  const win = useMemo(() => runWindow(run), [run]);
+  const win = useMemo(() => runWindow(run, todayISO()), [run, timezone]);
   const start = win.isExpired ? todayISO() : (run.started_on ?? todayISO());
 
   useEffect(() => {
