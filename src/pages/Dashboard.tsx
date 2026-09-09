@@ -1414,8 +1414,8 @@ export default function Dashboard() {
           activeClients.forEach((c) => {
             const list = checkIns[c.id] ?? [];
             const matchesFilter = typeFilter === "all" || (typeFilter === "mb" ? c.client_type === "mb" : c.client_type === "custom");
-            if (matchesFilter && computeStreak(list) >= 7) streaks += 1;
-            const today = new Date().toISOString().slice(0, 10);
+            if (matchesFilter && computeStreak(list, (c as unknown as { timezone?: string | null }).timezone) >= 7) streaks += 1;
+            const today = localTodayISO((c as unknown as { timezone?: string | null }).timezone);
             if (matchesFilter && c.water_date === today && Number(c.water_today_litres ?? 0) >= waterTargetOf(c)) waterHit += 1;
             if (matchesFilter && needsAttention(c, list)) attention += 1;
           });
@@ -1793,7 +1793,7 @@ export default function Dashboard() {
               const portalLink = `${window.location.origin}/portal/${client.magic_token}`;
               const progress = getPhaseProgress(client.phase, client.phase2_strict_started_at);
               const phaseLabel = PHASE_OPTIONS.find((p) => p.value === client.phase)?.label ?? client.phase;
-              const streak = computeStreak(list);
+              const streak = computeStreak(list, (client as unknown as { timezone?: string | null }).timezone);
               const alert = needsAttention(client, list);
               const isOpen = isDetailView;
               return (
@@ -1927,20 +1927,21 @@ export default function Dashboard() {
                   </button>
 
                   {isOpen && (() => {
-                    const todayKey = new Date().toISOString().slice(0, 10);
+                    const clientTz = (client as unknown as { timezone?: string | null }).timezone ?? null;
+                    const todayKey = localTodayISO(clientTz);
                     const waterToday = client.water_date === todayKey ? Number(client.water_today_litres ?? 0) : 0;
                     // Water streak: consecutive trailing days with water_litres >= 2.0
                     const waterDays = new Set(
                       list.filter((ci) => (ci.water_litres ?? 0) >= 2.0)
-                        .map((ci) => new Date(ci.created_at).toISOString().slice(0, 10))
+                        .map((ci) => localDayISO(ci.created_at, clientTz))
                     );
                     if (waterToday >= 2.0) waterDays.add(todayKey);
                     let waterStreak = 0;
-                    const wd = new Date();
-                    if (!waterDays.has(wd.toISOString().slice(0, 10))) wd.setUTCDate(wd.getUTCDate() - 1);
-                    while (waterDays.has(wd.toISOString().slice(0, 10))) {
+                    let wd = todayKey;
+                    if (!waterDays.has(wd)) wd = shiftISO(wd, -1);
+                    while (waterDays.has(wd)) {
                       waterStreak += 1;
-                      wd.setUTCDate(wd.getUTCDate() - 1);
+                      wd = shiftISO(wd, -1);
                     }
                     const last = list[0];
                     const clientRecipes = recipes[client.id] ?? [];
@@ -1949,13 +1950,13 @@ export default function Dashboard() {
                       ? formatDistanceToNow(new Date(lastRecipe.created_at), { addSuffix: true })
                       : "No meals yet";
                     const isOwnPractice = client.system_mode === "own_practice";
-                    const mealDays = new Set(clientRecipes.map((r) => new Date(r.created_at).toISOString().slice(0, 10)));
+                    const mealDays = new Set(clientRecipes.map((r) => localDayISO(r.created_at, clientTz)));
                     let mealStreak = 0;
-                    const md = new Date();
-                    if (!mealDays.has(md.toISOString().slice(0, 10))) md.setUTCDate(md.getUTCDate() - 1);
-                    while (mealDays.has(md.toISOString().slice(0, 10))) {
+                    let md = todayKey;
+                    if (!mealDays.has(md)) md = shiftISO(md, -1);
+                    while (mealDays.has(md)) {
                       mealStreak += 1;
-                      md.setUTCDate(md.getUTCDate() - 1);
+                      md = shiftISO(md, -1);
                     }
                     const foodLimits = (client.food_limits ?? {}) as Record<string, number>;
                     const trackerLimits = isOwnPractice ? {} : foodLimits;
@@ -2321,7 +2322,7 @@ export default function Dashboard() {
                           const recipesList = recipes[client.id] ?? [];
                           const mealsByDay = new Map<string, number>();
                           for (const r of recipesList) {
-                            const k = new Date(r.created_at).toISOString().slice(0, 10);
+                            const k = localDayISO(r.created_at, (client as unknown as { timezone?: string | null }).timezone);
                             mealsByDay.set(k, (mealsByDay.get(k) ?? 0) + 1);
                           }
                           const waterData = [...waterByDay.entries()]
