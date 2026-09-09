@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     }
     const p = parsed.data;
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: client } = await admin.from("clients").select("id").eq("magic_token", p.token).maybeSingle();
+    const { data: client } = await admin.from("clients").select("id, timezone").eq("magic_token", p.token).maybeSingle();
     if (!client) {
       return new Response(JSON.stringify({ error: "Invalid link" }), {
         status: 400,
@@ -53,7 +53,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const week = mondayOf(new Date());
+    // Week anchor on the client's own calendar, not UTC.
+    const week = mondayOfISO(localTodayISO(client.timezone as string | null));
 
     if (p.action === "get") {
       const [{ data: planRow }, { data: ackRows }] = await Promise.all([
