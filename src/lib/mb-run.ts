@@ -24,6 +24,26 @@ export function fmtQty(it: MbPlanItem): string {
 
 export const todayISO = (): string => new Date().toISOString().slice(0, 10);
 
+/**
+ * "Today" in the client's own timezone — the run window must never roll over
+ * at UTC midnight for a client behind UTC (Toronto rolls at 20:00 local).
+ * Same fallback as the evening reminder job.
+ */
+export const FALLBACK_TZ = "America/Toronto";
+
+export function localTodayISO(tz?: string | null, now: Date = new Date()): string {
+  const zone = typeof tz === "string" && tz.trim() ? tz.trim() : FALLBACK_TZ;
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(now);
+  } catch {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: FALLBACK_TZ, year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(now);
+  }
+}
+
 export function addDaysISO(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
