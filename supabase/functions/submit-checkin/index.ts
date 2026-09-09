@@ -99,7 +99,8 @@ Deno.serve(async (req) => {
 
     // Sync home-screen water tracker if water_litres provided
     if (rest.water_litres !== undefined) {
-      const td = new Date().toISOString().slice(0, 10);
+      // Stamp the client's own calendar day, so a 9pm check-in isn't tomorrow.
+      const td = localTodayISO(client.timezone as string | null);
       await admin.from("clients").update({
         water_today_litres: rest.water_litres,
         water_date: td,

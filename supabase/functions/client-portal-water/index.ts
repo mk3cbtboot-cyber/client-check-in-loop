@@ -38,10 +38,11 @@ Deno.serve(async (req) => {
     const parsed = Body.safeParse(await req.json());
     if (!parsed.success) return new Response(JSON.stringify({ error: "invalid" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: c } = await admin.from("clients").select("id, water_today_litres, water_date, water_target_litres").eq("magic_token", parsed.data.token).maybeSingle();
+    const { data: c } = await admin.from("clients").select("id, water_today_litres, water_date, water_target_litres, timezone").eq("magic_token", parsed.data.token).maybeSingle();
     if (!c) return new Response(JSON.stringify({ error: "invalid" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const WATER_TARGET = Number(c.water_target_litres ?? DEFAULT_WATER_TARGET) || DEFAULT_WATER_TARGET;
-    const td = today();
+    // The calendar day a glass counts toward follows the client's own clock.
+    const td = localTodayISO(c.timezone as string | null);
     let next: number;
     if (parsed.data.set_litres !== undefined) {
       next = Math.round(parsed.data.set_litres * 100) / 100;

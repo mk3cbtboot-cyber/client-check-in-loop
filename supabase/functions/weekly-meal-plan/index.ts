@@ -31,12 +31,6 @@ const Body = z.object({
   ack_per_serving_qty: z.number().optional(),
 });
 
-function mondayOf(d: Date): string {
-  const dt = new Date(d);
-  const day = (dt.getUTCDay() + 6) % 7;
-  dt.setUTCDate(dt.getUTCDate() - day);
-  return dt.toISOString().slice(0, 10);
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
