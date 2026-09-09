@@ -3,6 +3,7 @@ const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-
 import { z } from "https://esm.sh/zod@3.23.8";
 import { sendTemplateEmail } from "../_shared/transactional-email-templates/send-email.ts";
 import { logEmailSend } from "../_shared/email-send-log.ts";
+import { localTodayISO } from "../_shared/local-day.ts";
 
 const rating = z.number().int().min(1).max(5).optional();
 
