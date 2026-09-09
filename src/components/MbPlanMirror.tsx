@@ -8,7 +8,7 @@ import {
   capFoodFor, categoryLabel, consumedFor, perMealQty, planRunAgainstLedger, resolvePickPool,
   weekWindowFor, weeklyCapFor, type CapConsumed, type MbFoodListMap,
 } from "@/lib/mb-food-list";
-import { RUN_DAYS, RUN_MEALS, fmtQty, oilItemFor, parseMbRun, resolveDayMeal, resolveRunMeal, runDates, todayISO } from "@/lib/mb-run";
+import { RUN_DAYS, RUN_MEALS, fmtQty, oilItemFor, parseMbRun, resolveDayMeal, resolveRunMeal, runDates, runWindow, todayISO } from "@/lib/mb-run";
 import {
   COLOUR_BAR, COLOUR_LABEL, MEAL_LABEL, MbColourHeader, MbFoodListReadonly, MbSuggestionsBoard,
 } from "@/components/MbSuggestionBoard";
@@ -53,7 +53,8 @@ export function MbPlanMirror({
   const [consumed, setConsumed] = useState<CapConsumed>({});
 
   const run = useMemo(() => parseMbRun(rawRun), [rawRun]);
-  const start = run.started_on ?? todayISO();
+  const win = useMemo(() => runWindow(run), [run]);
+  const start = win.isExpired ? todayISO() : (run.started_on ?? todayISO());
 
   useEffect(() => {
     let cancelled = false;
@@ -106,11 +107,15 @@ export function MbPlanMirror({
   }
 
   /* ---------------- not picked yet: three suggestions side by side ---------------- */
-  if (!run.colour) {
+  if (!run.colour || win.isExpired) {
     return (
       <Card className="p-4 space-y-4">
         <div>
-          <p className="font-medium">{firstName} hasn't chosen a suggestion yet</p>
+          <p className="font-medium">
+            {win.isExpired
+              ? `${firstName}'s last ${RUN_DAYS} days are complete — they need to choose their next ${RUN_DAYS} days`
+              : `${firstName} hasn't chosen a suggestion yet`}
+          </p>
           <p className="text-sm text-muted-foreground">
             This is their My Plan view: three suggestions to choose from, locking all meals for {RUN_DAYS} days.
           </p>
@@ -198,8 +203,11 @@ export function MbPlanMirror({
           )}
         </p>
         <p className="text-sm text-muted-foreground">
-          Locked for {RUN_DAYS} days{run.started_on ? ` from ${dayLabel(run.started_on)}` : ""}.
-          Read-only — this is what {firstName} sees. Edit the plan in MB Plan Setup.
+          {win.status === "upcoming"
+            ? `Starts ${run.started_on ? dayLabel(run.started_on) : "soon"} — locked for ${RUN_DAYS} days.`
+            : `Locked for ${RUN_DAYS} days${run.started_on ? ` from ${dayLabel(run.started_on)}` : ""}.`}
+          {win.isLastDay && " Last day — they pick their next 3 days tomorrow."}
+          {" "}Read-only — this is what {firstName} sees. Edit the plan in MB Plan Setup.
         </p>
       </div>
 
