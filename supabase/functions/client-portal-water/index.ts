@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
+import { localTodayISO } from "../_shared/local-day.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,7 +10,6 @@ const Body = z.object({
   token: z.string().min(10).max(200),
   set_litres: z.number().min(0).max(20).optional(),
 });
-const today = () => new Date().toISOString().slice(0, 10);
 const DEFAULT_WATER_TARGET = 2.5;
 
 function computeStreak(rows: { log_date: string; litres: number }[], todayStr: string, WATER_TARGET: number): number {
