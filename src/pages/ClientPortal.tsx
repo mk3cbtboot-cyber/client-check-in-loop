@@ -1083,7 +1083,9 @@ export default function ClientPortal() {
                 <p className="text-sm font-medium">
                   {inRun
                     ? "Today's meals"
-                    : "Your last 3 days of meals are complete — choose your next 3 days below"}
+                    : mbWin.isExpired
+                      ? "Your last 3 days of meals are complete — choose your next 3 days below"
+                      : "Your confirmed meals start tomorrow."}
                 </p>
                 {mbWin.isLastDay && (
                   <p className="text-sm text-muted-foreground">
