@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { localTodayISO } from "../_shared/local-day.ts";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { capTallyFor, foldLedger, weekWindowFor, type CapFold } from "../_shared/mb-cap.ts";
 import { retrieveKb } from "../_shared/nutrition-kb.ts";
@@ -212,9 +213,9 @@ Deno.serve(async (req) => {
           console.log("ai_interceptor: after fetch client plan data", { has_full: !!full, fullErr });
 
           // MB weekly cap ledger fold — the single consumption store.
-          const capTodayIso = new Date().toISOString().slice(0, 10);
           const { data: capAnchorRow } = await admin
-            .from("clients").select("phase2_strict_started_at").eq("id", c.id).maybeSingle();
+            .from("clients").select("phase2_strict_started_at, timezone").eq("id", c.id).maybeSingle();
+          const capTodayIso = localTodayISO(capAnchorRow?.timezone as string | null);
           const capWindow = weekWindowFor(
             (capAnchorRow?.phase2_strict_started_at as string | null)?.slice(0, 10) ?? null,
             capTodayIso,

@@ -9,6 +9,7 @@ import {
   type CapLimit,
   type CapSuggestion,
 } from "../_shared/mb-cap.ts";
+import { localTodayISO } from "../_shared/local-day.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,7 +54,6 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
 
 /** Suggestions come from the practitioner's stored plan, never the payload. */
 function planSuggestions(mbPlan: unknown): CapSuggestion[] {
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
     const { data: c } = await admin
       .from("clients")
       .select(
-        "id, client_type, mb_run, mb_plan, mb_food_limits, food_limits, phase2_strict_started_at",
+        "id, client_type, timezone, mb_run, mb_plan, mb_food_limits, food_limits, phase2_strict_started_at",
       )
       .eq("magic_token", token)
       .maybeSingle();
@@ -131,6 +131,8 @@ Deno.serve(async (req) => {
     if (c.client_type !== "mb") return json({ error: "not_applicable" }, 400);
 
     const anchor = (c.phase2_strict_started_at as string | null)?.slice(0, 10) ?? null;
+    // Day boundaries follow the client's own clock, never UTC.
+    const todayISO = () => localTodayISO(c.timezone as string | null);
 
     const loadRows = async (): Promise<LedgerRow[]> => {
       const { data } = await admin

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { localTodayISO } from "../_shared/local-day.ts";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { capBlocksMeal, capHeadroom, capUnitsForIngredient, describeMealBlock, foldLedger, weekWindowFor } from "../_shared/mb-cap.ts";
 
@@ -57,7 +58,7 @@ Deno.serve(async (req) => {
 
     // ---- Hard weekly caps: never generate a recipe the client can't log ----
     const foodLimits = (c.food_limits ?? {}) as Record<string, number>;
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = localTodayISO(c.timezone as string | null);
     const capWindow = weekWindowFor((c.phase2_strict_started_at as string | null)?.slice(0, 10) ?? null, todayIso);
     const { data: capRowsRaw } = await admin
       .from("mb_cap_ledger")
