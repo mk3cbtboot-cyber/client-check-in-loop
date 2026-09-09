@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { localTodayISO, mondayOfISO } from "../_shared/local-day.ts";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { capTallyFor, foldLedger, weekWindowFor } from "../_shared/mb-cap.ts";
 
@@ -44,13 +45,7 @@ function countEggsInRecipe(recipeLines: string[], ingredients: Array<{ label: st
   return total;
 }
 
-function mondayOf(d: Date): Date {
-  const dt = new Date(d);
-  const day = (dt.getUTCDay() + 6) % 7;
-  dt.setUTCDate(dt.getUTCDate() - day);
-  dt.setUTCHours(0, 0, 0, 0);
-  return dt;
-}
+
 
 // Generic "does this ingredient match a limited food key?" test.
 // Plural/singular tolerant; matches whole word.
@@ -94,7 +89,7 @@ Deno.serve(async (req) => {
     // committed = planned + eaten in the current cap window, minus any row
     // this same slot already planned for that food (the client's own plan must
     // not block them from logging the meal they committed to).
-    const logDayIso = new Date().toISOString().slice(0, 10);
+    const logDayIso = localTodayISO(c.timezone as string | null);
     const capAnchor = (c.phase2_strict_started_at as string | null)?.slice(0, 10) ?? null;
     const capWindow = weekWindowFor(capAnchor, logDayIso);
     const { data: capRowsRaw } = await admin
@@ -224,9 +219,8 @@ Deno.serve(async (req) => {
     let updatedPlan: unknown = null;
     const batchMode = (c.batch_cooking_mode ?? "3-day") as "3-day" | "off";
     if (variant && batchMode !== "off") {
-      const today = new Date();
-      const todayIso = today.toISOString().slice(0, 10);
-      const monday = mondayOf(today).toISOString().slice(0, 10);
+      const todayIso = logDayIso;
+      const monday = mondayOfISO(logDayIso);
       const suffix = variant === "alt" ? "_alt" : "";
       const recipeCol = `${meal_type}_locked_recipe${suffix}`;
       const batchCol = `${meal_type}_batch_start_date${suffix}`;

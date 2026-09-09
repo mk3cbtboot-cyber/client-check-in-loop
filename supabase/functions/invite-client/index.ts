@@ -3,6 +3,7 @@ const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-
 import { z } from "https://esm.sh/zod@3.23.8";
 import { sendTemplateEmail } from "../_shared/transactional-email-templates/send-email.ts";
 import { logEmailSend } from "../_shared/email-send-log.ts";
+import { FALLBACK_TZ } from "../_shared/local-day.ts";
 
 const BodySchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -15,6 +16,7 @@ const BodySchema = z.object({
   starting_weight_kg: z.number().positive().max(700).optional(),
   age: z.number().int().min(1).max(120).optional(),
   weight_unit: z.enum(["kg", "lbs"]).optional(),
+  timezone: z.string().trim().min(1).max(64).optional(),
 });
 
 const GENERIC_MAILBOX_LOCALS = new Set([
@@ -36,6 +38,16 @@ function resolvePractName(prof: { display_name?: string | null; email?: string |
   return firstNameFromEmail(prof?.email) ?? "your practitioner";
 }
 
+
+function isValidTz(tz: string | undefined): tz is string {
+  if (!tz) return false;
+  try {
+    new Intl.DateTimeFormat("en-CA", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -73,7 +85,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { name, email, system_mode, client_type, plan_format, gender, height_cm, starting_weight_kg, weight_unit, age } = parsed.data;
+    const { name, email, system_mode, client_type, plan_format, gender, height_cm, starting_weight_kg, weight_unit, age, timezone } = parsed.data;
 
     const admin = createClient(supabaseUrl, serviceKey);
 
@@ -86,6 +98,9 @@ Deno.serve(async (req) => {
     if (starting_weight_kg != null) insertRow.starting_weight_kg = starting_weight_kg;
     if (age != null) insertRow.age = age;
     if (weight_unit) insertRow.weight_unit = weight_unit;
+    // A real default day boundary from the start — the practitioner's own zone,
+    // else Toronto. The portal still corrects this to the client's own zone.
+    insertRow.timezone = isValidTz(timezone) ? timezone : FALLBACK_TZ;
     const { data: client, error: insertErr } = await admin
       .from("clients")
       .insert(insertRow)
