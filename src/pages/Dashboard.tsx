@@ -530,12 +530,8 @@ export default function Dashboard() {
     setClients(clientRows as Client[]);
     if (clientRows && clientRows.length) {
       const ids = clientRows.map((c) => c.id);
-      const monday = (() => {
-        const dt = new Date();
-        const day = (dt.getUTCDay() + 6) % 7;
-        dt.setUTCDate(dt.getUTCDate() - day);
-        return dt.toISOString().slice(0, 10);
-      })();
+      // Week anchor for the acknowledgement lookup — practitioner's own clock.
+      const monday = mondayOfISO(localTodayISO(Intl.DateTimeFormat().resolvedOptions().timeZone));
       const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }, { data: waterRows }, { data: ledgerRows }] = await Promise.all([
         supabase.from("check_ins").select("*").in("client_id", ids).order("created_at", { ascending: false }),
         supabase.from("recipes").select("id, client_id, name, meal_type, created_at").in("client_id", ids).is("deleted_at", null).order("created_at", { ascending: false }),
@@ -554,23 +550,22 @@ export default function Dashboard() {
       (ackRows ?? []).forEach((a: any) => { (ag[a.client_id] ||= []).push(a); });
       setWeeklyAcks(ag);
 
-      const todayStr = new Date().toISOString().slice(0, 10);
       const ws: Record<string, number> = {};
       const wg: Record<string, { log_date: string; litres: number }[]> = {};
       ids.forEach((id) => {
+        const cl = clientRows.find((c) => c.id === id) as { water_target_litres?: number | null; timezone?: string | null } | undefined;
         const rows = (waterRows ?? []).filter((w: any) => w.client_id === id);
         wg[id] = rows.map((w: any) => ({ log_date: w.log_date, litres: Number(w.litres) }));
-        ws[id] = computeWaterStreak(rows, todayStr, waterTargetOf(clientRows.find((c) => c.id === id) as { water_target_litres?: number | null }));
+        ws[id] = computeWaterStreak(rows, localTodayISO(cl?.timezone), waterTargetOf(cl));
       });
       setWaterLogs(wg);
       setWaterStreaks(ws);
 
       // MB weekly cap ledger — folded per client for the client's current cap window.
-      const capToday = new Date().toISOString().slice(0, 10);
       const folds: Record<string, CapFold> = {};
       const windows: Record<string, { week_start: string; week_end: string }> = {};
-      for (const cl of clientRows as Array<{ id: string; phase2_strict_started_at?: string | null }>) {
-        const w = weekWindowFor(cl.phase2_strict_started_at?.slice(0, 10) ?? null, capToday);
+      for (const cl of clientRows as Array<{ id: string; phase2_strict_started_at?: string | null; timezone?: string | null }>) {
+        const w = weekWindowFor(cl.phase2_strict_started_at?.slice(0, 10) ?? null, localTodayISO(cl.timezone));
         windows[cl.id] = { week_start: w.week_start, week_end: w.week_end };
         folds[cl.id] = foldLedger(
           ((ledgerRows ?? []) as Array<{ client_id: string; week_start: string; day: string; food: string; qty: number; status: string }>)
