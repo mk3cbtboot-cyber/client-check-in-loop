@@ -25,7 +25,7 @@ import { resolveMbFoodList, resolvePickPool, categoryLabel, capTallyFor, capBloc
 import MbRunPlanner from "@/components/MbRunPlanner";
 import MbPhase1Guide from "@/components/MbPhase1Guide";
 import MbProgramGuide from "@/components/MbProgramGuide";
-import { parseMbRun, resolveDayMeal, runWindow, todayISO, fmtQty, RUN_MEALS } from "@/lib/mb-run";
+import { parseMbRun, resolveDayMeal, runWindow, localTodayISO, fmtQty, RUN_MEALS } from "@/lib/mb-run";
 
 import { resolvePhase2Categories } from "@/lib/phase2-food-list";
 import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaults";
@@ -573,7 +573,10 @@ export default function ClientPortal() {
   // cap-clean run (server-validated). MB clients only — Custom is unaffected.
   const mbRunConfirmed = client ? !!parseMbRun(client.mb_run).confirmed_on : false;
   // Shared source of truth for where today sits in the confirmed run.
-  const mbWin = runWindow(parseMbRun(client?.mb_run));
+  // "Today" in the client's own timezone — a client behind UTC must not see
+  // their run end early when UTC rolls over in the evening.
+  const todayISO = () => localTodayISO((client as any)?.timezone);
+  const mbWin = runWindow(parseMbRun(client?.mb_run), todayISO());
   const mbRunGateActive =
     client && client.client_type !== "custom" && mbPlanConfirmed && !mbRunConfirmed;
 
@@ -1574,6 +1577,7 @@ export default function ClientPortal() {
               onGoHome={() => changeTab("home")}
               onRunChanged={(r) => setClient((c) => (c ? { ...c, mb_run: r } : c))}
               phase={client.phase}
+              timezone={(client as any).timezone ?? null}
               client={client as unknown as Record<string, unknown>}
               confirmedExtra={
                 mbShoppingEntries.length > 0 ? (
