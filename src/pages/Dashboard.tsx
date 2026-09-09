@@ -295,18 +295,18 @@ export default function Dashboard() {
 
   const isDetailView = !!routeClientId;
 
-  // Streak: count of trailing consecutive days (ending today or yesterday) with a check-in
-  const computeStreak = (list: CheckIn[]): number => {
+  // Streak: count of trailing consecutive days (ending today or yesterday) with a
+  // check-in — day boundaries follow the client's own clock, never UTC.
+  const computeStreak = (list: CheckIn[], tz?: string | null): number => {
     if (!list.length) return 0;
-    const dayKeys = new Set(list.map((ci) => new Date(ci.created_at).toISOString().slice(0, 10)));
+    const dayKeys = new Set(list.map((ci) => localDayISO(ci.created_at, tz)));
     let streak = 0;
-    const d = new Date();
+    let key = localTodayISO(tz);
     // allow starting from today or yesterday
-    const todayKey = d.toISOString().slice(0, 10);
-    if (!dayKeys.has(todayKey)) d.setUTCDate(d.getUTCDate() - 1);
-    while (dayKeys.has(d.toISOString().slice(0, 10))) {
+    if (!dayKeys.has(key)) key = shiftISO(key, -1);
+    while (dayKeys.has(key)) {
       streak += 1;
-      d.setUTCDate(d.getUTCDate() - 1);
+      key = shiftISO(key, -1);
     }
     return streak;
   };
@@ -317,22 +317,18 @@ export default function Dashboard() {
   const computeWaterStreak = (rows: { log_date: string; litres: number }[], todayStr: string, WATER_TARGET: number): number => {
     const map = new Map(rows.map((r) => [r.log_date, Number(r.litres)]));
     let streak = 0;
-    const d = new Date(todayStr + "T00:00:00Z");
     if ((map.get(todayStr) ?? 0) >= WATER_TARGET) streak += 1;
-    d.setUTCDate(d.getUTCDate() - 1);
-    while (true) {
-      const key = d.toISOString().slice(0, 10);
-      if ((map.get(key) ?? 0) >= WATER_TARGET) {
-        streak += 1;
-        d.setUTCDate(d.getUTCDate() - 1);
-      } else break;
+    let key = shiftISO(todayStr, -1);
+    while ((map.get(key) ?? 0) >= WATER_TARGET) {
+      streak += 1;
+      key = shiftISO(key, -1);
     }
     return streak;
   };
 
   // Need attention: meal_streak is 0, or today's water intake is below 1.0L
   const needsAttention = (client: Client, _list: CheckIn[]): boolean => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localTodayISO((client as unknown as { timezone?: string | null }).timezone);
     const waterToday = client.water_date === today ? Number(client.water_today_litres ?? 0) : 0;
     return (client.meal_streak ?? 0) === 0 || waterToday < 1.0;
   };
