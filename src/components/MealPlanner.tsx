@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Check, Share2, ShoppingBag, Lock, AlertTriangle } from "lucide-react";
 import { MB_FOODS, MB_OPTIONS, type MealType, type OptionDef } from "@/lib/mb-foods";
 import { checkMealLimits, daySplitLabel, type FoodLimits } from "@/lib/food-limits";
+import { localDayISO, shiftISO } from "@/lib/local-day";
 
 type SelectionMap = Record<string, string>;
 
@@ -56,6 +57,7 @@ interface Props {
   batchCookingMode?: "3-day" | "off";
   lunchProteinBonus?: number;
   lunchCarbBonus?: number;
+  timezone?: string | null;
 }
 
 const LUNCH_PROTEIN_SOURCES = new Set(["poultry", "fish", "seafood", "meat", "cheese", "legumes"]);
@@ -140,7 +142,7 @@ function categoryForSources(sources: (keyof typeof MB_FOODS)[]): string {
   return "Other";
 }
 
-export default function MealPlanner({ token, filteredSources, mealOptions, weeklyFoodLimits, eggsMaxPerWeek = null, onPlanChanged, oilAllowed = false, batchCookingMode = "3-day", lunchProteinBonus = 0, lunchCarbBonus = 0 }: Props) {
+export default function MealPlanner({ token, filteredSources, mealOptions, weeklyFoodLimits, eggsMaxPerWeek = null, onPlanChanged, oilAllowed = false, batchCookingMode = "3-day", lunchProteinBonus = 0, lunchCarbBonus = 0, timezone = null }: Props) {
   const OPTS = mealOptions ?? MB_OPTIONS;
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<WeeklyPlan | null>(null);
@@ -252,6 +254,11 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
 
   const allComplete = MEALS.every(isMealComplete);
   const confirmed = !!plan?.confirmed_at;
+  const confirmedThrough = plan?.confirmed_at && batchCookingMode === "3-day"
+    ? new Date(`${shiftISO(localDayISO(plan.confirmed_at, timezone), 2)}T00:00:00`).toLocaleDateString(undefined, {
+        weekday: "short", month: "short", day: "numeric",
+      })
+    : null;
 
   const persist = async (patch: Partial<WeeklyPlan>) => {
     setBusy(true);
@@ -355,7 +362,7 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
         setPlan(data.plan);
         onPlanChanged?.(data.plan);
       }
-      toast.success("Your meal plan is set for the week.");
+      toast.success("Your meal plan is set for the next 3 days.");
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to confirm");
     } finally {
@@ -370,7 +377,7 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
       if (error) throw error;
       setPlan(null);
       onPlanChanged?.(null);
-      toast.success("Week cleared.");
+      toast.success("3-day plan cleared.");
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to reset");
     } finally {
@@ -449,7 +456,7 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
   }, [plan]);
 
   const shareText = useMemo(() => {
-    const lines: string[] = [`Shopping List — Week of ${weekStart}`, ""];
+    const lines: string[] = [`Shopping List — 3-day plan starting ${weekStart}`, ""];
     for (const [cat, items] of shoppingList) {
       lines.push(cat.toUpperCase());
       for (const it of items) lines.push(`  • ${it.name} — ${it.qty}`);
@@ -473,18 +480,18 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
   return (
     <section className="space-y-4">
       <Card className="p-4">
-        <h2 className="text-lg font-semibold">{batchCookingMode === "3-day" ? "This Week's Meal Plan" : "Your Meal Plan"}</h2>
+        <h2 className="text-lg font-semibold">{batchCookingMode === "3-day" ? "Your 3-Day Meal Plan" : "Your Meal Plan"}</h2>
         <p className="text-sm text-muted-foreground">
           {batchCookingMode === "3-day"
             ? "Select one option from each meal below. Your choices will be used for the next 3 days and loaded into your Recipe Generator."
             : "Select one option from each meal below. Your choices will be used to generate a fresh recipe each time you cook."}
         </p>
         {batchCookingMode === "3-day" && weekStart && (
-          <p className="text-xs text-muted-foreground mt-1">Week of {weekStart} · resets every 3 days</p>
+          <p className="text-xs text-muted-foreground mt-1">3-day plan starting {weekStart}</p>
         )}
         {confirmed && (
           <div className="mt-3 flex items-center gap-2 text-xs text-primary">
-            <Lock className="h-3.5 w-3.5" /> Plan confirmed — locked for the week.
+            <Lock className="h-3.5 w-3.5" /> {confirmedThrough ? `Plan confirmed through ${confirmedThrough}.` : "Plan confirmed for 3 days."}
           </div>
         )}
         {eggsBudgeted && (
@@ -657,10 +664,12 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
         <div>
           <p className="text-sm font-medium">
             {confirmed
-              ? "Your meal plan is set for the week. Head to the Home tab to create your recipes."
+              ? confirmedThrough
+                ? `Your meal plan is confirmed through ${confirmedThrough}. Head to the Home tab to create your recipes.`
+                : "Your meal plan is confirmed for 3 days. Head to the Home tab to create your recipes."
               : allComplete
-                ? "All three meals are selected. Confirm to lock the week in."
-                : "Choose one option per meal and fill in every component to confirm the week."}
+                ? "All three meals are selected. Confirm to lock them for 3 days."
+                : "Choose one option per meal and fill in every component to confirm your 3-day plan."}
           </p>
         </div>
         <div className="flex gap-2">
@@ -669,11 +678,11 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
               <Button onClick={() => setShowShopping(true)} variant="default">
                 <ShoppingBag className="h-4 w-4" /> View Shopping List
               </Button>
-              <Button onClick={resetWeek} variant="outline" disabled={busy}>Reset week</Button>
+              <Button onClick={resetWeek} variant="outline" disabled={busy}>Reset 3-day plan</Button>
             </>
           ) : (
             <Button onClick={confirm} disabled={!allComplete || busy}>
-              {busy ? "Saving…" : batchCookingMode === "3-day" ? "Confirm My Week" : "Confirm My Meals"}
+              {busy ? "Saving…" : batchCookingMode === "3-day" ? "Confirm My 3-Day Plan" : "Confirm My Meals"}
             </Button>
           )}
         </div>
@@ -711,7 +720,7 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
           </DialogHeader>
           <div className="max-h-[65vh] overflow-y-auto space-y-4">
             {shoppingList.length === 0 && (
-              <p className="text-sm text-muted-foreground">Your shopping list will appear here once your week is set.</p>
+              <p className="text-sm text-muted-foreground">Your shopping list will appear here once your 3-day plan is set.</p>
             )}
             {shoppingList.map(([cat, items]) => (
               <div key={cat} className="space-y-2">

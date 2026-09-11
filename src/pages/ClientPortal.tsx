@@ -1178,9 +1178,9 @@ export default function ClientPortal() {
           ) : client.phase !== "phase4" && client.batch_cooking_mode !== "off" && !recipeGateConfirmed ? (
             <Card className="p-6 text-center space-y-4">
               <p className="text-sm text-muted-foreground">
-                Before generating recipes, please head to Meal Planner to pick your meals for the next 3 days and build your shopping list. Your recipe generator will then be loaded with the foods you choose.
+                Before generating recipes, please head to My Plan to pick your meals for the next 3 days and build your shopping list. Your recipe generator will then be loaded with the foods you choose.
               </p>
-              <Button onClick={() => changeTab("planner")}>Go to Meal Planner</Button>
+              <Button onClick={() => changeTab("plan")}>Go to My Plan</Button>
             </Card>
           ) : (
             <>
@@ -1874,6 +1874,7 @@ export default function ClientPortal() {
               batchCookingMode={client.batch_cooking_mode ?? "3-day"}
               lunchProteinBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_protein_bonus ?? 0) : 0}
               lunchCarbBonus={client.phase === "phase3" && !mbPlanConfirmed ? (client.phase3_lunch_carb_bonus ?? 0) : 0}
+              timezone={client.timezone}
             />
 
           )}
