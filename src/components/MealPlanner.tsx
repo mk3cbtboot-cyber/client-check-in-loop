@@ -362,7 +362,7 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
         setPlan(data.plan);
         onPlanChanged?.(data.plan);
       }
-      toast.success("Your meal plan is set for the next 3 days.");
+      toast.success(batchCookingMode === "3-day" ? "Your meal plan is set for the next 3 days." : "Your meal plan is set.");
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to confirm");
     } finally {
@@ -377,7 +377,7 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
       if (error) throw error;
       setPlan(null);
       onPlanChanged?.(null);
-      toast.success("3-day plan cleared.");
+      toast.success(batchCookingMode === "3-day" ? "3-day plan cleared." : "Meal plan cleared.");
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to reset");
     } finally {
@@ -456,7 +456,7 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
   }, [plan]);
 
   const shareText = useMemo(() => {
-    const lines: string[] = [`Shopping List — 3-day plan starting ${weekStart}`, ""];
+    const lines: string[] = [batchCookingMode === "3-day" ? `Shopping List — 3-day plan starting ${weekStart}` : "Shopping List", ""];
     for (const [cat, items] of shoppingList) {
       lines.push(cat.toUpperCase());
       for (const it of items) lines.push(`  • ${it.name} — ${it.qty}`);
@@ -491,7 +491,7 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
         )}
         {confirmed && (
           <div className="mt-3 flex items-center gap-2 text-xs text-primary">
-            <Lock className="h-3.5 w-3.5" /> {confirmedThrough ? `Plan confirmed through ${confirmedThrough}.` : "Plan confirmed for 3 days."}
+            <Lock className="h-3.5 w-3.5" /> {confirmedThrough ? `Plan confirmed through ${confirmedThrough}.` : batchCookingMode === "3-day" ? "Plan confirmed for 3 days." : "Plan confirmed."}
           </div>
         )}
         {eggsBudgeted && (
@@ -666,7 +666,9 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
             {confirmed
               ? confirmedThrough
                 ? `Your meal plan is confirmed through ${confirmedThrough}. Head to the Home tab to create your recipes.`
-                : "Your meal plan is confirmed for 3 days. Head to the Home tab to create your recipes."
+                : batchCookingMode === "3-day"
+                  ? "Your meal plan is confirmed for 3 days. Head to the Home tab to create your recipes."
+                  : "Your meal plan is confirmed. Head to the Home tab to create your recipes."
               : allComplete
                 ? "All three meals are selected. Confirm to lock them for 3 days."
                 : "Choose one option per meal and fill in every component to confirm your 3-day plan."}
@@ -678,7 +680,7 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
               <Button onClick={() => setShowShopping(true)} variant="default">
                 <ShoppingBag className="h-4 w-4" /> View Shopping List
               </Button>
-              <Button onClick={resetWeek} variant="outline" disabled={busy}>Reset 3-day plan</Button>
+              <Button onClick={resetWeek} variant="outline" disabled={busy}>{batchCookingMode === "3-day" ? "Reset 3-day plan" : "Reset meal plan"}</Button>
             </>
           ) : (
             <Button onClick={confirm} disabled={!allComplete || busy}>
@@ -720,7 +722,7 @@ export default function MealPlanner({ token, filteredSources, mealOptions, weekl
           </DialogHeader>
           <div className="max-h-[65vh] overflow-y-auto space-y-4">
             {shoppingList.length === 0 && (
-              <p className="text-sm text-muted-foreground">Your shopping list will appear here once your 3-day plan is set.</p>
+              <p className="text-sm text-muted-foreground">Your shopping list will appear here once your {batchCookingMode === "3-day" ? "3-day plan" : "meal plan"} is set.</p>
             )}
             {shoppingList.map(([cat, items]) => (
               <div key={cat} className="space-y-2">
