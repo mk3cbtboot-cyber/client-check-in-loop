@@ -585,6 +585,10 @@ export default function ClientPortal() {
     client && client.client_type !== "custom" && mbPlanConfirmed
       ? mbRunConfirmed && !mbWin.isExpired
       : weekConfirmed;
+  // End-date label for lock copy, matching My Plan's "confirmed through …" phrasing.
+  const runEndLabel = mbWin.lastDate
+    ? new Date(`${mbWin.lastDate}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
+    : null;
 
   // ---- Shopping list sources (display only) ----
   const mbShoppingEntries =

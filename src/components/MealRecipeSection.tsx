@@ -34,6 +34,8 @@ interface Props {
   fullScreenOnSelect?: boolean;
   lunchProteinBonus?: number;
   lunchCarbBonus?: number;
+  /** Label for the locked-recipe badge (e.g. "Locked through Sat, Sep 12"). */
+  lockedBadgeLabel?: string;
   /** The client's own approved oils (Phase 3/4). Falls back to the MB standard oils. */
   oilOptions?: string[];
 }
