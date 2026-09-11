@@ -579,6 +579,12 @@ export default function ClientPortal() {
   const mbWin = runWindow(parseMbRun(client?.mb_run), todayISO());
   const mbRunGateActive =
     client && client.client_type !== "custom" && mbPlanConfirmed && !mbRunConfirmed;
+  // Recipe screen gate: MB colour-plan clients follow the confirmed run (same
+  // source of truth as My Plan/Home). Everyone else keeps the weekly stamp.
+  const recipeGateConfirmed =
+    client && client.client_type !== "custom" && mbPlanConfirmed
+      ? mbRunConfirmed && !mbWin.isExpired
+      : weekConfirmed;
 
   // ---- Shopping list sources (display only) ----
   const mbShoppingEntries =
@@ -1165,7 +1171,7 @@ export default function ClientPortal() {
                 Your practitioner will upload your personalised Metabolic Balance plan here.
               </p>
             </Card>
-          ) : client.phase !== "phase4" && client.batch_cooking_mode !== "off" && !weekConfirmed ? (
+          ) : client.phase !== "phase4" && client.batch_cooking_mode !== "off" && !recipeGateConfirmed ? (
             <Card className="p-6 text-center space-y-4">
               <p className="text-sm text-muted-foreground">
                 Before generating recipes, please head to Meal Planner to select your meals for the week and build your shopping list. Your recipe generator will then be loaded with your chosen foods for the week.

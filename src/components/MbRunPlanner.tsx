@@ -237,10 +237,11 @@ export function MbRunPlanner({
   const confirmRun = async () => {
     setConfirming(true);
     if (timer.current) clearTimeout(timer.current);
-    // One confirm path: a run whose start date has already passed starts today.
+    // Only a genuinely ended run restarts from today. A run still inside its
+    // window keeps its original start date and the client's day swaps.
     const today = todayISO();
     const payloadRun: MbRun =
-      run.started_on && run.started_on < today
+      run.started_on && runWindow(run, today).isExpired
         ? { ...run, started_on: today, day_overrides: {} }
         : run;
     const { data, error } = await supabase.functions.invoke("mb-run", {
