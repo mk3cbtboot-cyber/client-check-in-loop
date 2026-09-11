@@ -585,6 +585,10 @@ export default function ClientPortal() {
     client && client.client_type !== "custom" && mbPlanConfirmed
       ? mbRunConfirmed && !mbWin.isExpired
       : weekConfirmed;
+  // End-date label for lock copy, matching My Plan's "confirmed through …" phrasing.
+  const runEndLabel = mbWin.lastDate
+    ? new Date(`${mbWin.lastDate}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
+    : null;
 
   // ---- Shopping list sources (display only) ----
   const mbShoppingEntries =
@@ -1184,7 +1188,9 @@ export default function ClientPortal() {
                 <p className="text-xs text-primary">
                   {(client?.batch_cooking_mode === "off" || client.phase === "phase4")
                     ? "Your meal plan is set — generate a fresh recipe whenever you're ready to cook."
-                    : "Your weekly meal plan is set — recipe options are limited to the foods you selected for this week."}
+                    : runEndLabel
+                      ? `Your meals are locked through ${runEndLabel} — recipe options are limited to the foods you selected.`
+                      : "Your meals are locked for 3 days — recipe options are limited to the foods you selected."}
                 </p>
               </Card>
               <div className="grid grid-cols-3 gap-2">
@@ -1314,6 +1320,7 @@ export default function ClientPortal() {
                           capFold={capFold}
                           lockedRecipe={primaryLocked}
                           lockedSelections={primarySelections}
+                          lockedBadgeLabel={runEndLabel ? `Locked through ${runEndLabel}` : undefined}
                           sectionTitle={isSplit ? `Egg meal (${primaryLogCount}/${primaryDays} this week)` : undefined}
                           extraComponents={buildExtras(primaryOption)}
                           filteredSources={filteredSources}
@@ -1337,6 +1344,7 @@ export default function ClientPortal() {
                         capFold={capFold}
                         lockedRecipe={altLocked}
                         lockedSelections={altSelections}
+                        lockedBadgeLabel={runEndLabel ? `Locked through ${runEndLabel}` : undefined}
                         sectionTitle="Backup meal"
                         extraComponents={buildExtras(altOption)}
                         filteredSources={filteredSources}
