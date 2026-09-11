@@ -1188,7 +1188,9 @@ export default function ClientPortal() {
                 <p className="text-xs text-primary">
                   {(client?.batch_cooking_mode === "off" || client.phase === "phase4")
                     ? "Your meal plan is set — generate a fresh recipe whenever you're ready to cook."
-                    : "Your weekly meal plan is set — recipe options are limited to the foods you selected for this week."}
+                    : runEndLabel
+                      ? `Your meals are locked through ${runEndLabel} — recipe options are limited to the foods you selected.`
+                      : "Your meals are locked for 3 days — recipe options are limited to the foods you selected."}
                 </p>
               </Card>
               <div className="grid grid-cols-3 gap-2">

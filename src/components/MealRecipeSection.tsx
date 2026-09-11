@@ -93,7 +93,7 @@ const OIL_OPTIONS = [
 export default function MealRecipeSection({
   token, meal, variant, optionDef, phase, foodLimits, capFold,
   lockedRecipe, lockedSelections, sectionTitle, extraComponents, filteredSources, onLogged, blockGeneration, fullScreenOnSelect,
-  lunchProteinBonus = 0, lunchCarbBonus = 0, oilOptions,
+  lunchProteinBonus = 0, lunchCarbBonus = 0, oilOptions, lockedBadgeLabel = "Locked for 3 days",
 }: Props) {
 
   const [picks, setPicks] = useState<Record<string, string>>({});
@@ -280,7 +280,7 @@ export default function MealRecipeSection({
               <p className="text-xs uppercase text-muted-foreground">{title}</p>
               <p className="font-medium">{lockedRecipe.recipe_title}</p>
             </div>
-            <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">Locked for this week</span>
+            <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">{lockedBadgeLabel}</span>
           </div>
           <Tabs defaultValue="recipe">
             <TabsList>
