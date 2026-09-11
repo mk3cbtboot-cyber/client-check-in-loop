@@ -1320,6 +1320,7 @@ export default function ClientPortal() {
                           capFold={capFold}
                           lockedRecipe={primaryLocked}
                           lockedSelections={primarySelections}
+                          lockedBadgeLabel={runEndLabel ? `Locked through ${runEndLabel}` : undefined}
                           sectionTitle={isSplit ? `Egg meal (${primaryLogCount}/${primaryDays} this week)` : undefined}
                           extraComponents={buildExtras(primaryOption)}
                           filteredSources={filteredSources}
@@ -1343,6 +1344,7 @@ export default function ClientPortal() {
                         capFold={capFold}
                         lockedRecipe={altLocked}
                         lockedSelections={altSelections}
+                        lockedBadgeLabel={runEndLabel ? `Locked through ${runEndLabel}` : undefined}
                         sectionTitle="Backup meal"
                         extraComponents={buildExtras(altOption)}
                         filteredSources={filteredSources}
