@@ -579,6 +579,12 @@ export default function ClientPortal() {
   const mbWin = runWindow(parseMbRun(client?.mb_run), todayISO());
   const mbRunGateActive =
     client && client.client_type !== "custom" && mbPlanConfirmed && !mbRunConfirmed;
+  // Recipe screen gate: MB colour-plan clients follow the confirmed run (same
+  // source of truth as My Plan/Home). Everyone else keeps the weekly stamp.
+  const recipeGateConfirmed =
+    client && client.client_type !== "custom" && mbPlanConfirmed
+      ? mbRunConfirmed && !mbWin.isExpired
+      : weekConfirmed;
 
   // ---- Shopping list sources (display only) ----
   const mbShoppingEntries =
