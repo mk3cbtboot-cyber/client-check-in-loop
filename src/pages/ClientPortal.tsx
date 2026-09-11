@@ -57,6 +57,7 @@ interface ClientState {
   id: string;
   name: string;
   phase: Phase;
+  timezone?: string | null;
   food_limits: Record<string, number>;
   cap_week_start?: string | null;
   cap_week_end?: string | null;
