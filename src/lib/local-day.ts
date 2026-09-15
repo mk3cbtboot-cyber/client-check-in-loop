@@ -43,3 +43,15 @@ export function mondayOfISO(iso: string): string {
   d.setUTCDate(d.getUTCDate() - day);
   return d.toISOString().slice(0, 10);
 }
+
+/** Whole days between two YYYY-MM-DD dates (b - a). */
+export function diffDaysISO(a: string, b: string): number {
+  const da = Date.parse(`${a}T00:00:00Z`);
+  const db = Date.parse(`${b}T00:00:00Z`);
+  return Math.round((db - da) / 86400000);
+}
+
+/** Day of week for a YYYY-MM-DD date: 0 = Sunday .. 6 = Saturday. */
+export function weekdayOfISO(iso: string): number {
+  return new Date(`${iso}T00:00:00Z`).getUTCDay();
+}
