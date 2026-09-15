@@ -7,7 +7,7 @@
 // cadence on an MB client also wins, so Phase 3 can be made settable later
 // without touching this engine.
 
-import { shiftISO } from "@/lib/local-day";
+import { diffDaysISO, shiftISO, weekdayOfISO } from "@/lib/local-day";
 
 export type CheckinCadence = "auto" | "daily" | "weekly" | "biweekly" | "none";
 
@@ -28,10 +28,27 @@ export interface CheckinScheduleClient {
   phase2_strict_started_at?: string | null;
   checkin_cadence?: string | null;
   checkin_cadence_anchor?: string | null;
+  /** Custom clients only: 0 = Sunday .. 6 = Saturday. */
+  checkin_weekday?: number | null;
+  /** Date the weekday setting took effect — earlier due dates keep the old rule. */
+  checkin_weekday_effective_from?: string | null;
   created_at?: string | null;
 }
 
 export type ScheduleMode = "none" | "daily" | "weekly" | "biweekly" | "phase2";
+
+export const WEEKDAY_OPTIONS: { value: number; label: string }[] = [
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+  { value: 0, label: "Sunday" },
+];
+
+export const weekdayLabel = (d: number | null | undefined): string | null =>
+  WEEKDAY_OPTIONS.find((o) => o.value === d)?.label ?? null;
 
 export interface ResolvedSchedule {
   mode: ScheduleMode;
@@ -39,6 +56,10 @@ export interface ResolvedSchedule {
   anchor: string | null;
   label: string;
   source: "mb_phase" | "practitioner" | "default" | "none";
+  /** Chosen weekday (Custom weekly/biweekly only), null when unset. */
+  weekday: number | null;
+  /** Date from which `weekday` applies; before it, history is preserved. */
+  weekdayFrom: string | null;
 }
 
 const dayOnly = (v: string | null | undefined): string | null =>
@@ -47,7 +68,14 @@ const dayOnly = (v: string | null | undefined): string | null =>
 const isCustom = (c: CheckinScheduleClient): boolean =>
   c.client_type === "custom" || c.system_mode === "own_practice";
 
-const NONE: ResolvedSchedule = { mode: "none", anchor: null, label: "No check-in schedule", source: "none" };
+const NONE: ResolvedSchedule = {
+  mode: "none",
+  anchor: null,
+  label: "No check-in schedule",
+  source: "none",
+  weekday: null,
+  weekdayFrom: null,
+};
 
 export function resolveCheckinSchedule(c: CheckinScheduleClient): ResolvedSchedule {
   const cadence = (c.checkin_cadence ?? "auto") as CheckinCadence;
