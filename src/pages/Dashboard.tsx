@@ -2105,6 +2105,7 @@ export default function Dashboard() {
                       capWindow={capWindows[client.id] ?? null}
                       showLimitTotals={Boolean(client.mb_pdf_path)}
                       lastMealLogged={lastLogged}
+                      adherence={adherence}
                     />
 
 
