@@ -2238,27 +2238,55 @@ export default function Dashboard() {
                                 <span className="opacity-70">(from MB plan)</span>
                               </div>
                             )}
-                            {client.system_mode === "own_practice" ? (
-                              <div className="flex items-center gap-2">
-                                <Label className="text-xs">Check-in schedule</Label>
-                                <Select
-                                  value={((client as unknown as { checkin_cadence?: string }).checkin_cadence ?? "auto") as CheckinCadence}
-                                  onValueChange={(v) => setCheckinCadence(client.id, v as CheckinCadence)}
-                                >
-                                  <SelectTrigger className="h-8 w-[180px]"><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    {CADENCE_OPTIONS.map((o) => (
-                                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span>Check-ins: {resolveCheckinSchedule(client as unknown as Parameters<typeof resolveCheckinSchedule>[0]).label}</span>
-                                <span className="opacity-70">(from phase)</span>
-                              </div>
-                            )}
+                            {(() => {
+                              const sched = resolveCheckinSchedule(client as unknown as Parameters<typeof resolveCheckinSchedule>[0]);
+                              const nextDue = nextCheckinDue(sched, localTodayISO((client as unknown as { timezone?: string | null }).timezone ?? null));
+                              const nextDueText = nextDue
+                                ? new Date(`${nextDue}T12:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+                                : null;
+                              const cadence = ((client as unknown as { checkin_cadence?: string }).checkin_cadence ?? "auto") as CheckinCadence;
+                              const showWeekday = sched.mode === "weekly" || sched.mode === "biweekly";
+                              return client.system_mode === "own_practice" ? (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Label className="text-xs">Check-in schedule</Label>
+                                    <Select value={cadence} onValueChange={(v) => setCheckinCadence(client.id, v as CheckinCadence)}>
+                                      <SelectTrigger className="h-8 w-[180px]"><SelectValue /></SelectTrigger>
+                                      <SelectContent>
+                                        {CADENCE_OPTIONS.map((o) => (
+                                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    {showWeekday && (
+                                      <Select
+                                        value={String((client as unknown as { checkin_weekday?: number | null }).checkin_weekday ?? "any")}
+                                        onValueChange={(v) => setCheckinWeekday(client.id, v)}
+                                      >
+                                        <SelectTrigger className="h-8 w-[150px]"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="any">Day: from start date</SelectItem>
+                                          {WEEKDAY_OPTIONS.map((o) => (
+                                            <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
+                                  </div>
+                                  {nextDueText && (
+                                    <p className="text-xs text-muted-foreground">Next check-in due {nextDueText}</p>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <span>
+                                    Check-ins: {sched.label}
+                                    {nextDueText ? ` — next due ${nextDueText}` : ""}
+                                  </span>
+                                  <span className="opacity-70">(from phase)</span>
+                                </div>
+                              );
+                            })()}
 
                             <Button variant="outline" size="sm"
                               onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
