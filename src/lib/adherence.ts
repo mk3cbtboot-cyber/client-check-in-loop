@@ -100,19 +100,22 @@ export function scheduledMealsOn(
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-/** True when this client is inside an adherence-tracked phase at all. */
+/**
+ * True when this client has an adherence window at all: MB Phase 1/4 and any
+ * client set to "no check-ins" get no badge.
+ */
 export function adherenceApplies(client: AdherenceClient): boolean {
-  const custom = client.client_type === "custom" || client.system_mode === "own_practice";
-  if (custom) return true;
-  return client.phase !== "phase1" && client.phase !== "phase4";
+  return resolveCheckinSchedule(client).mode !== "none";
 }
 
 export function computeAdherence(input: AdherenceInput): AdherenceResult {
   const { client, mealLogs, waterLogs, checkins, waterTarget } = input;
   const tz = client.timezone ?? null;
   const today = input.today ?? localTodayISO(tz);
-  const windowDays = input.windowDays ?? ADHERENCE_WINDOW_DAYS;
   const schedule = resolveCheckinSchedule(client);
+  // The window matches the client's current cadence period, so meals, water and
+  // check-ins all describe the same stretch of time.
+  const windowDays = input.windowDays ?? cadenceWindowDays(schedule, today);
 
   // The window ends yesterday — today is still in progress and would unfairly
   // drag every score down.
@@ -120,6 +123,7 @@ export function computeAdherence(input: AdherenceInput): AdherenceResult {
   let windowStart = shiftISO(windowEnd, -(windowDays - 1));
   const created = dayOnly(client.created_at);
   if (created && created > windowStart) windowStart = created;
+  if (schedule.anchor && schedule.anchor > windowStart) windowStart = schedule.anchor;
   const phaseStart = dayOnly(client.phase2_strict_started_at);
   if (!(client.client_type === "custom" || client.system_mode === "own_practice") && phaseStart && phaseStart > windowStart) {
     windowStart = phaseStart;
