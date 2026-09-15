@@ -9,12 +9,14 @@
 
 import { localDayISO, localTodayISO, shiftISO } from "@/lib/local-day";
 import {
+  cadenceWindowDays,
   dueCheckinDates,
   resolveCheckinSchedule,
   type CheckinScheduleClient,
   type ResolvedSchedule,
 } from "@/lib/checkin-schedule";
 
+/** Longest window any cadence uses (biweekly). */
 export const ADHERENCE_WINDOW_DAYS = 14;
 
 export interface AdherenceClient extends CheckinScheduleClient {
