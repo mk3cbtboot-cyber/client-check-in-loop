@@ -535,14 +535,18 @@ export default function Dashboard() {
       const ids = clientRows.map((c) => c.id);
       // Week anchor for the acknowledgement lookup — practitioner's own clock.
       const monday = mondayOfISO(localTodayISO(Intl.DateTimeFormat().resolvedOptions().timeZone));
-      const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }, { data: waterRows }, { data: ledgerRows }] = await Promise.all([
+      const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }, { data: waterRows }, { data: ledgerRows }, { data: assignRows }] = await Promise.all([
         supabase.from("check_ins").select("*").in("client_id", ids).order("created_at", { ascending: false }),
         supabase.from("recipes").select("id, client_id, name, meal_type, created_at").in("client_id", ids).is("deleted_at", null).order("created_at", { ascending: false }),
         supabase.from("weekly_limit_acknowledgements").select("client_id, food_name, limit_value, acknowledged_at").in("client_id", ids).eq("week_start_date", monday),
         supabase.from("daily_water_logs").select("client_id, log_date, litres").in("client_id", ids).order("log_date", { ascending: false }).limit(400),
         supabase.from("mb_cap_ledger").select("client_id, week_start, day, food, qty, status").in("client_id", ids),
+        supabase.from("client_recipe_assignments").select("client_id, meal_slot").in("client_id", ids),
       ]);
       if (!isCurrent()) return;
+      const slotCounts: Record<string, number> = {};
+      (assignRows ?? []).forEach((a: any) => { slotCounts[a.client_id] = (slotCounts[a.client_id] ?? 0) + 1; });
+      setAssignedSlots(slotCounts);
       const grouped: Record<string, CheckIn[]> = {};
       (checkRows ?? []).forEach((ci) => { (grouped[ci.client_id] ||= []).push(ci); });
       setCheckIns(grouped);
