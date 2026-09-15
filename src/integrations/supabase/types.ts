@@ -211,6 +211,8 @@ export type Database = {
           breakfast_protein_grams: number | null
           breakfast_veg_grams: number | null
           calorie_adjustment: number | null
+          checkin_cadence: string
+          checkin_cadence_anchor: string | null
           client_food_selections: Json
           client_goal: string
           client_last_read_at: string | null
@@ -328,6 +330,8 @@ export type Database = {
           breakfast_protein_grams?: number | null
           breakfast_veg_grams?: number | null
           calorie_adjustment?: number | null
+          checkin_cadence?: string
+          checkin_cadence_anchor?: string | null
           client_food_selections?: Json
           client_goal?: string
           client_last_read_at?: string | null
@@ -445,6 +449,8 @@ export type Database = {
           breakfast_protein_grams?: number | null
           breakfast_veg_grams?: number | null
           calorie_adjustment?: number | null
+          checkin_cadence?: string
+          checkin_cadence_anchor?: string | null
           client_food_selections?: Json
           client_goal?: string
           client_last_read_at?: string | null
