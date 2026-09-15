@@ -1836,8 +1836,13 @@ export default function Dashboard() {
               const streak = computeStreak(list, (client as unknown as { timezone?: string | null }).timezone);
               const alert = needsAttention(client, list);
               const isOpen = isDetailView;
+              const adherence = adherenceFor(client);
+              const band = adherence.applicable && adherence.score != null ? adherenceBand(adherence.score) : null;
               return (
-                <Card key={client.id} className={`p-4 space-y-3 ${alert ? "border-destructive/60" : ""}`}>
+                <Card
+                  key={client.id}
+                  className={`p-4 space-y-3 ${alert ? "border-destructive/60" : ""} ${band ? ADHERENCE_BAND_CLASS[band] : ""}`}
+                >
                   <button
                     type="button"
                     onClick={() => { if (!isDetailView) navigate(`/dashboard/clients/${client.id}`); }}
