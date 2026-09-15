@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { capTallyFor, type CapFold } from "@/lib/mb-food-list";
+import type { AdherenceResult } from "@/lib/adherence";
 
 export interface ClientTrackerRowProps {
   mealStreak: number;
