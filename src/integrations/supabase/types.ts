@@ -213,6 +213,8 @@ export type Database = {
           calorie_adjustment: number | null
           checkin_cadence: string
           checkin_cadence_anchor: string | null
+          checkin_weekday: number | null
+          checkin_weekday_effective_from: string | null
           client_food_selections: Json
           client_goal: string
           client_last_read_at: string | null
@@ -332,6 +334,8 @@ export type Database = {
           calorie_adjustment?: number | null
           checkin_cadence?: string
           checkin_cadence_anchor?: string | null
+          checkin_weekday?: number | null
+          checkin_weekday_effective_from?: string | null
           client_food_selections?: Json
           client_goal?: string
           client_last_read_at?: string | null
@@ -451,6 +455,8 @@ export type Database = {
           calorie_adjustment?: number | null
           checkin_cadence?: string
           checkin_cadence_anchor?: string | null
+          checkin_weekday?: number | null
+          checkin_weekday_effective_from?: string | null
           client_food_selections?: Json
           client_goal?: string
           client_last_read_at?: string | null
