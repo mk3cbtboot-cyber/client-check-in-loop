@@ -10,6 +10,9 @@ export interface CheckInRow {
   general_wellbeing: number | null;
   fatigue: number | null;
   sleep: number | null;
+  headache: number | null;
+  pain: number | null;
+  acid_reflux: number | null;
   digestion: number | null;
   waist_cm: number | null;
   hip_cm: number | null;
@@ -77,6 +80,9 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", gender 
           general_wellbeing: ci.general_wellbeing,
           fatigue: ci.fatigue,
           sleep: ci.sleep,
+          headache: ci.headache,
+          pain: ci.pain,
+          acid_reflux: ci.acid_reflux,
           digestion: ci.digestion,
           waist: ci.waist_cm,
           hip: ci.hip_cm,
@@ -106,8 +112,17 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", gender 
       {has("sleep") && (
         <Graph title="Sleep" data={data} yDomain={[0, 5]} lines={[{ key: "sleep", name: "Rating", color: "hsl(262 83% 58%)" }]} />
       )}
+      {has("headache") && (
+        <Graph title="Headache" data={data} yDomain={[0, 5]} lines={[{ key: "headache", name: "Rating (1 Best, 5 Worst)", color: "hsl(330 80% 55%)" }]} />
+      )}
+      {has("pain") && (
+        <Graph title="Pain" data={data} yDomain={[0, 5]} lines={[{ key: "pain", name: "Rating (1 Best, 5 Worst)", color: "hsl(20 90% 55%)" }]} />
+      )}
       {has("digestion") && (
         <Graph title="Digestion" data={data} yDomain={[0, 5]} lines={[{ key: "digestion", name: "Rating", color: "hsl(173 80% 40%)" }]} />
+      )}
+      {has("acid_reflux") && (
+        <Graph title="Acid Reflux" data={data} yDomain={[0, 5]} lines={[{ key: "acid_reflux", name: "Rating (1 Best, 5 Worst)", color: "hsl(80 65% 45%)" }]} />
       )}
       {has("allergy_skin") && (
         <Graph title="Allergy / Skin" data={data} yDomain={[0, 5]} lines={[{ key: "allergy_skin", name: "Rating (1 Best, 5 Worst)", color: "hsl(217 91% 60%)" }]} />
