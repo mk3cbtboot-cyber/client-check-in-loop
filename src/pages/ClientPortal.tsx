@@ -32,6 +32,7 @@ import { resolvePhase3MbField, PHASE3_MB_DEFAULTS } from "@/lib/phase3-mb-defaul
 import { MbFoodListReadonly } from "@/components/MbSuggestionBoard";
 import { phaseLabel, phaseShort, foodListTitle, oilAllowed, recipeBuilderEnabled, type Phase } from "@/lib/phases";
 import { getPhaseProgress } from "@/lib/progress";
+import { nextCheckinDue, resolveCheckinSchedule } from "@/lib/checkin-schedule";
 import MealPlanner, { type WeeklyPlan } from "@/components/MealPlanner";
 import MealRecipeSection from "@/components/MealRecipeSection";
 import FoodListClientHome from "@/components/FoodListClientHome";
