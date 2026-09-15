@@ -16,6 +16,8 @@ export interface ClientTrackerRowProps {
   /** Show "used / limit" instead of just "used" (MB plans with a parsed PDF). */
   showLimitTotals?: boolean;
   lastMealLogged: string;
+  /** Practitioner view: adherence breakdown (meals / water / check-ins). */
+  adherence?: AdherenceResult | null;
   /** Client-facing water logging. Omit to render Water Today read-only. */
   onAddWater?: () => void;
   variant?: "portal" | "compact";
