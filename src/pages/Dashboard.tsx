@@ -94,6 +94,8 @@ import { MacrosTab } from "@/components/MacrosTab";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
 import { localDayISO, localTodayISO, shiftISO, mondayOfISO } from "@/lib/local-day";
+import { computeAdherence, adherenceBand, adherenceSubtext, type AdherenceResult } from "@/lib/adherence";
+import { CADENCE_OPTIONS, resolveCheckinSchedule, type CheckinCadence } from "@/lib/checkin-schedule";
 import { formatDistanceToNow } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, LabelList } from "recharts";
 import ClientTrendGraphs from "@/components/ClientTrendGraphs";
@@ -200,6 +202,7 @@ export default function Dashboard() {
   const [waterStreaks, setWaterStreaks] = useState<Record<string, number>>({});
   const [capFolds, setCapFolds] = useState<Record<string, CapFold>>({});
   const [capWindows, setCapWindows] = useState<Record<string, { week_start: string; week_end: string }>>({});
+  const [assignedSlots, setAssignedSlots] = useState<Record<string, number>>({});
   const [liveMacros, setLiveMacros] = useState<Record<string, { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null>>({});
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -315,6 +318,28 @@ export default function Dashboard() {
   const DEFAULT_WATER_TARGET = 2.5;
   const waterTargetOf = (c: { water_target_litres?: number | null } | undefined | null): number =>
     Number(c?.water_target_litres ?? DEFAULT_WATER_TARGET) || DEFAULT_WATER_TARGET;
+
+  /** Adherence % over the client's last 14 complete days (client-local). */
+  const adherenceFor = (c: Client): AdherenceResult =>
+    computeAdherence({
+      client: c as unknown as Parameters<typeof computeAdherence>[0]["client"],
+      mealLogs: recipes[c.id] ?? [],
+      waterLogs: waterLogs[c.id] ?? [],
+      checkins: checkIns[c.id] ?? [],
+      assignedSlots: assignedSlots[c.id] ?? 0,
+      waterTarget: waterTargetOf(c),
+    });
+
+  const ADHERENCE_BAND_CLASS: Record<string, string> = {
+    strong: "border-l-4 border-l-success",
+    steady: "border-l-4 border-l-warning",
+    slipping: "border-l-4 border-l-destructive",
+  };
+  const ADHERENCE_TEXT_CLASS: Record<string, string> = {
+    strong: "text-success",
+    steady: "text-warning",
+    slipping: "text-destructive",
+  };
   const computeWaterStreak = (rows: { log_date: string; litres: number }[], todayStr: string, WATER_TARGET: number): number => {
     const map = new Map(rows.map((r) => [r.log_date, Number(r.litres)]));
     let streak = 0;
@@ -532,14 +557,18 @@ export default function Dashboard() {
       const ids = clientRows.map((c) => c.id);
       // Week anchor for the acknowledgement lookup — practitioner's own clock.
       const monday = mondayOfISO(localTodayISO(Intl.DateTimeFormat().resolvedOptions().timeZone));
-      const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }, { data: waterRows }, { data: ledgerRows }] = await Promise.all([
+      const [{ data: checkRows }, { data: recipeRows }, { data: ackRows }, { data: waterRows }, { data: ledgerRows }, { data: assignRows }] = await Promise.all([
         supabase.from("check_ins").select("*").in("client_id", ids).order("created_at", { ascending: false }),
         supabase.from("recipes").select("id, client_id, name, meal_type, created_at").in("client_id", ids).is("deleted_at", null).order("created_at", { ascending: false }),
         supabase.from("weekly_limit_acknowledgements").select("client_id, food_name, limit_value, acknowledged_at").in("client_id", ids).eq("week_start_date", monday),
         supabase.from("daily_water_logs").select("client_id, log_date, litres").in("client_id", ids).order("log_date", { ascending: false }).limit(400),
         supabase.from("mb_cap_ledger").select("client_id, week_start, day, food, qty, status").in("client_id", ids),
+        supabase.from("client_recipe_assignments").select("client_id, meal_slot").in("client_id", ids),
       ]);
       if (!isCurrent()) return;
+      const slotCounts: Record<string, number> = {};
+      (assignRows ?? []).forEach((a: any) => { slotCounts[a.client_id] = (slotCounts[a.client_id] ?? 0) + 1; });
+      setAssignedSlots(slotCounts);
       const grouped: Record<string, CheckIn[]> = {};
       (checkRows ?? []).forEach((ci) => { (grouped[ci.client_id] ||= []).push(ci); });
       setCheckIns(grouped);
@@ -1115,6 +1144,17 @@ export default function Dashboard() {
       return toast.error("Could not update water target");
     }
     toast.success(`Water target: ${n} L/day`);
+  };
+
+  const setCheckinCadence = async (clientId: string, value: CheckinCadence) => {
+    const prev = (clients.find((x) => x.id === clientId) as unknown as { checkin_cadence?: string } | undefined)?.checkin_cadence ?? "auto";
+    setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, checkin_cadence: value } as typeof x) : x)));
+    const { error } = await supabase.from("clients").update({ checkin_cadence: value } as never).eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, checkin_cadence: prev } as typeof x) : x)));
+      return toast.error("Could not update check-in schedule");
+    }
+    toast.success("Check-in schedule updated");
   };
 
 
@@ -1796,8 +1836,13 @@ export default function Dashboard() {
               const streak = computeStreak(list, (client as unknown as { timezone?: string | null }).timezone);
               const alert = needsAttention(client, list);
               const isOpen = isDetailView;
+              const adherence = adherenceFor(client);
+              const band = adherence.applicable && adherence.score != null ? adherenceBand(adherence.score) : null;
               return (
-                <Card key={client.id} className={`p-4 space-y-3 ${alert ? "border-destructive/60" : ""}`}>
+                <Card
+                  key={client.id}
+                  className={`p-4 space-y-3 ${alert ? "border-destructive/60" : ""} ${band ? ADHERENCE_BAND_CLASS[band] : ""}`}
+                >
                   <button
                     type="button"
                     onClick={() => { if (!isDetailView) navigate(`/dashboard/clients/${client.id}`); }}
@@ -1845,6 +1890,15 @@ export default function Dashboard() {
                           </>
                         )}
                       </div>
+                      {/* Adherence badge: stat + contextual subtext */}
+                      {band && adherence.score != null && (
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <span className={`text-sm font-semibold ${ADHERENCE_TEXT_CLASS[band]}`}>
+                            {adherence.score}% adherence
+                          </span>
+                          <span className="text-xs text-muted-foreground">{adherenceSubtext(adherence)}</span>
+                        </div>
+                      )}
                       {/* Row 2: toggles | client info | details */}
                       <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                         {tierShowsToggle(tier) && (
@@ -2051,6 +2105,7 @@ export default function Dashboard() {
                       capWindow={capWindows[client.id] ?? null}
                       showLimitTotals={Boolean(client.mb_pdf_path)}
                       lastMealLogged={lastLogged}
+                      adherence={adherence}
                     />
 
 
@@ -2162,6 +2217,27 @@ export default function Dashboard() {
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <span>Water target: {waterTargetOf(client)} L/day</span>
                                 <span className="opacity-70">(from MB plan)</span>
+                              </div>
+                            )}
+                            {client.system_mode === "own_practice" ? (
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs">Check-in schedule</Label>
+                                <Select
+                                  value={((client as unknown as { checkin_cadence?: string }).checkin_cadence ?? "auto") as CheckinCadence}
+                                  onValueChange={(v) => setCheckinCadence(client.id, v as CheckinCadence)}
+                                >
+                                  <SelectTrigger className="h-8 w-[180px]"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {CADENCE_OPTIONS.map((o) => (
+                                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span>Check-ins: {resolveCheckinSchedule(client as unknown as Parameters<typeof resolveCheckinSchedule>[0]).label}</span>
+                                <span className="opacity-70">(from phase)</span>
                               </div>
                             )}
 
