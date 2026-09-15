@@ -10,6 +10,9 @@ export interface CheckInRow {
   general_wellbeing: number | null;
   fatigue: number | null;
   sleep: number | null;
+  headache: number | null;
+  pain: number | null;
+  acid_reflux: number | null;
   digestion: number | null;
   waist_cm: number | null;
   hip_cm: number | null;
@@ -77,6 +80,9 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", gender 
           general_wellbeing: ci.general_wellbeing,
           fatigue: ci.fatigue,
           sleep: ci.sleep,
+          headache: ci.headache,
+          pain: ci.pain,
+          acid_reflux: ci.acid_reflux,
           digestion: ci.digestion,
           waist: ci.waist_cm,
           hip: ci.hip_cm,
