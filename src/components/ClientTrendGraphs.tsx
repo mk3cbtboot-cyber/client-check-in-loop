@@ -1,31 +1,25 @@
 import { useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { format } from "date-fns";
+import { STANDARD_CHECKIN_METRICS, type CheckinMetric, CHECKIN_METRIC_KEYS } from "@/lib/checkin-metrics";
 
-export interface CheckInRow {
+export type CheckInRow = {
   id: string;
   created_at: string;
   weight_kg: number | null;
   water_litres: number | null;
-  general_wellbeing: number | null;
-  fatigue: number | null;
-  sleep: number | null;
-  headache: number | null;
-  pain: number | null;
-  acid_reflux: number | null;
-  digestion: number | null;
   waist_cm: number | null;
   hip_cm: number | null;
   chest_cm: number | null;
   upper_thigh_cm: number | null;
-  allergy_skin: number | null;
-  joint_pain: number | null;
-}
+} & { [K in (typeof CHECKIN_METRIC_KEYS)[number]]: number | null };
 
 interface Props {
   checkIns: CheckInRow[];
   weightUnit?: string;
   gender?: "female" | "male" | "unspecified" | null;
+  /** Metrics to chart — defaults to the standard nine (MB behaviour). */
+  metrics?: CheckinMetric[];
 }
 
 function Graph({
@@ -63,7 +57,7 @@ function Graph({
   );
 }
 
-export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", gender }: Props) {
+export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", gender, metrics = STANDARD_CHECKIN_METRICS }: Props) {
   const sorted = useMemo(
     () => [...checkIns].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
     [checkIns],
@@ -77,19 +71,11 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", gender 
           label: format(new Date(ci.created_at), "MMM d"),
           weight: w != null ? Number(w.toFixed(1)) : null,
           water: ci.water_litres != null ? Number(ci.water_litres) : null,
-          general_wellbeing: ci.general_wellbeing,
-          fatigue: ci.fatigue,
-          sleep: ci.sleep,
-          headache: ci.headache,
-          pain: ci.pain,
-          acid_reflux: ci.acid_reflux,
-          digestion: ci.digestion,
+          ...Object.fromEntries(CHECKIN_METRIC_KEYS.map((k) => [k, (ci as any)[k] ?? null])),
           waist: ci.waist_cm,
           hip: ci.hip_cm,
           chest: ci.chest_cm,
           upper_thigh: ci.upper_thigh_cm,
-          allergy_skin: ci.allergy_skin,
-          joint_pain: ci.joint_pain,
         };
       }),
     [sorted, weightUnit],
@@ -103,32 +89,16 @@ export default function ClientTrendGraphs({ checkIns, weightUnit = "kg", gender 
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      {has("general_wellbeing") && (
-        <Graph title="General Well-Being" data={data} yDomain={[0, 5]} lines={[{ key: "general_wellbeing", name: "Rating", color: "hsl(142 71% 45%)" }]} />
-      )}
-      {has("fatigue") && (
-        <Graph title="Fatigue" data={data} yDomain={[0, 5]} lines={[{ key: "fatigue", name: "Rating", color: "hsl(38 92% 50%)" }]} />
-      )}
-      {has("sleep") && (
-        <Graph title="Sleep" data={data} yDomain={[0, 5]} lines={[{ key: "sleep", name: "Rating", color: "hsl(262 83% 58%)" }]} />
-      )}
-      {has("headache") && (
-        <Graph title="Headache" data={data} yDomain={[0, 5]} lines={[{ key: "headache", name: "Rating (1 Best, 5 Worst)", color: "hsl(330 80% 55%)" }]} />
-      )}
-      {has("pain") && (
-        <Graph title="Pain" data={data} yDomain={[0, 5]} lines={[{ key: "pain", name: "Rating (1 Best, 5 Worst)", color: "hsl(20 90% 55%)" }]} />
-      )}
-      {has("digestion") && (
-        <Graph title="Digestion" data={data} yDomain={[0, 5]} lines={[{ key: "digestion", name: "Rating", color: "hsl(173 80% 40%)" }]} />
-      )}
-      {has("acid_reflux") && (
-        <Graph title="Acid Reflux" data={data} yDomain={[0, 5]} lines={[{ key: "acid_reflux", name: "Rating (1 Best, 5 Worst)", color: "hsl(80 65% 45%)" }]} />
-      )}
-      {has("allergy_skin") && (
-        <Graph title="Allergy / Skin" data={data} yDomain={[0, 5]} lines={[{ key: "allergy_skin", name: "Rating (1 Best, 5 Worst)", color: "hsl(217 91% 60%)" }]} />
-      )}
-      {has("joint_pain") && (
-        <Graph title="Joint Pain" data={data} yDomain={[0, 5]} lines={[{ key: "joint_pain", name: "Rating (1 Best, 5 Worst)", color: "hsl(0 72% 51%)" }]} />
+      {metrics.map((m) =>
+        has(m.key) ? (
+          <Graph
+            key={m.key}
+            title={m.label}
+            data={data}
+            yDomain={[0, 5]}
+            lines={[{ key: m.key, name: "Rating (1 Best, 5 Worst)", color: m.color }]}
+          />
+        ) : null,
       )}
       {(() => {
         const showHip = gender !== "male";

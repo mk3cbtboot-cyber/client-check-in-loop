@@ -99,6 +99,12 @@ import { CADENCE_OPTIONS, WEEKDAY_OPTIONS, nextCheckinDue, resolveCheckinSchedul
 import { formatDistanceToNow } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, LabelList } from "recharts";
 import ClientTrendGraphs from "@/components/ClientTrendGraphs";
+import {
+  STANDARD_CHECKIN_METRICS,
+  resolveCheckinMetrics,
+  parseCheckinMetricsConfig,
+  type CheckinMetricsConfig,
+} from "@/lib/checkin-metrics";
 import PractitionerMessages from "@/components/PractitionerMessages";
 import MealsOverviewSection from "@/components/MealsOverviewSection";
 import AppointmentDialog, { type Appointment } from "@/components/AppointmentDialog";
@@ -245,6 +251,42 @@ export default function Dashboard() {
   const [displayName, setDisplayName] = useState("");
   const [lastName, setLastName] = useState("");
   const [savingDisplayName, setSavingDisplayName] = useState(false);
+  // Practitioner's check-in metric settings (Custom clients only).
+  const [checkinMetricsCfg, setCheckinMetricsCfg] = useState<CheckinMetricsConfig>({});
+  const [savingMetrics, setSavingMetrics] = useState(false);
+  const metricActive = (key: string) => !checkinMetricsCfg.active || checkinMetricsCfg.active.includes(key);
+  const metricLabel = (key: string) =>
+    checkinMetricsCfg.labels?.[key] ?? STANDARD_CHECKIN_METRICS.find((m) => m.key === key)!.label;
+  const toggleMetric = (key: string, on: boolean) =>
+    setCheckinMetricsCfg((c) => {
+      const current = c.active ?? STANDARD_CHECKIN_METRICS.map((m) => m.key);
+      const next = on ? [...current, key] : current.filter((k) => k !== key);
+      return { ...c, active: STANDARD_CHECKIN_METRICS.map((m) => m.key).filter((k) => next.includes(k)) };
+    });
+  const renameMetric = (key: string, label: string) =>
+    setCheckinMetricsCfg((c) => ({ ...c, labels: { ...(c.labels ?? {}), [key]: label } }));
+  const saveCheckinMetrics = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) return;
+    const labels: Record<string, string> = {};
+    for (const m of STANDARD_CHECKIN_METRICS) {
+      const raw = checkinMetricsCfg.labels?.[m.key];
+      if (raw === undefined) continue;
+      if (!raw.trim()) return toast.error(`"${m.label}" needs a name`);
+      if (raw.trim() !== m.label) labels[m.key] = raw.trim();
+    }
+    const active = checkinMetricsCfg.active ?? STANDARD_CHECKIN_METRICS.map((m) => m.key);
+    if (active.length === 0) return toast.error("Keep at least one check-in question switched on");
+    setSavingMetrics(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ checkin_metrics: { active, labels } } as never)
+      .eq("id", data.session.user.id);
+    setSavingMetrics(false);
+    if (error) return toast.error("Could not save check-in questions");
+    setCheckinMetricsCfg({ active, labels });
+    toast.success("Check-in questions saved");
+  };
 
   const [savingHours, setSavingHours] = useState(false);
   const [nowTick, setNowTick] = useState(0);
@@ -386,7 +428,7 @@ export default function Dashboard() {
       setPractitionerId(userId);
       const { data: profile } = await supabase
         .from("profiles")
-        .select("practitioner_tier, office_hours, out_of_office, ooo_message, ooo_return_date, timezone, display_name, last_name")
+        .select("practitioner_tier, office_hours, out_of_office, ooo_message, ooo_return_date, timezone, display_name, last_name, checkin_metrics")
         .eq("id", userId)
         .maybeSingle();
       if (cancelled) return;
@@ -397,6 +439,7 @@ export default function Dashboard() {
       setOooReturnDate(((profile as any)?.ooo_return_date ?? "") as string);
       setDisplayName(((profile as any)?.display_name ?? "") as string);
       setLastName(((profile as any)?.last_name ?? "") as string);
+      setCheckinMetricsCfg(parseCheckinMetricsConfig((profile as any)?.checkin_metrics));
 
       const t = (profile?.practitioner_tier ?? null) as PractitionerTier | null;
       if (!t) {
@@ -1281,11 +1324,47 @@ export default function Dashboard() {
               <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader><DialogTitle>Settings</DialogTitle></DialogHeader>
                 <Tabs defaultValue="practice">
-                  <TabsList className="w-full grid grid-cols-3">
+                  <TabsList className="w-full grid grid-cols-4">
                     <TabsTrigger value="practice">Practice type</TabsTrigger>
                     <TabsTrigger value="profile">Profile</TabsTrigger>
                     <TabsTrigger value="availability">Availability</TabsTrigger>
+                    <TabsTrigger value="checkins">Check-ins</TabsTrigger>
                   </TabsList>
+
+                  <TabsContent value="checkins" className="space-y-3 pt-3">
+                    <p className="text-xs text-muted-foreground">
+                      Choose which questions your Custom Rx clients answer at each check-in, and rename any of them.
+                      Metabolic Balance clients always answer the standard nine. Switching a question off hides it from
+                      now on — past answers are kept.
+                    </p>
+                    <div className="space-y-2">
+                      {STANDARD_CHECKIN_METRICS.map((m) => {
+                        const on = metricActive(m.key);
+                        return (
+                          <div key={m.key} className="flex items-center gap-3 rounded-md border p-2">
+                            <Switch
+                              checked={on}
+                              onCheckedChange={(v) => toggleMetric(m.key, !!v)}
+                              aria-label={`Toggle ${m.label}`}
+                            />
+                            <Input
+                              value={metricLabel(m.key)}
+                              maxLength={60}
+                              disabled={!on}
+                              onChange={(e) => renameMetric(m.key, e.target.value)}
+                              aria-label={`${m.label} name`}
+                            />
+                            {!on && <span className="text-xs text-muted-foreground shrink-0">Off</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-end">
+                      <Button onClick={saveCheckinMetrics} disabled={savingMetrics}>
+                        {savingMetrics ? "Saving…" : "Save check-in questions"}
+                      </Button>
+                    </div>
+                  </TabsContent>
 
                   <TabsContent value="profile" className="space-y-3 pt-3">
                     <div className="space-y-2">
@@ -2564,7 +2643,12 @@ export default function Dashboard() {
                       </TabsContent>
 
                       <TabsContent value="progress" className="pt-3 space-y-4">
-                        <ClientTrendGraphs checkIns={list as any} weightUnit={client.weight_unit} gender={client.gender} />
+                        <ClientTrendGraphs
+                          checkIns={list as any}
+                          weightUnit={client.weight_unit}
+                          gender={client.gender}
+                          metrics={resolveCheckinMetrics(checkinMetricsCfg, client.client_type)}
+                        />
                         <Collapsible open={!!rawOpen[client.id]} onOpenChange={(o) => setRawOpen((s) => ({ ...s, [client.id]: o }))}>
                           <CollapsibleTrigger asChild>
                             <Button variant="outline" size="sm">
@@ -2577,17 +2661,10 @@ export default function Dashboard() {
                             ) : (
                               <ul className="space-y-2">
                                 {list.map((ci) => {
-                                  const ratingFields: [string, number | null][] = [
-                                    ["General Well-Being", ci.general_wellbeing],
-                                    ["Fatigue", ci.fatigue],
-                                    ["Sleep", ci.sleep],
-                                    ["Headache", ci.headache],
-                                    ["Pain", ci.pain],
-                                    ["Joint Pain", ci.joint_pain],
-                                    ["Acid Reflux", ci.acid_reflux],
-                                    ["Digestion", ci.digestion],
-                                    ["Allergy / Skin", ci.allergy_skin],
-                                  ];
+                                  const ratingFields: [string, number | null][] =
+                                    resolveCheckinMetrics(checkinMetricsCfg, client.client_type).map(
+                                      (m) => [m.label, (ci as any)[m.key] ?? null] as [string, number | null],
+                                    );
                                   const hasRatings = ratingFields.some(([, v]) => v != null);
                                   const showHip = client.gender !== "male";
                                   const showChest = client.gender !== "female";

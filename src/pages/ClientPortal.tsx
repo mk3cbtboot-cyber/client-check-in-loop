@@ -1,6 +1,7 @@
 
 import { Phase3FoodRequests } from "@/components/Phase3FoodRequests";
 import { PlanInstructions } from "@/components/PlanInstructions";
+import { resolveCheckinMetrics } from "@/lib/checkin-metrics";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -127,6 +128,7 @@ interface ClientState {
   phase3_portions_confirmed: boolean;
   phase3_lunch_prompt_last_dismissed_on: string | null;
   client_type?: "mb" | "custom";
+  practitioner_checkin_metrics?: unknown;
   mb_food_list?: unknown;
   mb_run?: unknown;
   plan_format?: string;
@@ -210,6 +212,12 @@ export default function ClientPortal() {
   };
   const [ratings, setRatings] = useState<Record<string, number>>(initialRatings);
   const setRating = (k: string, v: number) => setRatings((r) => ({ ...r, [k]: v }));
+  // Custom clients follow their practitioner's active/renamed metric list;
+  // MB clients always get the fixed standard nine.
+  const checkinMetrics = useMemo(
+    () => resolveCheckinMetrics(client?.practitioner_checkin_metrics, client?.client_type),
+    [client?.practitioner_checkin_metrics, client?.client_type],
+  );
 
   // Weekly Phase 2 Strict measurements (stored in cm internally)
   
@@ -784,7 +792,9 @@ export default function ClientPortal() {
           const kg = weightUnit === "lbs" ? Math.round(w * 0.45359237 * 100) / 100 : w;
           body.weight_kg = kg;
         }
-        Object.assign(body, ratings);
+        // Only submit the metrics this client was actually asked about —
+        // metrics the practitioner switched off stay null (history untouched).
+        Object.assign(body, Object.fromEntries(checkinMetrics.map((m) => [m.key, ratings[m.key]])));
         if (isWeeklyMode) {
           body.is_weekly = true;
 
@@ -1484,17 +1494,7 @@ export default function ClientPortal() {
                     <Input id="thigh" type="number" step="0.1" min={0} value={thighInput} onChange={(e) => setThighInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 56" : "e.g. 22"} />
                   </div>
                 </div>
-                {([
-                  ["general_wellbeing", "General Well-Being"],
-                  ["fatigue", "Fatigue"],
-                  ["sleep", "Sleep"],
-                  ["headache", "Headache"],
-                  ["pain", "Pain"],
-                  ["joint_pain", "Joint Pain"],
-                  ["acid_reflux", "Acid Reflux"],
-                  ["digestion", "Digestion"],
-                  ["allergy_skin", "Allergy / Skin"],
-                ] as [string, string][]).map(([key, label]) => (
+                {checkinMetrics.map(({ key, label }) => (
                   <div key={key} className="space-y-2">
                     <Label>{label} ({ratings[key]}/5)</Label>
                     <div className="grid grid-cols-5 gap-2">
