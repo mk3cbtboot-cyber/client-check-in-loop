@@ -318,6 +318,28 @@ export default function Dashboard() {
   const DEFAULT_WATER_TARGET = 2.5;
   const waterTargetOf = (c: { water_target_litres?: number | null } | undefined | null): number =>
     Number(c?.water_target_litres ?? DEFAULT_WATER_TARGET) || DEFAULT_WATER_TARGET;
+
+  /** Adherence % over the client's last 14 complete days (client-local). */
+  const adherenceFor = (c: Client): AdherenceResult =>
+    computeAdherence({
+      client: c as unknown as Parameters<typeof computeAdherence>[0]["client"],
+      mealLogs: recipes[c.id] ?? [],
+      waterLogs: waterLogs[c.id] ?? [],
+      checkins: checkIns[c.id] ?? [],
+      assignedSlots: assignedSlots[c.id] ?? 0,
+      waterTarget: waterTargetOf(c),
+    });
+
+  const ADHERENCE_BAND_CLASS: Record<string, string> = {
+    strong: "border-l-4 border-l-success",
+    steady: "border-l-4 border-l-warning",
+    slipping: "border-l-4 border-l-destructive",
+  };
+  const ADHERENCE_TEXT_CLASS: Record<string, string> = {
+    strong: "text-success",
+    steady: "text-warning",
+    slipping: "text-destructive",
+  };
   const computeWaterStreak = (rows: { log_date: string; litres: number }[], todayStr: string, WATER_TARGET: number): number => {
     const map = new Map(rows.map((r) => [r.log_date, Number(r.litres)]));
     let streak = 0;
