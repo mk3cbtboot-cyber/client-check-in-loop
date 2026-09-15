@@ -202,6 +202,7 @@ export default function Dashboard() {
   const [waterStreaks, setWaterStreaks] = useState<Record<string, number>>({});
   const [capFolds, setCapFolds] = useState<Record<string, CapFold>>({});
   const [capWindows, setCapWindows] = useState<Record<string, { week_start: string; week_end: string }>>({});
+  const [assignedSlots, setAssignedSlots] = useState<Record<string, number>>({});
   const [liveMacros, setLiveMacros] = useState<Record<string, { calories: number; protein_g: number; carbs_g: number; fat_g: number } | null>>({});
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
