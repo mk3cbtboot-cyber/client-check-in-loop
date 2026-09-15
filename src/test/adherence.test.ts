@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dueCheckinDates, resolveCheckinSchedule } from "@/lib/checkin-schedule";
+import { dueCheckinDates, nextCheckinDue, resolveCheckinSchedule } from "@/lib/checkin-schedule";
 import { computeAdherence } from "@/lib/adherence";
 
 const mbPhase2 = {
@@ -69,7 +69,8 @@ describe("adherence", () => {
       created_at: "2026-08-01T00:00:00Z",
       timezone: "UTC",
     };
-    const window = days(14, "2026-09-01"); // Sep 1..14, today = Sep 15
+    // Weekly cadence => trailing 7 complete days (Sep 8..14), today = Sep 15.
+    const window = days(14, "2026-09-01");
     const res = computeAdherence({
       client: custom,
       today: "2026-09-15",
@@ -79,9 +80,10 @@ describe("adherence", () => {
       waterTarget: 2.5,
     });
     expect(res.applicable).toBe(true);
-    expect(res.meals).toMatchObject({ done: 42, total: 42 });
+    expect(res.windowStart).toBe("2026-09-08");
+    expect(res.meals).toMatchObject({ done: 21, total: 21 });
     expect(res.water.pct).toBe(100);
-    expect(res.checkins).toMatchObject({ done: 2, total: 2 });
+    expect(res.checkins).toMatchObject({ done: 1, total: 1 });
     expect(res.score).toBe(100);
   });
 
@@ -99,7 +101,9 @@ describe("adherence", () => {
       checkins: [],
       waterTarget: 2.5,
     });
-    // Only Sep 10/11/12 are scheduled: 9 meals, not 14 days x 3.
+    // Phase 2 day 1-14 daily period: window = days elapsed, capped at 14.
+    expect(res.windowStart).toBe("2026-09-01");
+    // Only Sep 10/11/12 are scheduled: 9 meals, not every day x 3.
     expect(res.meals.total).toBe(9);
     expect(res.meals.pct).toBe(0);
   });
@@ -117,5 +121,61 @@ describe("adherence", () => {
       expect(res.applicable).toBe(false);
       expect(res.score).toBeNull();
     }
+  });
+});
+
+describe("cadence-matched window and weekday changes", () => {
+  it("Phase 2 daily period grows with days elapsed, then drops to 7 days", () => {
+    const early = computeAdherence({
+      client: { ...mbPhase2, timezone: "UTC", mb_run: {} },
+      today: "2026-09-06",
+      mealLogs: [], waterLogs: [], checkins: [], waterTarget: 2.5,
+    });
+    expect(early.windowStart).toBe("2026-09-01");
+    expect(early.windowEnd).toBe("2026-09-05");
+
+    const later = computeAdherence({
+      client: { ...mbPhase2, phase: "phase3", timezone: "UTC", mb_run: {} },
+      today: "2026-09-30",
+      mealLogs: [], waterLogs: [], checkins: [], waterTarget: 2.5,
+    });
+    expect(later.windowStart).toBe("2026-09-23");
+    expect(later.windowEnd).toBe("2026-09-29");
+  });
+
+  it("a custom client set to no check-ins gets no badge", () => {
+    const res = computeAdherence({
+      client: { client_type: "custom", system_mode: "own_practice", checkin_cadence: "none", created_at: "2026-08-01T00:00:00Z", timezone: "UTC" },
+      today: "2026-09-15",
+      mealLogs: [], waterLogs: [], checkins: [], waterTarget: 2.5,
+    });
+    expect(res.applicable).toBe(false);
+  });
+
+  it("a weekday change does not rewrite past due dates", () => {
+    const base = {
+      client_type: "custom",
+      system_mode: "own_practice",
+      checkin_cadence: "weekly",
+      checkin_cadence_anchor: "2026-09-01", // Tuesday
+      created_at: "2026-08-01T00:00:00Z",
+    };
+    const before = dueCheckinDates(resolveCheckinSchedule(base), "2026-09-01", "2026-09-29");
+    expect(before).toEqual(["2026-09-01", "2026-09-08", "2026-09-15", "2026-09-22", "2026-09-29"]);
+
+    const changed = resolveCheckinSchedule({
+      ...base,
+      checkin_weekday: 5, // Friday
+      checkin_weekday_effective_from: "2026-09-16",
+    });
+    const after = dueCheckinDates(changed, "2026-09-01", "2026-09-29");
+    // History intact before the change date, Fridays afterwards.
+    expect(after.filter((d) => d < "2026-09-16")).toEqual(["2026-09-01", "2026-09-08", "2026-09-15"]);
+    expect(after.filter((d) => d >= "2026-09-16")).toEqual(["2026-09-18", "2026-09-25"]);
+  });
+
+  it("nextCheckinDue returns the first upcoming due date", () => {
+    const s = resolveCheckinSchedule({ ...mbPhase2, phase: "phase3" });
+    expect(nextCheckinDue(s, "2026-09-16")).toBe("2026-09-22");
   });
 });
