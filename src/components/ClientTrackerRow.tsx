@@ -82,11 +82,13 @@ export default function ClientTrackerRow({
   capWindow,
   showLimitTotals = false,
   lastMealLogged,
+  adherence,
   onAddWater,
   variant = "portal",
 }: ClientTrackerRowProps) {
   const limitCards = buildLimitCards(foodLimits, showLimitTotals, capFold, capWindow);
 
+  const pctText = (p: number | null | undefined) => (p == null ? "—" : `${Math.round(p)}%`);
 
   if (variant === "compact") {
     const stats: Array<{ label: string; value: string; sub?: string }> = [
@@ -97,14 +99,53 @@ export default function ClientTrackerRow({
       { label: "Last Meal Logged", value: lastMealLogged },
     ];
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-        {stats.map((s) => (
-          <div key={s.label} className="rounded-md border p-2">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
-            <p className="text-sm font-semibold truncate">{s.value}</p>
-            {s.sub && <p className="text-[10px] text-muted-foreground truncate">{s.sub}</p>}
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-md border p-2">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
+              <p className="text-sm font-semibold truncate">{s.value}</p>
+              {s.sub && <p className="text-[10px] text-muted-foreground truncate">{s.sub}</p>}
+            </div>
+          ))}
+        </div>
+        {adherence?.applicable && (
+          <div className="rounded-md border p-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Adherence · last {adherence.windowStart} to {adherence.windowEnd}
+              </p>
+              <p className="text-sm font-semibold">{adherence.score == null ? "—" : `${adherence.score}%`}</p>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Meals</p>
+                <p className="text-sm font-semibold">{pctText(adherence.meals.pct)}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {adherence.meals.total > 0
+                    ? `${adherence.meals.done} of ${adherence.meals.total} logged`
+                    : "No scheduled meals"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Water</p>
+                <p className="text-sm font-semibold">{pctText(adherence.water.pct)}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {adherence.water.done} of {adherence.water.total} days on target
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Check-ins</p>
+                <p className="text-sm font-semibold">{pctText(adherence.checkins.pct)}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {adherence.checkins.total > 0
+                    ? `${adherence.checkins.done} of ${adherence.checkins.total} on schedule`
+                    : "None due"}
+                </p>
+              </div>
+            </div>
           </div>
-        ))}
+        )}
       </div>
     );
 
