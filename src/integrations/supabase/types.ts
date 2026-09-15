@@ -904,6 +904,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          checkin_metrics: Json
           created_at: string
           display_name: string | null
           email: string
@@ -917,6 +918,7 @@ export type Database = {
           timezone: string | null
         }
         Insert: {
+          checkin_metrics?: Json
           created_at?: string
           display_name?: string | null
           email: string
@@ -930,6 +932,7 @@ export type Database = {
           timezone?: string | null
         }
         Update: {
+          checkin_metrics?: Json
           created_at?: string
           display_name?: string | null
           email?: string

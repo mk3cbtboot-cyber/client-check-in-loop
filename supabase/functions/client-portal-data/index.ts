@@ -35,12 +35,16 @@ Deno.serve(async (req) => {
 
     // Practitioner first name for portal display
     let practitionerFirstName = "your practitioner";
+    // Practitioner-configured check-in metric list (Custom clients only; the
+    // portal resolves it against the standard nine using the shared module).
+    let practitionerCheckinMetrics: unknown = {};
     if (c.practitioner_id) {
       const { data: prof } = await admin
         .from("profiles")
-        .select("email, display_name")
+        .select("email, display_name, checkin_metrics")
         .eq("id", c.practitioner_id)
         .maybeSingle();
+      practitionerCheckinMetrics = (prof as { checkin_metrics?: unknown } | null)?.checkin_metrics ?? {};
       const fromName = (prof?.display_name ?? "").trim().split(/\s+/)[0];
       const fromEmail = (() => {
         const local = (prof?.email ?? "").split("@")[0] ?? "";
@@ -268,6 +272,7 @@ Deno.serve(async (req) => {
         phase3_portions_confirmed: c.phase3_portions_confirmed === true,
         phase3_lunch_prompt_last_dismissed_on: c.phase3_lunch_prompt_last_dismissed_on ?? null,
         client_type: c.client_type === "custom" ? "custom" : "mb",
+        practitioner_checkin_metrics: practitionerCheckinMetrics ?? {},
         timezone: typeof c.timezone === "string" ? c.timezone : null,
         created_at: c.created_at ?? null,
         checkin_cadence: typeof c.checkin_cadence === "string" ? c.checkin_cadence : "auto",
