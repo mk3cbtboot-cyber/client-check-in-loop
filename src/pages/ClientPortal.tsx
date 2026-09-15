@@ -1382,6 +1382,18 @@ export default function ClientPortal() {
       {tab === "checkin" && !phase4CheckinHidden && (
 
         <section className="max-w-md mx-auto p-4">
+          {(() => {
+            const sched = resolveCheckinSchedule(client as unknown as Parameters<typeof resolveCheckinSchedule>[0]);
+            const due = nextCheckinDue(sched, todayISO());
+            if (!due) return null;
+            const label = new Date(`${due}T12:00:00Z`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+            return (
+              <p className="mb-3 text-sm text-muted-foreground text-center">
+                {due <= todayISO() ? `Check-in due today (${label})` : `Next check-in due ${label}`}
+              </p>
+            );
+          })()}
+
           {checkinDone ? (
             <Card className="p-6 text-center space-y-3">
               <h2 className="text-lg font-semibold">Thanks!</h2>
