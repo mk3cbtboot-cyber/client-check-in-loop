@@ -2219,6 +2219,27 @@ export default function Dashboard() {
                                 <span className="opacity-70">(from MB plan)</span>
                               </div>
                             )}
+                            {client.system_mode === "own_practice" ? (
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs">Check-in schedule</Label>
+                                <Select
+                                  value={((client as unknown as { checkin_cadence?: string }).checkin_cadence ?? "auto") as CheckinCadence}
+                                  onValueChange={(v) => setCheckinCadence(client.id, v as CheckinCadence)}
+                                >
+                                  <SelectTrigger className="h-8 w-[180px]"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    {CADENCE_OPTIONS.map((o) => (
+                                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span>Check-ins: {resolveCheckinSchedule(client as unknown as Parameters<typeof resolveCheckinSchedule>[0]).label}</span>
+                                <span className="opacity-70">(from phase)</span>
+                              </div>
+                            )}
 
                             <Button variant="outline" size="sm"
                               onClick={() => { navigator.clipboard.writeText(portalLink); toast.success("Portal link copied"); }}>
