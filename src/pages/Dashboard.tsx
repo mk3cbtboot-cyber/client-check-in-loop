@@ -1146,6 +1146,17 @@ export default function Dashboard() {
     toast.success(`Water target: ${n} L/day`);
   };
 
+  const setCheckinCadence = async (clientId: string, value: CheckinCadence) => {
+    const prev = (clients.find((x) => x.id === clientId) as unknown as { checkin_cadence?: string } | undefined)?.checkin_cadence ?? "auto";
+    setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, checkin_cadence: value } as typeof x) : x)));
+    const { error } = await supabase.from("clients").update({ checkin_cadence: value } as never).eq("id", clientId);
+    if (error) {
+      setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, checkin_cadence: prev } as typeof x) : x)));
+      return toast.error("Could not update check-in schedule");
+    }
+    toast.success("Check-in schedule updated");
+  };
+
 
 
   const setShow8Rules = async (clientId: string, value: boolean) => {
