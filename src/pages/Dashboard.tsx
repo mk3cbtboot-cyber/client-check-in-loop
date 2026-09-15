@@ -94,6 +94,8 @@ import { MacrosTab } from "@/components/MacrosTab";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
 import { localDayISO, localTodayISO, shiftISO, mondayOfISO } from "@/lib/local-day";
+import { computeAdherence, adherenceBand, adherenceSubtext, type AdherenceResult } from "@/lib/adherence";
+import { CADENCE_OPTIONS, resolveCheckinSchedule, type CheckinCadence } from "@/lib/checkin-schedule";
 import { formatDistanceToNow } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, LabelList } from "recharts";
 import ClientTrendGraphs from "@/components/ClientTrendGraphs";
