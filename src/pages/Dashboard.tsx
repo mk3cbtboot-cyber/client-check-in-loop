@@ -1890,6 +1890,15 @@ export default function Dashboard() {
                           </>
                         )}
                       </div>
+                      {/* Adherence badge: stat + contextual subtext */}
+                      {band && adherence.score != null && (
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <span className={`text-sm font-semibold ${ADHERENCE_TEXT_CLASS[band]}`}>
+                            {adherence.score}% adherence
+                          </span>
+                          <span className="text-xs text-muted-foreground">{adherenceSubtext(adherence)}</span>
+                        </div>
+                      )}
                       {/* Row 2: toggles | client info | details */}
                       <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                         {tierShowsToggle(tier) && (
