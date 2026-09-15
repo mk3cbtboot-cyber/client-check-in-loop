@@ -95,7 +95,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { getPhaseProgress, progressLabelForCheckin } from "@/lib/progress";
 import { localDayISO, localTodayISO, shiftISO, mondayOfISO } from "@/lib/local-day";
 import { computeAdherence, adherenceBand, adherenceSubtext, type AdherenceResult } from "@/lib/adherence";
-import { CADENCE_OPTIONS, resolveCheckinSchedule, type CheckinCadence } from "@/lib/checkin-schedule";
+import { CADENCE_OPTIONS, WEEKDAY_OPTIONS, nextCheckinDue, resolveCheckinSchedule, type CheckinCadence } from "@/lib/checkin-schedule";
 import { formatDistanceToNow } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, LabelList } from "recharts";
 import ClientTrendGraphs from "@/components/ClientTrendGraphs";
@@ -1155,6 +1155,25 @@ export default function Dashboard() {
       return toast.error("Could not update check-in schedule");
     }
     toast.success("Check-in schedule updated");
+  };
+
+  /**
+   * Custom clients only. Stamping the effective-from date keeps every due date
+   * before the change on the old rule, so past adherence scores never move.
+   */
+  const setCheckinWeekday = async (clientId: string, value: string) => {
+    const weekday = value === "any" ? null : Number(value);
+    const patch = {
+      checkin_weekday: weekday,
+      checkin_weekday_effective_from: weekday == null ? null : localTodayISO(
+        (clients.find((x) => x.id === clientId) as unknown as { timezone?: string | null } | undefined)?.timezone ?? null,
+      ),
+    };
+    setClients((cs) => cs.map((x) => (x.id === clientId ? ({ ...x, ...patch } as typeof x) : x)));
+    const { error } = await supabase.from("clients").update(patch as never).eq("id", clientId);
+    if (error) return toast.error("Could not update check-in day");
+    toast.success(weekday == null ? "Check-in day cleared" : "Check-in day updated");
+    load();
   };
 
 
