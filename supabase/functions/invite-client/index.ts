@@ -98,6 +98,10 @@ Deno.serve(async (req) => {
     if (starting_weight_kg != null) insertRow.starting_weight_kg = starting_weight_kg;
     if (age != null) insertRow.age = age;
     if (weight_unit) insertRow.weight_unit = weight_unit;
+    // Phase is an MB concept only. The column no longer carries a default, so
+    // MB / Practitioner Rx clients must set it explicitly; Custom stays NULL.
+    const isCustomClient = client_type === "custom" || system_mode === "own_practice";
+    if (!isCustomClient) insertRow.phase = "phase2_strict";
     // A real default day boundary from the start — the practitioner's own zone,
     // else Toronto. The portal still corrects this to the client's own zone.
     insertRow.timezone = isValidTz(timezone) ? timezone : FALLBACK_TZ;
