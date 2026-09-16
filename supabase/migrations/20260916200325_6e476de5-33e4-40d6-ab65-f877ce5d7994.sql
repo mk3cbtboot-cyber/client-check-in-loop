@@ -1,0 +1,2 @@
+ALTER TABLE public.clients ALTER COLUMN phase DROP DEFAULT;
+ALTER TABLE public.clients ALTER COLUMN phase DROP NOT NULL;

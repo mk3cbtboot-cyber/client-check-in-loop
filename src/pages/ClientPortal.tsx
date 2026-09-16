@@ -58,7 +58,7 @@ import { formatDistanceToNow } from "date-fns";
 interface ClientState {
   id: string;
   name: string;
-  phase: Phase;
+  phase: Phase | null;
   timezone?: string | null;
   food_limits: Record<string, number>;
   cap_week_start?: string | null;
@@ -128,6 +128,7 @@ interface ClientState {
   phase3_portions_confirmed: boolean;
   phase3_lunch_prompt_last_dismissed_on: string | null;
   client_type?: "mb" | "custom";
+  checkin_cadence?: string | null;
   practitioner_checkin_metrics?: unknown;
   mb_food_list?: unknown;
   mb_run?: unknown;
@@ -763,15 +764,34 @@ export default function ClientPortal() {
   })();
   const strictTotalDays = 14;
   const isAlwaysWeeklyPhase = client?.phase === "phase2_extended" || client?.phase === "phase3" || client?.phase === "phase4";
-  const isWeeklyMode = (isP2Strict && daysSinceP2Start >= strictTotalDays) || isAlwaysWeeklyPhase;
-  const ratingsTitle = isP2Strict
-    ? (isWeeklyMode ? "Weekly Progress — Phase 2" : "Daily Progress — Phase 2")
-    : `Weekly Progress — ${phaseShort(client?.phase ?? "")}`;
-  const ratingsSubtitle = isWeeklyMode
-    ? (isP2Strict
-        ? `You're past Day ${strictTotalDays} — please complete this once per week. Rate each area from 1 (best) to 5 (worst).`
-        : "Please complete this once per week. Rate each area from 1 (best) to 5 (worst).")
-    : "Rate each area from 1 (best) to 5 (worst).";
+  // Custom Rx clients have no MB phase — their check-in rhythm comes from the
+  // practitioner-set cadence. Measurements only on an explicit weekly/biweekly
+  // cadence; "auto" and "none" behave like daily (no measurements).
+  const isCustomClient = client?.client_type === "custom" || client?.system_mode === "own_practice";
+  const customCadence = isCustomClient ? (client?.checkin_cadence ?? "auto") : null;
+  const isWeeklyMode = isCustomClient
+    ? customCadence === "weekly" || customCadence === "biweekly"
+    : (isP2Strict && daysSinceP2Start >= strictTotalDays) || isAlwaysWeeklyPhase;
+  const ratingsTitle = isCustomClient
+    ? customCadence === "weekly"
+      ? "Weekly Progress"
+      : customCadence === "biweekly"
+        ? "Progress Check-In (every 2 weeks)"
+        : "Progress Check-In"
+    : isP2Strict
+      ? (isWeeklyMode ? "Weekly Progress — Phase 2" : "Daily Progress — Phase 2")
+      : `Weekly Progress — ${phaseShort(client?.phase ?? "")}`;
+  const ratingsSubtitle = isCustomClient
+    ? customCadence === "weekly"
+      ? "Please complete this once per week. Rate each area from 1 (best) to 5 (worst)."
+      : customCadence === "biweekly"
+        ? "Please complete this every 2 weeks. Rate each area from 1 (best) to 5 (worst)."
+        : "Rate each area from 1 (best) to 5 (worst)."
+    : isWeeklyMode
+      ? (isP2Strict
+          ? `You're past Day ${strictTotalDays} — please complete this once per week. Rate each area from 1 (best) to 5 (worst).`
+          : "Please complete this once per week. Rate each area from 1 (best) to 5 (worst).")
+      : "Rate each area from 1 (best) to 5 (worst).";
   const phaseProgress = getPhaseProgress(client?.phase, client?.phase2_strict_started_at);
   const renderGender = client?.gender ?? null;
 
@@ -1456,6 +1476,7 @@ export default function ClientPortal() {
                   <Input id="water" type="number" step="0.25" min={0} max={20} value={waterLitres} onChange={(e) => setWaterAmount(Number(e.target.value))} />
                   <p className="text-xs text-muted-foreground">Synced with your home screen water tracker.</p>
                 </div>
+                {isWeeklyMode && (
                 <div className="space-y-4 border-t pt-4">
                   <p className="text-sm font-medium">Body measurements</p>
                   <div className="space-y-2">
@@ -1494,6 +1515,7 @@ export default function ClientPortal() {
                     <Input id="thigh" type="number" step="0.1" min={0} value={thighInput} onChange={(e) => setThighInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 56" : "e.g. 22"} />
                   </div>
                 </div>
+                )}
                 {checkinMetrics.map(({ key, label }) => (
                   <div key={key} className="space-y-2">
                     <Label>{label} ({ratings[key]}/5)</Label>
