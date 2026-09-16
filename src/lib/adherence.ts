@@ -35,7 +35,10 @@ export interface AdherenceInput {
   mealLogs: { created_at: string }[];
   waterLogs: { log_date: string; litres: number | string }[];
   checkins: { created_at: string }[];
-  /** Recipe Plan clients: how many recipe slots are assigned. */
+  /**
+   * Recipe Plan clients: how many *distinct* meal slots have recipes assigned.
+   * Several recipe options in one slot are one scheduled meal, not several.
+   */
   assignedSlots?: number;
   waterTarget: number;
   /** Override "today" (client-local) for tests. */
