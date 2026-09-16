@@ -179,3 +179,30 @@ describe("cadence-matched window and weekday changes", () => {
     expect(nextCheckinDue(s, "2026-09-16")).toBe("2026-09-22");
   });
 });
+
+describe("Recipe Plan scheduled meals", () => {
+  const recipeClient = {
+    client_type: "custom" as const,
+    system_mode: "own_practice",
+    plan_format: "recipe",
+    checkin_cadence: "weekly",
+    checkin_cadence_anchor: "2026-09-01",
+    created_at: "2026-08-01T00:00:00Z",
+    timezone: "UTC",
+  };
+
+  it("counts distinct slots, so 3 slots score 100% when each is logged once", () => {
+    const days = ["2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-12","2026-09-13","2026-09-14"];
+    const res = computeAdherence({
+      client: recipeClient,
+      today: "2026-09-15",
+      assignedSlots: 3, // 9 assignment rows across 3 slots -> 3 scheduled meals
+      mealLogs: days.flatMap((d) => [1, 2, 3].map(() => ({ created_at: `${d}T12:00:00Z` }))),
+      waterLogs: [],
+      checkins: [],
+      waterTarget: 2.5,
+    });
+    expect(res.meals).toMatchObject({ done: 21, total: 21 });
+    expect(res.meals.pct).toBe(100);
+  });
+});
