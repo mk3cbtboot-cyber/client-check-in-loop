@@ -4,6 +4,7 @@ import {
   DUE_GRACE_MINUTES,
   isSlotDue,
   localParts,
+  missedMealSlots,
 } from "../../supabase/functions/_shared/missed-meals";
 
 describe("DEFAULT_SLOT_DUE_HOUR", () => {
@@ -62,7 +63,7 @@ describe("localParts", () => {
 });
 
 describe("missedMealSlots — Recipe Plan slot grouping", () => {
-  const { missedMealSlots } = await import("../../supabase/functions/_shared/missed-meals");
+
 
   const client = {
     id: "c1",
