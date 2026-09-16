@@ -1515,6 +1515,7 @@ export default function ClientPortal() {
                     <Input id="thigh" type="number" step="0.1" min={0} value={thighInput} onChange={(e) => setThighInput(e.target.value)} placeholder={lengthUnit === "cm" ? "e.g. 56" : "e.g. 22"} />
                   </div>
                 </div>
+                )}
                 {checkinMetrics.map(({ key, label }) => (
                   <div key={key} className="space-y-2">
                     <Label>{label} ({ratings[key]}/5)</Label>
