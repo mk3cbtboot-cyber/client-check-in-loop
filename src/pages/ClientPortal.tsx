@@ -128,6 +128,7 @@ interface ClientState {
   phase3_portions_confirmed: boolean;
   phase3_lunch_prompt_last_dismissed_on: string | null;
   client_type?: "mb" | "custom";
+  checkin_cadence?: string | null;
   practitioner_checkin_metrics?: unknown;
   mb_food_list?: unknown;
   mb_run?: unknown;
