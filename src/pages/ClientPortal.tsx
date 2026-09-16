@@ -764,15 +764,34 @@ export default function ClientPortal() {
   })();
   const strictTotalDays = 14;
   const isAlwaysWeeklyPhase = client?.phase === "phase2_extended" || client?.phase === "phase3" || client?.phase === "phase4";
-  const isWeeklyMode = (isP2Strict && daysSinceP2Start >= strictTotalDays) || isAlwaysWeeklyPhase;
-  const ratingsTitle = isP2Strict
-    ? (isWeeklyMode ? "Weekly Progress — Phase 2" : "Daily Progress — Phase 2")
-    : `Weekly Progress — ${phaseShort(client?.phase ?? "")}`;
-  const ratingsSubtitle = isWeeklyMode
-    ? (isP2Strict
-        ? `You're past Day ${strictTotalDays} — please complete this once per week. Rate each area from 1 (best) to 5 (worst).`
-        : "Please complete this once per week. Rate each area from 1 (best) to 5 (worst).")
-    : "Rate each area from 1 (best) to 5 (worst).";
+  // Custom Rx clients have no MB phase — their check-in rhythm comes from the
+  // practitioner-set cadence. Measurements only on an explicit weekly/biweekly
+  // cadence; "auto" and "none" behave like daily (no measurements).
+  const isCustomClient = client?.client_type === "custom" || client?.system_mode === "own_practice";
+  const customCadence = isCustomClient ? (client?.checkin_cadence ?? "auto") : null;
+  const isWeeklyMode = isCustomClient
+    ? customCadence === "weekly" || customCadence === "biweekly"
+    : (isP2Strict && daysSinceP2Start >= strictTotalDays) || isAlwaysWeeklyPhase;
+  const ratingsTitle = isCustomClient
+    ? customCadence === "weekly"
+      ? "Weekly Progress"
+      : customCadence === "biweekly"
+        ? "Progress Check-In (every 2 weeks)"
+        : "Progress Check-In"
+    : isP2Strict
+      ? (isWeeklyMode ? "Weekly Progress — Phase 2" : "Daily Progress — Phase 2")
+      : `Weekly Progress — ${phaseShort(client?.phase ?? "")}`;
+  const ratingsSubtitle = isCustomClient
+    ? customCadence === "weekly"
+      ? "Please complete this once per week. Rate each area from 1 (best) to 5 (worst)."
+      : customCadence === "biweekly"
+        ? "Please complete this every 2 weeks. Rate each area from 1 (best) to 5 (worst)."
+        : "Rate each area from 1 (best) to 5 (worst)."
+    : isWeeklyMode
+      ? (isP2Strict
+          ? `You're past Day ${strictTotalDays} — please complete this once per week. Rate each area from 1 (best) to 5 (worst).`
+          : "Please complete this once per week. Rate each area from 1 (best) to 5 (worst).")
+      : "Rate each area from 1 (best) to 5 (worst).";
   const phaseProgress = getPhaseProgress(client?.phase, client?.phase2_strict_started_at);
   const renderGender = client?.gender ?? null;
 
