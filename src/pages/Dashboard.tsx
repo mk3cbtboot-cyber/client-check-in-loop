@@ -609,8 +609,14 @@ export default function Dashboard() {
         supabase.from("client_recipe_assignments").select("client_id, meal_slot").in("client_id", ids),
       ]);
       if (!isCurrent()) return;
+      // Scheduled meals = distinct meal slots, not assignment rows: several recipe
+      // options in one slot are still a single scheduled meal.
+      const slotSets: Record<string, Set<string>> = {};
+      (assignRows ?? []).forEach((a: any) => {
+        (slotSets[a.client_id] ||= new Set<string>()).add(String(a.meal_slot ?? ""));
+      });
       const slotCounts: Record<string, number> = {};
-      (assignRows ?? []).forEach((a: any) => { slotCounts[a.client_id] = (slotCounts[a.client_id] ?? 0) + 1; });
+      Object.entries(slotSets).forEach(([id, set]) => { slotCounts[id] = set.size; });
       setAssignedSlots(slotCounts);
       const grouped: Record<string, CheckIn[]> = {};
       (checkRows ?? []).forEach((ci) => { (grouped[ci.client_id] ||= []).push(ci); });
