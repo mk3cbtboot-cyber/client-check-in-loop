@@ -158,13 +158,20 @@ async function expectedSlotsFor(
       .select("id, meal_slot")
       .eq("client_id", client.id);
     const mealsPerDay = Number(client.meals_per_day ?? 3);
-    return ((data ?? []) as Array<{ id: string; meal_slot: string }>)
-      .filter((a) => a.meal_slot in SLOT_TO_MEAL_TYPE)
-      .map((a) => ({
-        slot: a.meal_slot as SlotKey,
-        label: customSlotLabel(a.meal_slot as SlotKey, mealsPerDay),
-        assignment_id: a.id,
-      }));
+    // One expected slot per distinct meal_slot — multiple recipe options in
+    // the same slot are alternatives, not extra meals (same grouping as the
+    // adherence scheduled-meals fix).
+    const bySlot = new Map<SlotKey, string>();
+    for (const a of (data ?? []) as Array<{ id: string; meal_slot: string }>) {
+      if (!(a.meal_slot in SLOT_TO_MEAL_TYPE)) continue;
+      const slot = a.meal_slot as SlotKey;
+      if (!bySlot.has(slot)) bySlot.set(slot, a.id);
+    }
+    return [...bySlot.entries()].map(([slot, assignmentId]) => ({
+      slot,
+      label: customSlotLabel(slot, mealsPerDay),
+      assignment_id: assignmentId,
+    }));
   }
 
   return [];
