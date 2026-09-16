@@ -58,7 +58,7 @@ import { formatDistanceToNow } from "date-fns";
 interface ClientState {
   id: string;
   name: string;
-  phase: Phase;
+  phase: Phase | null;
   timezone?: string | null;
   food_limits: Record<string, number>;
   cap_week_start?: string | null;
