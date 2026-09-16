@@ -1476,6 +1476,7 @@ export default function ClientPortal() {
                   <Input id="water" type="number" step="0.25" min={0} max={20} value={waterLitres} onChange={(e) => setWaterAmount(Number(e.target.value))} />
                   <p className="text-xs text-muted-foreground">Synced with your home screen water tracker.</p>
                 </div>
+                {isWeeklyMode && (
                 <div className="space-y-4 border-t pt-4">
                   <p className="text-sm font-medium">Body measurements</p>
                   <div className="space-y-2">
