@@ -272,7 +272,7 @@ export type Database = {
           meals_per_day: number
           medical_conditions: string
           name: string
-          phase: string
+          phase: string | null
           phase2_food_list: Json | null
           phase2_strict_mode: string
           phase2_strict_started_at: string | null
@@ -393,7 +393,7 @@ export type Database = {
           meals_per_day?: number
           medical_conditions?: string
           name: string
-          phase?: string
+          phase?: string | null
           phase2_food_list?: Json | null
           phase2_strict_mode?: string
           phase2_strict_started_at?: string | null
@@ -514,7 +514,7 @@ export type Database = {
           meals_per_day?: number
           medical_conditions?: string
           name?: string
-          phase?: string
+          phase?: string | null
           phase2_food_list?: Json | null
           phase2_strict_mode?: string
           phase2_strict_started_at?: string | null
