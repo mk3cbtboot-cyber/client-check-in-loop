@@ -822,6 +822,36 @@ export default function ClientPortal() {
     }
   }, [tab, client, renderGender]);
 
+  // Read-only summary of this period's existing check-in; only the comment
+  // can be changed afterwards.
+  const periodSummaryLabel = (() => {
+    const p = client?.checkin_period ?? null;
+    const fmt = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString(undefined, { month: "long", day: "numeric" });
+    if (!p) return "You can update your comment below.";
+    return p.start === p.end
+      ? `Check-in recorded for ${fmt(p.start)}. You can still update your comment.`
+      : `Check-in recorded for ${fmt(p.start)} – ${fmt(p.end)}. You can still update your comment.`;
+  })();
+
+  const saveComment = async () => {
+    if (!periodCheckin) return;
+    setSavingComment(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("submit-checkin", {
+        body: { token, action: "edit_comment", check_in_id: periodCheckin.id, notes: commentDraft },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setPeriodCheckin((c) => (c ? { ...c, notes: (data?.notes ?? null) as string | null } : c));
+      setEditingComment(false);
+      toast.success("Comment updated.");
+    } catch (err: any) {
+      toast.error(err.message ?? "Failed to save comment");
+    } finally {
+      setSavingComment(false);
+    }
+  };
+
   const submitCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingCheckin(true);
