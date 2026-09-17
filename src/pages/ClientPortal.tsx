@@ -129,6 +129,8 @@ interface ClientState {
   phase3_lunch_prompt_last_dismissed_on: string | null;
   client_type?: "mb" | "custom";
   checkin_cadence?: string | null;
+  checkin_period?: { start: string; end: string } | null;
+  current_period_checkin?: CheckinRow | null;
   practitioner_checkin_metrics?: unknown;
   mb_food_list?: unknown;
   mb_run?: unknown;
@@ -151,6 +153,19 @@ interface ClientState {
 }
 
 
+
+type CheckinRow = {
+  id: string;
+  created_at: string;
+  notes: string | null;
+  weight_kg: number | null;
+  water_litres: number | null;
+  feeling: number | null;
+  waist_cm: number | null;
+  hip_cm: number | null;
+  chest_cm: number | null;
+  upper_thigh_cm: number | null;
+} & Record<string, unknown>;
 
 type TabKey = "home" | "checkin" | "plan" | "planner" | "messages";
 
@@ -199,6 +214,11 @@ export default function ClientPortal() {
   const [notes, setNotes] = useState("");
   const [submittingCheckin, setSubmittingCheckin] = useState(false);
   const [checkinDone, setCheckinDone] = useState(false);
+  // This cadence period's existing check-in — one submission per period.
+  const [periodCheckin, setPeriodCheckin] = useState<CheckinRow | null>(null);
+  const [editingComment, setEditingComment] = useState(false);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [savingComment, setSavingComment] = useState(false);
 
 
   // Phase 2 Strict daily progress
@@ -246,6 +266,7 @@ export default function ClientPortal() {
       setLengthUnit(data.client.length_unit || "cm");
       setLatestWeightKg(data.client.latest_weight_kg ?? null);
       setLatestWeightAt(data.client.latest_weight_at ?? null);
+      setPeriodCheckin((data.client.current_period_checkin ?? null) as CheckinRow | null);
       if (data.client.welcome_seen === false && data.client.phase !== "phase4") setWelcomeOpen(true);
     } else if (data?.archived) {
       setArchived(true);
@@ -801,6 +822,36 @@ export default function ClientPortal() {
     }
   }, [tab, client, renderGender]);
 
+  // Read-only summary of this period's existing check-in; only the comment
+  // can be changed afterwards.
+  const periodSummaryLabel = (() => {
+    const p = client?.checkin_period ?? null;
+    const fmt = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString(undefined, { month: "long", day: "numeric" });
+    if (!p) return "You can update your comment below.";
+    return p.start === p.end
+      ? `Check-in recorded for ${fmt(p.start)}. You can still update your comment.`
+      : `Check-in recorded for ${fmt(p.start)} – ${fmt(p.end)}. You can still update your comment.`;
+  })();
+
+  const saveComment = async () => {
+    if (!periodCheckin) return;
+    setSavingComment(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("submit-checkin", {
+        body: { token, action: "edit_comment", check_in_id: periodCheckin.id, notes: commentDraft },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setPeriodCheckin((c) => (c ? { ...c, notes: (data?.notes ?? null) as string | null } : c));
+      setEditingComment(false);
+      toast.success("Comment updated.");
+    } catch (err: any) {
+      toast.error(err.message ?? "Failed to save comment");
+    } finally {
+      setSavingComment(false);
+    }
+  };
+
   const submitCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittingCheckin(true);
@@ -834,8 +885,14 @@ export default function ClientPortal() {
       }
       const { data, error } = await supabase.functions.invoke("submit-checkin", { body });
       if (error) throw error;
+      if (data?.error === "already_submitted") {
+        setPeriodCheckin((data.existing ?? null) as CheckinRow | null);
+        toast.info("You've already checked in for this period.");
+        return;
+      }
       if (data?.error) throw new Error(data.error);
       setClient((c) => (c ? { ...c, water_today_litres: waterLitres } : c));
+      if (data?.existing) setPeriodCheckin(data.existing as CheckinRow);
       setCheckinDone(true);
     } catch (err: any) {
       toast.error(err.message ?? "Failed to submit");
@@ -1424,13 +1481,74 @@ export default function ClientPortal() {
             );
           })()}
 
-          {checkinDone ? (
-            <Card className="p-6 text-center space-y-3">
-              <h2 className="text-lg font-semibold">Thanks!</h2>
-              <p className="text-sm text-muted-foreground">Your nutritionist has been notified.</p>
-              <Button variant="outline" onClick={() => { setCheckinDone(false); setFeeling(3); setNotes(""); setWeightInput(""); setRatings(initialRatings); setWaistInput(""); setHipInput(""); setThighInput(""); }}>
-                Submit another
-              </Button>
+          {periodCheckin ? (
+            <Card className="p-6 space-y-4">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">{checkinDone ? "Thanks — check-in received" : "You've already checked in"}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {periodSummaryLabel}
+                </p>
+              </div>
+              <dl className="space-y-1 text-sm">
+                {(() => {
+                  const rows: Array<[string, string]> = [];
+                  const num = (v: unknown) => (typeof v === "number" ? v : v == null ? null : Number(v));
+                  const w = num(periodCheckin.weight_kg);
+                  if (w != null && !Number.isNaN(w)) {
+                    rows.push(["Weight", weightUnit === "lbs" ? `${Math.round(w * 2.20462 * 10) / 10} lbs` : `${Math.round(w * 10) / 10} kg`]);
+                  }
+                  const wl = num(periodCheckin.water_litres);
+                  if (wl != null && !Number.isNaN(wl)) rows.push(["Water", `${wl} L`]);
+                  const fl = num(periodCheckin.feeling);
+                  if (fl != null && !Number.isNaN(fl)) rows.push(["Feeling", `${fl}/5`]);
+                  for (const m of checkinMetrics) {
+                    const v = num(periodCheckin[m.key]);
+                    if (v != null && !Number.isNaN(v)) rows.push([m.label, `${v}/5`]);
+                  }
+                  const measure: Array<[string, unknown]> = [
+                    ["Waist", periodCheckin.waist_cm],
+                    ["Hip", periodCheckin.hip_cm],
+                    ["Chest", periodCheckin.chest_cm],
+                    ["Upper thigh", periodCheckin.upper_thigh_cm],
+                  ];
+                  for (const [label, raw] of measure) {
+                    const v = num(raw);
+                    if (v == null || Number.isNaN(v)) continue;
+                    rows.push([label, lengthUnit === "in" ? `${Math.round((v / 2.54) * 10) / 10} in` : `${Math.round(v * 10) / 10} cm`]);
+                  }
+                  return rows.map(([label, value]) => (
+                    <div key={label} className="flex justify-between gap-4">
+                      <dt className="text-muted-foreground">{label}</dt>
+                      <dd className="font-medium">{value}</dd>
+                    </div>
+                  ));
+                })()}
+              </dl>
+              <div className="border-t pt-4 space-y-2">
+                <Label htmlFor="period-comment">Your comment</Label>
+                {editingComment ? (
+                  <>
+                    <Textarea id="period-comment" rows={3} value={commentDraft} onChange={(e) => setCommentDraft(e.target.value)} />
+                    <div className="flex gap-2">
+                      <Button size="sm" disabled={savingComment} onClick={saveComment}>
+                        {savingComment ? "Saving…" : "Save comment"}
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={savingComment} onClick={() => setEditingComment(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {periodCheckin.notes?.trim() || "No comment added."}
+                    </p>
+                    <Button size="sm" variant="outline" onClick={() => { setCommentDraft(periodCheckin.notes ?? ""); setEditingComment(true); }}>
+                      Edit comment
+                    </Button>
+                  </>
+                )}
+              </div>
             </Card>
           ) : isRatingsMode ? (
             <Card className="p-6 space-y-6">
