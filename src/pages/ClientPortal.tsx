@@ -266,6 +266,7 @@ export default function ClientPortal() {
       setLengthUnit(data.client.length_unit || "cm");
       setLatestWeightKg(data.client.latest_weight_kg ?? null);
       setLatestWeightAt(data.client.latest_weight_at ?? null);
+      setPeriodCheckin((data.client.current_period_checkin ?? null) as CheckinRow | null);
       if (data.client.welcome_seen === false && data.client.phase !== "phase4") setWelcomeOpen(true);
     } else if (data?.archived) {
       setArchived(true);
