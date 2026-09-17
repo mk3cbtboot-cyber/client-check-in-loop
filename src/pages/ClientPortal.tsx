@@ -129,6 +129,8 @@ interface ClientState {
   phase3_lunch_prompt_last_dismissed_on: string | null;
   client_type?: "mb" | "custom";
   checkin_cadence?: string | null;
+  checkin_period?: { start: string; end: string } | null;
+  current_period_checkin?: CheckinRow | null;
   practitioner_checkin_metrics?: unknown;
   mb_food_list?: unknown;
   mb_run?: unknown;
@@ -151,6 +153,19 @@ interface ClientState {
 }
 
 
+
+type CheckinRow = {
+  id: string;
+  created_at: string;
+  notes: string | null;
+  weight_kg: number | null;
+  water_litres: number | null;
+  feeling: number | null;
+  waist_cm: number | null;
+  hip_cm: number | null;
+  chest_cm: number | null;
+  upper_thigh_cm: number | null;
+} & Record<string, unknown>;
 
 type TabKey = "home" | "checkin" | "plan" | "planner" | "messages";
 
@@ -199,6 +214,11 @@ export default function ClientPortal() {
   const [notes, setNotes] = useState("");
   const [submittingCheckin, setSubmittingCheckin] = useState(false);
   const [checkinDone, setCheckinDone] = useState(false);
+  // This cadence period's existing check-in — one submission per period.
+  const [periodCheckin, setPeriodCheckin] = useState<CheckinRow | null>(null);
+  const [editingComment, setEditingComment] = useState(false);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [savingComment, setSavingComment] = useState(false);
 
 
   // Phase 2 Strict daily progress
@@ -834,8 +854,14 @@ export default function ClientPortal() {
       }
       const { data, error } = await supabase.functions.invoke("submit-checkin", { body });
       if (error) throw error;
+      if (data?.error === "already_submitted") {
+        setPeriodCheckin((data.existing ?? null) as CheckinRow | null);
+        toast.info("You've already checked in for this period.");
+        return;
+      }
       if (data?.error) throw new Error(data.error);
       setClient((c) => (c ? { ...c, water_today_litres: waterLitres } : c));
+      if (data?.existing) setPeriodCheckin(data.existing as CheckinRow);
       setCheckinDone(true);
     } catch (err: any) {
       toast.error(err.message ?? "Failed to submit");
