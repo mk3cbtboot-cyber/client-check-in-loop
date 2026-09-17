@@ -160,18 +160,7 @@ Deno.serve(async (req) => {
     // Carry client check-in notes into Practitioner Notes (append-only, timestamped).
     if (notes && notes.trim().length > 0) {
       try {
-        let tz = typeof client.timezone === "string" ? client.timezone.trim() : "";
-        try { if (tz) new Intl.DateTimeFormat("en-US", { timeZone: tz }); } catch { tz = ""; }
-        const stamp = new Intl.DateTimeFormat("en-US", {
-          timeZone: tz || "UTC",
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        }).format(new Date());
-        const entry = `[${stamp}] Client check-in note: ${notes.trim()}`;
+        const entry = `[${stamp(client.timezone)}] Client check-in note: ${notes.trim()}`;
         const existing = (client.practitioner_notes ?? "").trim();
         const combined = existing ? `${existing}\n${entry}` : entry;
         await admin.from("clients").update({ practitioner_notes: combined }).eq("id", client.id);
