@@ -45,10 +45,24 @@ Deno.serve(async (req) => {
     }
     const p = parsed.data;
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: client } = await admin.from("clients").select("id, timezone").eq("magic_token", p.token).maybeSingle();
+    const { data: client } = await admin
+      .from("clients")
+      .select("id, timezone, client_type, system_mode")
+      .eq("magic_token", p.token)
+      .maybeSingle();
     if (!client) {
       return new Response(JSON.stringify({ error: "Invalid link" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // MB-only endpoint. Custom Rx clients must never write an MB weekly plan,
+    // whatever route reaches this function. Explicit tier branch by design.
+    const isCustom = client.client_type === "custom" || client.system_mode === "own_practice";
+    if (isCustom && p.action !== "get") {
+      return new Response(JSON.stringify({ error: "The Meal Planner is not part of your plan." }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

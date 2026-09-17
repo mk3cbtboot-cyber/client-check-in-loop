@@ -2010,7 +2010,21 @@ export default function ClientPortal() {
         </section>
       )}
 
-      {tab === "planner" && client.phase !== "phase4" && (
+      {/* Custom Rx clients have no MB Meal Planner — explicit tier branch, not
+          a nav-visibility side effect. Direct ?tab=planner links land here. */}
+      {tab === "planner" && isCustomClient && (
+        <section className="max-w-3xl mx-auto p-4">
+          <Card className="p-6 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              The Meal Planner isn't part of your plan. Your practitioner builds your plan for you —
+              you'll find it on your home screen.
+            </p>
+            <Button onClick={() => setTab("home")}>Go to my plan</Button>
+          </Card>
+        </section>
+      )}
+
+      {tab === "planner" && !isCustomClient && client.phase !== "phase4" && (
         <section className="max-w-5xl mx-auto p-4">
           {client.phase === "phase1" ? (
             <Card className="p-6 text-sm text-muted-foreground">
