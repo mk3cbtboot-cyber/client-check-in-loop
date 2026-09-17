@@ -3,6 +3,8 @@ import { z } from "https://esm.sh/zod@3.23.8";
 import { foldLedger, weekWindowFor } from "../_shared/mb-cap.ts";
 import { localParts, missedMealSlots } from "../_shared/missed-meals.ts";
 import { planInstructionsHash } from "../_shared/plan-instructions-hash.ts";
+import { currentCheckinPeriod } from "../_shared/checkin-period.ts";
+import { localDayISO, shiftISO } from "../_shared/local-day.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,6 +78,24 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    // One check-in per cadence period: surface this period's existing entry so
+    // the portal can show a read-only summary instead of a blank form.
+    const checkinPeriod = currentCheckinPeriod(c, td);
+    let currentPeriodCheckin: unknown = null;
+    if (checkinPeriod) {
+      const { data: periodRows } = await admin
+        .from("check_ins")
+        .select("*")
+        .eq("client_id", c.id)
+        .gte("created_at", `${shiftISO(checkinPeriod.start, -2)}T00:00:00Z`)
+        .order("created_at", { ascending: true });
+      currentPeriodCheckin =
+        (periodRows ?? []).find((r: { created_at: string }) => {
+          const d = localDayISO(r.created_at, clientTz);
+          return d >= checkinPeriod.start && d <= checkinPeriod.end;
+        }) ?? null;
+    }
 
     // Sync today's water into daily_water_logs and compute streak
     const WATER_TARGET = Number(c.water_target_litres ?? 2.5) || 2.5;
@@ -258,6 +278,8 @@ Deno.serve(async (req) => {
         food_starch: c.food_starch ?? "",
         food_bread: c.food_bread ?? "",
         food_fruit: c.food_fruit ?? "",
+        checkin_period: checkinPeriod,
+        current_period_checkin: currentPeriodCheckin,
         latest_weight_kg: latestCheckIn?.weight_kg != null ? Number(latestCheckIn.weight_kg) : null,
         latest_weight_at: latestCheckIn?.created_at ?? null,
         system_mode: c.system_mode === "own_practice" ? "own_practice" : "mb",
