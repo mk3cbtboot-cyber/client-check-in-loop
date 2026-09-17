@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
     const parsed = BodySchema.safeParse(raw);
     if (!parsed.success) return json({ error: "Invalid input" }, 400);
     const { token, notes, ...restAll } = parsed.data;
-    const { action: _ignored, ...rest } = restAll as Record<string, unknown>;
+    const { action: _ignored, ...rest } = restAll;
 
     const { data: client, error: clientErr } = await admin
       .from("clients")
@@ -218,10 +218,7 @@ Deno.serve(async (req) => {
       console.warn("Notification email failed (non-fatal):", emailErr);
     }
 
-    return new Response(JSON.stringify({ ok: true }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ ok: true, existing: checkIn, period });
   } catch (err: any) {
     console.error("submit-checkin error:", err);
     return new Response(JSON.stringify({ error: err.message ?? "Server error" }), {
