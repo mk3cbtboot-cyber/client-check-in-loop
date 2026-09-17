@@ -102,6 +102,10 @@ Deno.serve(async (req) => {
     // MB / Practitioner Rx clients must set it explicitly; Custom stays NULL.
     const isCustomClient = client_type === "custom" || system_mode === "own_practice";
     if (!isCustomClient) insertRow.phase = "phase2_strict";
+    // Custom Rx clients default to weekly cadence so measurement tracking is on
+    // from day one (measurements only show on weekly/biweekly cadence). MB-side
+    // clients stay on "auto" (phase-derived).
+    if (isCustomClient) insertRow.checkin_cadence = "weekly";
     // A real default day boundary from the start — the practitioner's own zone,
     // else Toronto. The portal still corrects this to the client's own zone.
     insertRow.timezone = isValidTz(timezone) ? timezone : FALLBACK_TZ;
