@@ -3,12 +3,21 @@ const corsHeaders = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-
 import { z } from "https://esm.sh/zod@3.23.8";
 import { sendTemplateEmail } from "../_shared/transactional-email-templates/send-email.ts";
 import { logEmailSend } from "../_shared/email-send-log.ts";
-import { localTodayISO } from "../_shared/local-day.ts";
+import { localDayISO, localTodayISO, shiftISO } from "../_shared/local-day.ts";
+import { currentCheckinPeriod } from "../_shared/checkin-period.ts";
 
 const rating = z.number().int().min(1).max(5).optional();
 
+const EditCommentSchema = z.object({
+  token: z.string().min(10).max(200),
+  action: z.literal("edit_comment"),
+  check_in_id: z.string().uuid(),
+  notes: z.string().max(2000),
+});
+
 const BodySchema = z.object({
   token: z.string().min(10).max(200),
+  action: z.undefined().optional(),
   feeling: z.number().int().min(1).max(5).optional(),
   water_litres: z.number().min(0).max(20).optional(),
   notes: z.string().max(2000).optional().default(""),
