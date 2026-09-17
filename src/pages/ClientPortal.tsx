@@ -1451,13 +1451,74 @@ export default function ClientPortal() {
             );
           })()}
 
-          {checkinDone ? (
-            <Card className="p-6 text-center space-y-3">
-              <h2 className="text-lg font-semibold">Thanks!</h2>
-              <p className="text-sm text-muted-foreground">Your nutritionist has been notified.</p>
-              <Button variant="outline" onClick={() => { setCheckinDone(false); setFeeling(3); setNotes(""); setWeightInput(""); setRatings(initialRatings); setWaistInput(""); setHipInput(""); setThighInput(""); }}>
-                Submit another
-              </Button>
+          {periodCheckin ? (
+            <Card className="p-6 space-y-4">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">{checkinDone ? "Thanks — check-in received" : "You've already checked in"}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {periodSummaryLabel}
+                </p>
+              </div>
+              <dl className="space-y-1 text-sm">
+                {(() => {
+                  const rows: Array<[string, string]> = [];
+                  const num = (v: unknown) => (typeof v === "number" ? v : v == null ? null : Number(v));
+                  const w = num(periodCheckin.weight_kg);
+                  if (w != null && !Number.isNaN(w)) {
+                    rows.push(["Weight", weightUnit === "lbs" ? `${Math.round(w * 2.20462 * 10) / 10} lbs` : `${Math.round(w * 10) / 10} kg`]);
+                  }
+                  const wl = num(periodCheckin.water_litres);
+                  if (wl != null && !Number.isNaN(wl)) rows.push(["Water", `${wl} L`]);
+                  const fl = num(periodCheckin.feeling);
+                  if (fl != null && !Number.isNaN(fl)) rows.push(["Feeling", `${fl}/5`]);
+                  for (const m of checkinMetrics) {
+                    const v = num(periodCheckin[m.key]);
+                    if (v != null && !Number.isNaN(v)) rows.push([m.label, `${v}/5`]);
+                  }
+                  const measure: Array<[string, unknown]> = [
+                    ["Waist", periodCheckin.waist_cm],
+                    ["Hip", periodCheckin.hip_cm],
+                    ["Chest", periodCheckin.chest_cm],
+                    ["Upper thigh", periodCheckin.upper_thigh_cm],
+                  ];
+                  for (const [label, raw] of measure) {
+                    const v = num(raw);
+                    if (v == null || Number.isNaN(v)) continue;
+                    rows.push([label, lengthUnit === "in" ? `${Math.round((v / 2.54) * 10) / 10} in` : `${Math.round(v * 10) / 10} cm`]);
+                  }
+                  return rows.map(([label, value]) => (
+                    <div key={label} className="flex justify-between gap-4">
+                      <dt className="text-muted-foreground">{label}</dt>
+                      <dd className="font-medium">{value}</dd>
+                    </div>
+                  ));
+                })()}
+              </dl>
+              <div className="border-t pt-4 space-y-2">
+                <Label htmlFor="period-comment">Your comment</Label>
+                {editingComment ? (
+                  <>
+                    <Textarea id="period-comment" rows={3} value={commentDraft} onChange={(e) => setCommentDraft(e.target.value)} />
+                    <div className="flex gap-2">
+                      <Button size="sm" disabled={savingComment} onClick={saveComment}>
+                        {savingComment ? "Saving…" : "Save comment"}
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={savingComment} onClick={() => setEditingComment(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {periodCheckin.notes?.trim() || "No comment added."}
+                    </p>
+                    <Button size="sm" variant="outline" onClick={() => { setCommentDraft(periodCheckin.notes ?? ""); setEditingComment(true); }}>
+                      Edit comment
+                    </Button>
+                  </>
+                )}
+              </div>
             </Card>
           ) : isRatingsMode ? (
             <Card className="p-6 space-y-6">
