@@ -42,12 +42,18 @@ const FOOD_LIST_FIRST_STEPS = [
 export default function ClientWelcome({
   open,
   clientName,
+  clientType,
   planFormat,
   practitionerDisplayName,
   onDismiss,
 }: Props) {
   const firstName = (clientName || "").trim().split(/\s+/)[0] || "there";
   const practitioner = practitionerDisplayName?.trim() || "your nutritionist";
+  // Branch MB vs Custom on the explicit client type, never on plan_format:
+  // MB clients keep the column default ('food_list'), which would otherwise
+  // misclassify them as Custom. plan_format only distinguishes the Custom
+  // sub-formats (food list vs recipe plan).
+  const isCustom = clientType === "custom";
   const isFoodList = planFormat === "food_list" || planFormat === "food_list_generated";
   const isRecipe = planFormat === "recipe";
 
