@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 interface Props {
   open: boolean;
   clientName: string;
+  clientType?: "mb" | "custom";
   planFormat?: string;
   practitionerDisplayName?: string;
   onDismiss: () => void;
