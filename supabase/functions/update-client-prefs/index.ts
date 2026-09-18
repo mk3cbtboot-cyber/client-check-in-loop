@@ -39,12 +39,20 @@ Deno.serve(async (req) => {
     if (phase3_lunch_action) {
       const { data: c } = await admin
         .from("clients")
-        .select("phase3_lunch_protein_bonus, phase3_lunch_carb_bonus")
+        .select("client_type, system_mode, phase3_lunch_protein_bonus, phase3_lunch_carb_bonus")
         .eq("magic_token", token)
         .maybeSingle();
       if (!c) {
         return new Response(JSON.stringify({ error: "not_found" }), {
           status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Phase 3 lunch bonuses are MB-only fields. Explicit tier branch — a
+      // Custom Rx client must never have them written onto their row.
+      if (c.client_type !== "mb" || c.system_mode === "own_practice") {
+        return new Response(JSON.stringify({ error: "not_applicable" }), {
+          status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
