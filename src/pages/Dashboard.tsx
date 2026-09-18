@@ -1248,18 +1248,6 @@ export default function Dashboard() {
     toast.success("Saved");
   };
 
-  const saveIntake = async (clientId: string) => {
-    const c = clients.find((x) => x.id === clientId);
-    if (!c) return;
-    const { error } = await supabase.from("clients").update({
-      medical_conditions: c.medical_conditions ?? "",
-      current_medications: c.current_medications ?? "",
-      client_goal: c.client_goal ?? "",
-      vitamins_supplements: c.vitamins_supplements ?? "",
-    } as never).eq("id", clientId);
-    if (error) return toast.error("Could not save");
-    toast.success("Medical & Intake saved");
-  };
 
   const logout = async () => {
     await supabase.auth.signOut();
