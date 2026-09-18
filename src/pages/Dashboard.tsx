@@ -2622,31 +2622,6 @@ export default function Dashboard() {
                         </div>
                       </TabsContent>
 
-                      <TabsContent value="medical" className="space-y-3 pt-3">
-                        <p className="text-sm font-medium">Medical &amp; Intake</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {([
-                            { key: "medical_conditions", label: "Medical Conditions", placeholder: "e.g. IBS, Type 2 Diabetes, Hypertension" },
-                            { key: "current_medications", label: "Current Medications", placeholder: "e.g. Metformin 500mg, Lisinopril 10mg" },
-                            { key: "client_goal", label: "Client Goal", placeholder: "e.g. Reverse pre-diabetes, lose 20kg" },
-                            { key: "vitamins_supplements", label: "Vitamins & Supplements", placeholder: "e.g. Vitamin D3 2000IU, Magnesium Glycinate 400mg" },
-                          ] as const).map((f) => (
-                            <div key={f.key} className="space-y-1">
-                              <Label htmlFor={`${f.key}-${client.id}`} className="text-xs">{f.label}</Label>
-                              <Textarea
-                                id={`${f.key}-${client.id}`}
-                                placeholder={f.placeholder}
-                                value={(client[f.key] as string) ?? ""}
-                                onChange={(e) => setClientField(client.id, f.key, e.target.value)}
-                                rows={2}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                        <div className="flex justify-end">
-                          <Button size="sm" onClick={() => saveIntake(client.id)}>Save Medical &amp; Intake</Button>
-                        </div>
-                      </TabsContent>
 
                       <TabsContent value="progress" className="pt-3 space-y-4">
                         <ClientTrendGraphs
