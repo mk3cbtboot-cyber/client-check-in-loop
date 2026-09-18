@@ -2610,6 +2610,18 @@ export default function Dashboard() {
                         </div>
 
                         <div className="space-y-2">
+                          <Label htmlFor={`cg-${client.id}`} className="text-sm font-medium">Client Goal</Label>
+                          <Textarea
+                            id={`cg-${client.id}`}
+                            placeholder="e.g. Reverse pre-diabetes, lose 20kg"
+                            value={client.client_goal ?? ""}
+                            onChange={(e) => setClientField(client.id, "client_goal", e.target.value)}
+                            onBlur={(e) => saveClientField(client.id, "client_goal", e.target.value)}
+                            rows={2}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
                           <Label htmlFor={`pn-${client.id}`} className="text-sm font-medium">Practitioner Notes</Label>
                           <Textarea
                             id={`pn-${client.id}`}
