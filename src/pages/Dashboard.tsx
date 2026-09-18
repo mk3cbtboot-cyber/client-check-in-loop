@@ -1248,18 +1248,6 @@ export default function Dashboard() {
     toast.success("Saved");
   };
 
-  const saveIntake = async (clientId: string) => {
-    const c = clients.find((x) => x.id === clientId);
-    if (!c) return;
-    const { error } = await supabase.from("clients").update({
-      medical_conditions: c.medical_conditions ?? "",
-      current_medications: c.current_medications ?? "",
-      client_goal: c.client_goal ?? "",
-      vitamins_supplements: c.vitamins_supplements ?? "",
-    } as never).eq("id", clientId);
-    if (error) return toast.error("Could not save");
-    toast.success("Medical & Intake saved");
-  };
 
   const logout = async () => {
     await supabase.auth.signOut();
@@ -2215,9 +2203,8 @@ export default function Dashboard() {
 
 
                     <Tabs defaultValue="overview" className="w-full" value={(client as unknown as { _activeTab?: string })._activeTab ?? undefined} onValueChange={(v) => setClients((cs) => cs.map((x) => (x.id === client.id ? ({ ...x, _activeTab: v } as typeof x) : x)))}>
-                      <TabsList className={`grid w-full ${client.system_mode === "own_practice" && client.plan_format === "food_list_generated" ? "grid-cols-6" : "grid-cols-5"}`}>
+                      <TabsList className={`grid w-full ${client.system_mode === "own_practice" && client.plan_format === "food_list_generated" ? "grid-cols-5" : "grid-cols-4"}`}>
                         <TabsTrigger value="overview">Overview</TabsTrigger>
-                        <TabsTrigger value="medical">Medical</TabsTrigger>
                         <TabsTrigger value="progress">Progress</TabsTrigger>
                         {client.system_mode === "own_practice" && client.plan_format === "food_list_generated" && (
                           <TabsTrigger value="macros">Macros / MPG</TabsTrigger>
@@ -2610,6 +2597,18 @@ export default function Dashboard() {
                         </div>
 
                         <div className="space-y-2">
+                          <Label htmlFor={`cg-${client.id}`} className="text-sm font-medium">Client Goal</Label>
+                          <Textarea
+                            id={`cg-${client.id}`}
+                            placeholder="e.g. Reverse pre-diabetes, lose 20kg"
+                            value={client.client_goal ?? ""}
+                            onChange={(e) => setClientField(client.id, "client_goal", e.target.value)}
+                            onBlur={(e) => saveClientField(client.id, "client_goal", e.target.value)}
+                            rows={2}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
                           <Label htmlFor={`pn-${client.id}`} className="text-sm font-medium">Practitioner Notes</Label>
                           <Textarea
                             id={`pn-${client.id}`}
@@ -2622,31 +2621,6 @@ export default function Dashboard() {
                         </div>
                       </TabsContent>
 
-                      <TabsContent value="medical" className="space-y-3 pt-3">
-                        <p className="text-sm font-medium">Medical &amp; Intake</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {([
-                            { key: "medical_conditions", label: "Medical Conditions", placeholder: "e.g. IBS, Type 2 Diabetes, Hypertension" },
-                            { key: "current_medications", label: "Current Medications", placeholder: "e.g. Metformin 500mg, Lisinopril 10mg" },
-                            { key: "client_goal", label: "Client Goal", placeholder: "e.g. Reverse pre-diabetes, lose 20kg" },
-                            { key: "vitamins_supplements", label: "Vitamins & Supplements", placeholder: "e.g. Vitamin D3 2000IU, Magnesium Glycinate 400mg" },
-                          ] as const).map((f) => (
-                            <div key={f.key} className="space-y-1">
-                              <Label htmlFor={`${f.key}-${client.id}`} className="text-xs">{f.label}</Label>
-                              <Textarea
-                                id={`${f.key}-${client.id}`}
-                                placeholder={f.placeholder}
-                                value={(client[f.key] as string) ?? ""}
-                                onChange={(e) => setClientField(client.id, f.key, e.target.value)}
-                                rows={2}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                        <div className="flex justify-end">
-                          <Button size="sm" onClick={() => saveIntake(client.id)}>Save Medical &amp; Intake</Button>
-                        </div>
-                      </TabsContent>
 
                       <TabsContent value="progress" className="pt-3 space-y-4">
                         <ClientTrendGraphs
