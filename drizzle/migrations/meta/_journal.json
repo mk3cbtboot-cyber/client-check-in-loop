@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789691368133,
+      "tag": "0000_null_phase_on_custom_conversion",
+      "breakpoints": true
+    }
+  ]
+}
