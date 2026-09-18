@@ -71,8 +71,6 @@ export default function ClientWelcome({
       ]
     : FOOD_LIST_FIRST_STEPS;
 
-  const isCustom = isFoodList || isRecipe;
-
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onDismiss(); }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
