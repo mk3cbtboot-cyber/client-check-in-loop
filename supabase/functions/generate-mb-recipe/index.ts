@@ -30,6 +30,12 @@ Deno.serve(async (req) => {
     const { data: c } = await admin.from("clients").select("*").eq("magic_token", token).maybeSingle();
     if (!c) return new Response(JSON.stringify({ error: "Invalid link" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    // MB-only surface. Custom Rx clients must never reach MB phase logic or cap
+    // ledger writes — explicit tier branch, never inferred from a null phase.
+    if (c.client_type !== "mb" || c.system_mode === "own_practice") {
+      return new Response(JSON.stringify({ error: "not_applicable" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     if (c.phase === "phase1") {
       return new Response(JSON.stringify({ error: "The recipe builder is not available during Phase 1." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

@@ -68,6 +68,12 @@ Deno.serve(async (req) => {
     const { data: c } = await admin.from("clients").select("*").eq("magic_token", token).maybeSingle();
     if (!c) return new Response(JSON.stringify({ error: "Invalid link" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    // MB-only surface. Custom Rx clients log through log-foodlist-meal /
+    // log-recipe-meal; explicit tier branch, never inferred from a null phase.
+    if (c.client_type !== "mb" || c.system_mode === "own_practice") {
+      return new Response(JSON.stringify({ error: "not_applicable" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const foodLimits = (c.food_limits ?? {}) as Record<string, number>;
 
     // For each limited food key, count how many times this meal would use it.
